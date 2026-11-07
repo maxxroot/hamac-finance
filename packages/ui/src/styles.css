@@ -27,11 +27,12 @@
   --color-negative: #f2645a;
   --color-warning: #f5a524;
 
-  --color-livrets: #6cb4ee;
-  --color-fonds-euros: #4fb286;
-  --color-obligations: #5b7cfa;
-  --color-actions: #f29a4b;
-  --color-crypto: #a77bf3;
+  /* Poches : palette catégorielle validée (fond sombre, OKLCH L 0,48–0,67, daltonisme ΔE ≥ 16). Ordre fixe. */
+  --color-livrets: #539ad3;
+  --color-fonds-euros: #1b895f;
+  --color-obligations: #597af7;
+  --color-actions: #cf7a25;
+  --color-crypto: #8f63d8;
 }
 
 @layer base {

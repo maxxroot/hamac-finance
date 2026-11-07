@@ -43,7 +43,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
   await tx(`${p}-01-02`, "apport_initial", ldds, 3500);
   await tx(`${p}-01-02`, "apport_initial", pea, 4000, { comment: "PEA ouvert il y a quelques années" });
   await tx(`${p}-01-10`, "apport_initial", av, 2000);
-  await tx(`${p}-01-05`, "apport_initial", cto, 3000);
+  await tx(`${p}-01-05`, "apport_initial", cto, 3500);
   await tx(`${p}-01-05`, "apport_initial", crypto, 800);
   await tx(`${p}-01-15`, "achat", pea, 2401.2, { assetId: sp.id, quantity: 60, fee: 11.95 });
   await tx(`${p}-01-15`, "achat", pea, 603.0, { assetId: em.id, quantity: 25, fee: 3 });
@@ -56,6 +56,9 @@ export async function seedDemo(backend: Backend): Promise<void> {
   await tx(`${p}-12-31`, "interets", ldds, 52.1);
   await tx(`${p}-12-31`, "interets", av, 58.4);
   await tx(`${y}-01-20`, "achat", cto, 2935.5, { assetId: oat2.id, quantity: 3000, fee: 14.6, comment: "Acheté à 97,36 %" });
+  await tx(`${y}-02-03`, "achat", pea, 1196.4, { assetId: sp.id, quantity: 25, fee: 5.95 });
+  await tx(`${y}-06-02`, "achat", pea, 1203.6, { assetId: eu.id, quantity: 20, fee: 5.99 });
+  await tx(`${y}-09-01`, "achat", pea, 512.5, { assetId: em.id, quantity: 20, fee: 2.55 });
   await tx(`${y}-02-10`, "vente", crypto, 312, { assetId: btc.id, quantity: 0.004, fee: 0, comment: "Prise de bénéfices" });
   await tx(`${y}-03-01`, "transfert", ldds, 1000, { counterAccountId: av, comment: "Excédent des livrets vers le fonds euros" });
   await tx(`${y}-05-25`, "interets", cto, 73.26, { assetId: oat1.id, comment: "Coupon net" });
