@@ -29,6 +29,7 @@ export const newId = () => crypto.randomUUID();
 export const nowIso = () => new Date().toISOString();
 
 export const PARAMS_KEY = "plan.parameters";
+export const PRICE_STATUS_KEY = "prices.status";
 
 export function mapAccount(r: typeof t.accounts.$inferSelect): Account {
   return {
@@ -138,7 +139,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, latest] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
     db.select().from(t.assets).orderBy(t.assets.name).all(),
@@ -149,12 +150,13 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     db.select().from(t.fundRates).orderBy(t.fundRates.year).all(),
     db.select().from(t.statements).orderBy(desc(t.statements.date)).all(),
     db.select().from(t.plannedExpenses).orderBy(t.plannedExpenses.year).all(),
-    // Dernier cours de chaque titre.
+    // Historique allégé : dernier cours de chaque mois pour chaque titre.
     db
       .select()
       .from(t.prices)
-      .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id)`)
+      .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id, substr(date, 1, 7))`)
       .all(),
+    db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).get(),
   ]);
   return {
     params,
@@ -167,6 +169,7 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     fundRates: fundRates.map(mapFundRate),
     statements: statements.map(mapStatement),
     plannedExpenses: expenses.map(mapExpense),
-    latestPrices: latest.map((p): PricePoint => ({ ...p })),
+    prices: prices.map((p): PricePoint => ({ ...p })),
+    priceStatus: status ? JSON.parse(status.value) : null,
   };
 }

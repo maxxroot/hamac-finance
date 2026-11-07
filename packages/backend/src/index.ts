@@ -4,6 +4,7 @@ import type { BackendContext } from "./context";
 import { migrate } from "./db/migrate";
 import { openSqlite } from "./db/sqlite";
 import { handlers } from "./handlers";
+import { defaultFetcher, type Fetcher } from "./market";
 
 export interface BackendOptions {
   databasePath: string;
@@ -11,6 +12,10 @@ export interface BackendOptions {
   appVersion: string;
   /** Dossier des sauvegardes quotidiennes ; null pour désactiver (tests, base en mémoire). */
   backupsDir: string | null;
+  /** Actualise les cours au démarrage puis toutes les 30 minutes. */
+  autoRefreshPrices?: boolean;
+  /** Client HTTP (injectable pour les tests). */
+  fetcher?: Fetcher;
 }
 
 export interface Backend {
@@ -22,7 +27,7 @@ export interface Backend {
 export function createBackend(opts: BackendOptions): Backend {
   const { raw, db } = openSqlite(opts.databasePath);
   const schemaVersion = migrate(raw);
-  const ctx: BackendContext = { db, raw, schemaVersion, ...opts };
+  const ctx: BackendContext = { db, raw, schemaVersion, ...opts, fetcher: opts.fetcher ?? defaultFetcher };
 
   const backup = () => {
     if (!opts.backupsDir) return;
@@ -62,7 +67,10 @@ export function createBackend(opts: BackendOptions): Backend {
     }
   }
 
-  return {
+  let priceTimer: ReturnType<typeof setInterval> | null = null;
+  let firstRefresh: ReturnType<typeof setTimeout> | null = null;
+
+  const backend: Backend = {
     dispatch(name, input) {
       const result = queue.then(() => run(name, input));
       queue = result.catch(() => undefined);
@@ -70,8 +78,18 @@ export function createBackend(opts: BackendOptions): Backend {
     },
     close() {
       if (backupTimer) clearInterval(backupTimer);
+      if (priceTimer) clearInterval(priceTimer);
+      if (firstRefresh) clearTimeout(firstRefresh);
       raw.close();
     },
   };
+
+  if (opts.autoRefreshPrices) {
+    const refresh = () => void backend.dispatch("prices.refresh", undefined);
+    firstRefresh = setTimeout(refresh, 3_000);
+    priceTimer = setInterval(refresh, 30 * 60_000);
+    priceTimer.unref?.();
+  }
+  return backend;
 }
 export { seedDemo } from "./demo";

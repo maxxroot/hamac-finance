@@ -34,6 +34,7 @@ async function start() {
   backend = createBackend({
     databasePath: join(dataDir, "hamac.sqlite"),
     backupsDir: join(dataDir, "sauvegardes"),
+    autoRefreshPrices: !SMOKE_SHOT,
     mode: "desktop",
     appVersion: app.getVersion(),
   });

@@ -1,12 +1,21 @@
+import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { AssetCandidate } from "@hamac/api";
 import type { AssetInput } from "@hamac/api";
 import { ASSET_KIND_LABELS, ASSET_KINDS, type Asset, type AssetKind, type PriceSource } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate } from "@/lib/workspace";
 import { todayIso } from "@/lib/numbers";
+import { call } from "@/lib/transport";
+import { cn } from "@/lib/cn";
 
 type Draft = Required<Omit<AssetInput, "id">> & { id?: string };
+
+/** « AMUNDI MSCI WORLD » → « Amundi Msci World ». */
+function titleCase(s: string): string {
+  return s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_m, a: string, b: string) => a + b.toUpperCase()) : s;
+}
 
 function empty(kind: AssetKind): Draft {
   return {
@@ -42,6 +51,46 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
   }, [open, asset, defaultKind]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<AssetCandidate[] | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setResults(null);
+      setSearchError(null);
+    }
+  }, [open]);
+  const search = async () => {
+    if (query.trim().length < 2) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const r = await call("assets.search", { query });
+      setResults(r.candidates);
+      if (r.errors.length) setSearchError(r.errors.join(" · "));
+    } catch (e) {
+      setSearchError((e as Error).message);
+      setResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+  const pick = (c: AssetCandidate) => {
+    setD((x) => ({
+      ...empty(c.kind),
+      id: x.id,
+      name: c.kind === "obligation" && c.couponRate != null ? c.name : titleCase(c.name),
+      isin: c.isin ?? x.isin,
+      symbol: c.kind === "crypto" ? c.symbol : c.symbol,
+      couponRate: c.couponRate,
+      maturityDate: c.maturityDate,
+      issuer: c.kind === "obligation" ? (c.detail.split(" · ")[0] ?? null) : null,
+      priceSource: c.kind === "obligation" ? "modele" : c.kind === "action" && !c.symbol ? "manuel" : "auto",
+    }));
+    setResults(null);
+  };
   const isBond = d.kind === "obligation";
   const sources: PriceSource[] = isBond ? ["modele", "manuel"] : ["auto", "manuel"];
 
@@ -62,6 +111,42 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
       }
     >
       <div className="space-y-4">
+        {!asset && (
+          <div className="rounded-xl border border-line bg-surface-2/50 p-3">
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void search();
+              }}
+            >
+              <div className="relative flex-1">
+                <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-fg-faint" />
+                <TextInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher par nom ou ISIN : TotalEnergies, MSCI World, FR001400H7V7, bitcoin…" className="pl-9" autoFocus />
+              </div>
+              <Button type="submit" disabled={searching || query.trim().length < 2}>
+                {searching ? "…" : "Rechercher"}
+              </Button>
+            </form>
+            {searchError && <p className="mt-2 text-xs text-warning">{searchError}</p>}
+            {results && (
+              <ul className="mt-2 max-h-56 overflow-y-auto">
+                {results.length === 0 && <li className="px-2 py-2 text-xs text-fg-muted">Aucun résultat : remplissez la fiche à la main.</li>}
+                {results.map((c, i) => (
+                  <li key={i}>
+                    <button type="button" onClick={() => pick(c)} className={cn("w-full rounded-lg px-2 py-1.5 text-left hover:bg-surface-3")}>
+                      <div className="text-sm">
+                        {c.name} <span className="text-xs text-fg-muted">· {ASSET_KIND_LABELS[c.kind]}</span>
+                      </div>
+                      <div className="truncate text-xs text-fg-faint">{c.detail}</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[11px] text-fg-faint">Recherche via OpenFIGI (actions, ETF, obligations) et CoinGecko (crypto). Pour un ETF, l'ISIN suffit à obtenir le cours.</p>
+          </div>
+        )}
         <FormGrid>
           <Field label="Type">
             {(id) => (
@@ -78,7 +163,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
             {(id) => <TextInput id={id} value={d.isin ?? ""} onChange={(e) => set("isin", e.target.value.toUpperCase() || null)} placeholder="FR0011871128" className="font-mono" />}
           </Field>
           <Field label="Nom" className="sm:col-span-2">
-            {(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={isBond ? "ex. OAT 3,5 % 25/11/2033" : "ex. Amundi PEA S&P 500"} autoFocus />}
+            {(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={isBond ? "ex. OAT 3,5 % 25/11/2033" : "ex. Amundi PEA S&P 500"} />}
           </Field>
         </FormGrid>
 

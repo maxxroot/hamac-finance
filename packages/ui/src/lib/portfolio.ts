@@ -6,7 +6,7 @@ import { useWorkspaceIndex } from "./workspace";
 /** Données du moteur à partir de l'espace de travail chargé. */
 export function useEngineData(): EngineData | null {
   const idx = useWorkspaceIndex();
-  return useMemo(() => (idx ? { ...idx.ws, prices: idx.ws.latestPrices } : null), [idx]);
+  return useMemo(() => (idx ? { ...idx.ws, prices: idx.ws.prices } : null), [idx]);
 }
 
 /** État calculé du patrimoine à aujourd'hui (recalculé à chaque modification). */

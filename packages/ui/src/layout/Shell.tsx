@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router";
 import { cn } from "@/lib/cn";
 import { useSetSetting, useSetting } from "@/lib/queries";
 import { NAV, SETTINGS_ITEM, type NavItem } from "@/nav";
+import { PriceStatus } from "@/components/PriceStatus";
 
 function NavEntry({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -57,6 +58,7 @@ export function Shell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-16 shrink-0 items-center justify-end gap-2 border-b border-line px-8">
+          <PriceStatus />
           <button
             onClick={() => setPrivacy.mutate(!privacy.value)}
             className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-2 hover:text-fg"

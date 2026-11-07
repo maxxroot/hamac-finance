@@ -10,13 +10,17 @@ import { Journal } from "@/pages/Journal";
 import { Livrets } from "@/pages/Livrets";
 import { Obligations } from "@/pages/Obligations";
 import { Performance } from "@/pages/Performance";
+import { Projection } from "@/pages/Projection";
 import { Synthese } from "@/pages/Synthese";
+import { TableauDeBord } from "@/pages/TableauDeBord";
 import { Parametres } from "@/pages/Parametres";
 import { Versements } from "@/pages/Versements";
 import type { ReactNode } from "react";
 import { Placeholder } from "@/pages/Placeholder";
 
 const PAGES: Record<string, ReactNode> = {
+  "/": <TableauDeBord />,
+  "/projection": <Projection />,
   "/parametres": <Parametres />,
   "/journal": <Journal />,
   "/versements": <Versements />,

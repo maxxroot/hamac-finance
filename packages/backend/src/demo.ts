@@ -58,7 +58,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
   await tx(`${y}-01-20`, "achat", cto, 2935.5, { assetId: oat2.id, quantity: 3000, fee: 14.6, comment: "Acheté à 97,36 %" });
   await tx(`${y}-02-03`, "achat", pea, 1196.4, { assetId: sp.id, quantity: 25, fee: 5.95 });
   await tx(`${y}-06-02`, "achat", pea, 1203.6, { assetId: eu.id, quantity: 20, fee: 5.99 });
-  await tx(`${y}-09-01`, "achat", pea, 512.5, { assetId: em.id, quantity: 20, fee: 2.55 });
+  await tx(`${y}-09-01`, "achat", pea, 256.25, { assetId: em.id, quantity: 10, fee: 1.27 });
   await tx(`${y}-02-10`, "vente", crypto, 312, { assetId: btc.id, quantity: 0.004, fee: 0, comment: "Prise de bénéfices" });
   await tx(`${y}-03-01`, "transfert", ldds, 1000, { counterAccountId: av, comment: "Excédent des livrets vers le fonds euros" });
   await tx(`${y}-05-25`, "interets", cto, 73.26, { assetId: oat1.id, comment: "Coupon net" });

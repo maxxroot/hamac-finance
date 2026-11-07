@@ -1,4 +1,5 @@
 import type { Db, RawDb } from "./db/sqlite";
+import type { Fetcher } from "./market";
 
 export interface BackendContext {
   db: Db;
@@ -8,4 +9,5 @@ export interface BackendContext {
   databasePath: string;
   schemaVersion: string;
   backupsDir: string | null;
+  fetcher: Fetcher;
 }

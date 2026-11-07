@@ -19,7 +19,7 @@ import {
   type Transaction,
   type TxType,
 } from "./domain";
-import { roundCents } from "./money";
+import { formatEur, roundCents } from "./money";
 import { ageInYear, targetAllocation, type PlanParams } from "./params";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
@@ -359,7 +359,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     byBucket[cashBucket] = cash;
     for (const p of positions) byBucket[p.bucket] = (byBucket[p.bucket] ?? 0) + p.value;
     if (!account.archived || value !== 0) for (const [b, v] of Object.entries(byBucket)) buckets[b as Bucket] += v ?? 0;
-    if (cash < -0.01) warnings.push(`Espèces négatives sur « ${account.name} » (${cash.toFixed(2)} €) : un versement manque probablement dans le journal.`);
+    if (cash < -0.01) warnings.push(`Espèces négatives sur « ${account.name} » (${formatEur(cash)}) : un versement manque probablement dans le journal.`);
 
     const statements = (data.statements ?? []).filter((s) => s.accountId === account.id && s.date <= asOf).sort((a, b) => b.date.localeCompare(a.date));
     const lastStatement = statements[0] ?? null;

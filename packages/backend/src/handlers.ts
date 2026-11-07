@@ -3,6 +3,8 @@ import { AccountInput, RpcError, type ProcInput, type ProcName, type ProcOutput,
 import type { output } from "zod";
 import { LIVRET_LEGAL_CEILINGS, PlanParams, validateTransaction, type Account, type Asset } from "@hamac/core";
 import type { BackendContext } from "./context";
+import { searchAssets } from "./market";
+import { refreshPrices } from "./market/refresh";
 import * as t from "./db/schema";
 import {
   loadWorkspace,
@@ -297,6 +299,14 @@ export const handlers: Handlers = {
       .values({ assetId, date, price, source: "manuel" })
       .onConflictDoUpdate({ target: [t.prices.assetId, t.prices.date], set: { price, source: "manuel" } });
     return OK;
+  },
+
+  async "prices.refresh"(_input, ctx) {
+    return refreshPrices(ctx);
+  },
+
+  async "assets.search"({ query }, ctx) {
+    return searchAssets(ctx.fetcher, query);
   },
 };
 

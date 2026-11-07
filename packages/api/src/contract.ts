@@ -56,8 +56,27 @@ export interface Workspace {
   fundRates: FundRate[];
   statements: Statement[];
   plannedExpenses: PlannedExpense[];
-  /** Dernier cours connu de chaque titre. */
-  latestPrices: PricePoint[];
+  /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
+  prices: PricePoint[];
+  priceStatus: PriceStatus | null;
+}
+
+export interface PriceStatus {
+  at: string;
+  updated: number;
+  errors: Array<{ assetId: string; name: string; message: string }>;
+}
+
+export interface AssetCandidate {
+  source: "openfigi" | "coingecko";
+  kind: import("@hamac/core").AssetKind;
+  name: string;
+  isin: string | null;
+  symbol: string | null;
+  exchange: string | null;
+  couponRate: number | null;
+  maturityDate: string | null;
+  detail: string;
 }
 
 const ok = z.object({ ok: z.literal(true) });
@@ -99,6 +118,8 @@ export const procedures = {
   "plannedExpenses.delete": { input: byId, output: ok },
 
   "prices.setManual": { input: ManualPriceInput, output: ok },
+  "prices.refresh": { input: z.void(), output: entity<PriceStatus>() },
+  "assets.search": { input: z.object({ query: z.string().trim().min(2).max(80) }), output: entity<{ candidates: AssetCandidate[]; errors: string[] }>() },
 } as const;
 
 export type Procedures = typeof procedures;

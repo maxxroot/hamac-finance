@@ -11,3 +11,5 @@ export * from "./prices";
 export * from "./engine";
 export * from "./taxes";
 export * from "./history";
+export * from "./projection";
+export * from "./alerts";
