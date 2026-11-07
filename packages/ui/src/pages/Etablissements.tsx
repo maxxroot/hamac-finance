@@ -13,11 +13,14 @@ import {
 } from "@hamac/core";
 import { Field, MoneyInput, PercentInput } from "@/components/form";
 import { Pct } from "@/components/Stat";
-import { Table, Td, Th, Tr } from "@/components/table";
+import { Table, Td, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { cn } from "@/lib/cn";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
+import { SortTh, useSortable } from "@/lib/sort";
+
+const yesNoSort = (v: boolean | null | undefined) => (v == null ? null : v ? 1 : 0);
 
 const ORDER_SIZES = [100, 250, 500, 1000, 5000];
 const OFFER_ORDER: AccountKind[] = ["pea", "cto", "assurance_vie", "livret", "crypto"];
@@ -164,6 +167,15 @@ function best(values: Array<number | null | undefined>, mode: "min" | "max"): nu
 
 function BrokerComparison({ list }: { list: Institution[] }) {
   const rows = list.flatMap((i) => (["pea", "cto"] as const).filter((k) => i.offers[k]).map((k) => ({ inst: i, kind: k, offer: i.offers[k]! })));
+  const { sorted, by } = useSortable(rows, {
+    nom: (r) => r.inst.name,
+    compte: (r) => r.kind,
+    ...Object.fromEntries(ORDER_SIZES.map((s) => [`o${s}`, (r: (typeof rows)[number]) => orderFee(r.offer.orderFees, s)])),
+    garde: (r) => r.offer.custodyFixed + r.offer.custodyRate * 10000,
+    etf: (r) => yesNoSort(r.offer.etfWorld),
+    oblig: (r) => yesNoSort(r.offer.directBonds),
+    prog: (r) => yesNoSort(r.offer.programmed),
+  });
   if (!rows.length) return null;
   const fees = (size: number) => rows.map((r) => orderFee(r.offer.orderFees, size));
   return (
@@ -171,21 +183,21 @@ function BrokerComparison({ list }: { list: Institution[] }) {
       <Table className="rounded-none border-x-0 border-b-0">
         <thead>
           <tr>
-            <Th>Établissement</Th>
-            <Th>Compte</Th>
+            <SortTh {...by("nom")}>Établissement</SortTh>
+            <SortTh {...by("compte")}>Compte</SortTh>
             {ORDER_SIZES.map((s) => (
-              <Th key={s} align="right">
+              <SortTh key={s} {...by(`o${s}`)} align="right">
                 Ordre de {formatEur(s, { compact: true })}
-              </Th>
+              </SortTh>
             ))}
-            <Th align="right">Garde / an</Th>
-            <Th>ETF monde (PEA)</Th>
-            <Th>Obligations en direct</Th>
-            <Th>Programmé</Th>
+            <SortTh {...by("garde")} align="right">Garde / an</SortTh>
+            <SortTh {...by("etf")}>ETF monde (PEA)</SortTh>
+            <SortTh {...by("oblig")}>Obligations en direct</SortTh>
+            <SortTh {...by("prog")}>Programmé</SortTh>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {sorted.map((r) => (
             <Tr key={`${r.inst.id}-${r.kind}`}>
               <Td className="font-medium">{r.inst.name}</Td>
               <Td className="text-fg-muted">{r.kind === "pea" ? "PEA" : "Compte-titres"}</Td>
@@ -214,6 +226,19 @@ function BrokerComparison({ list }: { list: Institution[] }) {
 
 function AvComparison({ list }: { list: Institution[] }) {
   const rows = list.filter((i) => i.offers.assurance_vie).map((i) => ({ inst: i, o: i.offers.assurance_vie! }));
+  const av = useSortable(rows, {
+    nom: (r) => r.inst.name,
+    entree: (r) => r.o.entryFee,
+    euro: (r) => r.o.euroFee,
+    uc: (r) => r.o.ucFee,
+    dernier: (r) => r.o.euroRateLast,
+    moyenne: (r) => r.o.euroRate5y,
+    cent: (r) => yesNoSort(r.o.full100Euro),
+    bonus: (r) => yesNoSort(r.o.bonusConditioned),
+    etf: (r) => yesNoSort(r.o.etfWorld),
+    prog: (r) => r.o.programmedFrom,
+    note: (r) => r.inst.score,
+  });
   if (!rows.length) return null;
   const col = <T,>(f: (o: (typeof rows)[number]["o"]) => T) => rows.map((r) => f(r.o));
   const bEntry = best(col((o) => o.entryFee), "min");
@@ -227,21 +252,21 @@ function AvComparison({ list }: { list: Institution[] }) {
       <Table className="rounded-none border-x-0 border-b-0">
         <thead>
           <tr>
-            <Th>Contrat</Th>
-            <Th align="right">Frais sur versements</Th>
-            <Th align="right">Gestion fonds euros</Th>
-            <Th align="right">Gestion UC</Th>
-            <Th align="right">Fonds euros : dernier taux</Th>
-            <Th align="right">Moyenne 5 ans</Th>
-            <Th>100 % fonds euros</Th>
-            <Th>Bonus conditionné</Th>
-            <Th>ETF monde</Th>
-            <Th align="right">Programmé dès</Th>
-            <Th align="right">Note</Th>
+            <SortTh {...av.by("nom")}>Contrat</SortTh>
+            <SortTh {...av.by("entree")} align="right">Frais sur versements</SortTh>
+            <SortTh {...av.by("euro")} align="right">Gestion fonds euros</SortTh>
+            <SortTh {...av.by("uc")} align="right">Gestion UC</SortTh>
+            <SortTh {...av.by("dernier")} align="right">Fonds euros : dernier taux</SortTh>
+            <SortTh {...av.by("moyenne")} align="right">Moyenne 5 ans</SortTh>
+            <SortTh {...av.by("cent")}>100 % fonds euros</SortTh>
+            <SortTh {...av.by("bonus")}>Bonus conditionné</SortTh>
+            <SortTh {...av.by("etf")}>ETF monde</SortTh>
+            <SortTh {...av.by("prog")} align="right">Programmé dès</SortTh>
+            <SortTh {...av.by("note")} align="right">Note</SortTh>
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ inst, o }) => (
+          {av.sorted.map(({ inst, o }) => (
             <Tr key={inst.id}>
               <Td className="font-medium">
                 {inst.name}
@@ -277,6 +302,13 @@ function AvComparison({ list }: { list: Institution[] }) {
 
 function CryptoComparison({ list }: { list: Institution[] }) {
   const rows = list.filter((i) => i.offers.crypto).map((i) => ({ inst: i, o: i.offers.crypto! }));
+  const cr = useSortable(rows, {
+    nom: (r) => r.inst.name,
+    frais: (r) => r.o.tradeFee,
+    spread: (r) => r.o.spread,
+    total: (r) => r.o.tradeFee + r.o.spread,
+    note: (r) => r.inst.score,
+  });
   if (!rows.length) return null;
   const bTotal = best(rows.map((r) => r.o.tradeFee + r.o.spread), "min");
   return (
@@ -284,15 +316,15 @@ function CryptoComparison({ list }: { list: Institution[] }) {
       <Table className="rounded-none border-x-0 border-b-0">
         <thead>
           <tr>
-            <Th>Plateforme</Th>
-            <Th align="right">Frais par opération</Th>
-            <Th align="right">Spread estimé</Th>
-            <Th align="right">Coût total d'un achat</Th>
-            <Th align="right">Note</Th>
+            <SortTh {...cr.by("nom")}>Plateforme</SortTh>
+            <SortTh {...cr.by("frais")} align="right">Frais par opération</SortTh>
+            <SortTh {...cr.by("spread")} align="right">Spread estimé</SortTh>
+            <SortTh {...cr.by("total")} align="right">Coût total d'un achat</SortTh>
+            <SortTh {...cr.by("note")} align="right">Note</SortTh>
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ inst, o }) => (
+          {cr.sorted.map(({ inst, o }) => (
             <Tr key={inst.id}>
               <Td className="font-medium">{inst.name}</Td>
               <Td align="right">{pct(o.tradeFee)}</Td>

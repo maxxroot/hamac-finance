@@ -8,6 +8,8 @@ import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
 import { PriceDialog } from "@/dialogs/PriceDialog";
+import { SortTh, useSortable } from "@/lib/sort";
+import type { PositionState } from "@hamac/core";
 import { Onboarding } from "@/pages/Onboarding";
 import { formatDate, formatQty } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -67,48 +69,7 @@ export function Crypto() {
         </div>
       )}
 
-      <Table className="mb-6">
-        <thead>
-          <tr>
-            <Th>Crypto</Th>
-            <Th>Plateforme</Th>
-            <Th align="right">Quantité</Th>
-            <Th align="right">Prix de revient unitaire</Th>
-            <Th align="right">Investi</Th>
-            <Th align="right">Cours</Th>
-            <Th align="right">Valeur</Th>
-            <Th align="right">Plus-value latente</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {positions.length === 0 && <EmptyRow cols={8}>Aucune position.</EmptyRow>}
-          {positions.map((p) => (
-            <Tr key={`${p.accountId}-${p.asset.id}`} className="group">
-              <Td className="font-medium">{p.asset.name}</Td>
-              <Td className="text-fg-muted">{pf.idx.accountById.get(p.accountId)?.name}</Td>
-              <Td align="right">{formatQty(p.quantity)}</Td>
-              <Td align="right">
-                <Amount value={p.pru} />
-              </Td>
-              <Td align="right">
-                <Amount value={p.cost} />
-              </Td>
-              <Td align="right">
-                <button className="hover:text-accent" onClick={() => setPricing(p.asset)} title="Saisir le cours à la main">
-                  <Amount value={p.price} />
-                </button>
-                <div className="text-[11px] text-fg-faint">{p.priceDate ? formatDate(p.priceDate) : "indisponible"}</div>
-              </Td>
-              <Td align="right" className="font-medium">
-                <Amount value={p.value} />
-              </Td>
-              <Td align="right">
-                <Amount value={p.gain} signed /> <Pct value={p.gainPct} signed />
-              </Td>
-            </Tr>
-          ))}
-        </tbody>
-      </Table>
+      <CryptoPositions positions={positions} onPrice={setPricing} />
 
       <div className="mb-6 grid gap-5 lg:grid-cols-3">
         <Card>
@@ -238,5 +199,68 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-fg-muted">{label}</span>
       {children}
     </div>
+  );
+}
+
+function CryptoPositions({ positions, onPrice }: { positions: PositionState[]; onPrice: (a: Asset) => void }) {
+  const idx = usePortfolio()!.idx;
+  const { sorted, by } = useSortable(positions, {
+    nom: (p) => p.asset.name,
+    plateforme: (p) => idx.accountById.get(p.accountId)?.name,
+    quantite: (p) => p.quantity,
+    pru: (p) => p.pru,
+    investi: (p) => p.cost,
+    cours: (p) => p.price,
+    valeur: (p) => p.value,
+    pv: (p) => p.gain,
+    pvPct: (p) => p.gainPct,
+  });
+  return (
+    <Table className="mb-6">
+      <thead>
+        <tr>
+          <SortTh {...by("nom")}>Crypto</SortTh>
+          <SortTh {...by("plateforme")}>Plateforme</SortTh>
+          <SortTh {...by("quantite")} align="right">Quantité</SortTh>
+          <SortTh {...by("pru")} align="right">Prix de revient unitaire</SortTh>
+          <SortTh {...by("investi")} align="right">Investi</SortTh>
+          <SortTh {...by("cours")} align="right">Cours</SortTh>
+          <SortTh {...by("valeur")} align="right">Valeur</SortTh>
+          <SortTh {...by("pv")} align="right">Plus-value latente</SortTh>
+          <SortTh {...by("pvPct")} align="right">(%)</SortTh>
+        </tr>
+      </thead>
+      <tbody>
+        {positions.length === 0 && <EmptyRow cols={9}>Aucune position.</EmptyRow>}
+        {sorted.map((p) => (
+          <Tr key={`${p.accountId}-${p.asset.id}`} className="group">
+            <Td className="font-medium">{p.asset.name}</Td>
+            <Td className="text-fg-muted">{idx.accountById.get(p.accountId)?.name}</Td>
+            <Td align="right">{formatQty(p.quantity)}</Td>
+            <Td align="right">
+              <Amount value={p.pru} />
+            </Td>
+            <Td align="right">
+              <Amount value={p.cost} />
+            </Td>
+            <Td align="right">
+              <button className="hover:text-accent" onClick={() => onPrice(p.asset)} title="Saisir le cours à la main">
+                <Amount value={p.price} />
+              </button>
+              <div className="text-[11px] text-fg-faint">{p.priceDate ? formatDate(p.priceDate) : "indisponible"}</div>
+            </Td>
+            <Td align="right" className="font-medium">
+              <Amount value={p.value} />
+            </Td>
+            <Td align="right">
+              <Amount value={p.gain} signed />
+            </Td>
+            <Td align="right">
+              <Pct value={p.gainPct} signed />
+            </Td>
+          </Tr>
+        ))}
+      </tbody>
+    </Table>
   );
 }

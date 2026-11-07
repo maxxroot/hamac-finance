@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { formatDate, todayIso } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
 import { useMutate } from "@/lib/workspace";
+import { SortTh, useSortable } from "@/lib/sort";
 
 export function Livrets() {
   const pf = usePortfolio();
@@ -31,6 +32,18 @@ export function Livrets() {
         return { s: a, rate: current?.rate ?? a.account.rate, rateFrom: current?.fromDate ?? null, interest };
       });
   }, [pf, year]);
+
+  const { sorted, by } = useSortable(rows, {
+    nom: (r) => r.s.account.name,
+    etab: (r) => (r.s.account.institutionId && pf?.idx.institutionById.get(r.s.account.institutionId)?.name) || null,
+    taux: (r) => r.rate,
+    plafond: (r) => r.s.account.depositCeiling,
+    mensuel: (r) => r.s.currentMonthly,
+    solde: (r) => r.s.value,
+    marge: (r) => (r.s.account.depositCeiling != null ? r.s.account.depositCeiling - r.s.value : null),
+    interets: (r) => r.interest.estimated,
+    encaisses: (r) => r.s.interests,
+  });
 
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
@@ -75,20 +88,20 @@ export function Livrets() {
           <Table className="mb-2">
             <thead>
               <tr>
-                <Th>Livret</Th>
-                <Th>Établissement</Th>
-                <Th align="right">Taux actuel</Th>
-                <Th align="right">Plafond</Th>
-                <Th align="right">Versement mensuel</Th>
-                <Th align="right">Solde</Th>
-                <Th align="right">Marge avant plafond</Th>
-                <Th align="right">Intérêts {year}</Th>
-                <Th align="right">Intérêts encaissés</Th>
+                <SortTh {...by("nom")}>Livret</SortTh>
+                <SortTh {...by("etab")}>Établissement</SortTh>
+                <SortTh {...by("taux")} align="right">Taux actuel</SortTh>
+                <SortTh {...by("plafond")} align="right">Plafond</SortTh>
+                <SortTh {...by("mensuel")} align="right">Versement mensuel</SortTh>
+                <SortTh {...by("solde")} align="right">Solde</SortTh>
+                <SortTh {...by("marge")} align="right">Marge avant plafond</SortTh>
+                <SortTh {...by("interets")} align="right">Intérêts {year}</SortTh>
+                <SortTh {...by("encaisses")} align="right">Intérêts encaissés</SortTh>
                 <Th />
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ s: a, rate, rateFrom, interest }) => {
+              {sorted.map(({ s: a, rate, rateFrom, interest }) => {
                 const margin = a.account.depositCeiling != null ? a.account.depositCeiling - a.value : null;
                 return (
                   <Tr key={a.account.id}>

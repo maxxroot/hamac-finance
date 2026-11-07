@@ -1,5 +1,7 @@
 import { ACCOUNT_KIND_LABELS, BUCKET_LABELS, BUCKETS, INVESTED_BUCKETS } from "@hamac/core";
 import { useMemo } from "react";
+import { SortTh, useSortable } from "@/lib/sort";
+import type { AccountState, PortfolioState } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
@@ -57,65 +59,7 @@ export function Synthese() {
         </Stat>
       </StatGrid>
 
-      <Table className="mb-6">
-        <thead>
-          <tr>
-            <Th>Compte</Th>
-            <Th>Type</Th>
-            <Th>Rôle</Th>
-            <Th align="right">Apport initial</Th>
-            <Th align="right">Versement mensuel</Th>
-            <Th align="right">Valeur</Th>
-            <Th align="right">Versé net</Th>
-            <Th align="right">Gain / perte</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && <EmptyRow cols={8}>Aucun compte.</EmptyRow>}
-          {rows.map((a) => (
-            <Tr key={a.account.id}>
-              <Td className="font-medium">{a.account.name}</Td>
-              <Td className="text-fg-muted">{ACCOUNT_KIND_LABELS[a.account.kind]}</Td>
-              <Td className="max-w-64 truncate text-fg-muted">{a.account.role}</Td>
-              <Td align="right">
-                <Amount value={a.initial} compact />
-              </Td>
-              <Td align="right">
-                <Amount value={a.currentMonthly} compact />
-              </Td>
-              <Td align="right" className="font-medium">
-                <Amount value={a.value} />
-              </Td>
-              <Td align="right">
-                <Amount value={a.netContrib} />
-              </Td>
-              <Td align="right">
-                <Amount value={a.gain} signed />
-              </Td>
-            </Tr>
-          ))}
-          <tr className="bg-surface-2/60 font-medium">
-            <Td>Total</Td>
-            <Td />
-            <Td />
-            <Td align="right">
-              <Amount value={rows.reduce((s, a) => s + a.initial, 0)} compact />
-            </Td>
-            <Td align="right">
-              <Amount value={state.totals.monthly} compact />
-            </Td>
-            <Td align="right">
-              <Amount value={state.totals.value} />
-            </Td>
-            <Td align="right">
-              <Amount value={state.totals.netContrib} />
-            </Td>
-            <Td align="right">
-              <Amount value={state.totals.gain} signed />
-            </Td>
-          </tr>
-        </tbody>
-      </Table>
+      <AccountsTable rows={rows} totals={state.totals} />
 
       <div className="grid gap-5 lg:grid-cols-5">
         <Card className="lg:col-span-3">
@@ -196,5 +140,102 @@ export function LivretsStatus() {
     <Notice tone="ok">
       ✓ Livrets dans la fourchette du plan ({formatEur(l.floor, { compact: true })} – {formatEur(l.ceiling, { compact: true })}).
     </Notice>
+  );
+}
+
+/** Tableau des comptes, triable par colonne, avec la plus-value en %. */
+function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: PortfolioState["totals"] }) {
+  const pct = (a: { gain: number; netContrib: number }) => (a.netContrib > 0 ? a.gain / a.netContrib : null);
+  const { sorted, by } = useSortable(rows, {
+    name: (a) => a.account.name,
+    role: (a) => a.account.role,
+    initial: (a) => a.initial,
+    monthly: (a) => a.currentMonthly,
+    value: (a) => a.value,
+    net: (a) => a.netContrib,
+    gain: (a) => a.gain,
+    gainPct: (a) => pct(a),
+  });
+  return (
+    <Table className="mb-6">
+      <thead>
+        <tr>
+          <SortTh {...by("name")}>Compte</SortTh>
+          <SortTh {...by("role")}>Rôle</SortTh>
+          <SortTh {...by("initial")} align="right">
+            Apport initial
+          </SortTh>
+          <SortTh {...by("monthly")} align="right">
+            Versement mensuel
+          </SortTh>
+          <SortTh {...by("value")} align="right">
+            Valeur
+          </SortTh>
+          <SortTh {...by("net")} align="right">
+            Versé net
+          </SortTh>
+          <SortTh {...by("gain")} align="right">
+            Gain / perte
+          </SortTh>
+          <SortTh {...by("gainPct")} align="right">
+            Gain (%)
+          </SortTh>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 && <EmptyRow cols={8}>Aucun compte.</EmptyRow>}
+        {sorted.map((a) => (
+          <Tr key={a.account.id}>
+            <Td className="font-medium whitespace-nowrap">
+              {a.account.name}
+              {a.account.name !== ACCOUNT_KIND_LABELS[a.account.kind] && <div className="text-xs font-normal text-fg-faint">{ACCOUNT_KIND_LABELS[a.account.kind]}</div>}
+            </Td>
+            <Td className="max-w-56 truncate text-fg-muted" title={a.account.role}>
+              {a.account.role}
+            </Td>
+            <Td align="right">
+              <Amount value={a.initial} compact />
+            </Td>
+            <Td align="right">
+              <Amount value={a.currentMonthly} compact />
+            </Td>
+            <Td align="right" className="font-medium">
+              <Amount value={a.value} />
+            </Td>
+            <Td align="right">
+              <Amount value={a.netContrib} />
+            </Td>
+            <Td align="right">
+              <Amount value={a.gain} signed />
+            </Td>
+            <Td align="right">
+              <Pct value={pct(a)} signed />
+            </Td>
+          </Tr>
+        ))}
+        <tr className="bg-surface-2/60 font-medium">
+          <Td>Total</Td>
+          <Td />
+          <Td align="right">
+            <Amount value={rows.reduce((s, a) => s + a.initial, 0)} compact />
+          </Td>
+          <Td align="right">
+            <Amount value={totals.monthly} compact />
+          </Td>
+          <Td align="right">
+            <Amount value={totals.value} />
+          </Td>
+          <Td align="right">
+            <Amount value={totals.netContrib} />
+          </Td>
+          <Td align="right">
+            <Amount value={totals.gain} signed />
+          </Td>
+          <Td align="right">
+            <Pct value={pct(totals)} signed />
+          </Td>
+        </tr>
+      </tbody>
+    </Table>
   );
 }

@@ -6,9 +6,10 @@ import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionBut
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
-import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
+import { EmptyRow, Table, Td, Tr } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
 import { PriceDialog } from "@/dialogs/PriceDialog";
+import { SortTh, useSortable } from "@/lib/sort";
 import { Onboarding } from "@/pages/Onboarding";
 import { formatDate, formatQty } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -48,6 +49,20 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
   const { params } = pf.data;
   const equities = s.positions.filter((p) => p.bucket === "croissance");
   const equityValue = equities.reduce((t, p) => t + p.value, 0);
+  const posShare = (p: PositionState) => (equityValue > 0 ? p.value / equityValue : 0);
+  const { sorted, by } = useSortable(equities, {
+    titre: (p) => p.asset.name,
+    parts: (p) => p.quantity,
+    pru: (p) => p.pru,
+    investi: (p) => p.cost,
+    cours: (p) => p.price,
+    valeur: (p) => p.value,
+    pv: (p) => p.gain,
+    pvPct: (p) => p.gainPct,
+    part: (p) => posShare(p),
+    cible: (p) => p.asset.targetWeight,
+    ecart: (p) => (p.asset.targetWeight != null ? posShare(p) - p.asset.targetWeight : null),
+  });
   const isPea = s.account.kind === "pea";
   const five = isPea ? fiscalAnniversary(s.account.openedOn, 5) : null;
   const advised = isPea ? advisedMonthlyPurchase(s.cash, s.account.monthsToInvest, monthsElapsed(params, pf.today)) : 0;
@@ -99,21 +114,42 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
       <Table className="mb-5">
         <thead>
           <tr>
-            <Th>Titre</Th>
-            <Th align="right">Parts</Th>
-            <Th align="right">PRU</Th>
-            <Th align="right">Investi</Th>
-            <Th align="right">Cours</Th>
-            <Th align="right">Valeur</Th>
-            <Th align="right">Plus-value</Th>
-            <Th align="right">Part réelle</Th>
-            <Th align="right">Cible</Th>
-            <Th align="right">Écart</Th>
+            <SortTh {...by("titre")}>Titre</SortTh>
+            <SortTh {...by("parts")} align="right">
+              Parts
+            </SortTh>
+            <SortTh {...by("pru")} align="right">
+              PRU
+            </SortTh>
+            <SortTh {...by("investi")} align="right">
+              Investi
+            </SortTh>
+            <SortTh {...by("cours")} align="right">
+              Cours
+            </SortTh>
+            <SortTh {...by("valeur")} align="right">
+              Valeur
+            </SortTh>
+            <SortTh {...by("pv")} align="right">
+              Plus-value
+            </SortTh>
+            <SortTh {...by("pvPct")} align="right">
+              Plus-value (%)
+            </SortTh>
+            <SortTh {...by("part")} align="right">
+              Part réelle
+            </SortTh>
+            <SortTh {...by("cible")} align="right">
+              Cible
+            </SortTh>
+            <SortTh {...by("ecart")} align="right">
+              Écart
+            </SortTh>
           </tr>
         </thead>
         <tbody>
-          {equities.length === 0 && <EmptyRow cols={10}>Aucune position. Saisissez vos achats dans le journal.</EmptyRow>}
-          {equities.map((p) => (
+          {equities.length === 0 && <EmptyRow cols={11}>Aucune position. Saisissez vos achats dans le journal.</EmptyRow>}
+          {sorted.map((p) => (
             <PositionRow key={p.asset.id} p={p} total={equityValue} onPrice={onPrice} />
           ))}
           {equities.length > 0 && (
@@ -130,6 +166,9 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
               </Td>
               <Td align="right">
                 <Amount value={equities.reduce((t, p) => t + p.gain, 0)} signed />
+              </Td>
+              <Td align="right">
+                <Pct value={(() => { const cost = equities.reduce((t, p) => t + p.cost, 0); return cost > 0 ? equities.reduce((t, p) => t + p.gain, 0) / cost : null; })()} signed />
               </Td>
               <Td align="right">100 %</Td>
               <Td align="right">
@@ -227,9 +266,9 @@ function PositionRow({ p, total, onPrice }: { p: PositionState; total: number; o
       </Td>
       <Td align="right">
         <Amount value={p.gain} signed />
-        <div className="text-[11px]">
-          <Pct value={p.gainPct} signed />
-        </div>
+      </Td>
+      <Td align="right">
+        <Pct value={p.gainPct} signed />
       </Td>
       <Td align="right">
         <Pct value={share} />

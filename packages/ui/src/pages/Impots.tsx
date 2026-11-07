@@ -6,6 +6,8 @@ import { Card, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { cn } from "@/lib/cn";
 import { usePortfolio } from "@/lib/portfolio";
+import { SortTh, useSortable } from "@/lib/sort";
+import type { WithdrawalTaxRow } from "@hamac/core";
 
 export function Impots() {
   const pf = usePortfolio();
@@ -13,7 +15,6 @@ export function Impots() {
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
   const { data, state, crypto, today } = pf;
   const rows = withdrawalTaxes(data, state, crypto);
-  const total = { value: rows.reduce((s, r) => s + r.value, 0), gain: rows.reduce((s, r) => s + r.gain, 0), tax: rows.reduce((s, r) => s + r.tax, 0) };
   const livret = (t: string) => pf.idx.activeAccounts.find((a) => a.livretType === t)?.rate ?? null;
   const yields = netYields(data.params, today, { lep: livret("LEP"), ldds: livret("LDDS") ?? livret("LIVRET_A") });
   const years = yearlyTaxes(data, crypto, today);
@@ -27,63 +28,7 @@ export function Impots() {
       </div>
 
       <Section title="1. Si tout était retiré aujourd'hui">
-        <Table>
-          <thead>
-            <tr>
-              <Th>Compte</Th>
-              <Th align="right">Valeur</Th>
-              <Th align="right">Gain brut</Th>
-              <Th align="right">Impôt à payer</Th>
-              <Th align="right">Valeur nette</Th>
-              <Th align="right">Gain net</Th>
-              <Th>Régime appliqué</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <Tr key={r.accountId}>
-                <Td className="font-medium">{r.label}</Td>
-                <Td align="right">
-                  <Amount value={r.value} />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.gain} signed />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.tax} />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.value - r.tax} />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.gain - r.tax} signed />
-                </Td>
-                <Td className="text-xs text-fg-muted">{r.regime}</Td>
-              </Tr>
-            ))}
-            <tr className="bg-surface-2/60 font-medium">
-              <Td>Total</Td>
-              <Td align="right">
-                <Amount value={total.value} />
-              </Td>
-              <Td align="right">
-                <Amount value={total.gain} signed />
-              </Td>
-              <Td align="right">
-                <Amount value={total.tax} />
-              </Td>
-              <Td align="right">
-                <Amount value={total.value - total.tax} />
-              </Td>
-              <Td align="right">
-                <Amount value={total.gain - total.tax} signed />
-              </Td>
-              <Td className="text-xs text-fg-muted">
-                Taux moyen d'imposition des gains : <Pct value={total.gain > 0 ? total.tax / total.gain : 0} />
-              </Td>
-            </tr>
-          </tbody>
-        </Table>
+        <WithdrawalTable rows={rows} />
       </Section>
 
       <Section title="2. Rendement net comparé (avec les taux du moment)">
@@ -181,5 +126,96 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="mb-4 font-medium">{title}</h2>
       {children}
     </Card>
+  );
+}
+
+/** Gain rapporté à l'argent versé (valeur − gain). */
+const gainPct = (value: number, gain: number) => (value - gain > 0 ? gain / (value - gain) : null);
+
+function WithdrawalTable({ rows }: { rows: WithdrawalTaxRow[] }) {
+  const total = { value: rows.reduce((s, r) => s + r.value, 0), gain: rows.reduce((s, r) => s + r.gain, 0), tax: rows.reduce((s, r) => s + r.tax, 0) };
+  const { sorted, by } = useSortable(rows, {
+    compte: (r) => r.label,
+    valeur: (r) => r.value,
+    gain: (r) => r.gain,
+    gainPct: (r) => gainPct(r.value, r.gain),
+    impot: (r) => r.tax,
+    net: (r) => r.value - r.tax,
+    gainNet: (r) => r.gain - r.tax,
+    gainNetPct: (r) => (r.value - r.gain > 0 ? (r.gain - r.tax) / (r.value - r.gain) : null),
+    regime: (r) => r.regime,
+  });
+  return (
+    <Table>
+      <thead>
+        <tr>
+          <SortTh {...by("compte")}>Compte</SortTh>
+          <SortTh {...by("valeur")} align="right">Valeur</SortTh>
+          <SortTh {...by("gain")} align="right">Gain brut</SortTh>
+          <SortTh {...by("gainPct")} align="right">(%)</SortTh>
+          <SortTh {...by("impot")} align="right">Impôt à payer</SortTh>
+          <SortTh {...by("net")} align="right">Valeur nette</SortTh>
+          <SortTh {...by("gainNet")} align="right">Gain net</SortTh>
+          <SortTh {...by("gainNetPct")} align="right">(%)</SortTh>
+          <SortTh {...by("regime")}>Régime appliqué</SortTh>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((r) => (
+          <Tr key={r.accountId}>
+            <Td className="font-medium">{r.label}</Td>
+            <Td align="right">
+              <Amount value={r.value} />
+            </Td>
+            <Td align="right">
+              <Amount value={r.gain} signed />
+            </Td>
+            <Td align="right">
+              <Pct value={gainPct(r.value, r.gain)} signed />
+            </Td>
+            <Td align="right">
+              <Amount value={r.tax} />
+            </Td>
+            <Td align="right">
+              <Amount value={r.value - r.tax} />
+            </Td>
+            <Td align="right">
+              <Amount value={r.gain - r.tax} signed />
+            </Td>
+            <Td align="right">
+              <Pct value={r.value - r.gain > 0 ? (r.gain - r.tax) / (r.value - r.gain) : null} signed />
+            </Td>
+            <Td className="text-xs text-fg-muted">{r.regime}</Td>
+          </Tr>
+        ))}
+        <tr className="bg-surface-2/60 font-medium">
+          <Td>Total</Td>
+          <Td align="right">
+            <Amount value={total.value} />
+          </Td>
+          <Td align="right">
+            <Amount value={total.gain} signed />
+          </Td>
+          <Td align="right">
+            <Pct value={gainPct(total.value, total.gain)} signed />
+          </Td>
+          <Td align="right">
+            <Amount value={total.tax} />
+          </Td>
+          <Td align="right">
+            <Amount value={total.value - total.tax} />
+          </Td>
+          <Td align="right">
+            <Amount value={total.gain - total.tax} signed />
+          </Td>
+          <Td align="right">
+            <Pct value={total.value - total.gain > 0 ? (total.gain - total.tax) / (total.value - total.gain) : null} signed />
+          </Td>
+          <Td className="text-xs text-fg-muted">
+            Taux moyen d'imposition des gains : <Pct value={total.gain > 0 ? total.tax / total.gain : 0} />
+          </Td>
+        </tr>
+      </tbody>
+    </Table>
   );
 }

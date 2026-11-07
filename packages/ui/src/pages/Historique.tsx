@@ -2,13 +2,15 @@ import { useMemo, useState } from "react";
 import { BUCKET_LABELS, BUCKETS, formatEur } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Chart, axisStyle, type ChartOption } from "@/components/Chart";
-import { Table, Td, Th, Tr } from "@/components/table";
+import { Table, Td, Tr } from "@/components/table";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS, INK } from "@/lib/colors";
 import { capitalize, formatMonth } from "@/lib/numbers";
 import { useHistory } from "@/lib/portfolio";
 import { useWorkspaceIndex } from "@/lib/workspace";
+import { SortTh, useSortable } from "@/lib/sort";
+import { Pct } from "@/components/Stat";
 
 const eurAxis = (v: number) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)} k€` : `${v} €`);
 const tooltipEur = (v: unknown) => formatEur(Number(v), { compact: true });
@@ -49,6 +51,20 @@ export function Historique() {
     return { line, area };
   }, [history]);
 
+  const reversed = useMemo(() => [...(history ?? [])].reverse(), [history]);
+  const { sorted, by } = useSortable(
+    reversed,
+    {
+      mois: (h) => h.month,
+      ...Object.fromEntries(BUCKETS.map((b) => [b, (h: (typeof reversed)[number]) => h.buckets[b]])),
+      total: (h) => h.value,
+      net: (h) => h.netContrib,
+      gain: (h) => h.gain,
+      gainPct: (h) => (h.netContrib > 0 ? h.gain / h.netContrib : null),
+    },
+    { key: "mois", dir: "desc" },
+  );
+
   if (!idx || !history) return null;
   if (idx.ws.accounts.length === 0) return <Onboarding />;
 
@@ -75,19 +91,20 @@ export function Historique() {
         <Table>
           <thead>
             <tr>
-              <Th>Mois</Th>
+              <SortTh {...by("mois")}>Mois</SortTh>
               {BUCKETS.map((b) => (
-                <Th key={b} align="right">
+                <SortTh key={b} {...by(b)} align="right">
                   {BUCKET_LABELS[b]}
-                </Th>
+                </SortTh>
               ))}
-              <Th align="right">Total</Th>
-              <Th align="right">Versé net</Th>
-              <Th align="right">Gain</Th>
+              <SortTh {...by("total")} align="right">Total</SortTh>
+              <SortTh {...by("net")} align="right">Versé net</SortTh>
+              <SortTh {...by("gain")} align="right">Gain</SortTh>
+              <SortTh {...by("gainPct")} align="right">Gain (%)</SortTh>
             </tr>
           </thead>
           <tbody>
-            {[...history].reverse().map((h) => (
+            {sorted.map((h) => (
               <Tr key={h.month}>
                 <Td>{capitalize(formatMonth(h.month))}</Td>
                 {BUCKETS.map((b) => (
@@ -103,6 +120,9 @@ export function Historique() {
                 </Td>
                 <Td align="right">
                   <Amount value={h.gain} signed compact />
+                </Td>
+                <Td align="right">
+                  <Pct value={h.netContrib > 0 ? h.gain / h.netContrib : null} signed />
                 </Td>
               </Tr>
             ))}

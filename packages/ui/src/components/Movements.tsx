@@ -1,8 +1,9 @@
 import { Link } from "react-router";
 import { AddTransactionButton } from "./TransactionButton";
+import { SortTh, useSortable } from "@/lib/sort";
 import { TX_LABELS, type TxType } from "@hamac/core";
 import { Amount } from "./Amount";
-import { EmptyRow, Table, Td, Th, Tr } from "./table";
+import { EmptyRow, Table, Td, Tr } from "./table";
 import { Badge, Card } from "./ui";
 import { formatDate, formatQty } from "@/lib/numbers";
 import { useWorkspaceIndex } from "@/lib/workspace";
@@ -12,9 +13,23 @@ const OUT: TxType[] = ["retrait", "achat", "frais"];
 /** Mouvements (repris du journal) d'un ensemble de comptes, du plus récent au plus ancien. */
 export function Movements({ accountIds, title = "Mouvements", limit = 30 }: { accountIds: string[]; title?: string; limit?: number }) {
   const idx = useWorkspaceIndex();
-  if (!idx) return null;
   const ids = new Set(accountIds);
-  const rows = idx.ws.transactions.filter((t) => ids.has(t.accountId) || (t.counterAccountId && ids.has(t.counterAccountId)));
+  const rows = idx ? idx.ws.transactions.filter((t) => ids.has(t.accountId) || (t.counterAccountId && ids.has(t.counterAccountId))) : [];
+  const incoming = (t: (typeof rows)[number]) => (t.type === "transfert" ? ids.has(t.counterAccountId ?? "") && !ids.has(t.accountId) : !OUT.includes(t.type));
+  const { sorted, by } = useSortable(
+    rows,
+    {
+      date: (t) => t.date,
+      compte: (t) => idx?.accountById.get(t.accountId)?.name,
+      type: (t) => TX_LABELS[t.type],
+      titre: (t) => (t.assetId ? idx?.assetById.get(t.assetId)?.name : null),
+      montant: (t) => (incoming(t) ? t.amount : -t.amount),
+      quantite: (t) => t.quantity,
+      commentaire: (t) => t.comment || null,
+    },
+    { key: "date", dir: "desc" },
+  );
+  if (!idx) return null;
   return (
     <Card className="p-0">
       <div className="flex items-center justify-between px-5 pt-4 pb-3">
@@ -24,19 +39,18 @@ export function Movements({ accountIds, title = "Mouvements", limit = 30 }: { ac
       <Table className="rounded-none border-x-0 border-b-0">
         <thead>
           <tr>
-            <Th>Date</Th>
-            <Th>Compte</Th>
-            <Th>Opération</Th>
-            <Th>Titre</Th>
-            <Th align="right">Montant</Th>
-            <Th align="right">Quantité</Th>
-            <Th>Commentaire</Th>
+            <SortTh {...by("date")}>Date</SortTh>
+            <SortTh {...by("compte")}>Compte</SortTh>
+            <SortTh {...by("type")}>Opération</SortTh>
+            <SortTh {...by("titre")}>Titre</SortTh>
+            <SortTh {...by("montant")} align="right">Montant</SortTh>
+            <SortTh {...by("quantite")} align="right">Quantité</SortTh>
+            <SortTh {...by("commentaire")}>Commentaire</SortTh>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && <EmptyRow cols={7}>Aucun mouvement saisi dans le journal.</EmptyRow>}
-          {rows.slice(0, limit).map((t) => {
-            const incoming = t.type === "transfert" ? ids.has(t.counterAccountId ?? "") && !ids.has(t.accountId) : !OUT.includes(t.type);
+          {sorted.slice(0, limit).map((t) => {
             return (
               <Tr key={t.id}>
                 <Td className="num text-fg-muted">{formatDate(t.date)}</Td>
@@ -49,7 +63,7 @@ export function Movements({ accountIds, title = "Mouvements", limit = 30 }: { ac
                 </Td>
                 <Td className="max-w-56 truncate">{t.assetId ? idx.assetById.get(t.assetId)?.name : ""}</Td>
                 <Td align="right">
-                  <Amount value={incoming ? t.amount : -t.amount} signed={t.type !== "achat"} />
+                  <Amount value={incoming(t) ? t.amount : -t.amount} signed={t.type !== "achat"} />
                 </Td>
                 <Td align="right" className="text-fg-muted">
                   {formatQty(t.quantity)}

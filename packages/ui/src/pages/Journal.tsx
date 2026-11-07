@@ -1,5 +1,6 @@
 import { Download, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { CsvImportDialog } from "@/dialogs/CsvImportDialog";
+import { SortTh, useSortable } from "@/lib/sort";
 import { downloadText, toCsv } from "@/lib/files";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
@@ -72,6 +73,21 @@ export function Journal() {
       return true;
     });
   }, [idx, account, type, year, q]);
+
+  const { sorted, by } = useSortable(
+    rows,
+    {
+      date: (t) => t.date,
+      compte: (t) => idx?.accountById.get(t.accountId)?.name,
+      type: (t) => TX_LABELS[t.type],
+      titre: (t) => (t.assetId ? idx?.assetById.get(t.assetId)?.name : null),
+      montant: (t) => direction(t) * t.amount,
+      quantite: (t) => t.quantity,
+      frais: (t) => t.fee,
+      commentaire: (t) => t.comment || null,
+    },
+    { key: "date", dir: "desc" },
+  );
 
   if (!idx) return null;
   if (idx.ws.accounts.length === 0) return <Onboarding />;
@@ -157,14 +173,20 @@ export function Journal() {
       <Table>
         <thead>
           <tr>
-            <Th>Date</Th>
-            <Th>Compte</Th>
-            <Th>Opération</Th>
-            <Th>Titre</Th>
-            <Th align="right">Montant</Th>
-            <Th align="right">Quantité</Th>
-            <Th align="right">dont frais</Th>
-            <Th>Commentaire</Th>
+            <SortTh {...by("date")}>Date</SortTh>
+            <SortTh {...by("compte")}>Compte</SortTh>
+            <SortTh {...by("type")}>Opération</SortTh>
+            <SortTh {...by("titre")}>Titre</SortTh>
+            <SortTh {...by("montant")} align="right">
+              Montant
+            </SortTh>
+            <SortTh {...by("quantite")} align="right">
+              Quantité
+            </SortTh>
+            <SortTh {...by("frais")} align="right">
+              dont frais
+            </SortTh>
+            <SortTh {...by("commentaire")}>Commentaire</SortTh>
             <Th />
           </tr>
         </thead>
@@ -172,7 +194,7 @@ export function Journal() {
           {rows.length === 0 && (
             <EmptyRow cols={9}>{idx.ws.transactions.length ? "Aucune opération ne correspond aux filtres." : "Aucune opération pour l'instant : commencez par vos apports initiaux."}</EmptyRow>
           )}
-          {rows.map((t) => {
+          {sorted.map((t) => {
             const acc = idx.accountById.get(t.accountId);
             const counter = t.counterAccountId ? idx.accountById.get(t.counterAccountId) : null;
             const asset = t.assetId ? idx.assetById.get(t.assetId) : null;

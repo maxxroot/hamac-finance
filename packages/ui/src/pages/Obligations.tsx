@@ -1,5 +1,5 @@
 import { ShoppingCart, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { PositionState } from "@hamac/core";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
 import { useMutate } from "@/lib/workspace";
+import { SortTh, useSortable } from "@/lib/sort";
 
 export function Obligations() {
   const pf = usePortfolio();
@@ -22,6 +23,23 @@ export function Obligations() {
   const [nominal, setNominal] = useState<number | null>(null);
   const addPlan = useMutate("bondPlans.upsert", { success: "Ligne prévue ajoutée" });
   const delPlan = useMutate("bondPlans.delete");
+  const heldBonds = useMemo(() => (pf ? pf.state.accounts.flatMap((a) => a.positions.filter((p) => p.bond)) : []), [pf]);
+  const ladder = useSortable(
+    heldBonds,
+    {
+      nom: (p) => p.asset.name,
+      echeance: (p) => p.bond!.terms.maturityDate,
+      coupon: (p) => p.bond!.terms.couponRate,
+      nominal: (p) => p.bond!.nominal,
+      cout: (p) => p.cost,
+      valeur: (p) => p.value,
+      pv: (p) => p.gainPct,
+      ytm: (p) => p.bond!.ytm,
+      age: (p) => p.bond!.ageAtMaturity,
+      reste: (p) => p.bond!.yearsLeft,
+    },
+    { key: "echeance", dir: "asc" },
+  );
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
   const { state, idx, data } = pf;
@@ -68,23 +86,22 @@ export function Obligations() {
       <Table className="mb-6">
         <thead>
           <tr>
-            <Th>Obligation</Th>
-            <Th>Échéance</Th>
-            <Th align="right">Coupon</Th>
-            <Th align="right">Nominal</Th>
-            <Th align="right">Coût (frais compris)</Th>
-            <Th align="right">Valeur</Th>
-            <Th align="right">Rendement à l'échéance</Th>
-            <Th align="right">Âge à l'échéance</Th>
-            <Th align="right">Reste</Th>
+            <SortTh {...ladder.by("nom")}>Obligation</SortTh>
+            <SortTh {...ladder.by("echeance")}>Échéance</SortTh>
+            <SortTh {...ladder.by("coupon")} align="right">Coupon</SortTh>
+            <SortTh {...ladder.by("nominal")} align="right">Nominal</SortTh>
+            <SortTh {...ladder.by("cout")} align="right">Coût (frais compris)</SortTh>
+            <SortTh {...ladder.by("valeur")} align="right">Valeur</SortTh>
+            <SortTh {...ladder.by("pv")} align="right">Plus-value (%)</SortTh>
+            <SortTh {...ladder.by("ytm")} align="right">Rendement à l'échéance</SortTh>
+            <SortTh {...ladder.by("age")} align="right">Âge à l'échéance</SortTh>
+            <SortTh {...ladder.by("reste")} align="right">Reste</SortTh>
             <Th>Statut</Th>
           </tr>
         </thead>
         <tbody>
-          {held.length + matured.length + idx.ws.bondPlans.length === 0 && <EmptyRow cols={10}>Aucune obligation. Prévoyez votre échelle ci-dessous, puis saisissez les achats dans le journal.</EmptyRow>}
-          {held
-            .sort((a, b) => a.bond!.terms.maturityDate.localeCompare(b.bond!.terms.maturityDate))
-            .map((p) => (
+          {held.length + matured.length + idx.ws.bondPlans.length === 0 && <EmptyRow cols={11}>Aucune obligation. Prévoyez votre échelle ci-dessous, puis saisissez les achats dans le journal.</EmptyRow>}
+          {ladder.sorted.map((p) => (
               <Tr key={`${p.accountId}-${p.asset.id}`}>
                 <Td className="font-medium">
                   {p.asset.name}
@@ -102,6 +119,12 @@ export function Obligations() {
                 </Td>
                 <Td align="right" title={p.priceUsed === "modele" ? "Prix d'achat amorti vers 100 % + coupon couru" : "Cours saisi"}>
                   <Amount value={p.value} />
+                </Td>
+                <Td align="right">
+                  <Amount value={p.gain} signed compact />
+                  <div className="text-[11px]">
+                    <Pct value={p.gainPct} signed digits={2} />
+                  </div>
                 </Td>
                 <Td align="right">
                   <Pct value={p.bond!.ytm} digits={2} />
@@ -124,6 +147,7 @@ export function Obligations() {
               <Td align="right">
                 <Amount value={b.nominal} compact />
               </Td>
+              <Td />
               <Td />
               <Td />
               <Td />
@@ -151,6 +175,7 @@ export function Obligations() {
               <Td align="right">
                 <Pct value={p.asset.couponRate} digits={2} />
               </Td>
+              <Td />
               <Td />
               <Td />
               <Td align="right" title="Gain réalisé au remboursement">

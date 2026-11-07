@@ -29,6 +29,7 @@ import { formatDate } from "@/lib/numbers";
 import { useSystemInfo } from "@/lib/queries";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 import { usePortfolio } from "@/lib/portfolio";
+import { SortTh, useSortable } from "@/lib/sort";
 import { SETTINGS_ITEM } from "@/nav";
 
 const TABS = ["Plan", "Comptes", "Titres", "Application"] as const;
@@ -231,6 +232,15 @@ function AccountsTab() {
   const del = useMutate("accounts.delete", { success: "Compte supprimé" });
   const [editing, setEditing] = useState<Account | null>(null);
   const [creating, setCreating] = useState(false);
+  const { sorted, by } = useSortable(idx?.ws.accounts ?? [], {
+    nom: (a) => a.name,
+    type: (a) => ACCOUNT_KIND_LABELS[a.kind],
+    etab: (a) => (a.institutionId && idx?.institutionById.get(a.institutionId)?.name) || null,
+    ouverture: (a) => a.openedOn,
+    taux: (a) => a.rate,
+    plafond: (a) => a.depositCeiling,
+    role: (a) => a.role || null,
+  });
   if (!idx) return null;
   return (
     <>
@@ -242,19 +252,19 @@ function AccountsTab() {
       <Table>
         <thead>
           <tr>
-            <Th>Nom</Th>
-            <Th>Type</Th>
-            <Th>Établissement</Th>
-            <Th>Ouvert le</Th>
-            <Th align="right">Taux</Th>
-            <Th align="right">Plafond</Th>
-            <Th>Rôle</Th>
+            <SortTh {...by("nom")}>Nom</SortTh>
+            <SortTh {...by("type")}>Type</SortTh>
+            <SortTh {...by("etab")}>Établissement</SortTh>
+            <SortTh {...by("ouverture")}>Ouvert le</SortTh>
+            <SortTh {...by("taux")} align="right">Taux</SortTh>
+            <SortTh {...by("plafond")} align="right">Plafond</SortTh>
+            <SortTh {...by("role")}>Rôle</SortTh>
             <Th />
           </tr>
         </thead>
         <tbody>
           {idx.ws.accounts.length === 0 && <EmptyRow cols={8}>Aucun compte.</EmptyRow>}
-          {idx.ws.accounts.map((a) => (
+          {sorted.map((a) => (
             <Tr key={a.id} className={cn("group", a.archived && "opacity-50")}>
               <Td className="font-medium">
                 {a.name} {a.archived && <Badge>archivé</Badge>}
@@ -284,6 +294,14 @@ function AssetsTab() {
   const del = useMutate("assets.delete", { success: "Titre supprimé" });
   const [editing, setEditing] = useState<Asset | null>(null);
   const [creating, setCreating] = useState(false);
+  const assetSort = useSortable(idx?.ws.assets ?? [], {
+    nom: (a) => a.name,
+    type: (a) => ASSET_KIND_LABELS[a.kind],
+    isin: (a) => a.isin,
+    cours: (a) => a.priceSource,
+    cible: (a) => a.targetWeight,
+    echeance: (a) => a.maturityDate,
+  });
   if (!idx) return null;
   const equityTargets = idx.activeAssets.filter((a) => a.kind !== "obligation" && a.kind !== "crypto").reduce((s, a) => s + (a.targetWeight ?? 0), 0);
   return (
@@ -301,18 +319,18 @@ function AssetsTab() {
       <Table>
         <thead>
           <tr>
-            <Th>Nom</Th>
-            <Th>Type</Th>
-            <Th>ISIN</Th>
-            <Th>Cours</Th>
-            <Th align="right">Part cible</Th>
-            <Th>Obligation</Th>
+            <SortTh {...assetSort.by("nom")}>Nom</SortTh>
+            <SortTh {...assetSort.by("type")}>Type</SortTh>
+            <SortTh {...assetSort.by("isin")}>ISIN</SortTh>
+            <SortTh {...assetSort.by("cours")}>Cours</SortTh>
+            <SortTh {...assetSort.by("cible")} align="right">Part cible</SortTh>
+            <SortTh {...assetSort.by("echeance")}>Obligation</SortTh>
             <Th />
           </tr>
         </thead>
         <tbody>
           {idx.ws.assets.length === 0 && <EmptyRow cols={7}>Aucun titre. Ajoutez vos ETF, obligations ou cryptos.</EmptyRow>}
-          {idx.ws.assets.map((a) => (
+          {assetSort.sorted.map((a) => (
             <Tr key={a.id} className={cn("group", a.archived && "opacity-50")}>
               <Td className="font-medium">{a.name}</Td>
               <Td>{ASSET_KIND_LABELS[a.kind]}</Td>
