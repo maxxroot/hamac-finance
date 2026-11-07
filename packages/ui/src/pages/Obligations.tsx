@@ -1,7 +1,7 @@
 import { ShoppingCart, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { BOND_KIND_LABELS, type PositionState } from "@hamac/core";
+import { BOND_KIND_LABELS, maturityLabel, type PositionState } from "@hamac/core";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, MoneyInput, NumberInput, TextInput } from "@/components/form";
@@ -110,7 +110,10 @@ export function Obligations() {
                     {p.asset.isin && <span className="font-mono"> · {p.asset.isin}</span>}
                   </div>
                 </Td>
-                <Td>{formatDate(p.bond!.terms.maturityDate)}</Td>
+                <Td className="whitespace-nowrap">
+                  {maturityLabel(p.bond!.terms.maturityDate)}
+                  <div className="text-[11px] text-fg-faint">le {formatDate(p.bond!.terms.maturityDate)}</div>
+                </Td>
                 <Td align="right">
                   <Pct value={p.bond!.terms.couponRate} digits={2} />
                 </Td>

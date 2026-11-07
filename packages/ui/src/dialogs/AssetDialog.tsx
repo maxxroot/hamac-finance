@@ -2,7 +2,7 @@ import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AssetCandidate } from "@hamac/api";
 import type { AssetInput } from "@hamac/api";
-import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, type BondKind, type Asset, type AssetKind, type PriceSource } from "@hamac/core";
+import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, OAT_MATURITY_DAY, maturityFromMonth, type BondKind, type Asset, type AssetKind, type PriceSource } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate } from "@/lib/workspace";
@@ -176,7 +176,12 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
                 value={d.bondKind ?? "etat"}
                 onChange={(e) => {
                   const bk = e.target.value as BondKind;
-                  setD((x) => ({ ...x, bondKind: bk, issuer: bk === "etat" ? (x.issuer ?? "République française") : x.issuer === "République française" ? null : x.issuer }));
+                  setD((x) => ({
+                    ...x,
+                    bondKind: bk,
+                    issuer: bk === "etat" ? (x.issuer ?? "République française") : x.issuer === "République française" ? null : x.issuer,
+                    maturityDate: x.maturityDate ? maturityFromMonth(x.maturityDate.slice(0, 7), bk, +x.maturityDate.slice(8, 10)) : x.maturityDate,
+                  }));
                 }}
               >
                 {BOND_KINDS.map((k) => (
@@ -191,7 +196,31 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
         {isBond && (
           <FormGrid cols={3}>
             <Field label="Coupon annuel">{(id) => <PercentInput id={id} value={d.couponRate} onChange={(v) => set("couponRate", v)} />}</Field>
-            <Field label="Échéance">{(id) => <TextInput id={id} type="date" value={d.maturityDate ?? ""} onChange={(e) => set("maturityDate", e.target.value || null)} />}</Field>
+            <Field label="Échéance" help={d.bondKind === "etat" ? `Mois et année ; une OAT est remboursée le ${OAT_MATURITY_DAY}.` : "Mois et année ; jour facultatif."}>
+              {(id) => (
+                <div className="flex gap-2">
+                  <TextInput
+                    id={id}
+                    type="month"
+                    value={d.maturityDate?.slice(0, 7) ?? ""}
+                    onChange={(e) => set("maturityDate", e.target.value ? maturityFromMonth(e.target.value, d.bondKind ?? "etat", d.maturityDate ? +d.maturityDate.slice(8, 10) : null) : null)}
+                  />
+                  {d.bondKind === "entreprise" && (
+                    <TextInput
+                      type="number"
+                      min={1}
+                      max={31}
+                      placeholder="jour"
+                      aria-label="Jour d'échéance (facultatif)"
+                      className="w-20 text-right"
+                      disabled={!d.maturityDate}
+                      value={d.maturityDate && +d.maturityDate.slice(8, 10) !== 1 ? +d.maturityDate.slice(8, 10) : ""}
+                      onChange={(e) => d.maturityDate && set("maturityDate", maturityFromMonth(d.maturityDate.slice(0, 7), "entreprise", e.target.value ? Number(e.target.value) : null))}
+                    />
+                  )}
+                </div>
+              )}
+            </Field>
             <Field label="Émetteur">{(id) => <TextInput id={id} value={d.issuer ?? ""} onChange={(e) => set("issuer", e.target.value || null)} placeholder="République française" />}</Field>
           </FormGrid>
         )}
