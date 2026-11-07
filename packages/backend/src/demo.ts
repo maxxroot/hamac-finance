@@ -19,6 +19,8 @@ export async function seedDemo(backend: Backend): Promise<void> {
     ...ws.params,
     profile: { ...ws.params.profile, birthYear: 1990, retirementAge: 64, securisationAge: 57, horizonAge: 90, startMonth: `${y - 1}-01`, contributionDay: 5 },
     tax: { ...ws.params.tax, tmi: 0.11 },
+    // Gestion suggérée : 600 € par mois répartis selon les allocations.
+    contributions: { mode: "suggere", capacity: 600 },
     // Allocations personnalisées d'exemple : livrets jusqu'à 6 000 € versés, puis vers l'assurance-vie.
     customAllocations: [
       { id: "demo-livrets", label: "", target: { kind: "type", accountKind: "livret" }, asTarget: true, asContribution: true, share: 0.2, limit: { basis: "verse", amount: 6000 }, overflowTo: "demo-av" },

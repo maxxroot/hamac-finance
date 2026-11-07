@@ -134,8 +134,8 @@ export interface AllocationReport {
   monthlyBase: number;
 }
 
-export function allocationReport(rules: readonly AllocationRule[], accounts: readonly AllocationAccountInput[], total: number): AllocationReport {
-  const monthlyBase = roundCents(accounts.reduce((s, a) => s + a.currentMonthly, 0));
+/** `monthlyBase` : base des parts de versements (capacité d'épargne si connue, sinon total programmé ce mois). */
+export function allocationReport(rules: readonly AllocationRule[], accounts: readonly AllocationAccountInput[], total: number, monthlyBase = roundCents(accounts.reduce((s, a) => s + a.currentMonthly, 0))): AllocationReport {
   const base = rules.map((rule) => {
     const members = accounts.filter((a) => (rule.target.kind === "type" ? a.account.kind === rule.target.accountKind && !a.account.archived : a.account.id === rule.target.accountId));
     const value = roundCents(members.reduce((s, a) => s + a.value, 0));

@@ -54,6 +54,11 @@ export const PlanParams = z
       avAllowanceCouple: eur,
       peaBefore5: pct,
     }),
+    /** Versements : gestion libre (montants saisis compte par compte) ou suggérée (depuis la capacité mensuelle). */
+    contributions: z.object({
+      mode: z.enum(["libre", "suggere"]),
+      capacity: eur,
+    }),
     /** Allocations personnalisées, ajoutées à la demande (voir allocations.ts). */
     customAllocations: z.array(AllocationRule),
     alerts: z.object({
@@ -117,6 +122,7 @@ export function defaultParams(today = new Date()): PlanParams {
       avAllowanceCouple: 9200,
       peaBefore5: 0.128,
     },
+    contributions: { mode: "libre", capacity: 0 },
     customAllocations: [],
     alerts: {
       ctoCashThreshold: 1000,

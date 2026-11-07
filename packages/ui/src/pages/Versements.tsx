@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Schedule, addMonth, monthOf, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { ContributionSplitCard } from "@/components/CustomAllocationCards";
+import { SuggestedContributions } from "@/components/SuggestedContributions";
 import { Field, MoneyInput, Select, TextInput } from "@/components/form";
 import { Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
@@ -14,6 +15,7 @@ import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 export function Versements() {
   const idx = useWorkspaceIndex();
   const [showAll, setShowAll] = useState(false);
+  const saveMode = useMutate("params.update");
   const today = todayIso();
   const current = monthOf(today);
 
@@ -30,6 +32,9 @@ export function Versements() {
   const monthlyTotal = withPlans.reduce((s, a) => s + schedule.current(a.id, today), 0);
   const dueDay = Number(schedule.dueDate(current).slice(8));
   const paidThisMonth = schedule.isPaid(current, today);
+  const mode = params.contributions.mode;
+  const setMode = (m: typeof mode) => m !== mode && saveMode.mutate({ ...params, contributions: { ...params.contributions, mode: m } });
+  const firstOpenMonth = current < params.profile.startMonth ? params.profile.startMonth : paidThisMonth ? addMonth(current, 1) : current;
 
   return (
     <>
@@ -38,17 +43,43 @@ export function Versements() {
         description="Versements mensuels programmés, compte par compte. Un mois écoulé est considéré comme versé, sauf s'il est déclaré manqué."
       />
 
+      <div className="mb-6 flex gap-1 border-b border-line" role="tablist">
+        {(
+          [
+            ["libre", "Gestion libre", "Vous fixez le montant de chaque compte."],
+            ["suggere", "Gestion suggérée", "Hamac répartit votre capacité d'épargne selon vos allocations."],
+          ] as const
+        ).map(([m, label, title]) => (
+          <button
+            key={m}
+            role="tab"
+            aria-selected={mode === m}
+            title={title}
+            onClick={() => setMode(m)}
+            className={cn("-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors", mode === m ? "border-accent text-fg" : "border-transparent text-fg-muted hover:text-fg")}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="mb-6 grid gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardTitle hint={`Prélevés le ${params.profile.contributionDay} de chaque mois, à partir de ${formatMonth(params.profile.startMonth)} (Paramètres › Plan)`}>Programmation</CardTitle>
-          <PlanForm accounts={idx.activeAccounts} defaultMonth={current < params.profile.startMonth ? params.profile.startMonth : current} />
-          <div className="mt-5 space-y-3">
-            {withPlans.length === 0 && <p className="text-sm text-fg-muted">Aucun versement programmé.</p>}
-            {withPlans.map((a) => (
-              <AccountPlans key={a.id} account={a} current={schedule.current(a.id, today)} />
-            ))}
+        {mode === "suggere" ? (
+          <div className="lg:col-span-2">
+            <SuggestedContributions defaultFromMonth={firstOpenMonth} />
           </div>
-        </Card>
+        ) : (
+          <Card className="lg:col-span-2">
+            <CardTitle hint={`Prélevés le ${params.profile.contributionDay} de chaque mois, à partir de ${formatMonth(params.profile.startMonth)} (Paramètres › Plan)`}>Programmation</CardTitle>
+            <PlanForm accounts={idx.activeAccounts} defaultMonth={current < params.profile.startMonth ? params.profile.startMonth : current} />
+            <div className="mt-5 space-y-3">
+              {withPlans.length === 0 && <p className="text-sm text-fg-muted">Aucun versement programmé.</p>}
+              {withPlans.map((a) => (
+                <AccountPlans key={a.id} account={a} current={schedule.current(a.id, today)} />
+              ))}
+            </div>
+          </Card>
+        )}
         <div className="space-y-5">
           <Card>
             <CardTitle>Ce mois-ci</CardTitle>
@@ -63,7 +94,7 @@ export function Versements() {
         </div>
       </div>
 
-      <ContributionSplitCard />
+      {mode === "libre" && <ContributionSplitCard />}
 
       <Card className="p-0">
         <div className="flex min-h-14 items-center justify-between px-5 pt-3 pb-1">

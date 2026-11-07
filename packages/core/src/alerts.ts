@@ -1,4 +1,5 @@
 import { allocationReport } from "./allocations";
+import { proposeContributions } from "./contributions";
 import { addMonths, monthsBetween } from "./dates";
 import { BUCKET_LABELS } from "./domain";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
@@ -57,7 +58,8 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
 
   // Allocations personnalisées (Paramètres › Plan).
   if (p.customAllocations.length) {
-    const report = allocationReport(p.customAllocations, active, state.totals.value);
+    const suggested = p.contributions.mode === "suggere" && p.contributions.capacity > 0;
+    const report = suggested ? allocationReport(p.customAllocations, active, state.totals.value, p.contributions.capacity) : allocationReport(p.customAllocations, active, state.totals.value);
     const pct = (v: number) => `${Math.round(v * 1000) / 10} %`.replace(".", ",");
     for (const r of report.rows) {
       if (r.done && r.rule.limit) {
@@ -86,12 +88,29 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
       }
     }
     const off = report.rows.filter((r) => r.rule.asContribution && report.monthlyBase > 0 && Math.abs(r.programmedMonthly - r.advisedMonthly) > Math.max(5, 0.1 * r.advisedMonthly));
-    if (off.length) {
+    // En gestion suggérée, c'est la proposition complète qui fait foi (alerte ci-dessous).
+    if (off.length && !suggested) {
       out.push({
         id: "alloc-versements",
         level: "info",
         title: "Versements programmés à ajuster selon vos allocations",
         detail: off.map((r) => `${r.name} : ${eur(r.programmedMonthly)} → ${eur(r.advisedMonthly)} par mois`).join(" · "),
+        link: "/versements",
+      });
+    }
+  }
+
+  // Gestion suggérée : versements programmés différents de la répartition proposée.
+  if (p.contributions.mode === "suggere" && p.contributions.capacity > 0) {
+    const proposal = proposeContributions(p, state, p.contributions.capacity);
+    const names = new Map(active.map((a) => [a.account.id, a.account.name]));
+    const off = proposal.lines.filter((l) => Math.abs(l.amount - l.current) > Math.max(5, 0.1 * l.amount));
+    if (off.length) {
+      out.push({
+        id: "versements-suggeres",
+        level: "info",
+        title: "Versements programmés différents de la répartition suggérée",
+        detail: off.map((l) => `${names.get(l.accountId)} : ${eur(l.current)} → ${eur(l.amount)} par mois`).join(" · "),
         link: "/versements",
       });
     }
