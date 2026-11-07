@@ -24,13 +24,13 @@ export interface ProjectionInput {
   start: Flows;
   /** Versé net de départ (hors crypto). */
   startContributed: number;
-  /** Versements annuels prévus par poche pour une année donnée. */
+  /** Versements annuels prévus par classe d'actifs pour une année donnée. */
   contributions: (year: number) => Flows;
   /** Dépenses prévues payées par les livrets. */
   expenses: (year: number) => number;
   /** Frais payés sur les versements de l'année (déjà retirés de `contributions`). */
   contributionFees?: (year: number) => number;
-  /** Frais annuels proportionnels à l'encours, retranchés du rendement de chaque poche. */
+  /** Frais annuels proportionnels à l'encours, retranchés du rendement de chaque classe d'actifs. */
   feeDrag?: Partial<Returns>;
 }
 
@@ -217,7 +217,7 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
 // ——— Construction depuis l'état réel ———
 
 export interface ProjectionOverrides {
-  /** Versement mensuel supplémentaire par poche (simulation « et si »). */
+  /** Versement mensuel supplémentaire par classe d'actifs (simulation « et si »). */
   extraMonthly?: Partial<Flows>;
   params?: PlanParams;
 }
@@ -334,7 +334,7 @@ export interface Band {
 
 /**
  * Fourchette du patrimoine : les actions suivent un rendement annuel aléatoire
- * (moyenne = hypothèse, volatilité ~16 %/an), les autres poches restent déterministes.
+ * (moyenne = hypothèse, volatilité ~16 %/an), les autres classes d'actifs restent déterministes.
  */
 export function monteCarlo(input: ProjectionInput, runs = 400, volatility = 0.16, seed = 42): Band[] {
   const rand = rng(seed);

@@ -28,6 +28,7 @@ import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/numbers";
 import { useSystemInfo } from "@/lib/queries";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
+import { usePortfolio } from "@/lib/portfolio";
 import { SETTINGS_ITEM } from "@/nav";
 
 const TABS = ["Plan", "Comptes", "Titres", "Application"] as const;
@@ -63,6 +64,7 @@ type Path = [keyof PlanParams, string];
 
 function PlanTab() {
   const idx = useWorkspaceIndex();
+  const pf = usePortfolio();
   const save = useMutate("params.update", { success: "Paramètres enregistrés" });
   const [p, setP] = useState<PlanParams | null>(null);
   useEffect(() => {
@@ -76,6 +78,10 @@ function PlanTab() {
   }, [p]);
 
   if (!p || !idx) return null;
+  // Taux moyen des livrets, pondéré par leur solde : repère pour l'hypothèse de rendement.
+  const livrets = pf?.state.accounts.filter((a) => a.account.kind === "livret" && a.value > 0) ?? [];
+  const livretTotal = livrets.reduce((t, a) => t + a.value, 0);
+  const livretRate = livretTotal > 0 ? livrets.reduce((t, a) => t + a.value * (a.account.rate ?? 0), 0) / livretTotal : null;
   const dirty = JSON.stringify(p) !== JSON.stringify(idx.ws.params);
   const set = (path: Path, value: unknown) => setP((x) => (x ? { ...x, [path[0]]: { ...(x[path[0]] as object), [path[1]]: value } } : x));
   const err = (path: Path) => issues.get(path.join(".")) ?? null;
@@ -117,7 +123,7 @@ function PlanTab() {
 
       <Section title="Hypothèses de rendement" hint="Par an, avant impôts. Prudentes et modifiables : rien n'est garanti hors livrets, fonds euros et obligations gardées jusqu'à l'échéance.">
         <FormGrid cols={3}>
-          {pctField("Livrets", ["returns", "livrets"])}
+          {pctField("Livrets", ["returns", "livrets"], livretRate != null ? `Taux moyen actuel de vos livrets : ${(livretRate * 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %.` : undefined)}
           {pctField("Fonds euros", ["returns", "fondsEuros"], "Bon fonds euros en ligne : 3 à 4 % brut ces dernières années.")}
           {pctField("Obligations (taux moyen de l'échelle)", ["returns", "obligations"])}
           {pctField("Actions (ETF monde)", ["returns", "actions"], "Moyenne de long terme, avec des années à −30 % ou −50 %.")}
@@ -142,7 +148,7 @@ function PlanTab() {
         <FormGrid cols={3}>
           {eurField("Plancher (ne jamais descendre sous)", ["livrets", "floor"], "Le matelas de sécurité.")}
           {eurField("Plafond (au-delà, transférer)", ["livrets", "ceiling"], "L'excédent part vers le fonds euros.")}
-          {pctField("Seuil d'alerte de rééquilibrage", ["livrets", "driftAlert"], "Alerte si une poche s'écarte de plus de ce nombre de points de sa cible.")}
+          {pctField("Seuil d'alerte de rééquilibrage", ["livrets", "driftAlert"], "Alerte si une classe d'actifs s'écarte de plus de ce nombre de points de sa cible.")}
         </FormGrid>
       </Section>
 
@@ -284,7 +290,7 @@ function AssetsTab() {
     <>
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-fg-muted">
-          Parts cibles de la poche actions :{" "}
+          Parts cibles des actions :{" "}
           <span className={cn("font-medium", Math.abs(equityTargets - 1) > 0.0001 && equityTargets > 0 ? "text-warning" : "text-fg")}>{formatPct(equityTargets)}</span>
           {Math.abs(equityTargets - 1) > 0.0001 && equityTargets > 0 && " (devrait faire 100 %)"}
         </p>

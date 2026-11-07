@@ -47,11 +47,11 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
       out.push({
         id: "allocation",
         level: "attention",
-        title: `Une poche s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} points de sa cible`,
+        title: `Une classe d'actifs s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} points de sa cible`,
         detail: under.length ? `Orienter les prochains versements vers : ${under.join(", ")}.` : "Alléger en versant ailleurs, sans vendre.",
         link: "/enveloppes",
       });
-    } else out.push({ id: "allocation", level: "ok", title: "Chaque poche est proche de sa cible" });
+    } else out.push({ id: "allocation", level: "ok", title: "Chaque classe d'actifs est proche de sa cible" });
   }
 
   // Phase du plan.

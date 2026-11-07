@@ -16,6 +16,7 @@ function empty(kind: AccountKind): Draft {
     openedOn: null,
     depositCeiling: kind === "livret" ? LIVRET_LEGAL_CEILINGS.LEP : null,
     rate: null,
+    rateFrom: null,
     role: "",
     beneficiaryClause: false,
     entryFeeRate: null,
@@ -41,7 +42,7 @@ export function AccountDialog({
   const save = useMutate("accounts.upsert", { success: account ? "Compte mis à jour" : "Compte créé" });
 
   useEffect(() => {
-    if (open) setD(account ? { ...account } : empty(defaultKind));
+    if (open) setD(account ? { ...account, rateFrom: null } : empty(defaultKind));
   }, [open, account, defaultKind]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -159,8 +160,11 @@ export function AccountDialog({
         </FormGrid>
 
         {d.kind === "livret" && (
-          <FormGrid>
-            <Field label="Taux actuel">{(id) => <PercentInput id={id} value={d.rate} onChange={(v) => set("rate", v)} />}</Field>
+          <FormGrid cols={3}>
+            <Field label="Taux actuel" help="Net, tel qu'affiché par la banque.">{(id) => <PercentInput id={id} value={d.rate} onChange={(v) => set("rate", v)} />}</Field>
+            <Field label="En vigueur depuis le" help={account ? "Un nouveau taux s'ajoute à l'historique sans effacer l'ancien." : "Aujourd'hui si vide."}>
+              {(id) => <TextInput id={id} type="date" value={d.rateFrom ?? ""} onChange={(e) => set("rateFrom", e.target.value || null)} />}
+            </Field>
             <Field label="Plafond de dépôt" help="Plafond légal pré-rempli.">
               {(id) => <MoneyInput id={id} value={d.depositCeiling} onChange={(v) => set("depositCeiling", v)} />}
             </Field>

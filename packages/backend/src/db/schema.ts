@@ -198,3 +198,19 @@ export const checklistItems = sqliteTable("checklist_items", {
   sortOrder: integer("sort_order").notNull().default(0),
   ...timestamps,
 });
+
+/** Historique des taux d'un compte (livrets) : taux en vigueur à partir d'une date. */
+export const accountRates = sqliteTable(
+  "account_rates",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    fromDate: text("from_date").notNull(),
+    rate: real("rate").notNull(),
+    comment: text("comment").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("account_rates_account_date_uq").on(t.accountId, t.fromDate)],
+);

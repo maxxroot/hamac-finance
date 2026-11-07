@@ -17,6 +17,8 @@ export const AccountInput = z.object({
   openedOn: isoDate.nullable().default(null),
   depositCeiling: money.min(0).nullable().default(null),
   rate: rate.nullable().default(null),
+  /** Date à partir de laquelle `rate` s'applique (livrets) ; aujourd'hui par défaut. */
+  rateFrom: isoDate.nullable().default(null),
   role: text(200).default(""),
   beneficiaryClause: z.boolean().default(false),
   entryFeeRate: rate.nullable().default(null),
@@ -124,4 +126,10 @@ export const InstitutionInput = z.object({
   offers: Offers.default({}),
 });
 export type InstitutionInput = z.input<typeof InstitutionInput>;
+export const AccountRateInput = z.object({
+  accountId: id,
+  fromDate: isoDate,
+  rate,
+  comment: text(200).default(""),
+});
 export const ManualPriceInput = z.object({ assetId: id, date: isoDate, price: money.positive() });

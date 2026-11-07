@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Asset } from "@hamac/core";
 import { incomeTaxRate } from "@hamac/core";
+import { AddAccountButton } from "@/components/AccountButtons";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
@@ -36,8 +37,12 @@ export function Crypto() {
 
   return (
     <>
-      <PageHeader title="Crypto" description="Hors allocation cible : compte dans le patrimoine, l'historique et la performance, mais pas dans la répartition ni dans la projection." />
-      {accounts.length === 0 && <Notice>Aucune plateforme crypto : ajoutez-en une dans Paramètres › Comptes.</Notice>}
+      <PageHeader
+        title="Crypto"
+        description="Hors allocation cible : compte dans le patrimoine, l'historique et la performance, mais pas dans la répartition ni dans la projection."
+        actions={<AddAccountButton kind="crypto" label="Ajouter une plateforme" />}
+      />
+      {accounts.length === 0 && <Notice>Aucune plateforme crypto. « Ajouter une plateforme » pour commencer.</Notice>}
       <StatGrid>
         <Stat label="Valeur totale" sub={<>{((value / (state.totals.value || 1)) * 100).toFixed(1).replace(".", ",")} % du patrimoine</>}>
           <Amount value={value} compact />

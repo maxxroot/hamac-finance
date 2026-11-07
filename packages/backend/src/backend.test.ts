@@ -245,3 +245,32 @@ describe("établissements", () => {
     raw.close();
   });
 });
+
+describe("taux datés des livrets", () => {
+  async function call<T = unknown>(b: Backend, name: string, input?: unknown): Promise<T> {
+    const res = await b.dispatch(name, input);
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`);
+    return res.data as T;
+  }
+  it("le taux saisi sur le livret crée l'historique ; un nouveau taux s'ajoute sans effacer l'ancien", async () => {
+    const b = memory();
+    const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", livretType: "LEP", name: "LEP", rate: 0.027, rateFrom: "2025-08-01" });
+    await call(b, "accountRates.set", { accountId: lep.id, fromDate: "2026-02-01", rate: 0.025 });
+    const ws = await call<{ accountRates: Array<{ fromDate: string; rate: number }>; accounts: Array<{ rate: number }> }>(b, "workspace.load");
+    expect(ws.accountRates.map((r) => [r.fromDate, r.rate])).toEqual([
+      ["2025-08-01", 0.027],
+      ["2026-02-01", 0.025],
+    ]);
+    expect(ws.accounts[0].rate).toBe(0.025);
+  });
+
+  it("un taux identique au précédent ne crée pas de doublon", async () => {
+    const b = memory();
+    const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", name: "LEP", rate: 0.03, rateFrom: "2025-01-01" });
+    await call(b, "accountRates.set", { accountId: lep.id, fromDate: "2025-08-01", rate: 0.03 });
+    await call(b, "accountRates.set", { accountId: lep.id, fromDate: "2026-02-01", rate: 0.025 });
+    await call(b, "accountRates.set", { accountId: lep.id, fromDate: "2026-06-01", rate: 0.025 });
+    const ws = await call<{ accountRates: Array<{ fromDate: string }> }>(b, "workspace.load");
+    expect(ws.accountRates.map((r) => r.fromDate)).toEqual(["2025-01-01", "2026-02-01"]);
+  });
+});

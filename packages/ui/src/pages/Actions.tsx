@@ -1,6 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { advisedMonthlyPurchase, describeOrderFees, fiscalAnniversary, monthsElapsed, splitByTarget, tradeFeeFor, type AccountState, type Asset, type PositionState } from "@hamac/core";
+import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
@@ -21,8 +22,12 @@ export function Actions() {
   const accounts = pf.state.accounts.filter((a) => (a.account.kind === "pea" || a.positions.some((p) => p.bucket === "croissance")) && !a.account.archived);
   return (
     <>
-      <PageHeader title="Actions & ETF" description="Positions calculées depuis le journal. Le cours vient du fournisseur ; un cours saisi à la main l'emporte à date égale ou plus récente." />
-      {accounts.length === 0 && <Notice>Aucun PEA ni position en actions.</Notice>}
+      <PageHeader
+        title="Actions & ETF"
+        description="Positions calculées depuis le journal. Le cours vient du fournisseur ; un cours saisi à la main l'emporte à date égale ou plus récente."
+        actions={<AddAccountButton kind="pea" label="Ajouter un PEA" />}
+      />
+      {accounts.length === 0 && <Notice>Aucun PEA ni position en actions. « Ajouter un PEA » : établissement, date d'ouverture (règle des 5 ans).</Notice>}
       <div className="space-y-8">
         {accounts.map((a) => (
           <Envelope key={a.account.id} s={a} onPrice={setPricing} />
@@ -55,8 +60,11 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
 
   return (
     <section>
-      <h2 className="mb-4 text-lg font-semibold">
-        {s.account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+        <span>
+          {s.account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
+        </span>
+        <EditAccountButton account={s.account} />
       </h2>
       <StatGrid>
         <Stat label="Valeur totale" sub={<>{(share * 100).toFixed(1).replace(".", ",")} % du patrimoine</>}>

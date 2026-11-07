@@ -17,6 +17,7 @@ const TABLES = [
   "prices",
   "planned_expenses",
   "checklist_items",
+  "account_rates",
 ] as const;
 
 export function exportDump(ctx: BackendContext): DataDump {

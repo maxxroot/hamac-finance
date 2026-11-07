@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { accountAgeYears, fiscalAnniversary, monthsBetween, type AccountState } from "@hamac/core";
+import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
 import { Amount } from "@/components/Amount";
 import { Field, FormGrid, MoneyInput, NumberInput, PercentInput, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
@@ -19,8 +20,12 @@ export function FondsEuros() {
   const contracts = pf.state.accounts.filter((a) => a.account.kind === "assurance_vie" && !a.account.archived);
   return (
     <>
-      <PageHeader title="Fonds euros" description="Assurance-vie, capital garanti. Tout se saisit dans le journal ; ici : fiche du contrat, valeur relevée et taux servis." />
-      {contracts.length === 0 && <Notice>Aucun contrat d'assurance-vie : ajoutez-en un dans Paramètres › Comptes.</Notice>}
+      <PageHeader
+        title="Fonds euros"
+        description="Assurance-vie, capital garanti. Les mouvements se saisissent dans le journal ; ici : fiche du contrat, valeur relevée et taux servis."
+        actions={<AddAccountButton kind="assurance_vie" label="Ajouter un contrat" />}
+      />
+      {contracts.length === 0 && <Notice>Aucun contrat d'assurance-vie. « Ajouter un contrat » : nom, établissement, date d'ouverture (règle des 8 ans), clause bénéficiaire.</Notice>}
       <div className="space-y-8">
         {contracts.map((c) => (
           <Contract key={c.account.id} s={c} />
@@ -46,8 +51,11 @@ function Contract({ s }: { s: AccountState }) {
 
   return (
     <section>
-      <h2 className="mb-4 text-lg font-semibold">
-        {account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+        <span>
+          {account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
+        </span>
+        <EditAccountButton account={account} />
       </h2>
       <StatGrid>
         <Stat label="Valeur calculée">

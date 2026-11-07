@@ -1,5 +1,6 @@
 import { desc, sql } from "drizzle-orm";
 import type {
+  AccountRate,
   ChecklistItem,
   Institution,
   InstitutionKind,
@@ -149,7 +150,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, institutions] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, institutions, rates] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
     db.select().from(t.assets).orderBy(t.assets.name).all(),
@@ -169,6 +170,7 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).get(),
     db.select().from(t.checklistItems).orderBy(t.checklistItems.sortOrder, t.checklistItems.createdAt).all(),
     db.select().from(t.institutions).orderBy(t.institutions.name).all(),
+    db.select().from(t.accountRates).orderBy(t.accountRates.fromDate).all(),
   ]);
   return {
     params,
@@ -185,5 +187,6 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     priceStatus: status ? JSON.parse(status.value) : null,
     checklist: checklist.map(mapChecklist),
     institutions: institutions.map(mapInstitution),
+    accountRates: rates.map((r): AccountRate => ({ id: r.id, accountId: r.accountId, fromDate: r.fromDate, rate: r.rate, comment: r.comment })),
   };
 }

@@ -1,6 +1,6 @@
 import type { Bucket } from "@hamac/core";
 
-/** Couleurs des poches, ordre fixe (identique au thème CSS). Validées pour le fond sombre. */
+/** Couleurs des classes d'actifs, ordre fixe (identique au thème CSS). Validées pour le fond sombre. */
 export const BUCKET_COLORS: Record<Bucket, string> = {
   precaution: "#539ad3",
   garanti: "#1b895f",

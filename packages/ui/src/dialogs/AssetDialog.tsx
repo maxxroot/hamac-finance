@@ -202,7 +202,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
 
         {!isBond && d.kind !== "crypto" && (
           <FormGrid>
-            <Field label="Part cible dans la poche actions" help="La somme des parts cibles doit faire 100 %.">
+            <Field label="Part cible parmi les actions" help="La somme des parts cibles doit faire 100 %.">
               {(id) => <PercentInput id={id} value={d.targetWeight} onChange={(v) => set("targetWeight", v)} />}
             </Field>
             <Field label="Frais de gestion annuels (TER)">{(id) => <PercentInput id={id} value={d.ter} onChange={(v) => set("ter", v)} />}</Field>

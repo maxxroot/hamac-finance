@@ -123,7 +123,7 @@ export function Synthese() {
           <Table>
             <thead>
               <tr>
-                <Th>Poche</Th>
+                <Th>Classe d'actifs</Th>
                 <Th align="right">Valeur</Th>
                 <Th align="right">Part réelle</Th>
                 <Th align="right">Part cible</Th>

@@ -86,7 +86,7 @@ export function Projection() {
 
       <div className="mb-6 grid gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-2">
-          <CardTitle hint="euros courants">Projection par poche</CardTitle>
+          <CardTitle hint="euros courants">Projection par classe d'actifs</CardTitle>
           {chart && <Chart option={chart} height={360} />}
         </Card>
         <Simulator params={p} onChange={setScenario} active={!!scenario} />
@@ -240,7 +240,7 @@ function Simulator({ params, onChange, active }: { params: PlanParams; onChange:
   return (
     <Card>
       <CardTitle hint={active ? <Badge tone="accent">scénario actif</Badge> : "ne modifie pas le plan"}>Et si…</CardTitle>
-      <p className="mb-3 text-xs text-fg-faint">Versement mensuel en plus, par poche :</p>
+      <p className="mb-3 text-xs text-fg-faint">Versement mensuel en plus, par classe d'actifs :</p>
       <div className="grid grid-cols-2 gap-3">
         {(["actions", "obligations", "fondsEuros", "livrets"] as const).map((k) => (
           <Field key={k} label={{ actions: "Actions", obligations: "Obligations", fondsEuros: "Fonds euros", livrets: "Livrets" }[k]}>

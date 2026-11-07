@@ -34,20 +34,24 @@ export const LIVRET_LEGAL_CEILINGS: Record<LivretType, number | null> = {
   AUTRE: null,
 };
 
-/** Poches de l'allocation, reprises du sheet. Précaution et spéculatif sont hors allocation cible. */
+/**
+ * Classes d'actifs (ce que contiennent les enveloppes). L'allocation cible porte sur fonds euros,
+ * obligations et actions ; livrets (précaution) et crypto restent hors allocation.
+ * Identifiants techniques inchangés, libellés concrets.
+ */
 export const BUCKETS = ["precaution", "garanti", "obligations", "croissance", "speculatif"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 export const BUCKET_LABELS: Record<Bucket, string> = {
-  precaution: "Précaution",
-  garanti: "Garanti",
+  precaution: "Livrets",
+  garanti: "Fonds euros",
   obligations: "Obligations",
-  croissance: "Croissance",
-  speculatif: "Spéculatif",
+  croissance: "Actions",
+  speculatif: "Crypto",
 };
-/** Poches qui composent la « partie investie » soumise à l'allocation cible. */
+/** Classes d'actifs qui composent la « partie investie » soumise à l'allocation cible. */
 export const INVESTED_BUCKETS: readonly Bucket[] = ["garanti", "obligations", "croissance"];
 
-/** Poche des espèces d'un compte (le titre détermine la poche des positions). */
+/** Classe d'actifs des espèces d'un compte (le titre détermine celle des positions). */
 export const CASH_BUCKET: Record<AccountKind, Bucket> = {
   livret: "precaution",
   assurance_vie: "garanti", // les espèces d'une assurance-vie = le fonds euros
@@ -159,7 +163,7 @@ export interface Asset {
   priceSource: PriceSource;
   manualPrice: number | null;
   manualPriceDate: string | null;
-  /** Poids cible au sein de la poche croissance (somme = 100 %). */
+  /** Poids cible parmi les actions (somme = 100 %). */
   targetWeight: number | null;
   /** Frais de gestion annuels (TER), déjà déduits du cours. */
   ter: number | null;

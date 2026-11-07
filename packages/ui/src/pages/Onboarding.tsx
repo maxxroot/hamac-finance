@@ -1,44 +1,55 @@
-import { Sparkles, Wrench } from "lucide-react";
-import { useState } from "react";
-import { Button, Card } from "@/components/ui";
-import { AccountDialog } from "@/dialogs/AccountDialog";
-import { useMutate } from "@/lib/workspace";
+import { Building2, Settings, Wallet } from "lucide-react";
+import type { ReactNode } from "react";
+import { Link } from "react-router";
+import { AddAccountButton } from "@/components/AccountButtons";
+import { Card } from "@/components/ui";
+import { useWorkspaceIndex } from "@/lib/workspace";
 
-/** Premier lancement : base vide. */
+/** Premier lancement : outil vierge, on construit soi-même son plan en trois étapes. */
 export function Onboarding() {
-  const starter = useMutate("workspace.createStarter", { success: "Structure créée : il ne reste qu'à saisir vos apports." });
-  const [manual, setManual] = useState(false);
+  const idx = useWorkspaceIndex();
+  const hasInstitutions = (idx?.ws.institutions.length ?? 0) > 0;
   return (
-    <div className="mx-auto max-w-3xl py-10">
+    <div className="mx-auto max-w-3xl py-8">
       <h1 className="text-3xl font-semibold tracking-tight">Bienvenue dans Hamac</h1>
       <p className="mt-3 text-fg-muted">
-        Hamac suit votre plan d'épargne retraite : livrets de précaution, fonds euros, obligations, actions et crypto, avec la fiscalité française. Vos données restent sur cet
-        ordinateur.
+        Hamac part d'une page blanche : vous créez vos établissements et vos comptes, puis vous saisissez ce qui s'y trouve. Tout le reste se calcule. Vos données restent sur cet ordinateur.
       </p>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <Card className="flex flex-col gap-4">
-          <Sparkles className="text-accent" />
-          <div>
-            <h2 className="font-semibold">Structure type du plan</h2>
-            <p className="mt-1 text-sm text-fg-muted">LEP, LDDS, Livret A, assurance-vie, compte-titres, PEA et crypto, avec leurs plafonds. Vous ajusterez ensuite.</p>
+      <div className="mt-8 space-y-4">
+        <Step n={1} icon={<Settings size={18} />} title="Votre profil" text="Année de naissance, âge de départ visé, hypothèses de rendement et allocation cible.">
+          <Link to="/parametres" className="text-sm text-accent hover:underline">
+            Ouvrir Paramètres › Plan
+          </Link>
+        </Step>
+        <Step n={2} icon={<Building2 size={18} />} title="Vos établissements" text="Banque, courtier, assurance-vie, plateforme crypto : les comptes qu'ils proposent et leurs frais.">
+          <Link to="/etablissements?nouveau=1" className="text-sm text-accent hover:underline">
+            {hasInstitutions ? "Ajouter un autre établissement" : "Ajouter un établissement"}
+          </Link>
+        </Step>
+        <Step n={3} icon={<Wallet size={18} />} title="Vos comptes" text="Chaque livret, contrat ou compte, rattaché à son établissement. Ensuite : vos apports initiaux dans le Journal.">
+          <div className="flex flex-wrap gap-2">
+            <AddAccountButton kind="livret" label="Livret" variant="secondary" />
+            <AddAccountButton kind="assurance_vie" label="Assurance-vie" variant="secondary" />
+            <AddAccountButton kind="pea" label="PEA" variant="secondary" />
+            <AddAccountButton kind="cto" label="Compte-titres" variant="secondary" />
+            <AddAccountButton kind="crypto" label="Plateforme crypto" variant="secondary" />
           </div>
-          <Button variant="primary" className="mt-auto" onClick={() => starter.mutate(undefined as never)} disabled={starter.isPending}>
-            Créer la structure type
-          </Button>
-        </Card>
-        <Card className="flex flex-col gap-4">
-          <Wrench className="text-fg-muted" />
-          <div>
-            <h2 className="font-semibold">Je crée mes comptes</h2>
-            <p className="mt-1 text-sm text-fg-muted">Commencez par un premier compte ; les autres s'ajoutent dans Paramètres › Comptes.</p>
-          </div>
-          <Button className="mt-auto" onClick={() => setManual(true)}>
-            Ajouter un compte
-          </Button>
-        </Card>
+        </Step>
       </div>
-      <p className="mt-6 text-sm text-fg-faint">Pensez à renseigner votre année de naissance et votre âge de départ dans Paramètres › Plan.</p>
-      <AccountDialog open={manual} onClose={() => setManual(false)} />
     </div>
+  );
+}
+
+function Step({ n, icon, title, text, children }: { n: number; icon: ReactNode; title: string; text: string; children: ReactNode }) {
+  return (
+    <Card className="flex gap-4">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">{icon}</div>
+      <div className="flex-1">
+        <div className="text-xs text-fg-faint">Étape {n}</div>
+        <h2 className="font-semibold">{title}</h2>
+        <p className="mt-1 mb-3 text-sm text-fg-muted">{text}</p>
+        {children}
+      </div>
+    </Card>
   );
 }

@@ -54,7 +54,9 @@ export async function seedDemo(backend: Backend): Promise<void> {
     [lep, "LEP", "LEP", 10000, 0.025, 1],
     [ldds, "LDDS", "LDDS", 12000, 0.017, 2],
   ] as const) {
-    await call("accounts.upsert", { id, kind: "livret", name, livretType, institutionId: banque.id, depositCeiling: ceiling, rate, sortOrder: order, role: name === "LEP" ? "Matelas de sécurité, à garder plein" : "Voiture, maison, imprévus" });
+    await call("accounts.upsert", { id, kind: "livret", name, livretType, institutionId: banque.id, depositCeiling: ceiling, rate: rate + 0.005, rateFrom: `${y - 1}-01-01`, sortOrder: order, role: name === "LEP" ? "Matelas de sécurité, à garder plein" : "Voiture, maison, imprévus" });
+    // Baisse des taux réglementés au 1er février : l'historique garde l'ancien taux.
+    await call("accountRates.set", { accountId: id, fromDate: `${y}-02-01`, rate });
   }
 
   const sp = await call("assets.upsert", { kind: "etf", name: "ETF PEA S&P 500", isin: "FR0011871128", priceSource: "auto", symbol: "PSP5.PA", targetWeight: 0.6, ter: 0.0015 });

@@ -1,4 +1,4 @@
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
 import { DEFAULT_CHECKLIST, LIVRET_LEGAL_CEILINGS, PlanParams, validateTransaction, type Account, type Asset } from "@hamac/core";
@@ -30,6 +30,34 @@ type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
 type Handlers = { [N in ProcName]: (input: Parsed<N>, ctx: BackendContext) => Promise<ProcOutput<N>> };
 
 const OK = { ok: true as const };
+
+/** Enregistre un taux daté (un seul par compte et par date) puis met à jour le taux courant du compte. */
+async function setRate(ctx: BackendContext, r: { accountId: string; fromDate: string; rate: number; comment: string }) {
+  await ctx.db
+    .insert(t.accountRates)
+    .values({ id: newId(), ...r })
+    .onConflictDoUpdate({ target: [t.accountRates.accountId, t.accountRates.fromDate], set: { rate: r.rate, comment: r.comment, updatedAt: nowIso() } });
+  await syncCurrentRate(ctx, r.accountId);
+}
+
+async function syncCurrentRate(ctx: BackendContext, accountId: string) {
+  // Historique sans doublon : un taux identique au précédent n'apporte rien, on le retire.
+  const all = await ctx.db.select().from(t.accountRates).where(eq(t.accountRates.accountId, accountId)).orderBy(t.accountRates.fromDate).all();
+  for (let i = 1; i < all.length; i++) {
+    if (all[i].rate === all[i - 1].rate) {
+      await ctx.db.delete(t.accountRates).where(eq(t.accountRates.id, all[i].id));
+      all.splice(i--, 1);
+    }
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const cur = await ctx.db
+    .select()
+    .from(t.accountRates)
+    .where(and(eq(t.accountRates.accountId, accountId), sql`${t.accountRates.fromDate} <= ${today}`))
+    .orderBy(desc(t.accountRates.fromDate))
+    .get();
+  if (cur) await ctx.db.update(t.accounts).set({ rate: cur.rate }).where(eq(t.accounts.id, accountId));
+}
 
 async function count(query: Promise<{ n: number } | undefined>): Promise<number> {
   return (await query)?.n ?? 0;
@@ -123,7 +151,31 @@ export const handlers: Handlers = {
     } else {
       await ctx.db.insert(t.accounts).values({ id, ...row });
     }
+    // Livret : le taux saisi devient un taux daté (historique), si c'est un nouveau taux.
+    if (input.kind === "livret" && input.rate != null) {
+      const from = input.rateFrom ?? new Date().toISOString().slice(0, 10);
+      const current = await ctx.db
+        .select()
+        .from(t.accountRates)
+        .where(and(eq(t.accountRates.accountId, id), sql`${t.accountRates.fromDate} <= ${from}`))
+        .orderBy(desc(t.accountRates.fromDate))
+        .get();
+      if (!current || current.rate !== input.rate) await setRate(ctx, { accountId: id, fromDate: from, rate: input.rate, comment: "" });
+    }
     return mapAccount((await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, id)).get())!);
+  },
+
+  async "accountRates.set"(input, ctx) {
+    if (!(await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, input.accountId)).get())) throw new RpcError("NOT_FOUND", "Compte introuvable.");
+    await setRate(ctx, input);
+    return OK;
+  },
+
+  async "accountRates.delete"({ id }, ctx) {
+    const row = await ctx.db.select().from(t.accountRates).where(eq(t.accountRates.id, id)).get();
+    await ctx.db.delete(t.accountRates).where(eq(t.accountRates.id, id));
+    if (row) await syncCurrentRate(ctx, row.accountId);
+    return OK;
   },
 
   async "accounts.delete"({ id }, ctx) {

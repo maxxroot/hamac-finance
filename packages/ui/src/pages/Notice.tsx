@@ -162,8 +162,8 @@ export function Notice() {
       <Section n={7} title="Petit lexique">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[180px_1fr]">
           {[
-            ["Compte (enveloppe)", "Ce qui contient les placements : livret, assurance-vie, PEA, compte-titres, plateforme crypto."],
-            ["Poche", "Précaution (livrets), garanti (fonds euros), obligations, croissance (actions), spéculatif (crypto)."],
+            ["Enveloppe (compte)", "Le cadre fiscal qui contient les placements : livret, assurance-vie, PEA, compte-titres, plateforme crypto."],
+            ["Classe d'actifs", "Ce que contient une enveloppe : livrets, fonds euros, obligations, actions, crypto. L'allocation cible porte sur fonds euros, obligations et actions."],
             ["Espèces", "Argent arrivé sur un compte mais pas encore investi."],
             ["Versé net", "Tout l'argent mis de sa poche, moins ce qui a été retiré."],
             ["Gain", "Valeur actuelle moins versé net."],

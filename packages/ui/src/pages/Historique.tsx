@@ -66,7 +66,7 @@ export function Historique() {
             <Chart option={charts.line} height={300} />
           </Card>
           <Card>
-            <CardTitle>Répartition par poche dans le temps</CardTitle>
+            <CardTitle>Répartition par classe d'actifs dans le temps</CardTitle>
             <Chart option={charts.area} height={300} />
           </Card>
         </div>

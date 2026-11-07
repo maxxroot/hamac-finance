@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PlanParams } from "@hamac/core";
 import type {
+  AccountRate,
   ChecklistItem,
   Institution,
   Account,
@@ -16,6 +17,7 @@ import type {
 } from "@hamac/core";
 import {
   AccountInput,
+  AccountRateInput,
   AssetInput,
   BondPlanInput,
   ChecklistInput,
@@ -62,6 +64,7 @@ export interface Workspace {
   plannedExpenses: PlannedExpense[];
   checklist: ChecklistItem[];
   institutions: Institution[];
+  accountRates: AccountRate[];
   /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
   prices: PricePoint[];
   priceStatus: PriceStatus | null;
@@ -112,6 +115,8 @@ export const procedures = {
 
   "accounts.upsert": { input: AccountInput, output: entity<Account>() },
   "accounts.delete": { input: byId, output: ok },
+  "accountRates.set": { input: AccountRateInput, output: ok },
+  "accountRates.delete": { input: byId, output: ok },
 
   "assets.upsert": { input: AssetInput, output: entity<Asset>() },
   "assets.delete": { input: byId, output: ok },

@@ -27,7 +27,7 @@
   --color-negative: #f2645a;
   --color-warning: #f5a524;
 
-  /* Poches : palette catégorielle validée (fond sombre, OKLCH L 0,48–0,67, daltonisme ΔE ≥ 16). Ordre fixe. */
+  /* Classes d'actifs : palette catégorielle validée (fond sombre, OKLCH L 0,48–0,67, daltonisme ΔE ≥ 16). Ordre fixe. */
   --color-livrets: #539ad3;
   --color-fonds-euros: #1b895f;
   --color-obligations: #597af7;
