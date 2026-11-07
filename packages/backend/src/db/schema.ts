@@ -22,12 +22,25 @@ export const settings = sqliteTable("settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
+/** Banques, courtiers, assureurs, plateformes crypto, avec leurs grilles de frais par type de compte. */
+export const institutions = sqliteTable("institutions", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull(),
+  website: text("website").notNull().default(""),
+  score: real("score"),
+  comment: text("comment").notNull().default(""),
+  /** Offres par type de compte (JSON validé par Offers dans @hamac/core). */
+  offers: text("offers").notNull().default("{}"),
+  ...timestamps,
+});
+
 export const accounts = sqliteTable("accounts", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
   livretType: text("livret_type"),
   name: text("name").notNull(),
-  institution: text("institution").notNull().default(""),
+  institutionId: text("institution_id").references(() => institutions.id, { onDelete: "set null" }),
   openedOn: text("opened_on"),
   depositCeilingCents: integer("deposit_ceiling_cents"),
   rate: real("rate"),
@@ -183,17 +196,5 @@ export const checklistItems = sqliteTable("checklist_items", {
   done: integer("done", { mode: "boolean" }).notNull().default(false),
   doneAt: text("done_at"),
   sortOrder: integer("sort_order").notNull().default(0),
-  ...timestamps,
-});
-
-/** Grilles de comparaison des plateformes (assurances-vie, courtiers). */
-export const comparisons = sqliteTable("comparisons", {
-  id: text("id").primaryKey(),
-  kind: text("kind").notNull(),
-  name: text("name").notNull(),
-  /** Valeurs par critère (JSON : { critère: texte }). */
-  values: text("values").notNull().default("{}"),
-  score: real("score"),
-  comment: text("comment").notNull().default(""),
   ...timestamps,
 });

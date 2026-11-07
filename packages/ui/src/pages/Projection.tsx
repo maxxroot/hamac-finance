@@ -66,7 +66,16 @@ export function Projection() {
             <Amount value={band?.p10} compact /> – <Amount value={band?.p90} compact />
           </span>
         </Result>
-        <Result label="Argent versé d'ici là" value={at.contributed} alt={alt?.atRetirement.contributed} sub={<>gains <Amount value={at.gains} compact /></>} />
+        <Result
+          label="Argent versé d'ici là"
+          value={at.contributed}
+          alt={alt?.atRetirement.contributed}
+          sub={
+            <>
+              gains <Amount value={at.gains} compact /> · frais estimés <Amount value={at.fees} compact />
+            </>
+          }
+        />
         <Result
           label={`Revenu mensuel possible de ${p.profile.retirementAge} à ${p.profile.horizonAge} ans`}
           value={base.income.monthlyToday}
@@ -130,6 +139,7 @@ export function Projection() {
               <Th align="right">€ d'aujourd'hui</Th>
               <Th align="right">Versé cumulé</Th>
               <Th align="right">Gains</Th>
+              <Th align="right">Frais cumulés</Th>
             </tr>
           </thead>
           <tbody>
@@ -165,6 +175,9 @@ export function Projection() {
                 <Td align="right">
                   <Amount value={r.gains} compact />
                 </Td>
+                <Td align="right" className="text-fg-muted">
+                  <Amount value={r.fees} compact />
+                </Td>
               </Tr>
             ))}
           </tbody>
@@ -173,7 +186,7 @@ export function Projection() {
       <div className="mt-4">
         <Notice>
           Modèle annuel simplifié : les versements de l'année s'ajoutent en fin d'année ; après l'âge de sécurisation, les versements actions vont au fonds euros et la part actions est ramenée à sa cible ; les livrets
-          sont plafonnés (l'excédent part au fonds euros) et le plancher est préservé. La fourchette rejoue 300 fois la projection avec des marchés actions aléatoires (volatilité 16 %/an). Rien n'est garanti hors livrets,
+          sont plafonnés (l'excédent part au fonds euros) et le plancher est préservé. Les frais des établissements sont déduits : frais sur versements et courtage des achats mensuels, frais de gestion du fonds euros et droits de garde. La fourchette rejoue 300 fois la projection avec des marchés actions aléatoires (volatilité 16 %/an). Rien n'est garanti hors livrets,
           fonds euros et obligations gardées jusqu'à l'échéance.
         </Notice>
       </div>

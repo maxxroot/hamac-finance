@@ -68,7 +68,7 @@ export function Livrets() {
                   {a.account.livretType && a.account.livretType !== "AUTRE" && a.account.name !== LIVRET_LABELS[a.account.livretType] && <span className="text-fg-muted"> · {LIVRET_LABELS[a.account.livretType]}</span>}
                   {a.account.role && <div className="text-xs font-normal text-fg-faint">{a.account.role}</div>}
                 </Td>
-                <Td className="text-fg-muted">{a.account.institution || "—"}</Td>
+                <Td className="text-fg-muted">{(a.account.institutionId && pf.idx.institutionById.get(a.account.institutionId)?.name) || "—"}</Td>
                 <Td align="right">
                   <Pct value={a.account.rate} />
                 </Td>

@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createBackend, type Backend } from "./index";
 
 let backend: Backend | null = null;
-afterEach(() => backend?.close());
+afterEach(() => {
+  backend?.close();
+  backend = null;
+});
 
 function memory() {
   backend = createBackend({ databasePath: ":memory:", mode: "desktop", appVersion: "test", backupsDir: null });
@@ -178,5 +181,67 @@ describe("sauvegarde, import et démarches", () => {
     const item = await call<{ done: boolean; doneAt: string | null }>(b, "checklist.upsert", { ...ws.checklist[0], done: true });
     expect(item.doneAt).not.toBeNull();
     expect((await b.dispatch("checklist.seedDefaults", undefined)).ok).toBe(false);
+  });
+});
+
+describe("établissements", () => {
+  async function call<T = unknown>(b: Backend, name: string, input?: unknown): Promise<T> {
+    const res = await b.dispatch(name, input);
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`);
+    return res.data as T;
+  }
+
+  it("crée un établissement avec ses offres validées, y rattache un compte, puis le supprime sans perdre le compte", async () => {
+    const b = memory();
+    const inst = await call<{ id: string; offers: { pea?: { orderFees: { tiers: unknown[] }; custodyFixed: number } } }>(b, "institutions.upsert", {
+      name: "Courtier",
+      kind: "courtier",
+      offers: { pea: { orderFees: { tiers: [{ upTo: 500, fixed: 1.99, rate: 0 }, { upTo: null, fixed: 0, rate: 0.006 }] } } },
+    });
+    expect(inst.offers.pea!.orderFees.tiers).toHaveLength(2);
+    expect(inst.offers.pea!.custodyFixed).toBe(0);
+    const pea = await call<{ id: string; institutionId: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA", institutionId: inst.id });
+    expect(pea.institutionId).toBe(inst.id);
+    await call(b, "institutions.delete", { id: inst.id });
+    const ws = await call<{ accounts: Array<{ institutionId: string | null }>; institutions: unknown[] }>(b, "workspace.load");
+    expect(ws.institutions).toHaveLength(0);
+    expect(ws.accounts[0].institutionId).toBeNull();
+  });
+
+  it("refuse une grille invalide", async () => {
+    const b = memory();
+    const bad = await b.dispatch("institutions.upsert", { name: "X", kind: "courtier", offers: { pea: { orderFees: { tiers: [] } } } });
+    expect(bad.ok === false && bad.error.code).toBe("VALIDATION");
+  });
+
+  it("migration : les noms d'établissement des anciens comptes deviennent des établissements rattachés", async () => {
+    const { DatabaseSync } = await import("node:sqlite");
+    const { migrations } = await import("./db/migrations.generated");
+    const { migrate } = await import("./db/migrate");
+    const raw = new DatabaseSync(":memory:");
+    raw.exec("CREATE TABLE _hamac_migrations (tag TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+    for (const m of migrations.slice(0, 3)) {
+      for (const st of m.sql.split("--> statement-breakpoint")) if (st.trim()) raw.exec(st);
+      raw.prepare("INSERT INTO _hamac_migrations VALUES (?, ?)").run(m.tag, "x");
+    }
+    raw.exec(`INSERT INTO settings VALUES ('plan.parameters', '{"broker":{"feeRate":0.004,"minFee":1}}', 'x')`);
+    raw.exec(`INSERT INTO accounts (id, kind, name, institution) VALUES ('p', 'pea', 'PEA', 'Boursomachin'), ('c', 'cto', 'CTO', ' boursomachin '), ('l', 'livret', 'LEP', 'Ma banque'), ('x', 'livret', 'LDDS', '')`);
+    raw.exec(`INSERT INTO comparisons (id, kind, name, "values", score, comment) VALUES ('k', 'assurance_vie', 'Contrat Z', '{"fraisVersement":"0 %"}', 8, 'bien')`);
+    migrate(raw);
+    const insts = raw.prepare("SELECT name, kind, offers, comment FROM institutions ORDER BY name").all() as Array<{ name: string; kind: string; offers: string; comment: string }>;
+    expect(insts.map((i) => [i.name, i.kind])).toEqual([["Boursomachin", "courtier"], ["Contrat Z", "assureur"], ["Ma banque", "banque"]]);
+    // json_patch retire les clés à null : elles reprennent leur valeur par défaut à la lecture (Offers).
+    const { Offers } = await import("@hamac/core");
+    const broker = Offers.parse(JSON.parse(insts[0].offers));
+    expect(broker.pea!.orderFees).toEqual({ tiers: [{ upTo: null, fixed: 0, rate: 0.004 }], min: 1, max: null });
+    expect(insts[1].comment).toMatch(/fraisVersement/);
+    const links = raw.prepare("SELECT a.id, i.name FROM accounts a LEFT JOIN institutions i ON i.id = a.institution_id ORDER BY a.id").all();
+    expect(links).toEqual([
+      { id: "c", name: "Boursomachin" },
+      { id: "l", name: "Ma banque" },
+      { id: "p", name: "Boursomachin" },
+      { id: "x", name: null },
+    ]);
+    raw.close();
   });
 });

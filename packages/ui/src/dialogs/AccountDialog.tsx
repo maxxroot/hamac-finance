@@ -3,7 +3,7 @@ import type { AccountInput } from "@hamac/api";
 import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, type Account, type AccountKind, type LivretType } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
-import { useMutate } from "@/lib/workspace";
+import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
 type Draft = Required<Omit<AccountInput, "id">> & { id?: string };
 
@@ -12,7 +12,7 @@ function empty(kind: AccountKind): Draft {
     kind,
     livretType: kind === "livret" ? "LEP" : null,
     name: "",
-    institution: "",
+    institutionId: null,
     openedOn: null,
     depositCeiling: kind === "livret" ? LIVRET_LEGAL_CEILINGS.LEP : null,
     rate: null,
@@ -45,6 +45,9 @@ export function AccountDialog({
   }, [open, account, defaultKind]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
+  const idx = useWorkspaceIndex();
+  const offering = idx?.ws.institutions.filter((i) => i.offers[d.kind]) ?? [];
+  const others = idx?.ws.institutions.filter((i) => !i.offers[d.kind]) ?? [];
 
   const submit = () =>
     save.mutate(d, {
@@ -76,7 +79,7 @@ export function AccountDialog({
                 value={d.kind}
                 onChange={(e) => {
                   const kind = e.target.value as AccountKind;
-                  setD((x) => ({ ...empty(kind), id: x.id, name: x.name, institution: x.institution, role: x.role }));
+                  setD((x) => ({ ...empty(kind), id: x.id, name: x.name, institutionId: x.institutionId, role: x.role }));
                 }}
               >
                 {ACCOUNT_KINDS.map((k) => (
@@ -115,7 +118,40 @@ export function AccountDialog({
             <div />
           )}
           <Field label="Nom">{(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder="ex. PEA BoursoBank" autoFocus />}</Field>
-          <Field label="Établissement">{(id) => <TextInput id={id} value={d.institution} onChange={(e) => set("institution", e.target.value)} placeholder="Banque, assureur, courtier…" />}</Field>
+          <Field
+            label="Établissement"
+            help={
+              idx && d.institutionId && !idx.institutionById.get(d.institutionId)?.offers[d.kind]
+                ? "Cet établissement n'a pas d'offre de ce type : les frais par défaut s'appliquent."
+                : !idx?.ws.institutions.length
+                  ? "Ajoutez vos établissements et leurs frais dans la page Établissements."
+                  : undefined
+            }
+          >
+            {(id) => (
+              <Select id={id} value={d.institutionId ?? ""} onChange={(e) => set("institutionId", e.target.value || null)}>
+                <option value="">Aucun (frais par défaut)</option>
+                {offering.length > 0 && (
+                  <optgroup label={`Proposent un ${ACCOUNT_KIND_LABELS[d.kind].toLowerCase()}`}>
+                    {offering.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {others.length > 0 && (
+                  <optgroup label="Autres établissements">
+                    {others.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </Select>
+            )}
+          </Field>
           <Field label="Date d'ouverture" help={d.kind === "pea" ? "Sert à la règle des 5 ans." : d.kind === "assurance_vie" ? "Sert à la règle des 8 ans." : undefined}>
             {(id) => <TextInput id={id} type="date" value={d.openedOn ?? ""} onChange={(e) => set("openedOn", e.target.value || null)} />}
           </Field>

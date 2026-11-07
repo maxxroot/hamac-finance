@@ -146,14 +146,6 @@ function PlanTab() {
         </FormGrid>
       </Section>
 
-      <Section title="Frais" hint="À reprendre dans la grille tarifaire de votre courtier et de votre plateforme crypto.">
-        <FormGrid cols={3}>
-          {pctField("Courtage (% par ordre)", ["broker", "feeRate"], "Achats et ventes d'ETF, d'actions et d'obligations.")}
-          {eurField("Courtage minimum par ordre", ["broker", "minFee"])}
-          {pctField("Frais de la plateforme crypto", ["crypto", "feeRate"], "Souvent entre 0,1 % et 1,5 %.")}
-        </FormGrid>
-      </Section>
-
       <Section title="Fiscalité" hint="Taux 2026, à vérifier chaque année.">
         <FormGrid cols={3}>
           <Field label="Tranche marginale d'imposition (TMI)" help="Sur l'avis d'imposition.">
@@ -262,7 +254,7 @@ function AccountsTab() {
                 {a.name} {a.archived && <Badge>archivé</Badge>}
               </Td>
               <Td>{ACCOUNT_KIND_LABELS[a.kind]}</Td>
-              <Td className="text-fg-muted">{a.institution}</Td>
+              <Td className="text-fg-muted">{(a.institutionId && idx.institutionById.get(a.institutionId)?.name) || "—"}</Td>
               <Td className="text-fg-muted">{a.openedOn ? formatDate(a.openedOn) : "—"}</Td>
               <Td align="right">{a.rate != null ? formatPct(a.rate) : "—"}</Td>
               <Td align="right">{a.depositCeiling != null ? <Amount value={a.depositCeiling} compact /> : "—"}</Td>

@@ -12,7 +12,7 @@ import { Livrets } from "@/pages/Livrets";
 import { Obligations } from "@/pages/Obligations";
 import { Performance } from "@/pages/Performance";
 import { Notice } from "@/pages/Notice";
-import { Plateformes } from "@/pages/Plateformes";
+import { Etablissements } from "@/pages/Etablissements";
 import { Projection } from "@/pages/Projection";
 import { Regles } from "@/pages/Regles";
 import { Synthese } from "@/pages/Synthese";
@@ -27,7 +27,8 @@ const PAGES: Record<string, ReactNode> = {
   "/projection": <Projection />,
   "/notice": <Notice />,
   "/regles": <Regles />,
-  "/plateformes": <Plateformes />,
+  "/etablissements": <Etablissements />,
+  "/plateformes": <Etablissements />,
   "/parametres": <Parametres />,
   "/journal": <Journal />,
   "/versements": <Versements />,

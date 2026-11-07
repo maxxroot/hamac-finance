@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { ProcInput, ProcName, Workspace } from "@hamac/api";
-import type { Account, Asset } from "@hamac/core";
+import type { Account, Asset, Institution } from "@hamac/core";
 import { call } from "./transport";
 import { useToast } from "./toast";
 
@@ -15,6 +15,7 @@ export interface WorkspaceIndex {
   ws: Workspace;
   accountById: Map<string, Account>;
   assetById: Map<string, Asset>;
+  institutionById: Map<string, Institution>;
   activeAccounts: Account[];
   activeAssets: Asset[];
 }
@@ -28,6 +29,7 @@ export function useWorkspaceIndex(): WorkspaceIndex | null {
       ws: data,
       accountById: new Map(data.accounts.map((a) => [a.id, a])),
       assetById: new Map(data.assets.map((a) => [a.id, a])),
+      institutionById: new Map(data.institutions.map((i) => [i.id, i])),
       activeAccounts: data.accounts.filter((a) => !a.archived),
       activeAssets: data.assets.filter((a) => !a.archived),
     };

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, LIVRET_TYPES, PRICE_SOURCES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_SOURCES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -13,7 +13,7 @@ export const AccountInput = z.object({
   kind: z.enum(ACCOUNT_KINDS),
   livretType: z.enum(LIVRET_TYPES).nullable().default(null),
   name: text(80).min(1, "Nom requis"),
-  institution: text(80).default(""),
+  institutionId: id.nullable().default(null),
   openedOn: isoDate.nullable().default(null),
   depositCeiling: money.min(0).nullable().default(null),
   rate: rate.nullable().default(null),
@@ -114,12 +114,14 @@ export const ChecklistInput = z.object({
   done: z.boolean().default(false),
   sortOrder: z.number().int().default(0),
 });
-export const ComparisonInput = z.object({
+export const InstitutionInput = z.object({
   id: id.optional(),
-  kind: z.enum(["assurance_vie", "courtier"]),
   name: text(80).min(1, "Nom requis"),
-  values: z.record(z.string(), z.string().max(200)).default({}),
+  kind: z.enum(INSTITUTION_KINDS),
+  website: text(200).default(""),
   score: z.number().min(0).max(10).nullable().default(null),
-  comment: text(500).default(""),
+  comment: text(1000).default(""),
+  offers: Offers.default({}),
 });
+export type InstitutionInput = z.input<typeof InstitutionInput>;
 export const ManualPriceInput = z.object({ assetId: id, date: isoDate, price: money.positive() });

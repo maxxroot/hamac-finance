@@ -20,6 +20,7 @@ import {
   type TxType,
 } from "./domain";
 import { formatEur, roundCents } from "./money";
+import type { Institution } from "./institutions";
 import { ageInYear, targetAllocation, type PlanParams } from "./params";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
@@ -38,6 +39,8 @@ export interface EngineData {
   bondPlans?: readonly BondPlan[];
   /** Historique des cours (ou au moins le dernier cours de chaque titre). */
   prices: readonly PricePoint[];
+  /** Établissements et leurs grilles de frais (facultatif). */
+  institutions?: readonly Institution[];
 }
 
 export type PriceUsed = "marche" | "manuel" | "modele" | "cout";

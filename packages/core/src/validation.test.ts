@@ -3,7 +3,7 @@ import type { Account, Asset } from "./domain";
 import { validateTransaction } from "./validation";
 
 const acc = (id: string, kind: Account["kind"]): Account => ({
-  id, kind, livretType: null, name: id, institution: "", openedOn: null, depositCeiling: null, rate: null, role: "",
+  id, kind, livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "",
   beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, sortOrder: 0, archived: false,
 });
 const asset = (id: string, kind: Asset["kind"]): Asset => ({

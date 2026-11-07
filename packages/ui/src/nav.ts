@@ -1,10 +1,10 @@
 import {
   BookOpen,
+  Building2,
   Bitcoin,
   CalendarClock,
   ChartLine,
   ChartPie,
-  Compass,
   Gauge,
   History,
   Landmark,
@@ -63,6 +63,12 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    label: "Organisation",
+    items: [
+      { path: "/etablissements", label: "Établissements", icon: Building2, sheetTab: "Choix des plateformes", step: 5, description: "Banques, courtiers, assureurs : offres, frais et comparaison." },
+    ],
+  },
+  {
     label: "Fiscalité",
     items: [
       { path: "/impots", label: "Impôts", icon: Receipt, sheetTab: "Impôts", step: 3, description: "Impôt si tout était retiré aujourd'hui, rendements nets, impôt annuel." },
@@ -73,7 +79,6 @@ export const NAV: NavGroup[] = [
     items: [
       { path: "/notice", label: "Notice", icon: BookOpen, sheetTab: "Notice", step: 5, description: "Mode d'emploi de Hamac." },
       { path: "/regles", label: "Règles et démarches", icon: ListChecks, sheetTab: "Règles et démarches", step: 5, description: "Règles du plan et liste des démarches à faire." },
-      { path: "/plateformes", label: "Choix des plateformes", icon: Compass, sheetTab: "Choix des plateformes", step: 5, description: "Comparatif des assurances-vie et courtiers." },
     ],
   },
 ];

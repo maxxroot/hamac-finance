@@ -131,7 +131,8 @@ export interface Account {
   kind: AccountKind;
   livretType: LivretType | null;
   name: string;
-  institution: string;
+  /** Établissement qui tient le compte (grille de frais). */
+  institutionId: string | null;
   openedOn: string | null;
   /** Plafond de dépôt (livrets), en euros. */
   depositCeiling: number | null;
@@ -251,13 +252,4 @@ export interface ChecklistItem {
   done: boolean;
   doneAt: string | null;
   sortOrder: number;
-}
-
-export interface Comparison {
-  id: string;
-  kind: "assurance_vie" | "courtier";
-  name: string;
-  values: Record<string, string>;
-  score: number | null;
-  comment: string;
 }

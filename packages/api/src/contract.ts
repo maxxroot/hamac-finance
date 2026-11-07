@@ -2,7 +2,7 @@ import { z } from "zod";
 import { PlanParams } from "@hamac/core";
 import type {
   ChecklistItem,
-  Comparison,
+  Institution,
   Account,
   Asset,
   BondPlan,
@@ -19,7 +19,7 @@ import {
   AssetInput,
   BondPlanInput,
   ChecklistInput,
-  ComparisonInput,
+  InstitutionInput,
   FundRateInput,
   ManualPriceInput,
   PlanInput,
@@ -61,7 +61,7 @@ export interface Workspace {
   statements: Statement[];
   plannedExpenses: PlannedExpense[];
   checklist: ChecklistItem[];
-  comparisons: Comparison[];
+  institutions: Institution[];
   /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
   prices: PricePoint[];
   priceStatus: PriceStatus | null;
@@ -137,8 +137,8 @@ export const procedures = {
   "checklist.upsert": { input: ChecklistInput, output: entity<ChecklistItem>() },
   "checklist.delete": { input: byId, output: ok },
   "checklist.seedDefaults": { input: z.void(), output: ok },
-  "comparisons.upsert": { input: ComparisonInput, output: entity<Comparison>() },
-  "comparisons.delete": { input: byId, output: ok },
+  "institutions.upsert": { input: InstitutionInput, output: entity<Institution>() },
+  "institutions.delete": { input: byId, output: ok },
 
   "transactions.bulkCreate": {
     input: z.object({ items: z.array(TransactionInput).min(1).max(5000) }),

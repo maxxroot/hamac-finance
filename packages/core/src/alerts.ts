@@ -107,6 +107,34 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
     if (anniv > today && monthsBetween(today, anniv) < 6) out.push({ id: `anniv-${a.account.id}`, level: "info", title: `${a.account.name} aura ${years} ans le ${frDate(anniv)}`, detail: "Fiscalité allégée à partir de cette date : attendre pour tout retrait." });
   }
 
+  // Frais : droits de garde, frais sur versements, petits ordres coûteux.
+  const institutions = new Map((data.institutions ?? []).map((i) => [i.id, i]));
+  for (const a of active) {
+    const inst = a.account.institutionId ? institutions.get(a.account.institutionId) : undefined;
+    if (!inst) continue;
+    if (a.account.kind === "pea" || a.account.kind === "cto") {
+      const offer = inst.offers[a.account.kind];
+      const custody = offer ? offer.custodyFixed + offer.custodyRate * a.value : 0;
+      if (custody >= 1) out.push({ id: `garde-${a.account.id}`, level: "info", title: `Tenue de compte : environ ${eur(custody)} par an sur ${a.account.name}`, detail: `Grille de ${inst.name}.`, link: "/etablissements" });
+    }
+    const entry = inst.offers.assurance_vie?.entryFee ?? 0;
+    if (a.account.kind === "assurance_vie" && entry >= 0.01) {
+      out.push({ id: `entree-${a.account.id}`, level: "info", title: `Frais sur versements de ${Math.round(entry * 1000) / 10} % sur ${a.account.name}`, detail: "Les contrats en ligne sont souvent à 0 % : à comparer dans Établissements.", link: "/etablissements" });
+    }
+  }
+  const since = addMonths(today, -6);
+  const costly = data.transactions.filter((t) => (t.type === "achat" || t.type === "vente") && t.date >= since && t.date <= today && t.fee != null && t.amount > 0 && t.fee / t.amount > 0.01);
+  if (costly.length) {
+    const worst = costly.reduce((m, t) => (t.fee! / t.amount > m.fee! / m.amount ? t : m));
+    out.push({
+      id: "petits-ordres",
+      level: "attention",
+      title: `${costly.length} ordre(s) récent(s) avec plus de 1 % de frais (jusqu'à ${Math.round((worst.fee! / worst.amount) * 1000) / 10} %)`,
+      detail: "Regrouper les achats en ordres plus gros réduit les frais.",
+      link: "/journal",
+    });
+  }
+
   // Janvier–mars : intérêts de l'année passée à saisir.
   const month = +today.slice(5, 7);
   if (month <= 3) {

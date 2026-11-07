@@ -25,8 +25,37 @@ export async function seedDemo(backend: Backend): Promise<void> {
   const acc = (name: string) => accounts.find((a) => a.name === name)!.id;
   const [lep, ldds, av, cto, pea, crypto] = ["LEP", "LDDS", "Assurance-vie", "Compte-titres", "PEA", "Crypto"].map(acc);
 
-  await call("accounts.upsert", { id: pea, kind: "pea", name: "PEA", institution: "Courtier en ligne", openedOn: "2021-03-15", role: "Long terme, jamais vendu dans une baisse", monthsToInvest: 12, sortOrder: 6 });
-  await call("accounts.upsert", { id: av, kind: "assurance_vie", name: "Assurance-vie", institution: "Assureur en ligne", openedOn: `${y - 1}-01-10`, role: "Amortisseur, capital garanti (fonds euros)", beneficiaryClause: true, sortOrder: 4 });
+  // Établissements FICTIFS (noms génériques : aucun tarif réel n'est prétendu).
+  const broker = { custodyFixed: 0, custodyRate: 0, etfWorld: true, directBonds: true, programmed: true, reachableSupport: true };
+  const courtier = await call("institutions.upsert", {
+    name: "Courtier A",
+    kind: "courtier",
+    website: "",
+    score: 8,
+    comment: "Exemple de grille par paliers",
+    offers: {
+      pea: { ...broker, orderFees: { tiers: [{ upTo: 500, fixed: 1.99, rate: 0 }, { upTo: null, fixed: 0, rate: 0.005 }], min: null, max: null } },
+      cto: { ...broker, custodyFixed: 12, orderFees: { tiers: [{ upTo: null, fixed: 0, rate: 0.005 }], min: 1, max: null } },
+    },
+  });
+  const assureur = await call("institutions.upsert", {
+    name: "Assureur B",
+    kind: "assureur",
+    score: 7,
+    offers: { assurance_vie: { entryFee: 0, euroFee: 0.006, ucFee: 0.005, arbitrageFee: 0, euroRateLast: 0.031, euroRate5y: 0.024, full100Euro: true, bonusConditioned: false, etfWorld: true, datedFunds: false, programmedFrom: 50, insurer: "Assureur fictif" } },
+  });
+  const banque = await call("institutions.upsert", { name: "Banque C", kind: "banque", offers: { livret: {} } });
+  const plateforme = await call("institutions.upsert", { name: "Plateforme D", kind: "crypto", offers: { crypto: { tradeFee: 0.005, spread: 0.005 } } });
+  await call("accounts.upsert", { id: pea, kind: "pea", name: "PEA", institutionId: courtier.id, openedOn: "2021-03-15", role: "Long terme, jamais vendu dans une baisse", monthsToInvest: 12, sortOrder: 6 });
+  await call("accounts.upsert", { id: cto, kind: "cto", name: "Compte-titres", institutionId: courtier.id, role: "Obligations à taux fixe, gardées jusqu'à l'échéance", sortOrder: 5 });
+  await call("accounts.upsert", { id: av, kind: "assurance_vie", name: "Assurance-vie", institutionId: assureur.id, openedOn: `${y - 1}-01-10`, role: "Amortisseur, capital garanti (fonds euros)", beneficiaryClause: true, sortOrder: 4 });
+  await call("accounts.upsert", { id: crypto, kind: "crypto", name: "Crypto", institutionId: plateforme.id, role: "Hors allocation : petite part, peut perdre 80 %", sortOrder: 7 });
+  for (const [id, name, livretType, ceiling, rate, order] of [
+    [lep, "LEP", "LEP", 10000, 0.025, 1],
+    [ldds, "LDDS", "LDDS", 12000, 0.017, 2],
+  ] as const) {
+    await call("accounts.upsert", { id, kind: "livret", name, livretType, institutionId: banque.id, depositCeiling: ceiling, rate, sortOrder: order, role: name === "LEP" ? "Matelas de sécurité, à garder plein" : "Voiture, maison, imprévus" });
+  }
 
   const sp = await call("assets.upsert", { kind: "etf", name: "ETF PEA S&P 500", isin: "FR0011871128", priceSource: "auto", symbol: "PSP5.PA", targetWeight: 0.6, ter: 0.0015 });
   const em = await call("assets.upsert", { kind: "etf", name: "ETF PEA MSCI Emerging Markets", isin: "FR0013412020", priceSource: "auto", symbol: "PAEEM.PA", targetWeight: 0.15, ter: 0.002 });

@@ -38,6 +38,8 @@ function Contract({ s }: { s: AccountState }) {
   const ageY = accountAgeYears(account.openedOn, today);
   const ageM = account.openedOn ? monthsBetween(account.openedOn, today) % 12 : null;
   const fgap = pf.data.params.alerts.fgapGuarantee;
+  const inst = account.institutionId ? pf.idx.institutionById.get(account.institutionId) : undefined;
+  const offer = inst?.offers.assurance_vie;
   const rates = pf.idx.ws.fundRates.filter((r) => r.accountId === account.id);
   const avgRate = rates.length ? rates.reduce((t, r) => t + r.rate, 0) / rates.length : null;
   const interestsByYear = (year: number) => pf.idx.ws.transactions.filter((t) => t.accountId === account.id && t.type === "interets" && t.date.startsWith(`${year}-`)).reduce((t, x) => t + x.amount, 0);
@@ -45,7 +47,7 @@ function Contract({ s }: { s: AccountState }) {
   return (
     <section>
       <h2 className="mb-4 text-lg font-semibold">
-        {account.name} {account.institution && <span className="font-normal text-fg-muted">· {account.institution}</span>}
+        {account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
       </h2>
       <StatGrid>
         <Stat label="Valeur calculée">
@@ -77,6 +79,16 @@ function Contract({ s }: { s: AccountState }) {
             <dt className="text-fg-muted">Garantie FGAP</dt>
             <dd>
               marge de <Amount value={fgap - s.value} compact /> sous {fgap.toLocaleString("fr-FR")} €
+            </dd>
+            <dt className="text-fg-muted">Frais</dt>
+            <dd>
+              {offer ? (
+                <>
+                  versements <Pct value={offer.entryFee} digits={2} /> · gestion <Pct value={offer.euroFee} digits={2} /> / an
+                </>
+              ) : (
+                <span className="text-fg-faint">à renseigner dans Établissements</span>
+              )}
             </dd>
             <dt className="text-fg-muted">Taux moyen servi</dt>
             <dd>

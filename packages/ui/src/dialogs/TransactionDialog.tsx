@@ -8,8 +8,9 @@ import {
   TX_LABELS,
   TX_NEEDS_ASSET,
   TX_OPTIONAL_ASSET,
-  bondPurchaseFee,
-  embeddedFee,
+  suggestOrderFee,
+  suggestTradeFee,
+  tradeFeeFor,
   formatEur,
   roundCents,
   validateTransaction,
@@ -96,17 +97,15 @@ export function TransactionDialog({
 
   // Frais suggérés selon la grille des paramètres (Journal!G / OAT!I).
   const suggestedFee = useMemo(() => {
-    if (!d || !params || !account || !isTrade) return null;
-    const crypto = account.kind === "crypto";
-    const rate = crypto ? params.crypto.feeRate : params.broker.feeRate;
-    const min = crypto ? 0 : params.broker.minFee;
+    if (!d || !params || !account || !isTrade || !idx) return null;
     if (isBond) {
       if (d.quantity == null || d.pricePct == null) return null;
-      return bondPurchaseFee(d.quantity, d.pricePct, rate, min);
+      return suggestOrderFee(account, idx.institutionById, params, (d.quantity * d.pricePct) / 100);
     }
     if (d.amount == null) return null;
-    return embeddedFee(d.type as "achat" | "vente", d.amount, rate, min);
-  }, [d, params, account, isTrade, isBond]);
+    return suggestTradeFee(account, idx.institutionById, params, d.type as "achat" | "vente", d.amount);
+  }, [d, params, account, isTrade, isBond, idx]);
+  const feeSource = account && params && idx ? tradeFeeFor(account, idx.institutionById, params).source.label : "";
 
   // Obligation : le montant découle du nominal, du prix et des frais.
   useEffect(() => {
@@ -262,7 +261,7 @@ export function TransactionDialog({
             <Field label="Prix (% du nominal)" help="Ex. 96,40 : acheté sous le pair.">
               {(id) => <NumberInput id={id} suffix="%" decimals={3} value={d.pricePct} onChange={(v) => set("pricePct", v)} />}
             </Field>
-            <Field label="Frais" help={d.feeManual ? "Saisis à la main." : "Calculés d'après Paramètres."}>
+            <Field label="Frais" help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.toLowerCase()}.`}>
               {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
             </Field>
             <Field label={d.type === "achat" ? "Total débité" : "Total reçu"} className="sm:col-span-3" error={err("amount")}>
@@ -284,7 +283,7 @@ export function TransactionDialog({
               </Field>
             )}
             {isTrade && (
-              <Field label="dont frais" error={err("fee")} help={d.feeManual ? "Saisis à la main." : "Calculés d'après Paramètres."}>
+              <Field label="dont frais" error={err("fee")} help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.toLowerCase()}.`}>
                 {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
               </Field>
             )}

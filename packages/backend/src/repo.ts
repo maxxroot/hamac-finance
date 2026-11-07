@@ -1,7 +1,8 @@
 import { desc, sql } from "drizzle-orm";
 import type {
   ChecklistItem,
-  Comparison,
+  Institution,
+  InstitutionKind,
   Account,
   AccountKind,
   Asset,
@@ -18,7 +19,7 @@ import type {
   Transaction,
   TxType,
 } from "@hamac/core";
-import { normalizeParams, type PlanParams } from "@hamac/core";
+import { normalizeParams, Offers, type PlanParams } from "@hamac/core";
 import type { Workspace } from "@hamac/api";
 import { eq } from "drizzle-orm";
 import * as t from "./db/schema";
@@ -39,7 +40,7 @@ export function mapAccount(r: typeof t.accounts.$inferSelect): Account {
     kind: r.kind as AccountKind,
     livretType: (r.livretType as LivretType | null) ?? null,
     name: r.name,
-    institution: r.institution,
+    institutionId: r.institutionId,
     openedOn: r.openedOn,
     depositCeiling: fromCentsOrNull(r.depositCeilingCents),
     rate: r.rate,
@@ -127,14 +128,11 @@ export const mapExpense = (r: typeof t.plannedExpenses.$inferSelect): PlannedExp
 });
 
 export const mapChecklist = (r: typeof t.checklistItems.$inferSelect): ChecklistItem => ({ id: r.id, label: r.label, note: r.note, done: r.done, doneAt: r.doneAt, sortOrder: r.sortOrder });
-export const mapComparison = (r: typeof t.comparisons.$inferSelect): Comparison => ({
-  id: r.id,
-  kind: r.kind as Comparison["kind"],
-  name: r.name,
-  values: JSON.parse(r.values),
-  score: r.score,
-  comment: r.comment,
-});
+export function mapInstitution(r: typeof t.institutions.$inferSelect): Institution {
+  // Offres validées à la lecture : une donnée ancienne ou incomplète reçoit ses valeurs par défaut.
+  const parsed = Offers.safeParse(JSON.parse(r.offers));
+  return { id: r.id, name: r.name, kind: r.kind as InstitutionKind, website: r.website, score: r.score, comment: r.comment, offers: parsed.success ? parsed.data : {} };
+}
 
 export async function loadParams(db: Db): Promise<PlanParams> {
   const row = await db.select().from(t.settings).where(eq(t.settings.key, PARAMS_KEY)).get();
@@ -151,7 +149,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, comparisons] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, institutions] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
     db.select().from(t.assets).orderBy(t.assets.name).all(),
@@ -170,7 +168,7 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
       .all(),
     db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).get(),
     db.select().from(t.checklistItems).orderBy(t.checklistItems.sortOrder, t.checklistItems.createdAt).all(),
-    db.select().from(t.comparisons).orderBy(t.comparisons.createdAt).all(),
+    db.select().from(t.institutions).orderBy(t.institutions.name).all(),
   ]);
   return {
     params,
@@ -186,6 +184,6 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     prices: prices.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,
     checklist: checklist.map(mapChecklist),
-    comparisons: comparisons.map(mapComparison),
+    institutions: institutions.map(mapInstitution),
   };
 }

@@ -13,7 +13,7 @@ import {
   mapAsset,
   mapBondPlan,
   mapChecklist,
-  mapComparison,
+  mapInstitution,
   mapExpense,
   mapPlan,
   mapSkip,
@@ -92,11 +92,14 @@ export const handlers: Handlers = {
 
   async "accounts.upsert"(input, ctx) {
     const id = input.id ?? newId();
+    if (input.institutionId && !(await ctx.db.select().from(t.institutions).where(eq(t.institutions.id, input.institutionId)).get())) {
+      throw new RpcError("NOT_FOUND", "Établissement introuvable.");
+    }
     const row = {
       kind: input.kind,
       livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null,
       name: input.name,
-      institution: input.institution,
+      institutionId: input.institutionId,
       openedOn: input.openedOn,
       depositCeilingCents: input.depositCeiling == null ? null : toCents(input.depositCeiling),
       rate: input.rate,
@@ -327,16 +330,20 @@ export const handlers: Handlers = {
     return OK;
   },
 
-  async "comparisons.upsert"(input, ctx) {
+  async "institutions.upsert"(input, ctx) {
     const id = input.id ?? newId();
-    const row = { kind: input.kind, name: input.name, values: JSON.stringify(input.values), score: input.score, comment: input.comment, updatedAt: nowIso() };
-    if (input.id) await ctx.db.update(t.comparisons).set(row).where(eq(t.comparisons.id, id));
-    else await ctx.db.insert(t.comparisons).values({ id, ...row });
-    return mapComparison((await ctx.db.select().from(t.comparisons).where(eq(t.comparisons.id, id)).get())!);
+    const row = { name: input.name, kind: input.kind, website: input.website, score: input.score, comment: input.comment, offers: JSON.stringify(input.offers), updatedAt: nowIso() };
+    if (input.id) {
+      const res = await ctx.db.update(t.institutions).set(row).where(eq(t.institutions.id, id)).returning({ id: t.institutions.id });
+      if (!res.length) throw new RpcError("NOT_FOUND", "Établissement introuvable.");
+    } else await ctx.db.insert(t.institutions).values({ id, ...row });
+    return mapInstitution((await ctx.db.select().from(t.institutions).where(eq(t.institutions.id, id)).get())!);
   },
 
-  async "comparisons.delete"({ id }, ctx) {
-    await ctx.db.delete(t.comparisons).where(eq(t.comparisons.id, id));
+  async "institutions.delete"({ id }, ctx) {
+    // Les comptes rattachés gardent leur historique et repassent sur les frais par défaut.
+    await ctx.db.update(t.accounts).set({ institutionId: null, updatedAt: nowIso() }).where(eq(t.accounts.institutionId, id));
+    await ctx.db.delete(t.institutions).where(eq(t.institutions.id, id));
     return OK;
   },
 

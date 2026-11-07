@@ -1,6 +1,6 @@
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { advisedMonthlyPurchase, fiscalAnniversary, monthsElapsed, splitByTarget, type AccountState, type Asset, type PositionState } from "@hamac/core";
+import { advisedMonthlyPurchase, describeOrderFees, fiscalAnniversary, monthsElapsed, splitByTarget, tradeFeeFor, type AccountState, type Asset, type PositionState } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
@@ -50,11 +50,13 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
   const share = pf.state.totals.value > 0 ? s.value / pf.state.totals.value : 0;
   const ter = equities.reduce((t, p) => t + p.value * (p.asset.ter ?? 0), 0);
   const missing = equities.filter((p) => p.priceUsed === "cout");
+  const inst = s.account.institutionId ? pf.idx.institutionById.get(s.account.institutionId) : undefined;
+  const fees = tradeFeeFor(s.account, pf.idx.institutionById, params);
 
   return (
     <section>
       <h2 className="mb-4 text-lg font-semibold">
-        {s.account.name} {s.account.institution && <span className="font-normal text-fg-muted">· {s.account.institution}</span>}
+        {s.account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
       </h2>
       <StatGrid>
         <Stat label="Valeur totale" sub={<>{(share * 100).toFixed(1).replace(".", ",")} % du patrimoine</>}>
@@ -167,10 +169,8 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
             <Amount value={s.fees} />
           </div>
           <div className="flex justify-between py-1 text-sm">
-            <span className="text-fg-muted">Grille</span>
-            <span>
-              {(params.broker.feeRate * 100).toLocaleString("fr-FR")} % par ordre, min. {params.broker.minFee.toLocaleString("fr-FR")} €
-            </span>
+            <span className="shrink-0 text-fg-muted">{fees.source.label}</span>
+            <span className="text-right">{fees.order ? describeOrderFees(fees.order) : "—"}</span>
           </div>
           <div className="flex justify-between py-1 text-sm">
             <span className="text-fg-muted">Frais de gestion des ETF / an</span>

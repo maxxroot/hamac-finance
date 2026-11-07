@@ -8,7 +8,7 @@ import { cryptoTax, withdrawalTaxes, yearlyTaxes } from "./taxes";
 
 // ——— Fabriques ———
 const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): Account => ({
-  id, kind, livretType: kind === "livret" ? "LEP" : null, name: id, institution: "", openedOn: null, depositCeiling: null, rate: null, role: "",
+  id, kind, livretType: kind === "livret" ? "LEP" : null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "",
   beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, sortOrder: 0, archived: false, ...extra,
 });
 const asset = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({

@@ -2,6 +2,7 @@ import type { EngineData, PortfolioState } from "./engine";
 import { roundCents } from "./money";
 import { ageInYear, etfTarget, retirementYear, type PlanParams } from "./params";
 import { Schedule } from "./schedule";
+import { orderFee } from "./institutions";
 
 /**
  * Projection annuelle simplifiée (onglet « Projection » du sheet), avant impôts, hors crypto.
@@ -27,6 +28,10 @@ export interface ProjectionInput {
   contributions: (year: number) => Flows;
   /** Dépenses prévues payées par les livrets. */
   expenses: (year: number) => number;
+  /** Frais payés sur les versements de l'année (déjà retirés de `contributions`). */
+  contributionFees?: (year: number) => number;
+  /** Frais annuels proportionnels à l'encours, retranchés du rendement de chaque poche. */
+  feeDrag?: Partial<Returns>;
 }
 
 export interface ProjectionRow {
@@ -47,6 +52,8 @@ export interface ProjectionRow {
   contributed: number;
   gains: number;
   belowFloor: boolean;
+  /** Frais cumulés depuis l'année de départ de la projection. */
+  fees: number;
 }
 
 export interface RetirementIncome {
@@ -106,6 +113,7 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
     contributed: input.startContributed,
     gains: 0,
     belowFloor: input.start.livrets < p.livrets.floor,
+    fees: 0,
   };
   first.total = first.livrets + first.invested;
   first.real = first.total;
@@ -115,7 +123,14 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
 
   for (let year = input.startYear + 1; year <= Math.max(retYear, input.startYear); year++) {
     const prev = rows[rows.length - 1];
-    const r = returnsFor(year);
+    const raw = returnsFor(year);
+    const drag = input.feeDrag ?? {};
+    const r = {
+      livrets: raw.livrets - (drag.livrets ?? 0),
+      fondsEuros: raw.fondsEuros - (drag.fondsEuros ?? 0),
+      obligations: raw.obligations - (drag.obligations ?? 0),
+      actions: raw.actions - (drag.actions ?? 0),
+    };
     const age = ageInYear(p, year);
     const active = age <= retirementAge;
     const target = etfTarget(p, age);
@@ -143,7 +158,10 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
     const fondsEuros = etfPre + fePre - actions;
     const invested = obligations + actions + fondsEuros;
     const total = livrets + invested;
-    const contributed = prev.contributed + (active ? c.livrets + c.fondsEuros + c.obligations + c.actions : 0);
+    const entryFees = active ? (input.contributionFees?.(year) ?? 0) : 0;
+    const dragFees =
+      prev.livrets * (drag.livrets ?? 0) + prev.fondsEuros * (drag.fondsEuros ?? 0) + prev.obligations * (drag.obligations ?? 0) + prev.actions * (drag.actions ?? 0);
+    const contributed = prev.contributed + (active ? c.livrets + c.fondsEuros + c.obligations + c.actions + entryFees : 0);
     rows.push({
       year,
       age,
@@ -161,6 +179,7 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
       contributed,
       gains: total - contributed + expensesSum,
       belowFloor,
+      fees: prev.fees + entryFees + dragFees,
     });
   }
 
@@ -210,11 +229,32 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
   const kinds = new Map(data.accounts.map((a) => [a.id, a.kind]));
   const extra = overrides.extraMonthly ?? {};
   const startYear = +state.asOf.slice(0, 4);
+  const institutions = new Map((data.institutions ?? []).map((i) => [i.id, i]));
+  const accountById = new Map(data.accounts.map((a) => [a.id, a]));
+  /**
+   * Frais sur les versements d'une année : frais sur versements de l'assurance-vie, courtage des achats
+   * (un ordre par mois en PEA, un ordre par an en compte-titres pour une obligation) et droits de garde fixes.
+   */
+  const feesOnContributions = (accountId: string, amount: number): number => {
+    const a = accountById.get(accountId);
+    const inst = a?.institutionId ? institutions.get(a.institutionId) : undefined;
+    if (!a || !inst || amount <= 0) return 0;
+    if (a.kind === "assurance_vie") return amount * (inst.offers.assurance_vie?.entryFee ?? 0);
+    if (a.kind === "pea" || a.kind === "cto") {
+      const offer = inst.offers[a.kind];
+      if (!offer) return 0;
+      const courtage = a.kind === "pea" ? 12 * orderFee(offer.orderFees, amount / 12) : orderFee(offer.orderFees, amount);
+      return courtage + offer.custodyFixed;
+    }
+    return 0;
+  };
+  const contributionFees = (year: number) => data.accounts.reduce((s, a) => s + feesOnContributions(a.id, schedule.inYear(a.id, year)), 0);
   const contributions = (year: number): Flows => {
     const f: Flows = { livrets: 0, fondsEuros: 0, obligations: 0, actions: 0 };
     for (const a of data.accounts) {
-      const amount = schedule.inYear(a.id, year);
-      if (!amount) continue;
+      const gross = schedule.inYear(a.id, year);
+      if (!gross) continue;
+      const amount = gross - feesOnContributions(a.id, gross);
       switch (kinds.get(a.id)) {
         case "livret":
           f.livrets += amount;
@@ -238,12 +278,26 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
   };
   const expenses = (year: number) => (data as { plannedExpenses?: Array<{ year: number; amount: number }> }).plannedExpenses?.filter((e) => e.year === year).reduce((s, e) => s + e.amount, 0) ?? 0;
   const cryptoContrib = state.accounts.filter((a) => a.account.kind === "crypto").reduce((s, a) => s + a.netContrib, 0);
+  // Frais proportionnels à l'encours, pondérés par la valeur actuelle de chaque compte.
+  const weighted = (kindsOf: string[], rateOf: (a: (typeof data.accounts)[number]) => number) => {
+    const members = state.accounts.filter((s) => kindsOf.includes(s.account.kind) && s.value > 0);
+    const total = members.reduce((s, m) => s + m.value, 0);
+    return total > 0 ? members.reduce((s, m) => s + m.value * rateOf(m.account), 0) / total : 0;
+  };
+  const instOf = (a: (typeof data.accounts)[number]) => (a.institutionId ? institutions.get(a.institutionId) : undefined);
+  const feeDrag = {
+    fondsEuros: weighted(["assurance_vie"], (a) => instOf(a)?.offers.assurance_vie?.euroFee ?? 0),
+    actions: weighted(["pea"], (a) => instOf(a)?.offers.pea?.custodyRate ?? 0),
+    obligations: weighted(["cto"], (a) => instOf(a)?.offers.cto?.custodyRate ?? 0),
+  };
   return {
     params,
     startYear,
     start: { livrets: state.buckets.precaution, fondsEuros: state.buckets.garanti, obligations: state.buckets.obligations, actions: state.buckets.croissance },
     startContributed: state.totals.netContrib - cryptoContrib,
     contributions,
+    contributionFees,
+    feeDrag,
     expenses,
   };
 }

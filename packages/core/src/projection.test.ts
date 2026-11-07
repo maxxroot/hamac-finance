@@ -77,4 +77,15 @@ describe("projection", () => {
     expect(last.p50).toBeLessThan(last.p90);
     expect(monteCarlo(sheetInput(), 200).at(-1)!.p50).toBe(last.p50);
   });
+
+  it("les frais réduisent le patrimoine projeté, pas l'argent versé, et sont totalisés", () => {
+    const base = sheetInput();
+    base.contributions = () => ({ livrets: 0, fondsEuros: 1200, obligations: 0, actions: 0 });
+    const withFees = { ...base, contributions: () => ({ livrets: 0, fondsEuros: 1176, obligations: 0, actions: 0 }), contributionFees: () => 24, feeDrag: { fondsEuros: 0.006 } };
+    const a = project(base).atRetirement;
+    const b = project(withFees).atRetirement;
+    expect(b.contributed).toBeCloseTo(a.contributed, 6);
+    expect(b.total).toBeLessThan(a.total);
+    expect(b.fees).toBeGreaterThan(36 * 24);
+  });
 });

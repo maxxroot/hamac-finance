@@ -5,6 +5,7 @@ import type { BackendContext } from "./context";
 /** Tables exportées, dans l'ordre d'insertion (clés étrangères). */
 const TABLES = [
   "settings",
+  "institutions",
   "accounts",
   "assets",
   "transactions",
@@ -16,7 +17,6 @@ const TABLES = [
   "prices",
   "planned_expenses",
   "checklist_items",
-  "comparisons",
 ] as const;
 
 export function exportDump(ctx: BackendContext): DataDump {
