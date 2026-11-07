@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AllocationRule, allocationIssues } from "./allocations";
 
 /**
  * Paramètres du plan (onglet « Paramètres » du sheet), typés et validés.
@@ -53,6 +54,8 @@ export const PlanParams = z
       avAllowanceCouple: eur,
       peaBefore5: pct,
     }),
+    /** Allocations personnalisées, ajoutées à la demande (voir allocations.ts). */
+    customAllocations: z.array(AllocationRule),
     alerts: z.object({
       ctoCashThreshold: eur,
       peaCashThreshold: eur,
@@ -70,6 +73,9 @@ export const PlanParams = z
       ctx.addIssue({ code: "custom", path: ["profile", "horizonAge"], message: "L'âge horizon doit dépasser l'âge de départ." });
     }
     const { etfBefore, etfAtRetirement, obligations } = p.allocation;
+    for (const i of allocationIssues(p.customAllocations)) {
+      ctx.addIssue({ code: "custom", path: ["customAllocations", i.index, i.field], message: i.message });
+    }
     if (obligations + Math.max(etfBefore, etfAtRetirement) > 1 + 1e-9) {
       ctx.addIssue({ code: "custom", path: ["allocation", "obligations"], message: "Obligations + ETF ne peuvent pas dépasser 100 % (le fonds euros prend le reste)." });
     }
@@ -111,6 +117,7 @@ export function defaultParams(today = new Date()): PlanParams {
       avAllowanceCouple: 9200,
       peaBefore5: 0.128,
     },
+    customAllocations: [],
     alerts: {
       ctoCashThreshold: 1000,
       peaCashThreshold: 50,
@@ -126,7 +133,8 @@ export function withDefaultParams(stored: unknown, today = new Date()): unknown 
   const base = defaultParams(today);
   if (!stored || typeof stored !== "object") return base;
   const s = stored as Record<string, Record<string, unknown>>;
-  return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, { ...v, ...(s[k] ?? {}) }]));
+  // Sections objets fusionnées champ par champ ; listes reprises telles quelles si présentes.
+  return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Array.isArray(v) ? (Array.isArray(s[k]) ? s[k] : v) : { ...v, ...(s[k] ?? {}) }]));
 }
 
 /** Fusionne des paramètres stockés (éventuellement d'une version antérieure) avec les valeurs par défaut. */

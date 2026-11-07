@@ -18,3 +18,4 @@ export * from "./csv";
 export * from "./institutions";
 export * from "./rates";
 export * from "./bondnames";
+export * from "./allocations";

@@ -2,6 +2,7 @@ import { CalendarX2, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Schedule, addMonth, monthOf, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
 import { Amount } from "@/components/Amount";
+import { ContributionSplitCard } from "@/components/CustomAllocationCards";
 import { Field, MoneyInput, Select, TextInput } from "@/components/form";
 import { Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
@@ -61,6 +62,8 @@ export function Versements() {
           <SkipsCard accounts={withPlans} />
         </div>
       </div>
+
+      <ContributionSplitCard />
 
       <Card className="p-0">
         <div className="flex min-h-14 items-center justify-between px-5 pt-3 pb-1">

@@ -14,8 +14,11 @@ import {
   formatPct,
   incomeTaxRate,
   retirementYear,
+  ruleName,
+  targetLabel,
   taxRegimeLabel,
   type Account,
+  type AllocationRule,
   type Asset,
 } from "@hamac/core";
 import { Amount } from "@/components/Amount";
@@ -23,6 +26,7 @@ import { Checkbox, Field, FormGrid, MoneyInput, NumberInput, PercentInput, Selec
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { AccountDialog } from "@/dialogs/AccountDialog";
+import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { AssetDialog } from "@/dialogs/AssetDialog";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/numbers";
@@ -146,6 +150,8 @@ function PlanTab() {
         </p>
       </Section>
 
+      <CustomAllocations params={p} accounts={idx.ws.accounts} onChange={(customAllocations) => setP((x) => (x ? { ...x, customAllocations } : x))} issues={issues} />
+
       <Section title="Règles des livrets">
         <FormGrid cols={3}>
           {eurField("Plancher (ne jamais descendre sous)", ["livrets", "floor"], "Le matelas de sécurité.")}
@@ -216,13 +222,126 @@ function PlanTab() {
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Section({ title, hint, actions, children }: { title: string; hint?: string; actions?: ReactNode; children: ReactNode }) {
   return (
     <Card>
-      <h2 className="font-medium">{title}</h2>
-      {hint && <p className="mt-1 text-sm text-fg-faint">{hint}</p>}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-medium">{title}</h2>
+          {hint && <p className="mt-1 text-sm text-fg-faint">{hint}</p>}
+        </div>
+        {actions}
+      </div>
       <div className="mt-4">{children}</div>
     </Card>
+  );
+}
+
+/** Allocations personnalisées : lignes ajoutées à la demande (cible du patrimoine et/ou part des versements). */
+function CustomAllocations({
+  params,
+  accounts,
+  onChange,
+  issues,
+}: {
+  params: PlanParams;
+  accounts: Account[];
+  onChange: (rules: AllocationRule[]) => void;
+  issues: Map<string, string>;
+}) {
+  const rules = params.customAllocations;
+  const [editing, setEditing] = useState<AllocationRule | null>(null);
+  const [creating, setCreating] = useState(false);
+  const name = (r: AllocationRule) => ruleName(r, accounts);
+  const totalOf = (pick: (r: AllocationRule) => boolean) => rules.filter(pick).reduce((t, r) => t + r.share, 0);
+  const errors = [...issues].filter(([k]) => k.startsWith("customAllocations.")).map(([, m]) => m);
+  const save = (r: AllocationRule) => onChange(rules.some((x) => x.id === r.id) ? rules.map((x) => (x.id === r.id ? r : x)) : [...rules, r]);
+  const remove = (r: AllocationRule) => onChange(rules.filter((x) => x.id !== r.id).map((x) => (x.overflowTo === r.id ? { ...x, overflowTo: null } : x)));
+
+  return (
+    <Section
+      title="Allocations personnalisées"
+      hint="En plus de l'allocation ci-dessus : une part du patrimoine ou des versements pour un compte ou un type de compte, éventuellement jusqu'à une limite."
+      actions={
+        <Button onClick={() => setCreating(true)} className="shrink-0">
+          <Plus size={16} /> Ajouter une allocation
+        </Button>
+      }
+    >
+      {rules.length === 0 ? (
+        <p className="text-sm text-fg-muted">Aucune pour l'instant. Exemple : 20 % des versements sur les livrets jusqu'à 10 000 € versés, puis vers l'assurance-vie.</p>
+      ) : (
+        <>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Ligne</Th>
+                <Th>Sert de</Th>
+                <Th align="right">Part</Th>
+                <Th>Limite</Th>
+                <Th>Ensuite</Th>
+                <Th />
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map((r) => {
+                const dest = r.overflowTo ? rules.find((x) => x.id === r.overflowTo) : null;
+                return (
+                  <Tr key={r.id} className="group cursor-pointer" onDoubleClick={() => setEditing(r)}>
+                    <Td>
+                      <div>{name(r)}</div>
+                      {r.label.trim() && <div className="text-xs text-fg-faint">{targetLabel(r.target, accounts)}</div>}
+                    </Td>
+                    <Td className="whitespace-nowrap">
+                      <span className="inline-flex gap-1.5">
+                        {r.asTarget && <Badge>Cible</Badge>}
+                        {r.asContribution && <Badge>Versements</Badge>}
+                      </span>
+                    </Td>
+                    <Td align="right">{formatPct(r.share)}</Td>
+                    <Td className="whitespace-nowrap text-fg-muted">
+                      {r.limit ? (
+                        <>
+                          jusqu'à <Amount value={r.limit.amount} compact className="text-fg" /> {r.limit.basis === "verse" ? "versés" : "de valeur"}
+                        </>
+                      ) : (
+                        "sans fin"
+                      )}
+                    </Td>
+                    <Td className="text-fg-muted">{r.limit ? (dest ? `vers « ${name(dest)} »` : "aux autres lignes") : ""}</Td>
+                    <Td className="w-20">
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                        <button className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg" onClick={() => setEditing(r)} aria-label="Modifier">
+                          <Pencil size={14} />
+                        </button>
+                        <button className="rounded p-1.5 text-fg-muted hover:bg-negative/15 hover:text-negative" onClick={() => remove(r)} aria-label="Supprimer">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </tbody>
+          </Table>
+          <p className="mt-3 text-sm text-fg-muted">
+            Cibles du patrimoine : <b className="text-fg">{formatPct(totalOf((r) => r.asTarget))}</b> · Parts des versements : <b className="text-fg">{formatPct(totalOf((r) => r.asContribution))}</b>. Le reste n'a pas de consigne.
+          </p>
+        </>
+      )}
+      {errors.length > 0 && <p className="mt-2 text-sm text-negative">{[...new Set(errors)].join(" ")}</p>}
+      <AllocationDialog
+        open={creating || !!editing}
+        rule={editing}
+        rules={rules}
+        accounts={accounts}
+        onClose={() => {
+          setCreating(false);
+          setEditing(null);
+        }}
+        onSave={save}
+      />
+    </Section>
   );
 }
 

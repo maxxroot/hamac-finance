@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { SortTh, useSortable } from "@/lib/sort";
 import type { AccountState, PortfolioState } from "@hamac/core";
 import { Amount } from "@/components/Amount";
+import { CustomTargetsCard } from "@/components/CustomAllocationCards";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
@@ -112,6 +113,8 @@ export function Synthese() {
           {donut && state.totals.value > 0 ? <Chart option={donut} height={260} /> : <p className="py-16 text-center text-sm text-fg-muted">La répartition apparaîtra avec les premiers montants.</p>}
         </Card>
       </div>
+
+      <CustomTargetsCard driftAlert={pf.data.params.livrets.driftAlert} className="mt-5" />
 
       <div className="mt-5">
         <LivretsStatus />

@@ -1,3 +1,4 @@
+import { allocationReport } from "./allocations";
 import { addMonths, monthsBetween } from "./dates";
 import { BUCKET_LABELS } from "./domain";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
@@ -52,6 +53,48 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
         link: "/enveloppes",
       });
     } else out.push({ id: "allocation", level: "ok", title: "Chaque classe d'actifs est proche de sa cible" });
+  }
+
+  // Allocations personnalisées (Paramètres › Plan).
+  if (p.customAllocations.length) {
+    const report = allocationReport(p.customAllocations, active, state.totals.value);
+    const pct = (v: number) => `${Math.round(v * 1000) / 10} %`.replace(".", ",");
+    for (const r of report.rows) {
+      if (r.done && r.rule.limit) {
+        const dest = r.rule.overflowTo ? report.rows.find((x) => x.rule.id === r.rule.overflowTo) : null;
+        // La destination ne vaut que pour les usages qu'elle partage ; sinon, prorata des autres lignes.
+        const where = (usage: "cible" | "versements") => (dest && !dest.done && (usage === "cible" ? dest.rule.asTarget : dest.rule.asContribution) ? `à « ${dest.name} »` : "aux autres lignes, au prorata");
+        const usages = [r.rule.asContribution && (["versements", where("versements")] as const), r.rule.asTarget && (["cible", where("cible")] as const)].filter((u) => !!u);
+        const same = usages.every(([, w]) => w === usages[0][1]);
+        out.push({
+          id: `alloc-limite-${r.rule.id}`,
+          level: "info",
+          title: `« ${r.name} » a atteint sa limite (${eur(r.rule.limit.amount)} ${r.rule.limit.basis === "verse" ? "versés" : "de valeur"})`,
+          detail: same
+            ? `Sa part de ${pct(r.rule.share)} va désormais ${usages[0][1]}.`
+            : `Sa part de ${pct(r.rule.share)} va désormais ${usages.map(([u, w]) => `${u === "versements" ? "pour les versements" : "pour la cible"}, ${w}`).join(" ; ")}.`,
+          link: "/parametres",
+        });
+      } else if (r.rule.asTarget && r.targetShare > 0 && report.total > 0 && Math.abs(r.drift) > p.livrets.driftAlert) {
+        out.push({
+          id: `alloc-cible-${r.rule.id}`,
+          level: "attention",
+          title: `« ${r.name} » pèse ${pct(r.currentShare)} du patrimoine, pour une cible de ${pct(r.targetShare)}`,
+          detail: r.drift < 0 ? `Orienter les prochains versements vers « ${r.name} ».` : "Orienter les prochains versements ailleurs, sans vendre.",
+          link: "/enveloppes",
+        });
+      }
+    }
+    const off = report.rows.filter((r) => r.rule.asContribution && report.monthlyBase > 0 && Math.abs(r.programmedMonthly - r.advisedMonthly) > Math.max(5, 0.1 * r.advisedMonthly));
+    if (off.length) {
+      out.push({
+        id: "alloc-versements",
+        level: "info",
+        title: "Versements programmés à ajuster selon vos allocations",
+        detail: off.map((r) => `${r.name} : ${eur(r.programmedMonthly)} → ${eur(r.advisedMonthly)} par mois`).join(" · "),
+        link: "/versements",
+      });
+    }
   }
 
   // Phase du plan.
