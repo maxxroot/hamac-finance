@@ -1,11 +1,12 @@
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { LIVRET_LABELS, livretInterest, rateAt } from "@hamac/core";
-import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
+import { EditAccountButton } from "@/components/AccountButtons";
+import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, PercentInput, Select, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
-import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
+import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { LivretsStatus } from "@/pages/Synthese";
@@ -45,10 +46,12 @@ export function Livrets() {
       <PageHeader
         title="Livrets"
         description="Épargne de précaution. Créez vos livrets avec leur taux ; les mouvements se saisissent dans le Journal."
-        actions={<AddAccountButton kind="livret" label="Ajouter un livret" />}
+        actions={rows.length > 0 && <AddTransactionButton accountId={rows[0].s.account.id} type="versement" />}
       />
       {rows.length === 0 ? (
-        <Notice>Aucun livret pour l'instant. « Ajouter un livret » : type (LEP, LDDS, Livret A…), établissement, taux actuel et plafond.</Notice>
+        <EmptyEnvelope kind="livret" label="Ajouter un livret">
+          Aucun livret pour l'instant : créez-le avec son type (LEP, LDDS, Livret A…), son établissement, son taux actuel et son plafond.
+        </EmptyEnvelope>
       ) : (
         <>
           <StatGrid>

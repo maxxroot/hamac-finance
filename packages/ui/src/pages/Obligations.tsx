@@ -2,7 +2,7 @@ import { ShoppingCart, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { PositionState } from "@hamac/core";
-import { AddAccountButton } from "@/components/AccountButtons";
+import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, MoneyInput, NumberInput, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
@@ -43,8 +43,15 @@ export function Obligations() {
       <PageHeader
         title="Obligations"
         description="Échelle d'obligations à taux fixe gardées jusqu'à l'échéance : valeur, coupons et rendement calculés, aucun cours nécessaire."
-        actions={<AddAccountButton kind="cto" label="Ajouter un compte-titres" variant={cto ? "secondary" : "primary"} />}
+        actions={cto && <AddTransactionButton accountId={cto.account.id} type="achat" />}
       />
+      {!cto && (
+        <div className="mb-6">
+          <EmptyEnvelope kind="cto" label="Ajouter un compte-titres">
+            Les obligations se détiennent dans un compte-titres (ou une assurance-vie). Créez d'abord le compte, rattaché à son courtier.
+          </EmptyEnvelope>
+        </div>
+      )}
       <StatGrid>
         <Stat label="Nominal détenu" sub={<>coût d'achat <Amount value={costHeld} compact /></>}>
           <Amount value={nominalHeld} compact />

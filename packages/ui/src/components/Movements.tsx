@@ -1,5 +1,5 @@
-import { Plus } from "lucide-react";
 import { Link } from "react-router";
+import { AddTransactionButton } from "./TransactionButton";
 import { TX_LABELS, type TxType } from "@hamac/core";
 import { Amount } from "./Amount";
 import { EmptyRow, Table, Td, Th, Tr } from "./table";
@@ -19,9 +19,7 @@ export function Movements({ accountIds, title = "Mouvements", limit = 30 }: { ac
     <Card className="p-0">
       <div className="flex items-center justify-between px-5 pt-4 pb-3">
         <h2 className="text-sm font-medium text-fg-muted">{title}</h2>
-        <Link to={`/journal?nouveau=1${accountIds.length === 1 ? `&compte=${accountIds[0]}` : ""}`} className="inline-flex items-center gap-1.5 text-sm text-accent hover:underline">
-          <Plus size={14} /> Ajouter une opération
-        </Link>
+        <AddTransactionButton accountId={accountIds[0]} label="Ajouter une opération" variant="ghost" className="h-8 text-accent" />
       </div>
       <Table className="rounded-none border-x-0 border-b-0">
         <thead>

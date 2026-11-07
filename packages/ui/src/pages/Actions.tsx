@@ -1,7 +1,8 @@
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { advisedMonthlyPurchase, describeOrderFees, fiscalAnniversary, monthsElapsed, splitByTarget, tradeFeeFor, type AccountState, type Asset, type PositionState } from "@hamac/core";
-import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
+import { EditAccountButton } from "@/components/AccountButtons";
+import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
@@ -25,9 +26,13 @@ export function Actions() {
       <PageHeader
         title="Actions & ETF"
         description="Positions calculées depuis le journal. Le cours vient du fournisseur ; un cours saisi à la main l'emporte à date égale ou plus récente."
-        actions={<AddAccountButton kind="pea" label="Ajouter un PEA" />}
+        actions={accounts.length > 0 && <AddTransactionButton accountId={accounts[0].account.id} type="achat" />}
       />
-      {accounts.length === 0 && <Notice>Aucun PEA ni position en actions. « Ajouter un PEA » : établissement, date d'ouverture (règle des 5 ans).</Notice>}
+      {accounts.length === 0 && (
+        <EmptyEnvelope kind="pea" label="Ajouter un PEA">
+          Aucun PEA ni position en actions : créez le PEA avec son établissement et sa date d'ouverture (règle des 5 ans).
+        </EmptyEnvelope>
+      )}
       <div className="space-y-8">
         {accounts.map((a) => (
           <Envelope key={a.account.id} s={a} onPrice={setPricing} />

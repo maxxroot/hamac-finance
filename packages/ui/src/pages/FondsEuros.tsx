@@ -1,11 +1,12 @@
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { accountAgeYears, fiscalAnniversary, monthsBetween, type AccountState } from "@hamac/core";
-import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
+import { EditAccountButton } from "@/components/AccountButtons";
+import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, FormGrid, MoneyInput, NumberInput, PercentInput, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
-import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
+import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
@@ -23,9 +24,13 @@ export function FondsEuros() {
       <PageHeader
         title="Fonds euros"
         description="Assurance-vie, capital garanti. Les mouvements se saisissent dans le journal ; ici : fiche du contrat, valeur relevée et taux servis."
-        actions={<AddAccountButton kind="assurance_vie" label="Ajouter un contrat" />}
+        actions={contracts.length > 0 && <AddTransactionButton accountId={contracts[0].account.id} type="versement" />}
       />
-      {contracts.length === 0 && <Notice>Aucun contrat d'assurance-vie. « Ajouter un contrat » : nom, établissement, date d'ouverture (règle des 8 ans), clause bénéficiaire.</Notice>}
+      {contracts.length === 0 && (
+        <EmptyEnvelope kind="assurance_vie" label="Ajouter un contrat">
+          Aucun contrat d'assurance-vie : créez-le avec son établissement, sa date d'ouverture (règle des 8 ans) et sa clause bénéficiaire.
+        </EmptyEnvelope>
+      )}
       <div className="space-y-8">
         {contracts.map((c) => (
           <Contract key={c.account.id} s={c} />
