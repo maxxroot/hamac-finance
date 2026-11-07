@@ -61,7 +61,7 @@ export function Obligations() {
       <PageHeader
         title="Obligations"
         description="Échelle d'obligations à taux fixe gardées jusqu'à l'échéance : valeur, coupons et rendement calculés, aucun cours nécessaire."
-        actions={cto && <AddTransactionButton accountId={cto.account.id} type="achat" />}
+        actions={cto && <AddTransactionButton accountId={cto.account.id} type="achat" assetKinds={["obligation"]} accountKinds={["cto", "assurance_vie"]} />}
       />
       {!cto && (
         <div className="mb-6">
@@ -219,7 +219,7 @@ export function Obligations() {
           ligne plus longue ; après, transférer vers le fonds euros. Les coupons se saisissent dans le journal (Intérêts / coupon).
         </Notice>
       </div>
-      {ctos.length > 0 && <Movements accountIds={ctos.map((c) => c.account.id)} limit={15} />}
+      {ctos.length > 0 && <Movements accountIds={ctos.map((c) => c.account.id)} limit={15} title="Mouvements (obligations et espèces)" type="achat" assetKinds={["obligation"]} accountKinds={["cto", "assurance_vie"]} />}
       <p className={cn("mt-2 text-xs text-fg-faint", !held.length && "hidden")}>Valeur « détenue jusqu'à l'échéance » : prix d'achat amorti linéairement vers 100 % + coupon couru. Un cours saisi à la main la remplace.</p>
     </>
   );

@@ -19,6 +19,8 @@ import {
   roundCents,
   validateTransaction,
   type Account,
+  type AccountKind,
+  type AssetKind,
   type Transaction,
   type TxType,
 } from "@hamac/core";
@@ -51,6 +53,10 @@ export interface TxPreset {
   accountId?: string;
   type?: TxType;
   assetId?: string;
+  /** Titres proposés (ex. seulement des obligations depuis la page Obligations). */
+  assetKinds?: AssetKind[];
+  /** Comptes proposés (ex. PEA et comptes-titres depuis Actions & ETF). */
+  accountKinds?: AccountKind[];
 }
 
 function blank(preset: TxPreset, fallbackAccount: string): Draft {
@@ -99,7 +105,7 @@ export function TransactionDialog({
       // titre « nouveau » : la saisie s'ouvre directement sur la création du titre.
       const draft = blank({ ...preset, assetId: preset.assetId === "nouveau" ? undefined : preset.assetId }, idx.activeAccounts[0]?.id ?? "");
       const acc = idx.accountById.get(draft.accountId);
-      setD(preset.assetId === "nouveau" && acc ? { ...draft, newAsset: newAssetFor(acc.kind) } : draft);
+      setD(preset.assetId === "nouveau" && acc ? { ...draft, newAsset: newAssetFor(acc.kind, preset.assetKinds) } : draft);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, transaction?.id]);
@@ -151,7 +157,8 @@ export function TransactionDialog({
   const allowedTypes = account ? ALLOWED_TYPES[account.kind] : [];
   const needsAsset = TX_NEEDS_ASSET.includes(d.type);
   const optionalAsset = TX_OPTIONAL_ASSET.includes(d.type);
-  const assetChoices = account ? idx.activeAssets.filter((a) => ALLOWED_ASSETS[account.kind].includes(a.kind)) : [];
+  const assetChoices = account ? idx.activeAssets.filter((a) => ALLOWED_ASSETS[account.kind].includes(a.kind) && (!preset.assetKinds || preset.assetKinds.includes(a.kind))) : [];
+  const accountChoices = idx.activeAccounts.filter((a) => !preset.accountKinds || preset.accountKinds.includes(a.kind) || a.id === d.accountId);
   const NEW = "__nouveau__";
   const payload = {
     id: d.id,
@@ -252,7 +259,7 @@ export function TransactionDialog({
                   setD((x) => (x ? { ...x, accountId: e.target.value, type: acc && !ALLOWED_TYPES[acc.kind].includes(x.type) ? "versement" : x.type, assetId: null } : x));
                 }}
               >
-                {idx.activeAccounts.map(accountOption)}
+                {accountChoices.map(accountOption)}
               </Select>
             )}
           </Field>
@@ -295,14 +302,14 @@ export function TransactionDialog({
                   setD((x) =>
                     x
                       ? e.target.value === NEW
-                        ? { ...x, assetId: null, newAsset: newAssetFor(account!.kind), feeManual: false }
+                        ? { ...x, assetId: null, newAsset: newAssetFor(account!.kind, preset.assetKinds), feeManual: false }
                         : { ...x, assetId: e.target.value || null, newAsset: null, feeManual: false }
                       : x,
                   )
                 }
               >
                 <option value="">{needsAsset ? "Choisir…" : "Aucun"}</option>
-                {needsAsset && <option value={NEW}>＋ Nouveau titre (obligation, ETF, action…)</option>}
+                {needsAsset && <option value={NEW}>{preset.assetKinds?.length === 1 && preset.assetKinds[0] === "obligation" ? "＋ Nouvelle obligation" : "＋ Nouveau titre"}</option>}
                 {assetChoices.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} · {ASSET_KIND_LABELS[a.kind]}
@@ -317,6 +324,7 @@ export function TransactionDialog({
         {needsAsset && d.newAsset && account && (
           <NewAssetPanel
             account={account.kind}
+            only={preset.assetKinds}
             value={d.newAsset}
             onChange={(n) => setD((x) => (x ? { ...x, newAsset: n } : x))}
             assets={idx.ws.assets}

@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import type { AccountKind, TxType } from "@hamac/core";
+import type { AccountKind, AssetKind, TxType } from "@hamac/core";
 import { AddAccountButton } from "@/components/AccountButtons";
 import { Button, Card } from "@/components/ui";
 import { TransactionDialog, type TxPreset } from "@/dialogs/TransactionDialog";
@@ -13,15 +13,19 @@ export function AddTransactionButton({
   label = "Nouvelle opération",
   variant = "primary",
   className,
+  assetKinds,
+  accountKinds,
 }: {
   accountId?: string;
   type?: TxType;
+  assetKinds?: AssetKind[];
+  accountKinds?: AccountKind[];
   label?: string;
   variant?: "primary" | "secondary" | "ghost";
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const preset: TxPreset = { accountId, type };
+  const preset: TxPreset = { accountId, type, assetKinds, accountKinds };
   return (
     <>
       <Button variant={variant} className={className} onClick={() => setOpen(true)} disabled={!accountId}>

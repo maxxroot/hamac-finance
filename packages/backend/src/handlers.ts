@@ -1,7 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { DEFAULT_CHECKLIST, LIVRET_LEGAL_CEILINGS, PlanParams, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { DEFAULT_CHECKLIST, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParams, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -120,6 +120,13 @@ export const handlers: Handlers = {
 
   async "accounts.upsert"(input, ctx) {
     const id = input.id ?? newId();
+    // Un seul PEA, LEP, LDDS et Livret A par personne.
+    const others = (await ctx.db.select().from(t.accounts).all()).map(mapAccount);
+    const blocking = uniqueAccountConflict(others, { id: input.id, kind: input.kind, livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null, archived: input.archived });
+    if (blocking) {
+      const what = input.kind === "pea" ? "un seul PEA" : `un seul ${LIVRET_LABELS[input.livretType ?? "AUTRE"]}`;
+      throw new RpcError("CONFLICT", `On ne peut détenir qu'${what} par personne : « ${blocking.name} » existe déjà.`);
+    }
     if (input.institutionId && !(await ctx.db.select().from(t.institutions).where(eq(t.institutions.id, input.institutionId)).get())) {
       throw new RpcError("NOT_FOUND", "Établissement introuvable.");
     }

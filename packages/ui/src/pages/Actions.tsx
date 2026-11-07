@@ -1,7 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { advisedMonthlyPurchase, describeOrderFees, fiscalAnniversary, monthsElapsed, splitByTarget, tradeFeeFor, type AccountState, type Asset, type PositionState } from "@hamac/core";
-import { EditAccountButton } from "@/components/AccountButtons";
+import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
@@ -21,24 +21,58 @@ export function Actions() {
   const [pricing, setPricing] = useState<Asset | null>(null);
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
-  const accounts = pf.state.accounts.filter((a) => (a.account.kind === "pea" || a.positions.some((p) => p.bucket === "croissance")) && !a.account.archived);
+  // Le PEA (un seul par personne) puis chaque compte-titres ; un compte-titres sans actions s'affiche en version compacte.
+  const active = pf.state.accounts.filter((a) => !a.account.archived);
+  const pea = active.filter((a) => a.account.kind === "pea");
+  const ctos = active.filter((a) => a.account.kind === "cto");
+  const others = active.filter((a) => a.account.kind === "assurance_vie" && a.positions.some((p) => p.bucket === "croissance"));
+  const accounts = [...pea, ...ctos.filter((c) => c.positions.some((p) => p.bucket === "croissance")), ...others];
+  const emptyCtos = ctos.filter((c) => !c.positions.some((p) => p.bucket === "croissance"));
+  const target = accounts[0] ?? emptyCtos[0];
   return (
     <>
       <PageHeader
         title="Actions & ETF"
         description="Positions calculées depuis le journal. Le cours vient du fournisseur ; un cours saisi à la main l'emporte à date égale ou plus récente."
-        actions={accounts.length > 0 && <AddTransactionButton accountId={accounts[0].account.id} type="achat" />}
+        actions={
+          <>
+            <AddAccountButton kind="cto" label="Ajouter un compte-titres" variant="ghost" />
+            {target && <AddTransactionButton accountId={target.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "cto", "assurance_vie"]} />}
+          </>
+        }
       />
-      {accounts.length === 0 && (
-        <EmptyEnvelope kind="pea" label="Ajouter un PEA">
-          Aucun PEA ni position en actions : créez le PEA avec son établissement et sa date d'ouverture (règle des 5 ans).
-        </EmptyEnvelope>
+      {pea.length === 0 && (
+        <div className="mb-6">
+          <EmptyEnvelope kind="pea" label="Ajouter un PEA">
+            Pas encore de PEA (un seul par personne) : créez-le avec son établissement et sa date d'ouverture (règle des 5 ans).
+          </EmptyEnvelope>
+        </div>
       )}
       <div className="space-y-8">
         {accounts.map((a) => (
           <Envelope key={a.account.id} s={a} onPrice={setPricing} />
         ))}
       </div>
+      {emptyCtos.length > 0 && (
+        <div className="mt-8 space-y-2">
+          <h2 className="text-sm font-medium text-fg-muted">Comptes-titres sans actions ni ETF</h2>
+          {emptyCtos.map((c) => (
+            <Card key={c.account.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{c.account.name}</span>
+                {c.account.institutionId && <span className="text-sm text-fg-muted">· {pf.idx.institutionById.get(c.account.institutionId)?.name}</span>}
+                <EditAccountButton account={c.account} />
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-fg-muted">
+                  espèces <Amount value={c.cash} compact />
+                </span>
+                <AddTransactionButton accountId={c.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "cto", "assurance_vie"]} label="Acheter des actions ou ETF" variant="secondary" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
       <PriceDialog asset={pricing} onClose={() => setPricing(null)} />
     </>
   );
@@ -230,7 +264,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
           </div>
         </Card>
       </div>
-      <Movements accountIds={[s.account.id]} limit={15} />
+      <Movements accountIds={[s.account.id]} limit={15} type="achat" assetKinds={s.account.kind === "pea" ? undefined : ["etf", "action", "fonds"]} accountKinds={["pea", "cto", "assurance_vie"]} title={s.account.kind === "pea" ? "Mouvements" : "Mouvements (actions, ETF et espèces)"} />
     </section>
   );
 }

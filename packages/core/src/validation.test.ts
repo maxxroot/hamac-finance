@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, Asset } from "./domain";
-import { validateTransaction } from "./validation";
+import { uniqueAccountConflict, validateTransaction } from "./validation";
 
 const acc = (id: string, kind: Account["kind"]): Account => ({
   id, kind, livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "",
@@ -35,5 +35,18 @@ describe("validateTransaction", () => {
     expect(validateTransaction({ ...base, type: "versement", amount: -5 }, accounts, assets)[0].field).toBe("amount");
     expect(validateTransaction({ ...base, type: "correction", amount: -5 }, accounts, assets)).toEqual([]);
     expect(validateTransaction({ ...base, type: "correction", amount: 0 }, accounts, assets)[0].field).toBe("amount");
+  });
+});
+
+describe("comptes uniques", () => {
+  it("un seul PEA, LEP, LDDS, Livret A ; comptes-titres et autres livrets illimités", () => {
+    const list = [acc("pea", "pea"), { ...acc("lep", "livret"), livretType: "LEP" as const }];
+    expect(uniqueAccountConflict(list, { kind: "pea", livretType: null })?.id).toBe("pea");
+    expect(uniqueAccountConflict(list, { id: "pea", kind: "pea", livretType: null })).toBeNull();
+    expect(uniqueAccountConflict(list, { kind: "livret", livretType: "LEP" })?.id).toBe("lep");
+    expect(uniqueAccountConflict(list, { kind: "livret", livretType: "LDDS" })).toBeNull();
+    expect(uniqueAccountConflict(list, { kind: "livret", livretType: "AUTRE" })).toBeNull();
+    expect(uniqueAccountConflict(list, { kind: "cto", livretType: null })).toBeNull();
+    expect(uniqueAccountConflict([{ ...acc("old", "pea"), archived: true }], { kind: "pea", livretType: null })).toBeNull();
   });
 });

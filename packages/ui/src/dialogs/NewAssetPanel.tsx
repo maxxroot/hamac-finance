@@ -34,9 +34,10 @@ export interface NewAsset {
 type Choice = { kind: AssetKind; bondKind: BondKind | null; label: string };
 
 /** Choix proposés selon le compte : les obligations se déclinent en OAT et entreprise. */
-export function choicesFor(account: AccountKind): Choice[] {
+export function choicesFor(account: AccountKind, only?: readonly AssetKind[]): Choice[] {
   // Compte-titres : les obligations d'abord (usage principal dans le plan).
-  const kinds = account === "cto" ? [...ALLOWED_ASSETS[account]].sort((a, b) => Number(b === "obligation") - Number(a === "obligation")) : ALLOWED_ASSETS[account];
+  const allowed = ALLOWED_ASSETS[account].filter((k) => !only || only.includes(k));
+  const kinds = account === "cto" ? [...allowed].sort((a, b) => Number(b === "obligation") - Number(a === "obligation")) : allowed;
   return kinds.flatMap((k): Choice[] =>
     k === "obligation"
       ? [
@@ -47,8 +48,8 @@ export function choicesFor(account: AccountKind): Choice[] {
   );
 }
 
-export function newAssetFor(account: AccountKind): NewAsset {
-  const first = choicesFor(account)[0] ?? { kind: "etf" as AssetKind, bondKind: null };
+export function newAssetFor(account: AccountKind, only?: readonly AssetKind[]): NewAsset {
+  const first = choicesFor(account, only)[0] ?? { kind: "etf" as AssetKind, bondKind: null };
   return withChoice(
     { kind: first.kind, bondKind: first.bondKind, name: "", nameAuto: true, isin: "", symbol: "", issuer: "", couponRate: null, maturityDate: "", couponFrequency: 1 },
     first,
@@ -102,6 +103,7 @@ export function existingAsset(n: NewAsset, assets: readonly Asset[]): Asset | nu
 
 export function NewAssetPanel({
   account,
+  only,
   value,
   onChange,
   assets,
@@ -109,6 +111,7 @@ export function NewAssetPanel({
   showErrors,
 }: {
   account: AccountKind;
+  only?: readonly AssetKind[];
   value: NewAsset;
   onChange: (n: NewAsset) => void;
   assets: readonly Asset[];
@@ -130,7 +133,7 @@ export function NewAssetPanel({
     setSearchError(null);
     try {
       const r = await call("assets.search", { query: q });
-      setResults(r.candidates.filter((c) => ALLOWED_ASSETS[account].includes(c.kind)));
+      setResults(r.candidates.filter((c) => ALLOWED_ASSETS[account].includes(c.kind) && (!only || only.includes(c.kind))));
       if (r.errors.length) setSearchError(r.errors.join(" · "));
     } catch (e) {
       setSearchError((e as Error).message);
@@ -163,7 +166,7 @@ export function NewAssetPanel({
       <div>
         <div className="mb-2 text-xs font-medium text-fg-muted">Nouveau titre</div>
         <div className="flex flex-wrap gap-2">
-          {choicesFor(account).map((c) => {
+          {choicesFor(account, only).map((c) => {
             const on = value.kind === c.kind && value.bondKind === c.bondKind;
             return (
               <button

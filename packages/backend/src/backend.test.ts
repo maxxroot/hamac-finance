@@ -304,3 +304,17 @@ describe("achat avec création du titre", () => {
     expect(ws.transactions).toHaveLength(0);
   });
 });
+
+describe("comptes uniques (règle légale)", () => {
+  it("refuse un second PEA ou un second LEP, accepte plusieurs comptes-titres", async () => {
+    const b = memory();
+    const ok = async (input: unknown) => (await b.dispatch("accounts.upsert", input)).ok;
+    expect(await ok({ kind: "pea", name: "PEA" })).toBe(true);
+    const second = await b.dispatch("accounts.upsert", { kind: "pea", name: "Autre PEA" });
+    expect(second.ok === false && second.error.code).toBe("CONFLICT");
+    expect(await ok({ kind: "livret", livretType: "LEP", name: "LEP" })).toBe(true);
+    expect(await ok({ kind: "livret", livretType: "LEP", name: "LEP 2" })).toBe(false);
+    expect(await ok({ kind: "cto", name: "CTO 1" })).toBe(true);
+    expect(await ok({ kind: "cto", name: "CTO 2" })).toBe(true);
+  });
+});

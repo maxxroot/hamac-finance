@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AccountInput } from "@hamac/api";
-import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, type Account, type AccountKind, type LivretType } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, uniqueAccountConflict, type Account, type AccountKind, type LivretType } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
@@ -83,11 +83,15 @@ export function AccountDialog({
                   setD((x) => ({ ...empty(kind), id: x.id, name: x.name, institutionId: x.institutionId, role: x.role }));
                 }}
               >
-                {ACCOUNT_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {ACCOUNT_KIND_LABELS[k]}
-                  </option>
-                ))}
+                {ACCOUNT_KINDS.map((k) => {
+                  const taken = k === "pea" && !!idx && !!uniqueAccountConflict(idx.ws.accounts, { id: d.id, kind: "pea", livretType: null });
+                  return (
+                    <option key={k} value={k} disabled={taken}>
+                      {ACCOUNT_KIND_LABELS[k]}
+                      {taken ? " (déjà ouvert : un seul par personne)" : ""}
+                    </option>
+                  );
+                })}
               </Select>
             )}
           </Field>
@@ -107,11 +111,15 @@ export function AccountDialog({
                     }));
                   }}
                 >
-                  {LIVRET_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {LIVRET_LABELS[t]}
-                    </option>
-                  ))}
+                  {LIVRET_TYPES.map((t) => {
+                    const taken = !!idx && !!uniqueAccountConflict(idx.ws.accounts, { id: d.id, kind: "livret", livretType: t });
+                    return (
+                      <option key={t} value={t} disabled={taken}>
+                        {LIVRET_LABELS[t]}
+                        {taken ? " (déjà ouvert)" : ""}
+                      </option>
+                    );
+                  })}
                 </Select>
               )}
             </Field>

@@ -76,3 +76,19 @@ export function validateTransaction(
 
   return errors;
 }
+
+/**
+ * Comptes limités à un seul par personne (règle légale) : PEA, LEP, LDDS, Livret A.
+ * Les comptes-titres, assurances-vie et autres livrets sont illimités. Un compte archivé ne compte pas.
+ * Renvoie le compte existant qui bloque, sinon null.
+ */
+export function uniqueAccountConflict(accounts: readonly Account[], candidate: Pick<Account, "kind" | "livretType"> & { id?: string; archived?: boolean }): Account | null {
+  if (candidate.archived) return null;
+  const limited = candidate.kind === "pea" || (candidate.kind === "livret" && candidate.livretType != null && candidate.livretType !== "AUTRE");
+  if (!limited) return null;
+  return (
+    accounts.find(
+      (a) => a.id !== candidate.id && !a.archived && a.kind === candidate.kind && (candidate.kind === "pea" || a.livretType === candidate.livretType),
+    ) ?? null
+  );
+}

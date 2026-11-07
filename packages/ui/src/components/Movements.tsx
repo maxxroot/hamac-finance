@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { AddTransactionButton } from "./TransactionButton";
 import { SortTh, useSortable } from "@/lib/sort";
-import { TX_LABELS, type TxType } from "@hamac/core";
+import { TX_LABELS, type AccountKind, type AssetKind, type TxType } from "@hamac/core";
 import { Amount } from "./Amount";
 import { EmptyRow, Table, Td, Tr } from "./table";
 import { Badge, Card } from "./ui";
@@ -11,10 +11,32 @@ import { useWorkspaceIndex } from "@/lib/workspace";
 const OUT: TxType[] = ["retrait", "achat", "frais"];
 
 /** Mouvements (repris du journal) d'un ensemble de comptes, du plus récent au plus ancien. */
-export function Movements({ accountIds, title = "Mouvements", limit = 30 }: { accountIds: string[]; title?: string; limit?: number }) {
+export function Movements({
+  accountIds,
+  title = "Mouvements",
+  limit = 30,
+  assetKinds,
+  accountKinds,
+  type,
+}: {
+  accountIds: string[];
+  title?: string;
+  limit?: number;
+  /** Ne montrer que ces titres (les mouvements d'espèces, sans titre, restent affichés). */
+  assetKinds?: AssetKind[];
+  accountKinds?: AccountKind[];
+  type?: TxType;
+}) {
   const idx = useWorkspaceIndex();
   const ids = new Set(accountIds);
-  const rows = idx ? idx.ws.transactions.filter((t) => ids.has(t.accountId) || (t.counterAccountId && ids.has(t.counterAccountId))) : [];
+  const rows = idx
+    ? idx.ws.transactions.filter((t) => {
+        if (!(ids.has(t.accountId) || (t.counterAccountId && ids.has(t.counterAccountId)))) return false;
+        if (!assetKinds || !t.assetId) return true;
+        const kind = idx.assetById.get(t.assetId)?.kind;
+        return kind != null && assetKinds.includes(kind);
+      })
+    : [];
   const incoming = (t: (typeof rows)[number]) => (t.type === "transfert" ? ids.has(t.counterAccountId ?? "") && !ids.has(t.accountId) : !OUT.includes(t.type));
   const { sorted, by } = useSortable(
     rows,
@@ -34,7 +56,7 @@ export function Movements({ accountIds, title = "Mouvements", limit = 30 }: { ac
     <Card className="p-0">
       <div className="flex items-center justify-between px-5 pt-4 pb-3">
         <h2 className="text-sm font-medium text-fg-muted">{title}</h2>
-        <AddTransactionButton accountId={accountIds[0]} label="Ajouter une opération" variant="ghost" className="h-8 text-accent" />
+        <AddTransactionButton accountId={accountIds[0]} type={type} assetKinds={assetKinds} accountKinds={accountKinds} label="Ajouter une opération" variant="ghost" className="h-8 text-accent" />
       </div>
       <Table className="rounded-none border-x-0 border-b-0">
         <thead>

@@ -93,6 +93,11 @@ function createWindow() {
   if (SMOKE_SHOT) {
     win.webContents.once("did-finish-load", () => {
       setTimeout(async () => {
+        // HAMAC_SMOKE_SCROLL=bas : capture le bas de la page.
+        if (process.env.HAMAC_SMOKE_SCROLL === "bas") {
+          await win.webContents.executeJavaScript("document.querySelector('main')?.scrollTo(0, 1e7)");
+          await new Promise((r) => setTimeout(r, 300));
+        }
         const image = await win.webContents.capturePage();
         const { writeFileSync } = await import("node:fs");
         writeFileSync(SMOKE_SHOT, image.toPNG());
