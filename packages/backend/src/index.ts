@@ -74,3 +74,4 @@ export function createBackend(opts: BackendOptions): Backend {
     },
   };
 }
+export { seedDemo } from "./demo";

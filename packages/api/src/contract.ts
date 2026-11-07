@@ -1,4 +1,29 @@
 import { z } from "zod";
+import { PlanParams } from "@hamac/core";
+import type {
+  Account,
+  Asset,
+  BondPlan,
+  ContributionPlan,
+  ContributionSkip,
+  FundRate,
+  PlannedExpense,
+  PricePoint,
+  Statement,
+  Transaction,
+} from "@hamac/core";
+import {
+  AccountInput,
+  AssetInput,
+  BondPlanInput,
+  FundRateInput,
+  ManualPriceInput,
+  PlanInput,
+  PlannedExpenseInput,
+  SkipInput,
+  StatementInput,
+  TransactionInput,
+} from "./entities";
 
 /**
  * Chaque procédure déclare son entrée et sa sortie avec zod.
@@ -16,19 +41,64 @@ export const SystemInfo = z.object({
 });
 export type SystemInfo = z.infer<typeof SystemInfo>;
 
-export const SettingKey = z.enum(["ui.privacyMode", "ui.lastRoute"]);
+export const SettingKey = z.enum(["ui.privacyMode", "ui.lastRoute", "ui.onboardingDone"]);
 export type SettingKey = z.infer<typeof SettingKey>;
+
+/** Tout l'espace de travail de l'utilisateur, chargé en une fois (quelques milliers de lignes au plus). */
+export interface Workspace {
+  params: PlanParams;
+  accounts: Account[];
+  assets: Asset[];
+  transactions: Transaction[];
+  plans: ContributionPlan[];
+  skips: ContributionSkip[];
+  bondPlans: BondPlan[];
+  fundRates: FundRate[];
+  statements: Statement[];
+  plannedExpenses: PlannedExpense[];
+  /** Dernier cours connu de chaque titre. */
+  latestPrices: PricePoint[];
+}
+
+const ok = z.object({ ok: z.literal(true) });
+const byId = z.object({ id: z.string().min(1) });
+// Les sorties d'entités sont construites par le backend à partir de lignes déjà validées.
+const entity = <T>() => z.custom<T>(() => true);
 
 export const procedures = {
   "system.info": { input: z.void(), output: SystemInfo },
-  "settings.get": {
-    input: z.object({ key: SettingKey }),
-    output: z.unknown(),
-  },
-  "settings.set": {
-    input: z.object({ key: SettingKey, value: z.unknown() }),
-    output: z.void(),
-  },
+  "settings.get": { input: z.object({ key: SettingKey }), output: z.unknown() },
+  "settings.set": { input: z.object({ key: SettingKey, value: z.unknown() }), output: z.void() },
+
+  "workspace.load": { input: z.void(), output: entity<Workspace>() },
+  "workspace.createStarter": { input: z.void(), output: ok },
+
+  "params.update": { input: PlanParams, output: PlanParams },
+
+  "accounts.upsert": { input: AccountInput, output: entity<Account>() },
+  "accounts.delete": { input: byId, output: ok },
+
+  "assets.upsert": { input: AssetInput, output: entity<Asset>() },
+  "assets.delete": { input: byId, output: ok },
+
+  "transactions.upsert": { input: TransactionInput, output: entity<Transaction>() },
+  "transactions.delete": { input: byId, output: ok },
+
+  "plans.set": { input: PlanInput, output: entity<ContributionPlan>() },
+  "plans.delete": { input: byId, output: ok },
+  "skips.upsert": { input: SkipInput, output: entity<ContributionSkip>() },
+  "skips.delete": { input: byId, output: ok },
+
+  "bondPlans.upsert": { input: BondPlanInput, output: entity<BondPlan>() },
+  "bondPlans.delete": { input: byId, output: ok },
+  "fundRates.set": { input: FundRateInput, output: entity<FundRate>() },
+  "fundRates.delete": { input: z.object({ accountId: z.string(), year: z.number().int() }), output: ok },
+  "statements.upsert": { input: StatementInput, output: entity<Statement>() },
+  "statements.delete": { input: byId, output: ok },
+  "plannedExpenses.upsert": { input: PlannedExpenseInput, output: entity<PlannedExpense>() },
+  "plannedExpenses.delete": { input: byId, output: ok },
+
+  "prices.setManual": { input: ManualPriceInput, output: ok },
 } as const;
 
 export type Procedures = typeof procedures;

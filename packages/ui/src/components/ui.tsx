@@ -46,7 +46,7 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
     positive: "bg-positive/15 text-positive",
     negative: "bg-negative/15 text-negative",
   };
-  return <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium", tones[tone])}>{children}</span>;
+  return <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap", tones[tone])}>{children}</span>;
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {

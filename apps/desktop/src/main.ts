@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { IPC_CHANNEL } from "@hamac/api";
-import { createBackend, type Backend } from "@hamac/backend";
+import { createBackend, seedDemo, type Backend } from "@hamac/backend";
 
 const DEV_URL = process.env.HAMAC_DEV_URL;
 let backend: Backend | null = null;
@@ -10,6 +10,7 @@ let backend: Backend | null = null;
 //  HAMAC_DATA_DIR    → dossier de données isolé (ne touche pas aux vraies données)
 //  HAMAC_SMOKE_SHOT  → capture la fenêtre en PNG à ce chemin puis quitte (test de fumée)
 //  HAMAC_SMOKE_ROUTE → page à afficher avant la capture (ex. "/parametres")
+//  HAMAC_DEMO=1      → remplit une base vide avec un jeu de données fictif
 if (process.env.HAMAC_DATA_DIR) app.setPath("userData", process.env.HAMAC_DATA_DIR);
 const SMOKE_SHOT = process.env.HAMAC_SMOKE_SHOT;
 const SMOKE_ROUTE = process.env.HAMAC_SMOKE_ROUTE ?? "/";
@@ -28,7 +29,7 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(start);
 }
 
-function start() {
+async function start() {
   const dataDir = app.getPath("userData");
   backend = createBackend({
     databasePath: join(dataDir, "hamac.sqlite"),
@@ -43,6 +44,8 @@ function start() {
     }
     return backend!.dispatch(String(name), input);
   });
+
+  if (process.env.HAMAC_DEMO === "1") await seedDemo(backend);
 
   createWindow();
   app.on("activate", () => {

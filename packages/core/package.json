@@ -5,5 +5,10 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Calculs métier purs de Hamac : aucune dépendance à l'interface, au stockage ou au réseau.",
-  "exports": { ".": "./src/index.ts" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  }
 }
