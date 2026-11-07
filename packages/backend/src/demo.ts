@@ -17,7 +17,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
   const y = new Date().getFullYear();
   await call("params.update", {
     ...ws.params,
-    profile: { ...ws.params.profile, birthYear: 1990, retirementAge: 64, securisationAge: 57, horizonAge: 90, startMonth: `${y - 1}-01` },
+    profile: { ...ws.params.profile, birthYear: 1990, retirementAge: 64, securisationAge: 57, horizonAge: 90, startMonth: `${y - 1}-01`, contributionDay: 5 },
     tax: { ...ws.params.tax, tmi: 0.11 },
   });
   await call("workspace.createStarter");

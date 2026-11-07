@@ -28,7 +28,7 @@ export function Livrets() {
       .filter((a) => a.account.kind === "livret" && !a.account.archived)
       .map((a) => {
         const current = rateAt(ws.accountRates, a.account.id, pf.today);
-        const interest = livretInterest(a.account.id, year, { transactions: ws.transactions, plans: ws.plans, skips: ws.skips, startMonth: ws.params.profile.startMonth }, ws.accountRates, a.account.rate, pf.today);
+        const interest = livretInterest(a.account.id, year, { transactions: ws.transactions, plans: ws.plans, skips: ws.skips, startMonth: ws.params.profile.startMonth, contributionDay: ws.params.profile.contributionDay }, ws.accountRates, a.account.rate, pf.today);
         return { s: a, rate: current?.rate ?? a.account.rate, rateFrom: current?.fromDate ?? null, interest };
       });
   }, [pf, year]);

@@ -15,7 +15,7 @@ export function Regles() {
   if (!pf) return null;
   const p = pf.data.params;
   const eur = (v: number) => formatEur(v, { compact: true });
-  const schedule = new Schedule(pf.data.plans, pf.data.skips, p.profile.startMonth);
+  const schedule = new Schedule(pf.data.plans, pf.data.skips, p.profile.startMonth, p.profile.contributionDay);
   const year = +pf.today.slice(0, 4);
   const ctoYear = pf.data.accounts.filter((a) => a.kind === "cto").reduce((s, a) => s + schedule.inYear(a.id, year + 1), 0);
   const sec = p.profile.securisationAge;

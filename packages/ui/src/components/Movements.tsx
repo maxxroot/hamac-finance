@@ -1,11 +1,13 @@
+import { CalendarClock } from "lucide-react";
 import { Link } from "react-router";
 import { AddTransactionButton } from "./TransactionButton";
 import { SortTh, useSortable } from "@/lib/sort";
-import { TX_LABELS, type AccountKind, type AssetKind, type TxType } from "@hamac/core";
+import { TX_LABELS, isScheduled, type AccountKind, type AssetKind, type TxType } from "@hamac/core";
 import { Amount } from "./Amount";
 import { EmptyRow, Table, Td, Tr } from "./table";
 import { Badge, Card } from "./ui";
 import { formatDate, formatQty } from "@/lib/numbers";
+import { useJournal } from "@/lib/journal";
 import { useWorkspaceIndex } from "@/lib/workspace";
 
 const OUT: TxType[] = ["retrait", "achat", "frais"];
@@ -28,9 +30,10 @@ export function Movements({
   type?: TxType;
 }) {
   const idx = useWorkspaceIndex();
+  const all = useJournal();
   const ids = new Set(accountIds);
   const rows = idx
-    ? idx.ws.transactions.filter((t) => {
+    ? all.filter((t) => {
         if (!(ids.has(t.accountId) || (t.counterAccountId && ids.has(t.counterAccountId)))) return false;
         if (!assetKinds || !t.assetId) return true;
         const kind = idx.assetById.get(t.assetId)?.kind;
@@ -71,7 +74,7 @@ export function Movements({
           </tr>
         </thead>
         <tbody>
-          {rows.length === 0 && <EmptyRow cols={7}>Aucun mouvement saisi dans le journal.</EmptyRow>}
+          {rows.length === 0 && <EmptyRow cols={7}>Aucun mouvement pour l'instant.</EmptyRow>}
           {sorted.slice(0, limit).map((t) => {
             return (
               <Tr key={t.id}>
@@ -80,8 +83,13 @@ export function Movements({
                   {idx.accountById.get(t.accountId)?.name}
                   {t.counterAccountId && <span className="text-fg-muted"> → {idx.accountById.get(t.counterAccountId)?.name}</span>}
                 </Td>
-                <Td>
-                  <Badge>{TX_LABELS[t.type]}</Badge>
+                <Td className="whitespace-nowrap">
+                  <span title={isScheduled(t) ? "Versement programmé : modifiable dans Versements" : undefined}>
+                    <Badge>
+                      {isScheduled(t) && <CalendarClock size={12} className="mr-1" aria-label="programmé" />}
+                      {TX_LABELS[t.type]}
+                    </Badge>
+                  </span>
                 </Td>
                 <Td className="max-w-56 truncate">{t.assetId ? idx.assetById.get(t.assetId)?.name : ""}</Td>
                 <Td align="right">

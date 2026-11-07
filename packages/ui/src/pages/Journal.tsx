@@ -1,10 +1,10 @@
-import { Download, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { CalendarClock, CalendarX2, Download, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { CsvImportDialog } from "@/dialogs/CsvImportDialog";
 import { SortTh, useSortable } from "@/lib/sort";
 import { downloadText, toCsv } from "@/lib/files";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
-import { TX_LABELS, TX_TYPES, type Transaction, type TxType } from "@hamac/core";
+import { useNavigate, useSearchParams } from "react-router";
+import { TX_LABELS, TX_TYPES, isScheduled, type Transaction, type TxType } from "@hamac/core";
 import type { TxPreset } from "@/dialogs/TransactionDialog";
 import { Amount } from "@/components/Amount";
 import { Select, TextInput } from "@/components/form";
@@ -13,6 +13,7 @@ import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { TransactionDialog } from "@/dialogs/TransactionDialog";
 import { Onboarding } from "@/pages/Onboarding";
 import { formatDate, formatQty } from "@/lib/numbers";
+import { useJournal } from "@/lib/journal";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
 /** Sens de l'opération pour le compte principal : + entrée, − sortie, 0 interne. */
@@ -37,6 +38,9 @@ function direction(t: Transaction): 1 | -1 | 0 {
 export function Journal() {
   const idx = useWorkspaceIndex();
   const del = useMutate("transactions.delete", { success: "Opération supprimée" });
+  const skip = useMutate("skips.upsert", { success: "Mois déclaré manqué" });
+  const navigate = useNavigate();
+  const all = useJournal();
   const [editing, setEditing] = useState<Transaction | null>(null);
   // Lien direct : #/journal?nouveau=1&compte=<id>&type=achat&titre=<id> ouvre la saisie pré-remplie.
   const [search, setSearch] = useSearchParams();
@@ -57,12 +61,12 @@ export function Journal() {
   const [importing, setImporting] = useState(false);
   const [q, setQ] = useState("");
 
-  const years = useMemo(() => [...new Set(idx?.ws.transactions.map((t) => t.date.slice(0, 4)))].sort().reverse(), [idx]);
+  const years = useMemo(() => [...new Set(all.map((t) => t.date.slice(0, 4)))].sort().reverse(), [all]);
 
   const rows = useMemo(() => {
     if (!idx) return [];
     const needle = q.trim().toLowerCase();
-    return idx.ws.transactions.filter((t) => {
+    return all.filter((t) => {
       if (account && t.accountId !== account && t.counterAccountId !== account) return false;
       if (type && t.type !== type) return false;
       if (year && !t.date.startsWith(year)) return false;
@@ -72,7 +76,7 @@ export function Journal() {
       }
       return true;
     });
-  }, [idx, account, type, year, q]);
+  }, [idx, all, account, type, year, q]);
 
   const { sorted, by } = useSortable(
     rows,
@@ -96,7 +100,7 @@ export function Journal() {
     <>
       <PageHeader
         title="Journal"
-        description="Toutes les opérations. C'est la seule saisie du quotidien : tout le reste se calcule."
+        description="Toutes les opérations, y compris les versements programmés déjà prélevés. C'est la seule saisie du quotidien : tout le reste se calcule."
         actions={
           <>
             <Button variant="ghost" onClick={() => setImporting(true)} title="Importer un relevé CSV de banque ou de courtier">
@@ -192,24 +196,30 @@ export function Journal() {
         </thead>
         <tbody>
           {rows.length === 0 && (
-            <EmptyRow cols={9}>{idx.ws.transactions.length ? "Aucune opération ne correspond aux filtres." : "Aucune opération pour l'instant : commencez par vos apports initiaux."}</EmptyRow>
+            <EmptyRow cols={9}>{all.length ? "Aucune opération ne correspond aux filtres." : "Aucune opération pour l'instant : commencez par vos apports initiaux."}</EmptyRow>
           )}
           {sorted.map((t) => {
             const acc = idx.accountById.get(t.accountId);
             const counter = t.counterAccountId ? idx.accountById.get(t.counterAccountId) : null;
             const asset = t.assetId ? idx.assetById.get(t.assetId) : null;
             const dir = direction(t);
+            const planned = isScheduled(t);
             return (
-              <Tr key={t.id} className="group cursor-pointer" onDoubleClick={() => setEditing(t)}>
+              <Tr key={t.id} className="group cursor-pointer" onDoubleClick={() => (planned ? navigate("/versements") : setEditing(t))}>
                 <Td className="num whitespace-nowrap text-fg-muted">{formatDate(t.date)}</Td>
                 <Td className="whitespace-nowrap">
                   {acc?.name}
                   {counter && <span className="text-fg-muted"> → {counter.name}</span>}
                 </Td>
-                <Td>
-                  <Badge tone={t.type === "achat" || t.type === "vente" ? "accent" : "neutral"}>{TX_LABELS[t.type]}</Badge>
+                <Td className="whitespace-nowrap">
+                  <span title={planned ? "Versement programmé : calculé depuis la page Versements" : undefined}>
+                    <Badge tone={t.type === "achat" || t.type === "vente" ? "accent" : "neutral"}>
+                      {planned && <CalendarClock size={12} className="mr-1" aria-label="programmé" />}
+                      {TX_LABELS[t.type]}
+                    </Badge>
+                  </span>
                 </Td>
-                <Td className="max-w-56 truncate">{asset?.name ?? ""}</Td>
+                <Td className="max-w-48 truncate">{asset?.name ?? ""}</Td>
                 <Td align="right">
                   <Amount value={dir * t.amount} signed={t.type !== "transfert" && t.type !== "achat"} />
                 </Td>
@@ -219,20 +229,44 @@ export function Journal() {
                 <Td align="right" className="text-fg-muted">
                   {t.fee ? <Amount value={t.fee} /> : ""}
                 </Td>
-                <Td className="max-w-64 truncate text-fg-muted">{t.comment}</Td>
+                <Td className="max-w-48 truncate text-fg-muted" title={t.comment || undefined}>{t.comment}</Td>
                 <Td className="w-20">
-                  <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
-                    <button className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg" onClick={() => setEditing(t)} aria-label="Modifier">
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      className="rounded p-1.5 text-fg-muted hover:bg-negative/15 hover:text-negative"
-                      aria-label="Supprimer"
-                      onClick={() => confirm("Supprimer cette opération ?") && del.mutate({ id: t.id })}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                  {planned ? (
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                      <button
+                        className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg"
+                        onClick={() => navigate("/versements")}
+                        aria-label="Modifier dans Versements"
+                        title="Modifier dans Versements"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        className="rounded p-1.5 text-fg-muted hover:bg-warning/15 hover:text-warning"
+                        aria-label="Déclarer ce mois manqué"
+                        title="Ce versement n'a pas eu lieu : le déclarer manqué"
+                        onClick={() =>
+                          confirm(`Déclarer manqué le versement de ${formatDate(t.date)} sur ${acc?.name ?? "ce compte"} ?`) &&
+                          skip.mutate({ accountId: t.accountId, month: t.date.slice(0, 7), amount: t.amount, comment: "" })
+                        }
+                      >
+                        <CalendarX2 size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                      <button className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg" onClick={() => setEditing(t)} aria-label="Modifier">
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        className="rounded p-1.5 text-fg-muted hover:bg-negative/15 hover:text-negative"
+                        aria-label="Supprimer"
+                        onClick={() => confirm("Supprimer cette opération ?") && del.mutate({ id: t.id })}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
                 </Td>
               </Tr>
             );

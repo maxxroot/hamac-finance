@@ -1,6 +1,6 @@
 import type { ContributionPlan, ContributionSkip, Transaction } from "./domain";
 import { roundCents } from "./money";
-import { Schedule, firstDay, monthsBetweenInclusive } from "./schedule";
+import { Schedule, monthsBetweenInclusive } from "./schedule";
 
 /** Taux d'un compte à partir d'une date (historique des taux d'un livret). */
 export interface AccountRate {
@@ -54,7 +54,7 @@ export interface LivretInterest {
 export function livretInterest(
   accountId: string,
   year: number,
-  data: { transactions: readonly Transaction[]; plans: readonly ContributionPlan[]; skips: readonly ContributionSkip[]; startMonth: string },
+  data: { transactions: readonly Transaction[]; plans: readonly ContributionPlan[]; skips: readonly ContributionSkip[]; startMonth: string; contributionDay?: number },
   rates: readonly AccountRate[],
   fallbackRate: number | null,
   today: string,
@@ -75,11 +75,11 @@ export function livretInterest(
     if (!signed) continue;
     moves.push({ q: signed > 0 ? quinzaine(t.date) + 1 : quinzaine(t.date), amount: signed });
   }
-  // Versements programmés (le 1er du mois), y compris ceux à venir dans l'année : ils comptent dès le 16.
-  const schedule = new Schedule(data.plans, data.skips, data.startMonth);
+  // Versements programmés (au jour du prélèvement), y compris ceux à venir dans l'année : quinzaine suivante.
+  const schedule = new Schedule(data.plans, data.skips, data.startMonth, data.contributionDay ?? 1);
   for (const m of monthsBetweenInclusive(data.startMonth < `${year - 60}-01` ? `${year - 60}-01` : data.startMonth, `${year}-12`)) {
     const amount = schedule.amount(accountId, m);
-    if (amount) moves.push({ q: quinzaine(firstDay(m)) + 1, amount });
+    if (amount) moves.push({ q: quinzaine(schedule.dueDate(m)) + 1, amount });
   }
   moves.sort((a, b) => a.q - b.q);
 

@@ -213,7 +213,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const warnings: string[] = [];
   const assetById = new Map(data.assets.map((a) => [a.id, a]));
   const accs = new Map<string, AccAcc>(data.accounts.map((a) => [a.id, newAcc()]));
-  const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth);
+  const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth, params.profile.contributionDay);
   const book = new PriceBook(data.prices, data.assets);
 
   // Événements jusqu'à la date de calcul, + remboursements d'obligations échues.

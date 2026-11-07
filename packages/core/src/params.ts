@@ -17,6 +17,8 @@ export const PlanParams = z
       horizonAge: z.number().int().min(50).max(110),
       /** Premier mois du calendrier des versements (AAAA-MM). */
       startMonth: z.string().regex(/^\d{4}-\d{2}$/),
+      /** Jour du mois où les versements programmés sont prélevés (dernier jour du mois s'il est plus court). */
+      contributionDay: z.number().int().min(1).max(31),
       couple: z.boolean(),
     }),
     returns: z.object({
@@ -89,6 +91,7 @@ export function defaultParams(today = new Date()): PlanParams {
       securisationAge: 57,
       horizonAge: 90,
       startMonth: `${y}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+      contributionDay: 1,
       couple: false,
     },
     returns: { livrets: 0.02, fondsEuros: 0.03, obligations: 0.035, actions: 0.06, inflation: 0.02, realReturnRetirement: 0.01 },

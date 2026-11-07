@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Schedule, addMonth, monthsBetweenInclusive } from "./schedule";
+import { Schedule, addMonth, dayOfMonth, isScheduled, monthsBetweenInclusive } from "./schedule";
 
 const plan = (accountId: string, fromMonth: string, amount: number) => ({ id: `${accountId}${fromMonth}`, accountId, fromMonth, amount, comment: "" });
 
@@ -36,5 +36,44 @@ describe("Schedule", () => {
     expect(s.amount("lep", "2026-10")).toBe(0);
     expect(s.paidTotal("lep", "2026-10-31")).toBe(0);
     expect(s.inYear("lep", 2026)).toBe(200);
+  });
+
+  it("jour du prélèvement : ramené au dernier jour des mois courts", () => {
+    expect(dayOfMonth("2026-04", 31)).toBe("2026-04-30");
+    expect(dayOfMonth("2027-02", 30)).toBe("2027-02-28");
+    expect(dayOfMonth("2028-02", 30)).toBe("2028-02-29");
+    expect(dayOfMonth("2026-11", 5)).toBe("2026-11-05");
+  });
+
+  it("le versement du mois ne compte qu'une fois son jour passé", () => {
+    const s = new Schedule([plan("lep", "2026-11", 100)], [], "2026-11", 10);
+    expect(s.paidTotal("lep", "2026-11-09")).toBe(0);
+    expect(s.paidTotal("lep", "2026-11-10")).toBe(100);
+    expect(s.paidTotal("lep", "2026-12-09")).toBe(100);
+    expect(s.paidFlows("lep", "2026-12-31")).toEqual([
+      { date: "2026-11-10", amount: 100 },
+      { date: "2026-12-10", amount: 100 },
+    ]);
+  });
+
+  it("par défaut le 1er : le mois en cours compte dès son premier jour", () => {
+    const s = new Schedule([plan("lep", "2026-11", 100)], [], "2026-11");
+    expect(s.paidTotal("lep", "2026-11-01")).toBe(100);
+  });
+
+  it("opérations du journal : montant réellement versé, mois manqué en entier absent", () => {
+    const skips = [
+      { id: "a", accountId: "pea", month: "2026-12", amount: 40, comment: "" },
+      { id: "b", accountId: "pea", month: "2027-01", amount: 100, comment: "" },
+    ];
+    const s = new Schedule([plan("pea", "2026-11", 100)], skips, "2026-11", 31);
+    const txs = s.paidTransactions("2027-02-27");
+    expect(txs.map((t) => [t.date, t.amount])).toEqual([
+      ["2026-11-30", 100],
+      ["2026-12-31", 60],
+    ]);
+    expect(txs[1].comment).toContain("40 € manqués");
+    expect(txs.every(isScheduled)).toBe(true);
+    expect(txs[0].type).toBe("versement");
   });
 });

@@ -16,7 +16,7 @@ export function Versements() {
   const today = todayIso();
   const current = monthOf(today);
 
-  const schedule = useMemo(() => (idx ? new Schedule(idx.ws.plans, idx.ws.skips, idx.ws.params.profile.startMonth) : null), [idx]);
+  const schedule = useMemo(() => (idx ? new Schedule(idx.ws.plans, idx.ws.skips, idx.ws.params.profile.startMonth, idx.ws.params.profile.contributionDay) : null), [idx]);
 
   if (!idx || !schedule) return null;
   if (idx.ws.accounts.length === 0) return <Onboarding />;
@@ -27,6 +27,8 @@ export function Versements() {
   const allMonths = monthsBetweenInclusive(params.profile.startMonth, endMonth);
   const months = showAll ? allMonths : allMonths.filter((m) => m >= addMonth(current, -3) && m <= addMonth(current, 14));
   const monthlyTotal = withPlans.reduce((s, a) => s + schedule.current(a.id, today), 0);
+  const dueDay = Number(schedule.dueDate(current).slice(8));
+  const paidThisMonth = schedule.isPaid(current, today);
 
   return (
     <>
@@ -37,7 +39,7 @@ export function Versements() {
 
       <div className="mb-6 grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardTitle hint={`Calendrier à partir de ${formatMonth(params.profile.startMonth)} (Paramètres › Plan)`}>Programmation</CardTitle>
+          <CardTitle hint={`Prélevés le ${params.profile.contributionDay} de chaque mois, à partir de ${formatMonth(params.profile.startMonth)} (Paramètres › Plan)`}>Programmation</CardTitle>
           <PlanForm accounts={idx.activeAccounts} defaultMonth={current < params.profile.startMonth ? params.profile.startMonth : current} />
           <div className="mt-5 space-y-3">
             {withPlans.length === 0 && <p className="text-sm text-fg-muted">Aucun versement programmé.</p>}
@@ -52,7 +54,9 @@ export function Versements() {
             <div className="text-3xl font-semibold tracking-tight">
               <Amount value={monthlyTotal} />
             </div>
-            <p className="mt-1 text-sm text-fg-muted">versés sur {withPlans.filter((a) => schedule.current(a.id, today) > 0).length} compte(s)</p>
+            <p className="mt-1 text-sm text-fg-muted">
+              {paidThisMonth ? "versés" : "prélevés"} le {dueDay} sur {withPlans.filter((a) => schedule.current(a.id, today) > 0).length} compte(s)
+            </p>
           </Card>
           <SkipsCard accounts={withPlans} />
         </div>
@@ -107,7 +111,7 @@ export function Versements() {
                         <Amount value={total} compact />
                       </Td>
                       <Td align="right" className="pr-5 whitespace-nowrap">
-                        {past || isCurrent ? <Badge tone="positive">✓ versé</Badge> : <span className="text-xs">à venir</span>}
+                        {schedule.isPaid(m, today) ? <Badge tone="positive">✓ versé</Badge> : <span className="text-xs">à venir</span>}
                       </Td>
                     </Tr>
                   );

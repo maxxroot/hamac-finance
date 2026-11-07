@@ -226,7 +226,7 @@ export interface ProjectionOverrides {
 /** Données d'entrée de la projection à partir du patrimoine actuel et du calendrier des versements. */
 export function projectionInputFromState(data: EngineData, state: PortfolioState, overrides: ProjectionOverrides = {}): ProjectionInput {
   const params = overrides.params ?? data.params;
-  const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth);
+  const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth, params.profile.contributionDay);
   const kinds = new Map(data.accounts.map((a) => [a.id, a.kind]));
   const extra = overrides.extraMonthly ?? {};
   const startYear = +state.asOf.slice(0, 4);
