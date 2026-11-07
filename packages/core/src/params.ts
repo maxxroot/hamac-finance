@@ -121,17 +121,25 @@ export function defaultParams(today = new Date()): PlanParams {
   };
 }
 
-/** Fusionne des paramètres stockés (éventuellement d'une version antérieure) avec les valeurs par défaut. */
-export function normalizeParams(stored: unknown, today = new Date()): PlanParams {
+/** Complète, section par section, des paramètres d'une version antérieure avec les valeurs par défaut. */
+export function withDefaultParams(stored: unknown, today = new Date()): unknown {
   const base = defaultParams(today);
   if (!stored || typeof stored !== "object") return base;
   const s = stored as Record<string, Record<string, unknown>>;
-  const merged = Object.fromEntries(
-    Object.entries(base).map(([k, v]) => [k, { ...v, ...(s[k] ?? {}) }]),
-  );
-  const parsed = PlanParams.safeParse(merged);
-  return parsed.success ? parsed.data : base;
+  return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, { ...v, ...(s[k] ?? {}) }]));
 }
+
+/** Fusionne des paramètres stockés (éventuellement d'une version antérieure) avec les valeurs par défaut. */
+export function normalizeParams(stored: unknown, today = new Date()): PlanParams {
+  const parsed = PlanParams.safeParse(withDefaultParams(stored, today));
+  return parsed.success ? parsed.data : defaultParams(today);
+}
+
+/**
+ * Paramètres reçus à l'enregistrement : un réglage absent (interface d'une version antérieure)
+ * prend sa valeur par défaut au lieu de bloquer ; une valeur présente mais invalide reste refusée.
+ */
+export const PlanParamsInput = z.preprocess((v) => withDefaultParams(v), PlanParams);
 
 // ——— Valeurs dérivées (Paramètres B5–B28) ———
 

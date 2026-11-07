@@ -108,6 +108,18 @@ describe("données du plan", () => {
     const bad = await b.dispatch("params.update", { ...ws.params, profile: { ...(ws.params.profile as object), horizonAge: 50 } });
     expect(bad.ok === false && bad.error.code).toBe("VALIDATION");
   });
+
+  it("accepte des paramètres d'une interface plus ancienne (réglage absent → valeur par défaut)", async () => {
+    const b = memory();
+    const ws = await call<{ params: { profile: Record<string, unknown> } }>(b, "workspace.load");
+    const { contributionDay: _omis, ...profile } = ws.params.profile;
+    const saved = await call<{ profile: { contributionDay: number } }>(b, "params.update", { ...ws.params, profile });
+    expect(saved.profile.contributionDay).toBe(1);
+    const day = await call<{ profile: { contributionDay: number } }>(b, "params.update", { ...ws.params, profile: { ...profile, contributionDay: 12 } });
+    expect(day.profile.contributionDay).toBe(12);
+    const bad = await b.dispatch("params.update", { ...ws.params, profile: { ...profile, contributionDay: 40 } });
+    expect(bad.ok === false && bad.error.code).toBe("VALIDATION");
+  });
 });
 
 describe("jeu de démonstration", () => {

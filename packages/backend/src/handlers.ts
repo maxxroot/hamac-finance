@@ -1,7 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { DEFAULT_CHECKLIST, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParams, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { DEFAULT_CHECKLIST, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -113,7 +113,7 @@ export const handlers: Handlers = {
   },
 
   async "params.update"(input, ctx) {
-    const params = PlanParams.parse(input);
+    const params = PlanParamsInput.parse(input);
     await saveParams(ctx.db, params);
     return params;
   },

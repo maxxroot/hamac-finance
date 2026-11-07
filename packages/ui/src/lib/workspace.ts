@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { ProcInput, ProcName, Workspace } from "@hamac/api";
-import type { Account, Asset, Institution } from "@hamac/core";
+import { normalizeParams, type Account, type Asset, type Institution } from "@hamac/core";
 import { call } from "./transport";
 import { useToast } from "./toast";
 
@@ -26,6 +26,8 @@ function normalizeWorkspace(ws: Partial<Workspace>): Workspace {
     institutions: list("institutions"),
     accountRates: list("accountRates"),
     priceStatus: ws.priceStatus ?? null,
+    // Réglages ajoutés depuis : valeur par défaut plutôt qu'un champ vide dans les formulaires.
+    params: normalizeParams(ws.params),
   };
 }
 

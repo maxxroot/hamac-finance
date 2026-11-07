@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PlanParams } from "@hamac/core";
+import { PlanParams, PlanParamsInput } from "@hamac/core";
 import type {
   AccountRate,
   ChecklistItem,
@@ -111,7 +111,7 @@ export const procedures = {
   "workspace.load": { input: z.void(), output: entity<Workspace>() },
   "workspace.createStarter": { input: z.void(), output: ok },
 
-  "params.update": { input: PlanParams, output: PlanParams },
+  "params.update": { input: PlanParamsInput, output: PlanParams },
 
   "accounts.upsert": { input: AccountInput, output: entity<Account>() },
   "accounts.delete": { input: byId, output: ok },
