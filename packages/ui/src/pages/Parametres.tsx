@@ -150,7 +150,7 @@ function PlanTab() {
         <FormGrid cols={3}>
           {eurField("Plancher (ne jamais descendre sous)", ["livrets", "floor"], "Le matelas de sécurité.")}
           {eurField("Plafond (au-delà, transférer)", ["livrets", "ceiling"], "L'excédent part vers le fonds euros.")}
-          {pctField("Seuil d'alerte de rééquilibrage", ["livrets", "driftAlert"], "Alerte si une classe d'actifs s'écarte de plus de ce nombre de points de sa cible.")}
+          {pctField("Seuil d'alerte de rééquilibrage", ["livrets", "driftAlert"], "Alerte si la part d'une classe d'actifs s'écarte de plus de ce pourcentage de sa cible (ex. 5 % : alerte à 61 % pour une cible de 55 %).")}
         </FormGrid>
       </Section>
 

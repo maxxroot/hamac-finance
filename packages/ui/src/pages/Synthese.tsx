@@ -63,7 +63,7 @@ export function Synthese() {
 
       <div className="grid gap-5 lg:grid-cols-5">
         <Card className="lg:col-span-3">
-          <CardTitle hint={`Âge ${state.age} ans · seuil d'alerte ${Math.round(pf.data.params.livrets.driftAlert * 100)} points`}>Allocation de la partie investie (hors livrets et crypto)</CardTitle>
+          <CardTitle hint={`Âge ${state.age} ans · alerte au-delà de ${Math.round(pf.data.params.livrets.driftAlert * 100)} % d'écart`}>Allocation de la partie investie (hors livrets et crypto)</CardTitle>
           <Table>
             <thead>
               <tr>

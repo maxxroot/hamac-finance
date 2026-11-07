@@ -48,7 +48,7 @@ export function Notice() {
               ["Paramètres › Plan", "Année de naissance, âge de départ, âge de sécurisation (début de la baisse des actions), âge horizon (jusqu'où l'argent doit durer)", "1990 · 64 · 57 · 90"],
               ["Paramètres › Plan", "Premier mois des versements, hypothèses de rendement et d'inflation", "janvier 2027 · 2 % · 3 % · 3,5 % · 6 % · 2 %"],
               ["Paramètres › Plan", "Allocation cible : part actions avant la sécurisation et au départ, part obligations (le fonds euros prend le reste)", "30 % · 15 % · 50 %"],
-              ["Paramètres › Plan", "Plancher et plafond des livrets, seuil d'alerte, tranche d'imposition", "7 500 € · 15 000 € · 5 points · 11 %"],
+              ["Paramètres › Plan", "Plancher et plafond des livrets, seuil d'alerte, tranche d'imposition", "7 500 € · 15 000 € · 5 % · 11 %"],
               ["Établissements", "Votre banque, votre courtier, votre assurance-vie : comptes proposés et grille de frais (paliers de courtage, droits de garde, frais sur versements et de gestion)", "jusqu'à 500 € : 1,99 € · au-delà : 0,5 %"],
               ["Paramètres › Comptes", "Chaque compte : son établissement (qui fixe ses frais), date d'ouverture (règles des 5 et 8 ans), taux et plafond des livrets, clause bénéficiaire", "PEA ouvert le 15/03/2021"],
               ["Paramètres › Titres", "Les ETF, obligations et cryptos détenus : recherche par nom ou ISIN, part cible de chaque ETF (total 100 %)", "ETF monde · FR00… · 100 %"],

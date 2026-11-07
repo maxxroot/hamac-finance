@@ -47,7 +47,7 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
       out.push({
         id: "allocation",
         level: "attention",
-        title: `Une classe d'actifs s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} points de sa cible`,
+        title: `Une classe d'actifs s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} % de sa cible`,
         detail: under.length ? `Orienter les prochains versements vers : ${under.join(", ")}.` : "Alléger en versant ailleurs, sans vendre.",
         link: "/enveloppes",
       });

@@ -33,7 +33,7 @@ export function Regles() {
     ],
     [
       "Deux fois par an",
-      `Comparer la valeur du fonds euros sur le site de l'assureur avec celle de Hamac, et saisir l'écart en correction si besoin. Rééquilibrer seulement si une classe d'actifs s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} points, en orientant les versements plutôt qu'en vendant.`,
+      `Comparer la valeur du fonds euros sur le site de l'assureur avec celle de Hamac, et saisir l'écart en correction si besoin. Rééquilibrer seulement si une classe d'actifs s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} % de sa cible, en orientant les versements plutôt qu'en vendant.`,
     ],
     ["À l'échéance d'une obligation", `Avant ${sec} ans : racheter une obligation plus lointaine. À partir de ${sec} ans : transférer le capital remboursé vers le fonds euros.`],
     [`Dès ${sec} ans`, "Versements actions redirigés vers le fonds euros. Chaque année, vendre une partie des ETF et transférer vers le fonds euros pour suivre la part cible (la projection en tient compte)."],
