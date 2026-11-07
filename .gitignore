@@ -10,3 +10,6 @@ release
 
 # Cahier des charges tiré du Google Sheet personnel : contient des données privées.
 docs/cahier-des-charges/
+
+# Copie générée de l'interface (pnpm build)
+apps/desktop/renderer/
