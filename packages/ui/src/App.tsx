@@ -1,5 +1,6 @@
 import { createHashRouter, RouterProvider } from "react-router";
 import { AuthGate } from "@/layout/AuthGate";
+import { RouteError } from "@/layout/RouteError";
 import { Shell } from "@/layout/Shell";
 import { ALL_ITEMS } from "@/nav";
 import { Actions } from "@/pages/Actions";
@@ -28,7 +29,6 @@ const PAGES: Record<string, ReactNode> = {
   "/notice": <Notice />,
   "/regles": <Regles />,
   "/etablissements": <Etablissements />,
-  "/plateformes": <Etablissements />,
   "/parametres": <Parametres />,
   "/journal": <Journal />,
   "/versements": <Versements />,
@@ -47,9 +47,12 @@ const PAGES: Record<string, ReactNode> = {
 const router = createHashRouter([
   {
     element: <Shell />,
+    errorElement: <RouteError />,
     children: ALL_ITEMS.map((item) => ({
       path: item.path,
       element: PAGES[item.path] ?? <Placeholder item={item} />,
+      // Une erreur dans une page n'emporte pas la navigation.
+      errorElement: <RouteError />,
     })),
   },
 ]);

@@ -9,7 +9,7 @@
   "scripts": {
     "build:main": "tsup",
     "build": "tsup && node scripts/copy-renderer.mjs",
-    "dev": "tsup && concurrently -k -n ui,app -c yellow,cyan \"pnpm --filter @hamac/ui dev\" \"wait-on tcp:5173 && cross-env HAMAC_DEV_URL=http://localhost:5173 node scripts/electron.mjs\"",
+    "dev": "tsup && concurrently -k -n main,ui,app -c gray,yellow,cyan \"tsup --watch src --watch ../../packages/backend/src --watch ../../packages/core/src --watch ../../packages/api/src --ignore-watch **/*.test.ts\" \"pnpm --filter @hamac/ui dev\" \"wait-on tcp:5173 && cross-env HAMAC_DEV_URL=http://localhost:5173 node scripts/electron.mjs --watch\"",
     "start": "node scripts/electron.mjs",
     "dist": "electron-builder --publish never",
     "smoke": "node scripts/electron.mjs"

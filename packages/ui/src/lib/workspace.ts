@@ -7,8 +7,30 @@ import { useToast } from "./toast";
 
 export const WORKSPACE_KEY = ["workspace"] as const;
 
+/** Complète un espace de travail incomplet (ex. backend plus ancien que l'interface) au lieu de planter. */
+function normalizeWorkspace(ws: Partial<Workspace>): Workspace {
+  const list = <K extends keyof Workspace>(k: K) => (Array.isArray(ws[k]) ? ws[k] : []) as Workspace[K];
+  return {
+    ...(ws as Workspace),
+    accounts: list("accounts"),
+    assets: list("assets"),
+    transactions: list("transactions"),
+    plans: list("plans"),
+    skips: list("skips"),
+    bondPlans: list("bondPlans"),
+    fundRates: list("fundRates"),
+    statements: list("statements"),
+    plannedExpenses: list("plannedExpenses"),
+    prices: list("prices"),
+    checklist: list("checklist"),
+    institutions: list("institutions"),
+    accountRates: list("accountRates"),
+    priceStatus: ws.priceStatus ?? null,
+  };
+}
+
 export function useWorkspace() {
-  return useQuery({ queryKey: WORKSPACE_KEY, queryFn: () => call("workspace.load") });
+  return useQuery({ queryKey: WORKSPACE_KEY, queryFn: async () => normalizeWorkspace(await call("workspace.load")) });
 }
 
 export interface WorkspaceIndex {
