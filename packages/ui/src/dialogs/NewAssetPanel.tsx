@@ -61,7 +61,7 @@ export function newAssetFor(account: AccountKind, only?: readonly AssetKind[]): 
 function withChoice(n: NewAsset, c: { kind: AssetKind; bondKind: BondKind | null }): NewAsset {
   const issuer = c.bondKind === "etat" ? "République française" : c.bondKind === "entreprise" && n.issuer === "République française" ? "" : n.issuer;
   // Le jour d'échéance dépend du type : toujours le 25 pour une OAT.
-  const maturityDate = n.maturityDate ? maturityFromMonth(n.maturityDate.slice(0, 7), c.bondKind, +n.maturityDate.slice(8, 10)) : n.maturityDate;
+  const maturityDate = n.maturityDate ? maturityFromMonth(n.maturityDate.slice(0, 7), c.bondKind) : n.maturityDate;
   return rename({ ...n, kind: c.kind, bondKind: c.bondKind, issuer, maturityDate });
 }
 
@@ -258,31 +258,12 @@ export function NewAssetPanel({
   );
 }
 
-/** Échéance : mois et année (OAT : le 25) ; jour facultatif pour une obligation d'entreprise. */
+/** Échéance : mois et année seulement (OAT : le 25 ; entreprise : le 1er du mois). */
 function MaturityField({ value, onChange }: { value: NewAsset; onChange: (date: string) => void }) {
-  const month = value.maturityDate.slice(0, 7);
-  const day = value.maturityDate ? +value.maturityDate.slice(8, 10) : null;
   const isOat = value.bondKind === "etat";
   return (
-    <Field label="Échéance" help={isOat ? `Mois et année ; une OAT est remboursée le ${OAT_MATURITY_DAY} du mois.` : "Mois et année ; jour facultatif (1er du mois sinon)."}>
-      {(id) => (
-        <div className="flex gap-2">
-          <TextInput id={id} type="month" value={month} onChange={(e) => onChange(e.target.value ? maturityFromMonth(e.target.value, value.bondKind, day) : "")} />
-          {!isOat && (
-            <TextInput
-              type="number"
-              min={1}
-              max={31}
-              placeholder="jour"
-              aria-label="Jour d'échéance (facultatif)"
-              className="w-20 text-right"
-              disabled={!month}
-              value={month && day && day !== 1 ? day : ""}
-              onChange={(e) => month && onChange(maturityFromMonth(month, value.bondKind, e.target.value ? Number(e.target.value) : null))}
-            />
-          )}
-        </div>
-      )}
+    <Field label="Échéance" help={isOat ? `Mois et année ; une OAT est remboursée le ${OAT_MATURITY_DAY} du mois.` : "Mois et année."}>
+      {(id) => <TextInput id={id} type="month" value={value.maturityDate.slice(0, 7)} onChange={(e) => onChange(e.target.value ? maturityFromMonth(e.target.value, value.bondKind) : "")} />}
     </Field>
   );
 }
