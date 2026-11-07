@@ -1,0 +1,20 @@
+{
+  "name": "@hamac/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Serveur web auto-hébergé de Hamac : comptes utilisateurs, une base SQLite par personne.",
+  "scripts": {
+    "build": "tsup && node scripts/copy-ui.mjs",
+    "start": "node dist/server.mjs",
+    "cli": "node dist/cli.mjs"
+  },
+  "devDependencies": {
+    "@hamac/api": "workspace:^",
+    "@hamac/backend": "workspace:^",
+    "@hono/node-server": "^2.1.6",
+    "hono": "^4.13.17",
+    "tsup": "^9.0.0"
+  }
+}

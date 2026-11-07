@@ -15,7 +15,9 @@
     "dist": "pnpm build && pnpm --filter @hamac/desktop dist",
     "test": "vitest run",
     "typecheck": "pnpm -r --parallel exec tsc --noEmit -p tsconfig.json",
-    "start": "pnpm --filter @hamac/desktop start"
+    "start": "pnpm --filter @hamac/desktop start",
+    "server:build": "pnpm --filter @hamac/ui build && pnpm --filter @hamac/server build",
+    "server:start": "pnpm --filter @hamac/server start"
   },
   "devDependencies": {
     "@types/node": "24",

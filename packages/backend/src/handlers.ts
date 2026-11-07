@@ -43,10 +43,10 @@ export const handlers: Handlers = {
     return {
       appVersion: ctx.appVersion,
       mode: ctx.mode,
-      databasePath: ctx.databasePath,
+      databasePath: ctx.displayPath ?? ctx.databasePath,
       schemaVersion: ctx.schemaVersion,
       sqliteVersion: sqlite_version,
-      backupsDir: ctx.backupsDir,
+      backupsDir: ctx.displayPath ? (ctx.backupsDir ? "Sauvegardes quotidiennes sur le serveur" : null) : ctx.backupsDir,
     };
   },
 

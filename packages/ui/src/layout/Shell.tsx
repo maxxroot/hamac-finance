@@ -1,4 +1,7 @@
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { auth } from "@/lib/auth";
+import { isDesktop } from "@/lib/transport";
 import { NavLink, Outlet } from "react-router";
 import { cn } from "@/lib/cn";
 import { useSetSetting, useSetting } from "@/lib/queries";
@@ -53,6 +56,7 @@ export function Shell() {
         </nav>
         <div className="border-t border-line p-3">
           <NavEntry item={SETTINGS_ITEM} />
+          {!isDesktop && <WebUser />}
         </div>
       </aside>
 
@@ -74,6 +78,28 @@ export function Shell() {
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+/** Mode web : utilisateur connecté et déconnexion. */
+function WebUser() {
+  const [email, setEmail] = useState<string | null>(null);
+  useEffect(() => {
+    void auth.me().then(setEmail);
+  }, []);
+  return (
+    <div className="mt-1 flex items-center justify-between gap-2 px-3 py-1.5 text-xs text-fg-faint">
+      <span className="truncate" title={email ?? ""}>
+        {email}
+      </span>
+      <button
+        className="rounded p-1 hover:bg-surface-2 hover:text-fg"
+        title="Se déconnecter"
+        onClick={() => void auth.logout().finally(() => window.dispatchEvent(new Event("hamac:unauthorized")))}
+      >
+        <LogOut size={14} />
+      </button>
     </div>
   );
 }

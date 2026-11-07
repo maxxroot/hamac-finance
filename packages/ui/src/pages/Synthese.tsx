@@ -165,7 +165,7 @@ export function Synthese() {
         </Card>
         <Card className="lg:col-span-2">
           <CardTitle>Répartition du patrimoine</CardTitle>
-          {donut && <Chart option={donut} height={260} />}
+          {donut && state.totals.value > 0 ? <Chart option={donut} height={260} /> : <p className="py-16 text-center text-sm text-fg-muted">La répartition apparaîtra avec les premiers montants.</p>}
         </Card>
       </div>
 

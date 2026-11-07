@@ -70,3 +70,16 @@ jobs:
             apps/desktop/release/*.AppImage
             apps/desktop/release/*.deb
           if-no-files-found: error
+
+  docker:
+    name: Image Docker (instance web)
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t hamac:ci .
+      - name: Démarrage et santé
+        run: |
+          docker run -d --name hamac -p 8080:8080 hamac:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:8080/api/auth/config && exit 0; sleep 1; done
+          docker logs hamac; exit 1

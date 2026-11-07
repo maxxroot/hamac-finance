@@ -22,11 +22,18 @@ function httpTransport(baseUrl: string): Transport {
     async call(name, ...input) {
       const res = await fetch(`${baseUrl}/api/rpc/${encodeURIComponent(name)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // En-tête anti-CSRF exigé par le serveur.
+        headers: { "Content-Type": "application/json", "X-Hamac": "1" },
         credentials: "include",
         body: JSON.stringify(input[0] ?? null),
       });
-      return unwrap((await res.json()) as RpcResult<unknown>);
+      const body = (await res.json().catch(() => null)) as RpcResult<unknown> | null;
+      if (res.status === 401 || res.status === 403) {
+        window.dispatchEvent(new Event("hamac:unauthorized"));
+        throw new RpcError("UNAUTHORIZED", "Session expirée : reconnectez-vous.");
+      }
+      if (!body) throw new RpcError("INTERNAL", `Réponse ${res.status} du serveur`);
+      return unwrap(body);
     },
   } as Transport;
 }

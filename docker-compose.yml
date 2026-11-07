@@ -1,0 +1,18 @@
+# Instance Hamac pour vous et vos proches.
+#   docker compose up -d
+#   docker compose exec hamac node cli.mjs invite      → code d'invitation à envoyer
+# Placez un reverse proxy HTTPS (Caddy, Traefik, nginx) devant, puis mettez HAMAC_SECURE à "1".
+services:
+  hamac:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      HAMAC_SIGNUP: invite # invite | open | closed
+      HAMAC_SECURE: "0" # "1" derrière HTTPS
+    volumes:
+      - hamac-data:/data
+
+volumes:
+  hamac-data:

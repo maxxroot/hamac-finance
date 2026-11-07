@@ -14,6 +14,8 @@ export interface BackendOptions {
   backupsDir: string | null;
   /** Actualise les cours au démarrage puis toutes les 30 minutes. */
   autoRefreshPrices?: boolean;
+  /** Libellé affiché à la place du chemin de la base (mode web : ne pas exposer le serveur). */
+  displayPath?: string;
   /** Client HTTP (injectable pour les tests). */
   fetcher?: Fetcher;
 }

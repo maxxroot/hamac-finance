@@ -1,4 +1,5 @@
 import { createHashRouter, RouterProvider } from "react-router";
+import { AuthGate } from "@/layout/AuthGate";
 import { Shell } from "@/layout/Shell";
 import { ALL_ITEMS } from "@/nav";
 import { Actions } from "@/pages/Actions";
@@ -53,5 +54,5 @@ const router = createHashRouter([
 ]);
 
 export function App() {
-  return <RouterProvider router={router} />;
+  return <AuthGate>{() => <RouterProvider router={router} />}</AuthGate>;
 }

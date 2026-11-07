@@ -10,4 +10,5 @@ export interface BackendContext {
   schemaVersion: string;
   backupsDir: string | null;
   fetcher: Fetcher;
+  displayPath?: string;
 }

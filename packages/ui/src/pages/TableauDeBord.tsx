@@ -158,7 +158,7 @@ export function TableauDeBord() {
       <div className="grid gap-5 lg:grid-cols-5">
         <Card className="lg:col-span-2">
           <CardTitle>Répartition actuelle</CardTitle>
-          {donut && <Chart option={donut} height={200} />}
+          {donut && state.totals.value > 0 ? <Chart option={donut} height={200} /> : <p className="py-12 text-center text-sm text-fg-muted">Saisissez vos apports pour voir la répartition.</p>}
           <div className="mt-3 space-y-1.5">
             {state.allocation.rows.map((r) => (
               <div key={r.bucket} className="flex items-center justify-between gap-3 text-sm">
