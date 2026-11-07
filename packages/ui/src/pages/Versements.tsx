@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Schedule, addMonth, monthOf, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Field, MoneyInput, Select, TextInput } from "@/components/form";
-import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
+import { Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { cn } from "@/lib/cn";
@@ -59,37 +59,40 @@ export function Versements() {
       </div>
 
       <Card className="p-0">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+        <div className="flex min-h-14 items-center justify-between px-5 pt-3 pb-1">
           <h2 className="text-sm font-medium text-fg-muted">Calendrier</h2>
-          <Button variant="ghost" onClick={() => setShowAll((v) => !v)}>
-            {showAll ? "Afficher autour d'aujourd'hui" : `Tout afficher (${allMonths.length} mois)`}
-          </Button>
+          {withPlans.length > 0 && (
+            <Button variant="ghost" className="-mr-3 h-8 text-accent" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "Afficher autour d'aujourd'hui" : `Tout afficher (${allMonths.length} mois)`}
+            </Button>
+          )}
         </div>
-        <div className="max-h-[560px] overflow-y-auto">
-          <Table className="rounded-none border-x-0 border-b-0">
-            <thead>
-              <tr>
-                <Th>Mois</Th>
-                <Th align="right">Âge</Th>
-                {withPlans.map((a) => (
-                  <Th key={a.id} align="right">
-                    {a.name}
-                  </Th>
-                ))}
-                <Th align="right">Total</Th>
-                <Th>État</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {withPlans.length === 0 && <EmptyRow cols={4}>Programmez un premier versement pour voir le calendrier.</EmptyRow>}
-              {withPlans.length > 0 &&
-                months.map((m) => {
+        {withPlans.length === 0 ? (
+          <p className="px-5 pb-5 text-sm text-fg-muted">Programmez un premier versement pour voir le calendrier.</p>
+        ) : (
+          <div className="max-h-[560px] overflow-y-auto">
+            <Table className="rounded-none border-x-0 border-b-0">
+              <thead>
+                <tr>
+                  <Th className="w-full pl-5">Mois</Th>
+                  <Th align="right">Âge</Th>
+                  {withPlans.map((a) => (
+                    <Th key={a.id} align="right">
+                      {a.name}
+                    </Th>
+                  ))}
+                  <Th align="right">Total</Th>
+                  <Th align="right" className="pr-5">État</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {months.map((m) => {
                   const total = withPlans.reduce((s, a) => s + schedule.amount(a.id, m), 0);
                   const past = m < current;
                   const isCurrent = m === current;
                   return (
                     <Tr key={m} className={cn(isCurrent && "bg-accent/10", !past && !isCurrent && "text-fg-muted")}>
-                      <Td className={cn("whitespace-nowrap", isCurrent && "font-semibold text-accent")}>{capitalize(formatMonth(m))}</Td>
+                      <Td className={cn("pl-5 whitespace-nowrap", isCurrent && "font-semibold text-accent")}>{capitalize(formatMonth(m))}</Td>
                       <Td align="right">{Number(m.slice(0, 4)) - params.profile.birthYear}</Td>
                       {withPlans.map((a) => {
                         const amount = schedule.amount(a.id, m);
@@ -103,13 +106,16 @@ export function Versements() {
                       <Td align="right" className="font-medium">
                         <Amount value={total} compact />
                       </Td>
-                      <Td>{past || isCurrent ? <Badge tone="positive">✓ versé</Badge> : <span className="text-xs">à venir</span>}</Td>
+                      <Td align="right" className="pr-5 whitespace-nowrap">
+                        {past || isCurrent ? <Badge tone="positive">✓ versé</Badge> : <span className="text-xs">à venir</span>}
+                      </Td>
                     </Tr>
                   );
                 })}
-            </tbody>
-          </Table>
-        </div>
+              </tbody>
+            </Table>
+          </div>
+        )}
       </Card>
     </>
   );
@@ -141,12 +147,11 @@ function PlanForm({ accounts, defaultMonth }: { accounts: Account[]; defaultMont
         )}
       </Field>
       <Field label="À partir de">{(id) => <TextInput id={id} type="month" value={month} onChange={(e) => setMonth(e.target.value)} />}</Field>
-      <Field label="Montant par mois" help="0 pour arrêter.">
-        {(id) => <MoneyInput id={id} value={amount} onChange={setAmount} />}
-      </Field>
-      <Button variant="primary" type="submit" disabled={set.isPending || amount == null} className="mb-[22px]">
+      <Field label="Montant par mois">{(id) => <MoneyInput id={id} value={amount} onChange={setAmount} />}</Field>
+      <Button variant="primary" type="submit" disabled={set.isPending || amount == null}>
         Programmer
       </Button>
+      <p className="text-xs text-fg-faint sm:col-span-4">Le nouveau montant s'applique à partir du mois choisi ; 0 arrête le versement.</p>
     </form>
   );
 }
