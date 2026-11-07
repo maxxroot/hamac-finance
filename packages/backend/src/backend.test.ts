@@ -123,3 +123,60 @@ describe("jeu de démonstration", () => {
     }
   });
 });
+
+describe("sauvegarde, import et démarches", () => {
+  async function call<T = unknown>(b: Backend, name: string, input?: unknown): Promise<T> {
+    const res = await b.dispatch(name, input);
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`);
+    return res.data as T;
+  }
+
+  it("export puis import dans une autre base : données identiques", async () => {
+    const { seedDemo } = await import("./demo");
+    const a = memory();
+    await seedDemo(a);
+    const dump = await call<{ tables: Record<string, unknown[]> }>(a, "data.export");
+    const before = await call<Record<string, unknown>>(a, "workspace.load");
+
+    const b = createBackend({ databasePath: ":memory:", mode: "web", appVersion: "test", backupsDir: null });
+    await call(b, "data.import", { dump, confirm: "REMPLACER" });
+    const after = await call<Record<string, unknown>>(b, "workspace.load");
+    expect(after.transactions).toEqual(before.transactions);
+    expect(after.accounts).toEqual(before.accounts);
+    expect(after.params).toEqual(before.params);
+    b.close();
+  });
+
+  it("refuse un fichier qui n'est pas une sauvegarde, sans rien toucher", async () => {
+    const b = memory();
+    await call(b, "workspace.createStarter");
+    const bad = await b.dispatch("data.import", { dump: { format: "autre" }, confirm: "REMPLACER" });
+    expect(bad.ok).toBe(false);
+    const ws = await call<{ accounts: unknown[] }>(b, "workspace.load");
+    expect(ws.accounts).toHaveLength(7);
+  });
+
+  it("import groupé : lignes valides enregistrées, erreurs signalées par ligne", async () => {
+    const b = memory();
+    const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", name: "LEP" });
+    const res = await call<{ created: number; errors: Array<{ index: number }> }>(b, "transactions.bulkCreate", {
+      items: [
+        { date: "2026-01-01", type: "versement", accountId: lep.id, amount: 100 },
+        { date: "2026-02-01", type: "achat", accountId: lep.id, amount: 100 },
+        { date: "2026-03-01", type: "interets", accountId: lep.id, amount: 12.5 },
+      ],
+    });
+    expect(res.created).toBe(2);
+    expect(res.errors.map((e) => e.index)).toEqual([1]);
+  });
+
+  it("liste type des démarches, une seule fois", async () => {
+    const b = memory();
+    await call(b, "checklist.seedDefaults");
+    const ws = await call<{ checklist: Array<{ id: string; label: string; done: boolean }> }>(b, "workspace.load");
+    expect(ws.checklist.length).toBeGreaterThan(5);
+    const item = await call<{ done: boolean; doneAt: string | null }>(b, "checklist.upsert", { ...ws.checklist[0], done: true });
+    expect(item.doneAt).not.toBeNull();
+    expect((await b.dispatch("checklist.seedDefaults", undefined)).ok).toBe(false);
+  });
+});

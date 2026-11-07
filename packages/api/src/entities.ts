@@ -107,4 +107,19 @@ export const PlannedExpenseInput = z.object({
   label: text(120).min(1),
   accountId: id.nullable().default(null),
 });
+export const ChecklistInput = z.object({
+  id: id.optional(),
+  label: text(300).min(1, "Libellé requis"),
+  note: text(300).default(""),
+  done: z.boolean().default(false),
+  sortOrder: z.number().int().default(0),
+});
+export const ComparisonInput = z.object({
+  id: id.optional(),
+  kind: z.enum(["assurance_vie", "courtier"]),
+  name: text(80).min(1, "Nom requis"),
+  values: z.record(z.string(), z.string().max(200)).default({}),
+  score: z.number().min(0).max(10).nullable().default(null),
+  comment: text(500).default(""),
+});
 export const ManualPriceInput = z.object({ assetId: id, date: isoDate, price: money.positive() });

@@ -10,7 +10,10 @@ import { Journal } from "@/pages/Journal";
 import { Livrets } from "@/pages/Livrets";
 import { Obligations } from "@/pages/Obligations";
 import { Performance } from "@/pages/Performance";
+import { Notice } from "@/pages/Notice";
+import { Plateformes } from "@/pages/Plateformes";
 import { Projection } from "@/pages/Projection";
+import { Regles } from "@/pages/Regles";
 import { Synthese } from "@/pages/Synthese";
 import { TableauDeBord } from "@/pages/TableauDeBord";
 import { Parametres } from "@/pages/Parametres";
@@ -21,6 +24,9 @@ import { Placeholder } from "@/pages/Placeholder";
 const PAGES: Record<string, ReactNode> = {
   "/": <TableauDeBord />,
   "/projection": <Projection />,
+  "/notice": <Notice />,
+  "/regles": <Regles />,
+  "/plateformes": <Plateformes />,
   "/parametres": <Parametres />,
   "/journal": <Journal />,
   "/versements": <Versements />,

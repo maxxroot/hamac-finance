@@ -1,4 +1,10 @@
-import { Archive, Pencil, Plus, Trash2 } from "lucide-react";
+import { Archive, Download, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { DataDump } from "@hamac/api";
+import { Modal } from "@/components/form";
+import { downloadText, pickTextFile } from "@/lib/files";
+import { call } from "@/lib/transport";
+import { useToast } from "@/lib/toast";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ACCOUNT_KIND_LABELS,
@@ -348,7 +354,112 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
 function AppTab() {
   const info = useSystemInfo();
   return (
-    <Card className="max-w-3xl">
+    <div className="max-w-3xl space-y-5">
+      <BackupCard />
+      <AppInfo info={info} />
+    </div>
+  );
+}
+
+const TABLE_LABELS: Record<string, string> = {
+  accounts: "comptes",
+  assets: "titres",
+  transactions: "opérations",
+  contribution_plans: "versements programmés",
+  prices: "cours",
+  checklist_items: "démarches",
+};
+
+function BackupCard() {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [pending, setPending] = useState<{ name: string; dump: DataDump } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const exportAll = async () => {
+    const dump = await call("data.export");
+    downloadText(`hamac-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(dump), "application/json");
+  };
+  const choose = async () => {
+    const f = await pickTextFile(".json,application/json");
+    if (!f) return;
+    try {
+      const dump = JSON.parse(f.content) as DataDump;
+      if (dump.format !== "hamac") throw new Error("format");
+      setPending({ name: f.name, dump });
+    } catch {
+      toast("error", "Ce fichier n'est pas une sauvegarde Hamac.");
+    }
+  };
+  const restore = async () => {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      await call("data.import", { dump: pending.dump, confirm: "REMPLACER" });
+      await qc.invalidateQueries();
+      toast("success", "Sauvegarde restaurée.");
+      setPending(null);
+    } catch (e) {
+      toast("error", (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardTitle>Sauvegarde et transfert</CardTitle>
+      <p className="mb-4 text-sm text-fg-muted">
+        Un fichier unique avec toutes vos données : pour une copie de sécurité, ou pour passer de l'application de bureau à une instance web (et inversement).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={exportAll}>
+          <Download size={15} /> Exporter une sauvegarde
+        </Button>
+        <Button variant="ghost" onClick={choose}>
+          <Upload size={15} /> Restaurer une sauvegarde…
+        </Button>
+      </div>
+      <Modal
+        open={!!pending}
+        onClose={() => setPending(null)}
+        title="Restaurer une sauvegarde"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPending(null)}>
+              Annuler
+            </Button>
+            <Button variant="primary" onClick={restore} disabled={busy}>
+              Remplacer toutes mes données
+            </Button>
+          </>
+        }
+      >
+        {pending && (
+          <div className="space-y-3 text-sm">
+            <p>
+              <b>{pending.name}</b>, exportée le {formatDate(pending.dump.exportedAt.slice(0, 10))} (version {pending.dump.appVersion}).
+            </p>
+            <p className="text-fg-muted">
+              Contenu :{" "}
+              {Object.entries(TABLE_LABELS)
+                .map(([t, l]) => `${pending.dump.tables[t]?.length ?? 0} ${l}`)
+                .join(", ")}
+              .
+            </p>
+            <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2">
+              Toutes les données actuelles seront remplacées. La sauvegarde automatique du jour permet de revenir en arrière si besoin.
+            </p>
+          </div>
+        )}
+      </Modal>
+    </Card>
+  );
+}
+
+function AppInfo({ info }: { info: ReturnType<typeof useSystemInfo> }) {
+  return (
+    <Card>
       <CardTitle>
         <span className="inline-flex items-center gap-2">
           <Archive size={15} /> Données et application

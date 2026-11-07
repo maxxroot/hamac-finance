@@ -1,7 +1,8 @@
 import { and, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LEGAL_CEILINGS, PlanParams, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { DEFAULT_CHECKLIST, LIVRET_LEGAL_CEILINGS, PlanParams, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
 import { refreshPrices } from "./market/refresh";
@@ -11,6 +12,8 @@ import {
   mapAccount,
   mapAsset,
   mapBondPlan,
+  mapChecklist,
+  mapComparison,
   mapExpense,
   mapPlan,
   mapSkip,
@@ -299,6 +302,77 @@ export const handlers: Handlers = {
       .values({ assetId, date, price, source: "manuel" })
       .onConflictDoUpdate({ target: [t.prices.assetId, t.prices.date], set: { price, source: "manuel" } });
     return OK;
+  },
+
+  async "checklist.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const existing = input.id ? await ctx.db.select().from(t.checklistItems).where(eq(t.checklistItems.id, id)).get() : undefined;
+    const doneAt = input.done ? (existing?.doneAt ?? nowIso()) : null;
+    const row = { label: input.label, note: input.note, done: input.done, doneAt, sortOrder: input.sortOrder, updatedAt: nowIso() };
+    if (existing) await ctx.db.update(t.checklistItems).set(row).where(eq(t.checklistItems.id, id));
+    else await ctx.db.insert(t.checklistItems).values({ id, ...row });
+    return mapChecklist((await ctx.db.select().from(t.checklistItems).where(eq(t.checklistItems.id, id)).get())!);
+  },
+
+  async "checklist.delete"({ id }, ctx) {
+    await ctx.db.delete(t.checklistItems).where(eq(t.checklistItems.id, id));
+    return OK;
+  },
+
+  async "checklist.seedDefaults"(_input, ctx) {
+    const n = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.checklistItems).get());
+    if (n > 0) throw new RpcError("CONFLICT", "La liste contient déjà des démarches.");
+    let i = 0;
+    for (const item of DEFAULT_CHECKLIST) await ctx.db.insert(t.checklistItems).values({ id: newId(), label: item.label, note: item.note ?? "", sortOrder: i++ });
+    return OK;
+  },
+
+  async "comparisons.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const row = { kind: input.kind, name: input.name, values: JSON.stringify(input.values), score: input.score, comment: input.comment, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.comparisons).set(row).where(eq(t.comparisons.id, id));
+    else await ctx.db.insert(t.comparisons).values({ id, ...row });
+    return mapComparison((await ctx.db.select().from(t.comparisons).where(eq(t.comparisons.id, id)).get())!);
+  },
+
+  async "comparisons.delete"({ id }, ctx) {
+    await ctx.db.delete(t.comparisons).where(eq(t.comparisons.id, id));
+    return OK;
+  },
+
+  async "transactions.bulkCreate"({ items }, ctx) {
+    const [accounts, assets] = await Promise.all([ctx.db.select().from(t.accounts).all(), ctx.db.select().from(t.assets).all()]);
+    const accMap = new Map<string, Account>(accounts.map((a) => [a.id, mapAccount(a)]));
+    const assetMap = new Map<string, Asset>(assets.map((a) => [a.id, mapAsset(a)]));
+    const errors: Array<{ index: number; message: string }> = [];
+    const valid = items.filter((tx, index) => {
+      const errs = validateTransaction(tx, accMap, assetMap);
+      if (errs.length) errors.push({ index, message: errs.map((e) => e.message).join(" ") });
+      return errs.length === 0;
+    });
+    // Tout ou rien pour les lignes valides : une transaction SQLite.
+    ctx.raw.exec("BEGIN IMMEDIATE");
+    try {
+      const stmt = ctx.raw.prepare(
+        "INSERT INTO transactions (id, date, type, account_id, asset_id, counter_account_id, amount_cents, quantity, fee_cents, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      );
+      for (const tx of valid) {
+        stmt.run(newId(), tx.date, tx.type, tx.accountId, tx.assetId, tx.counterAccountId, toCents(tx.amount), tx.quantity, tx.fee == null ? null : toCents(tx.fee), tx.comment);
+      }
+      ctx.raw.exec("COMMIT");
+    } catch (e) {
+      ctx.raw.exec("ROLLBACK");
+      throw e;
+    }
+    return { created: valid.length, errors };
+  },
+
+  async "data.export"(_input, ctx) {
+    return exportDump(ctx);
+  },
+
+  async "data.import"({ dump }, ctx) {
+    return { tables: importDump(ctx, dump) };
   },
 
   async "prices.refresh"(_input, ctx) {

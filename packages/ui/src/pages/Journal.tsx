@@ -1,4 +1,6 @@
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Download, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { CsvImportDialog } from "@/dialogs/CsvImportDialog";
+import { downloadText, toCsv } from "@/lib/files";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { TX_LABELS, TX_TYPES, type Transaction, type TxType } from "@hamac/core";
@@ -51,6 +53,7 @@ export function Journal() {
   const [account, setAccount] = useState("");
   const [type, setType] = useState<TxType | "">("");
   const [year, setYear] = useState("");
+  const [importing, setImporting] = useState(false);
   const [q, setQ] = useState("");
 
   const years = useMemo(() => [...new Set(idx?.ws.transactions.map((t) => t.date.slice(0, 4)))].sort().reverse(), [idx]);
@@ -79,9 +82,41 @@ export function Journal() {
         title="Journal"
         description="Toutes les opérations. C'est la seule saisie du quotidien : tout le reste se calcule."
         actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
-            <Plus size={16} /> Nouvelle opération
-          </Button>
+          <>
+            <Button variant="ghost" onClick={() => setImporting(true)} title="Importer un relevé CSV de banque ou de courtier">
+              <FileUp size={16} /> Importer
+            </Button>
+            <Button
+              variant="ghost"
+              title="Exporter les opérations affichées en CSV"
+              onClick={() =>
+                downloadText(
+                  `hamac-journal-${new Date().toISOString().slice(0, 10)}.csv`,
+                  toCsv([
+                    ["Date", "Compte", "Opération", "Titre", "ISIN", "Montant", "Quantité", "Frais", "Vers le compte", "Commentaire"],
+                    ...rows.map((t) => [
+                      t.date,
+                      idx.accountById.get(t.accountId)?.name,
+                      TX_LABELS[t.type],
+                      t.assetId ? idx.assetById.get(t.assetId)?.name : "",
+                      t.assetId ? idx.assetById.get(t.assetId)?.isin : "",
+                      t.amount,
+                      t.quantity,
+                      t.fee,
+                      t.counterAccountId ? idx.accountById.get(t.counterAccountId)?.name : "",
+                      t.comment,
+                    ]),
+                  ]),
+                  "text/csv;charset=utf-8",
+                )
+              }
+            >
+              <Download size={16} /> Exporter
+            </Button>
+            <Button variant="primary" onClick={() => setCreating(true)}>
+              <Plus size={16} /> Nouvelle opération
+            </Button>
+          </>
         }
       />
 
@@ -183,6 +218,7 @@ export function Journal() {
         </tbody>
       </Table>
 
+      <CsvImportDialog open={importing} onClose={() => setImporting(false)} />
       <TransactionDialog open={creating || !!editing} transaction={editing} preset={preset} onClose={closeDialog} />
     </>
   );

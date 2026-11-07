@@ -15,6 +15,13 @@
       "when": 1794076422415,
       "tag": "0001_adorable_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794080941472,
+      "tag": "0002_burly_warhawk",
+      "breakpoints": true
     }
   ]
 }

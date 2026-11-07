@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { PlanParams } from "@hamac/core";
 import type {
+  ChecklistItem,
+  Comparison,
   Account,
   Asset,
   BondPlan,
@@ -16,6 +18,8 @@ import {
   AccountInput,
   AssetInput,
   BondPlanInput,
+  ChecklistInput,
+  ComparisonInput,
   FundRateInput,
   ManualPriceInput,
   PlanInput,
@@ -56,9 +60,21 @@ export interface Workspace {
   fundRates: FundRate[];
   statements: Statement[];
   plannedExpenses: PlannedExpense[];
+  checklist: ChecklistItem[];
+  comparisons: Comparison[];
   /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
   prices: PricePoint[];
   priceStatus: PriceStatus | null;
+}
+
+/** Sauvegarde complète et portable (bureau ↔ web), lignes brutes de chaque table. */
+export interface DataDump {
+  format: "hamac";
+  version: 1;
+  schemaVersion: string;
+  exportedAt: string;
+  appVersion: string;
+  tables: Record<string, Array<Record<string, unknown>>>;
 }
 
 export interface PriceStatus {
@@ -118,6 +134,19 @@ export const procedures = {
   "plannedExpenses.delete": { input: byId, output: ok },
 
   "prices.setManual": { input: ManualPriceInput, output: ok },
+  "checklist.upsert": { input: ChecklistInput, output: entity<ChecklistItem>() },
+  "checklist.delete": { input: byId, output: ok },
+  "checklist.seedDefaults": { input: z.void(), output: ok },
+  "comparisons.upsert": { input: ComparisonInput, output: entity<Comparison>() },
+  "comparisons.delete": { input: byId, output: ok },
+
+  "transactions.bulkCreate": {
+    input: z.object({ items: z.array(TransactionInput).min(1).max(5000) }),
+    output: entity<{ created: number; errors: Array<{ index: number; message: string }> }>(),
+  },
+  "data.export": { input: z.void(), output: entity<DataDump>() },
+  "data.import": { input: z.object({ dump: z.unknown(), confirm: z.literal("REMPLACER") }), output: entity<{ tables: Record<string, number> }>() },
+
   "prices.refresh": { input: z.void(), output: entity<PriceStatus>() },
   "assets.search": { input: z.object({ query: z.string().trim().min(2).max(80) }), output: entity<{ candidates: AssetCandidate[]; errors: string[] }>() },
 } as const;

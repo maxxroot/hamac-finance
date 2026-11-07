@@ -174,3 +174,26 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
   accountId: text("account_id").references(() => accounts.id, { onDelete: "set null" }),
   ...timestamps,
 });
+
+/** Liste des démarches à faire (cases à cocher). */
+export const checklistItems = sqliteTable("checklist_items", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  note: text("note").notNull().default(""),
+  done: integer("done", { mode: "boolean" }).notNull().default(false),
+  doneAt: text("done_at"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...timestamps,
+});
+
+/** Grilles de comparaison des plateformes (assurances-vie, courtiers). */
+export const comparisons = sqliteTable("comparisons", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  /** Valeurs par critère (JSON : { critère: texte }). */
+  values: text("values").notNull().default("{}"),
+  score: real("score"),
+  comment: text("comment").notNull().default(""),
+  ...timestamps,
+});

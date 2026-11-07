@@ -1,5 +1,7 @@
 import { desc, sql } from "drizzle-orm";
 import type {
+  ChecklistItem,
+  Comparison,
   Account,
   AccountKind,
   Asset,
@@ -124,6 +126,16 @@ export const mapExpense = (r: typeof t.plannedExpenses.$inferSelect): PlannedExp
   accountId: r.accountId,
 });
 
+export const mapChecklist = (r: typeof t.checklistItems.$inferSelect): ChecklistItem => ({ id: r.id, label: r.label, note: r.note, done: r.done, doneAt: r.doneAt, sortOrder: r.sortOrder });
+export const mapComparison = (r: typeof t.comparisons.$inferSelect): Comparison => ({
+  id: r.id,
+  kind: r.kind as Comparison["kind"],
+  name: r.name,
+  values: JSON.parse(r.values),
+  score: r.score,
+  comment: r.comment,
+});
+
 export async function loadParams(db: Db): Promise<PlanParams> {
   const row = await db.select().from(t.settings).where(eq(t.settings.key, PARAMS_KEY)).get();
   return normalizeParams(row ? JSON.parse(row.value) : null);
@@ -139,7 +151,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, comparisons] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
     db.select().from(t.assets).orderBy(t.assets.name).all(),
@@ -157,6 +169,8 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
       .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id, substr(date, 1, 7))`)
       .all(),
     db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).get(),
+    db.select().from(t.checklistItems).orderBy(t.checklistItems.sortOrder, t.checklistItems.createdAt).all(),
+    db.select().from(t.comparisons).orderBy(t.comparisons.createdAt).all(),
   ]);
   return {
     params,
@@ -171,5 +185,7 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     plannedExpenses: expenses.map(mapExpense),
     prices: prices.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,
+    checklist: checklist.map(mapChecklist),
+    comparisons: comparisons.map(mapComparison),
   };
 }
