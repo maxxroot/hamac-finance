@@ -1,0 +1,14 @@
+{
+  "name": "@hamac/api",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Contrat typé entre l'interface et le backend (identique en mode bureau et web).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  }
+}

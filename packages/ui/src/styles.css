@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/*
+ * Thème Hamac : sombre et sobre. Un seul accent doré pour l'action et l'essentiel,
+ * vert/rouge réservés aux gains et pertes, et le code couleur des supports repris du sheet.
+ */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #0b0c10;
+  --color-surface: #121419;
+  --color-surface-2: #181b22;
+  --color-surface-3: #20242d;
+  --color-line: #262a33;
+  --color-line-strong: #343944;
+
+  --color-fg: #eceef2;
+  --color-fg-muted: #9aa1ae;
+  --color-fg-faint: #6b7280;
+
+  --color-accent: #f2c35b;
+  --color-accent-strong: #ffd479;
+  --color-accent-fg: #1a1406;
+
+  --color-positive: #3ecf8e;
+  --color-negative: #f2645a;
+  --color-warning: #f5a524;
+
+  --color-livrets: #6cb4ee;
+  --color-fonds-euros: #4fb286;
+  --color-obligations: #5b7cfa;
+  --color-actions: #f29a4b;
+  --color-crypto: #a77bf3;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* Montants alignés en colonnes */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+/* Mode discret : masque les montants (partage d'écran, lieux publics). */
+.privacy .amount {
+  filter: blur(7px);
+  transition: filter 0.15s;
+}
+.privacy .amount:hover {
+  filter: none;
+}

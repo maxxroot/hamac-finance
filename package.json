@@ -1,0 +1,31 @@
+{
+  "name": "hamac",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Hamac — planifier, suivre et contrôler son épargne retraite (logiciel libre, AGPL-3.0)",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @hamac/desktop dev",
+    "build": "pnpm --filter @hamac/ui build && pnpm --filter @hamac/desktop build",
+    "dist": "pnpm build && pnpm --filter @hamac/desktop dist",
+    "test": "vitest run",
+    "typecheck": "pnpm -r --parallel exec tsc --noEmit -p tsconfig.json",
+    "start": "pnpm --filter @hamac/desktop start"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  }
+}

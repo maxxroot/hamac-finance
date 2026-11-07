@@ -1,0 +1,23 @@
+{
+  "name": "@hamac/backend",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Données (SQLite natif), migrations, sauvegardes et handlers de l'API. Partagé par l'app de bureau et le serveur web.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate && node scripts/embed-migrations.mjs"
+  },
+  "dependencies": {
+    "@hamac/api": "workspace:^",
+    "@hamac/core": "workspace:^",
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11"
+  }
+}

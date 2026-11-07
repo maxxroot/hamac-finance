@@ -1,0 +1,23 @@
+appId: org.hamac.app
+productName: Hamac
+copyright: "Copyright © Hamac contributors — AGPL-3.0"
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - renderer/**
+  - package.json
+asar: true
+mac:
+  category: public.app-category.finance
+  target: [dmg, zip]
+win:
+  target: [nsis]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  category: Office;Finance
+  target: [AppImage, deb]
+  maintainer: Hamac contributors

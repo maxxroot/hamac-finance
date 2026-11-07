@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Tests et typage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  package:
+    name: Installateur ${{ matrix.os }}
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Test de fumée : lance l'app, capture la fenêtre, vérifie que la capture existe.
+      - name: Test de fumée (Linux, écran virtuel)
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          HAMAC_DATA_DIR=$RUNNER_TEMP/hamac HAMAC_SMOKE_SHOT=$RUNNER_TEMP/smoke.png xvfb-run -a node scripts/electron.mjs --no-sandbox
+          test -s $RUNNER_TEMP/smoke.png
+      - name: Test de fumée (macOS / Windows)
+        if: runner.os != 'Linux'
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          HAMAC_DATA_DIR="$RUNNER_TEMP/hamac" HAMAC_SMOKE_SHOT="$RUNNER_TEMP/smoke.png" node scripts/electron.mjs
+          test -s "$RUNNER_TEMP/smoke.png"
+
+      - name: Installateurs (non signés)
+        working-directory: apps/desktop
+        run: pnpm dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hamac-${{ runner.os }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+          if-no-files-found: error

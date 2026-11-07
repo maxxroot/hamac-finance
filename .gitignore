@@ -1,0 +1,12 @@
+node_modules
+dist
+out
+release
+*.tsbuildinfo
+.DS_Store
+*.log
+*.sqlite
+*.sqlite-*
+
+# Cahier des charges tiré du Google Sheet personnel : contient des données privées.
+docs/cahier-des-charges/
