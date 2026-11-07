@@ -93,9 +93,14 @@ function createWindow() {
   if (SMOKE_SHOT) {
     win.webContents.once("did-finish-load", () => {
       setTimeout(async () => {
-        // HAMAC_SMOKE_SCROLL=bas : capture le bas de la page.
-        if (process.env.HAMAC_SMOKE_SCROLL === "bas") {
-          await win.webContents.executeJavaScript("document.querySelector('main')?.scrollTo(0, 1e7)");
+        // HAMAC_SMOKE_SCROLL=bas : capture le bas de la page ; tout autre texte : défile jusqu'au titre qui le contient.
+        const scroll = process.env.HAMAC_SMOKE_SCROLL;
+        if (scroll) {
+          const js =
+            scroll === "bas"
+              ? "document.querySelector('main')?.scrollTo(0, 1e7)"
+              : `[...document.querySelectorAll('h1,h2,h3')].find((h) => h.textContent?.includes(${JSON.stringify(scroll)}))?.scrollIntoView({ block: 'start' })`;
+          await win.webContents.executeJavaScript(js);
           await new Promise((r) => setTimeout(r, 300));
         }
         const image = await win.webContents.capturePage();
