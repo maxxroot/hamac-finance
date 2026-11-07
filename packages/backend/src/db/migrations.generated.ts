@@ -23,5 +23,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0005_taux_dates",
     "sql": "CREATE TABLE `account_rates` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`account_id` text NOT NULL,\n\t`from_date` text NOT NULL,\n\t`rate` real NOT NULL,\n\t`comment` text DEFAULT '' NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\tFOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON UPDATE no action ON DELETE cascade\n);\n--> statement-breakpoint\nCREATE UNIQUE INDEX `account_rates_account_date_uq` ON `account_rates` (`account_id`,`from_date`);--> statement-breakpoint\n-- Reprise : le taux actuel de chaque livret devient son premier taux daté (date d'ouverture, sinon de création).\nINSERT INTO `account_rates` (`id`, `account_id`, `from_date`, `rate`, `comment`)\nSELECT lower(hex(randomblob(16))), `id`, coalesce(`opened_on`, substr(`created_at`, 1, 10)), `rate`, 'Taux repris à la mise à jour'\nFROM `accounts` WHERE `kind` = 'livret' AND `rate` IS NOT NULL;\n"
+  },
+  {
+    "tag": "0006_type_obligation",
+    "sql": "ALTER TABLE `assets` ADD `bond_kind` text;--> statement-breakpoint\n-- Reprise : les obligations dont l'émetteur est l'État français sont des OAT.\nUPDATE `assets` SET `bond_kind` = CASE WHEN lower(coalesce(`issuer`, '')) LIKE '%publique fran%' OR lower(`name`) LIKE 'oat%' THEN 'etat' ELSE 'entreprise' END WHERE `kind` = 'obligation';\n"
   }
 ];

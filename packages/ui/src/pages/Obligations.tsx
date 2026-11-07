@@ -1,7 +1,7 @@
 import { ShoppingCart, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import type { PositionState } from "@hamac/core";
+import { BOND_KIND_LABELS, type PositionState } from "@hamac/core";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, MoneyInput, NumberInput, TextInput } from "@/components/form";
@@ -105,7 +105,10 @@ export function Obligations() {
               <Tr key={`${p.accountId}-${p.asset.id}`}>
                 <Td className="font-medium">
                   {p.asset.name}
-                  {p.asset.isin && <div className="font-mono text-xs font-normal text-fg-faint">{p.asset.isin}</div>}
+                  <div className="text-xs font-normal text-fg-faint">
+                    {p.asset.bondKind ? BOND_KIND_LABELS[p.asset.bondKind] : "Obligation"}
+                    {p.asset.isin && <span className="font-mono"> · {p.asset.isin}</span>}
+                  </div>
                 </Td>
                 <Td>{formatDate(p.bond!.terms.maturityDate)}</Td>
                 <Td align="right">
@@ -157,7 +160,7 @@ export function Obligations() {
                 <div className="flex items-center gap-2">
                   <Badge tone="accent">Prévue</Badge>
                   {cto && (
-                    <Link to={`/journal?nouveau=1&compte=${cto.account.id}&type=achat`} className="text-fg-muted hover:text-accent" title="Saisir l'achat">
+                    <Link to={`/journal?nouveau=1&compte=${cto.account.id}&type=achat&titre=nouveau`} className="text-fg-muted hover:text-accent" title="Saisir l'achat">
                       <ShoppingCart size={14} />
                     </Link>
                   )}

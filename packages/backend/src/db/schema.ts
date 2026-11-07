@@ -71,6 +71,7 @@ export const assets = sqliteTable(
     maturityDate: text("maturity_date"),
     couponFrequency: integer("coupon_frequency"),
     issuer: text("issuer"),
+    bondKind: text("bond_kind"),
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
     ...timestamps,
   },

@@ -206,6 +206,7 @@ export const handlers: Handlers = {
       maturityDate: isBond ? input.maturityDate : null,
       couponFrequency: isBond ? (input.couponFrequency ?? 1) : null,
       issuer: input.issuer,
+      bondKind: isBond ? (input.bondKind ?? null) : null,
       archived: input.archived,
       updatedAt: nowIso(),
     };
@@ -256,6 +257,20 @@ export const handlers: Handlers = {
       await ctx.db.insert(t.transactions).values({ id, ...row });
     }
     return mapTx((await ctx.db.select().from(t.transactions).where(eq(t.transactions.id, id)).get())!);
+  },
+
+  async "transactions.createWithAsset"({ asset, transaction }, ctx) {
+    // Une seule transaction SQLite : si l'opération est refusée, le titre n'est pas créé.
+    ctx.raw.exec("BEGIN IMMEDIATE");
+    try {
+      const created = await handlers["assets.upsert"](asset, ctx);
+      const tx = await handlers["transactions.upsert"]({ ...transaction, assetId: created.id }, ctx);
+      ctx.raw.exec("COMMIT");
+      return { asset: created, transaction: tx };
+    } catch (e) {
+      ctx.raw.exec("ROLLBACK");
+      throw e;
+    }
   },
 
   async "transactions.delete"({ id }, ctx) {

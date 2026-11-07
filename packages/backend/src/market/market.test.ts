@@ -33,7 +33,7 @@ describe("sources de cours", () => {
   });
 
   it("choisit le fournisseur selon le titre", () => {
-    const base = { id: "a", name: "x", isin: null, symbol: null, priceSource: "auto" as const, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, archived: false };
+    const base = { id: "a", name: "x", isin: null, symbol: null, priceSource: "auto" as const, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, bondKind: null, archived: false };
     expect(providerFor({ ...base, kind: "etf", isin: "FR0011871128" })).toMatchObject({ provider: "justetf" });
     expect(providerFor({ ...base, kind: "action", symbol: "TTE.PA" })).toMatchObject({ provider: "yahoo" });
     expect(providerFor({ ...base, kind: "crypto", symbol: "bitcoin" })).toMatchObject({ provider: "coingecko" });

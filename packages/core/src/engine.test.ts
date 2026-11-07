@@ -13,7 +13,7 @@ const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): A
 });
 const asset = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
   id, kind, name: id, isin: null, symbol: null, priceSource: kind === "obligation" ? "modele" : "auto", manualPrice: null, manualPriceDate: null,
-  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: kind === "obligation" ? 1 : null, issuer: null, archived: false, ...extra,
+  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: kind === "obligation" ? 1 : null, issuer: null, bondKind: null, archived: false, ...extra,
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number, extra: Partial<Transaction> = {}): Transaction => ({

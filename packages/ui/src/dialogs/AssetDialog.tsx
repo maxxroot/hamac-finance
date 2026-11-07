@@ -2,7 +2,7 @@ import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AssetCandidate } from "@hamac/api";
 import type { AssetInput } from "@hamac/api";
-import { ASSET_KIND_LABELS, ASSET_KINDS, type Asset, type AssetKind, type PriceSource } from "@hamac/core";
+import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, type BondKind, type Asset, type AssetKind, type PriceSource } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate } from "@/lib/workspace";
@@ -32,6 +32,7 @@ function empty(kind: AssetKind): Draft {
     maturityDate: null,
     couponFrequency: kind === "obligation" ? 1 : null,
     issuer: null,
+    bondKind: kind === "obligation" ? "etat" : null,
     archived: false,
   };
 }
@@ -167,6 +168,26 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
           </Field>
         </FormGrid>
 
+        {isBond && (
+          <Field label="Type d'obligation">
+            {(id) => (
+              <Select
+                id={id}
+                value={d.bondKind ?? "etat"}
+                onChange={(e) => {
+                  const bk = e.target.value as BondKind;
+                  setD((x) => ({ ...x, bondKind: bk, issuer: bk === "etat" ? (x.issuer ?? "République française") : x.issuer === "République française" ? null : x.issuer }));
+                }}
+              >
+                {BOND_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {BOND_KIND_LABELS[k]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
         {isBond && (
           <FormGrid cols={3}>
             <Field label="Coupon annuel">{(id) => <PercentInput id={id} value={d.couponRate} onChange={(v) => set("couponRate", v)} />}</Field>

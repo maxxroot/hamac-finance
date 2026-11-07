@@ -4,7 +4,7 @@ import { fetchQuotes, searchAssets } from "./index";
 
 /** Tests sur les vraies sources : HAMAC_LIVE=1 pnpm test */
 const live = process.env.HAMAC_LIVE === "1";
-const base = { id: "x", name: "x", isin: null, symbol: null, priceSource: "auto" as const, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, archived: false };
+const base = { id: "x", name: "x", isin: null, symbol: null, priceSource: "auto" as const, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, bondKind: null, archived: false };
 const today = new Date().toISOString().slice(0, 10);
 
 describe.skipIf(!live)("sources réelles", () => {

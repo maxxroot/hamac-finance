@@ -123,6 +123,8 @@ export const procedures = {
 
   "transactions.upsert": { input: TransactionInput, output: entity<Transaction>() },
   "transactions.delete": { input: byId, output: ok },
+  /** Achat d'un titre pas encore connu : crée le titre et l'opération ensemble (tout ou rien). */
+  "transactions.createWithAsset": { input: z.object({ asset: AssetInput, transaction: TransactionInput }), output: entity<{ asset: Asset; transaction: Transaction }>() },
 
   "plans.set": { input: PlanInput, output: entity<ContributionPlan>() },
   "plans.delete": { input: byId, output: ok },

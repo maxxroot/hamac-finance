@@ -43,6 +43,13 @@
       "when": 1794082506877,
       "tag": "0005_taux_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794086617592,
+      "tag": "0006_type_obligation",
+      "breakpoints": true
     }
   ]
 }

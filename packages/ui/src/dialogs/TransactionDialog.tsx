@@ -4,6 +4,10 @@ import {
   ALLOWED_ASSETS,
   ALLOWED_TYPES,
   ASSET_KIND_LABELS,
+  accruedFraction,
+  bondTerms,
+  type Asset,
+  type BondTerms,
   TX_HELP,
   TX_LABELS,
   TX_NEEDS_ASSET,
@@ -22,6 +26,7 @@ import { Button } from "@/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, NumberInput, Select, TextInput } from "@/components/form";
 import { todayIso } from "@/lib/numbers";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
+import { NewAssetPanel, newAssetErrors, newAssetFor, toAssetInput, type NewAsset } from "./NewAssetPanel";
 
 interface Draft {
   id?: string;
@@ -38,6 +43,8 @@ interface Draft {
   /** Obligations : prix en % du nominal (aide à la saisie, non stocké). */
   pricePct: number | null;
   comment: string;
+  /** Titre à créer avec l'opération (achat d'un titre pas encore connu). */
+  newAsset: NewAsset | null;
 }
 
 export interface TxPreset {
@@ -59,11 +66,12 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
     feeManual: false,
     pricePct: null,
     comment: "",
+    newAsset: null,
   };
 }
 
 function fromTx(tx: Transaction): Draft {
-  return { ...tx, feeManual: tx.fee != null, pricePct: null };
+  return { ...tx, feeManual: tx.fee != null, pricePct: null, newAsset: null };
 }
 
 export function TransactionDialog({
@@ -79,19 +87,33 @@ export function TransactionDialog({
 }) {
   const idx = useWorkspaceIndex();
   const save = useMutate("transactions.upsert");
+  const saveWithAsset = useMutate("transactions.createWithAsset", { success: "Titre créé et opération enregistrée" });
   const [d, setD] = useState<Draft | null>(null);
   const [showErrors, setShowErrors] = useState(false);
 
   useEffect(() => {
     if (!open || !idx) return;
     setShowErrors(false);
-    setD(transaction ? fromTx(transaction) : blank(preset, idx.activeAccounts[0]?.id ?? ""));
+    if (transaction) setD(fromTx(transaction));
+    else {
+      // titre « nouveau » : la saisie s'ouvre directement sur la création du titre.
+      const draft = blank({ ...preset, assetId: preset.assetId === "nouveau" ? undefined : preset.assetId }, idx.activeAccounts[0]?.id ?? "");
+      const acc = idx.accountById.get(draft.accountId);
+      setD(preset.assetId === "nouveau" && acc ? { ...draft, newAsset: newAssetFor(acc.kind) } : draft);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, transaction?.id]);
 
   const account: Account | undefined = d ? idx?.accountById.get(d.accountId) : undefined;
   const asset = d?.assetId ? idx?.assetById.get(d.assetId) : undefined;
-  const isBond = asset?.kind === "obligation";
+  const isBond = asset?.kind === "obligation" || d?.newAsset?.kind === "obligation";
+  // Caractéristiques de l'obligation (titre existant ou en cours de création), pour le coupon couru.
+  const terms: BondTerms | null = asset
+    ? bondTerms(asset)
+    : d?.newAsset?.kind === "obligation" && d.newAsset.couponRate != null && d.newAsset.maturityDate
+      ? { couponRate: d.newAsset.couponRate, maturityDate: d.newAsset.maturityDate, frequency: d.newAsset.couponFrequency }
+      : null;
+  const accrued = isBond && terms && d?.quantity ? roundCents(d.quantity * accruedFraction(terms, d.date)) : 0;
   const isTrade = d?.type === "achat" || d?.type === "vente";
   const params = idx?.ws.params;
 
@@ -100,21 +122,21 @@ export function TransactionDialog({
     if (!d || !params || !account || !isTrade || !idx) return null;
     if (isBond) {
       if (d.quantity == null || d.pricePct == null) return null;
-      return suggestOrderFee(account, idx.institutionById, params, (d.quantity * d.pricePct) / 100);
+      return suggestOrderFee(account, idx.institutionById, params, (d.quantity * d.pricePct) / 100 + accrued);
     }
     if (d.amount == null) return null;
     return suggestTradeFee(account, idx.institutionById, params, d.type as "achat" | "vente", d.amount);
-  }, [d, params, account, isTrade, isBond, idx]);
+  }, [d, params, account, isTrade, isBond, idx, accrued]);
   const feeSource = account && params && idx ? tradeFeeFor(account, idx.institutionById, params).source.label : "";
 
-  // Obligation : le montant découle du nominal, du prix et des frais.
+  // Obligation : montant = nominal × prix (pied de coupon) + coupon couru, ± frais.
   useEffect(() => {
     if (!d || !isBond || !isTrade || d.quantity == null || d.pricePct == null) return;
     const fee = d.feeManual ? (d.fee ?? 0) : (suggestedFee ?? 0);
-    const gross = (d.quantity * d.pricePct) / 100;
+    const gross = (d.quantity * d.pricePct) / 100 + accrued;
     const amount = roundCents(d.type === "achat" ? gross + fee : gross - fee);
     if (amount !== d.amount || (!d.feeManual && fee !== d.fee)) setD({ ...d, amount, fee: d.feeManual ? d.fee : fee });
-  }, [d, isBond, isTrade, suggestedFee]);
+  }, [d, isBond, isTrade, suggestedFee, accrued]);
 
   // Autres titres : frais suggérés tant qu'ils n'ont pas été saisis à la main.
   useEffect(() => {
@@ -130,25 +152,47 @@ export function TransactionDialog({
   const needsAsset = TX_NEEDS_ASSET.includes(d.type);
   const optionalAsset = TX_OPTIONAL_ASSET.includes(d.type);
   const assetChoices = account ? idx.activeAssets.filter((a) => ALLOWED_ASSETS[account.kind].includes(a.kind)) : [];
+  const NEW = "__nouveau__";
   const payload = {
     id: d.id,
     date: d.date,
     type: d.type,
     accountId: d.accountId,
-    assetId: needsAsset || optionalAsset ? d.assetId : null,
+    assetId: needsAsset && d.newAsset ? NEW : needsAsset || optionalAsset ? d.assetId : null,
     counterAccountId: d.type === "transfert" ? d.counterAccountId : null,
     amount: d.amount ?? 0,
     quantity: needsAsset ? d.quantity : null,
     fee: isTrade ? d.fee : null,
     comment: d.comment,
   };
-  const errors = validateTransaction(payload, idx.accountById, idx.assetById);
+  // Un titre en cours de création est validé comme s'il existait déjà.
+  const assetMap: Map<string, Asset> =
+    needsAsset && d.newAsset ? new Map([...idx.assetById, [NEW, { ...(toAssetInput(d.newAsset) as unknown as Asset), id: NEW, archived: false }]]) : idx.assetById;
+  const errors = [
+    ...validateTransaction(payload, idx.accountById, assetMap),
+    ...(needsAsset && d.newAsset ? newAssetErrors(d.newAsset).map((message) => ({ field: "assetId" as const, message })) : []),
+  ];
   const err = (f: string) => (showErrors ? (errors.find((e) => e.field === f)?.message ?? null) : null);
   const unitPrice = isTrade && d.amount && d.quantity ? d.amount / d.quantity : null;
 
   const submit = (again: boolean) => {
     setShowErrors(true);
     if (errors.length) return;
+    if (needsAsset && d.newAsset) {
+      saveWithAsset.mutate(
+        { asset: toAssetInput(d.newAsset), transaction: { ...payload, assetId: null } },
+        {
+          onSuccess: (r) => {
+            const created = (r as { asset: Asset }).asset;
+            if (again) {
+              setShowErrors(false);
+              setD({ ...blank({ accountId: d.accountId, type: d.type, assetId: created.id }, d.accountId), date: d.date });
+            } else onClose();
+          },
+        },
+      );
+      return;
+    }
     save.mutate(payload, {
       onSuccess: () => {
         if (again) {
@@ -181,7 +225,7 @@ export function TransactionDialog({
               Enregistrer et saisir une autre
             </Button>
           )}
-          <Button variant="primary" onClick={() => submit(false)} disabled={save.isPending}>
+          <Button variant="primary" onClick={() => submit(false)} disabled={save.isPending || saveWithAsset.isPending}>
             Enregistrer
           </Button>
         </>
@@ -238,10 +282,27 @@ export function TransactionDialog({
         )}
 
         {(needsAsset || optionalAsset) && (
-          <Field label={needsAsset ? "Titre" : "Titre concerné (facultatif)"} error={err("assetId")} help={assetChoices.length === 0 ? "Aucun titre compatible : ajoutez-en un dans Paramètres › Titres." : undefined}>
+          <Field
+            label={needsAsset ? "Titre" : "Titre concerné (facultatif)"}
+            error={d.newAsset ? null : err("assetId")}
+            help={needsAsset && assetChoices.length === 0 && !d.newAsset ? "Aucun titre pour ce compte : choisissez « Nouveau titre »." : undefined}
+          >
             {(id) => (
-              <Select id={id} value={d.assetId ?? ""} onChange={(e) => setD((x) => (x ? { ...x, assetId: e.target.value || null, feeManual: false } : x))}>
+              <Select
+                id={id}
+                value={d.newAsset ? NEW : (d.assetId ?? "")}
+                onChange={(e) =>
+                  setD((x) =>
+                    x
+                      ? e.target.value === NEW
+                        ? { ...x, assetId: null, newAsset: newAssetFor(account!.kind), feeManual: false }
+                        : { ...x, assetId: e.target.value || null, newAsset: null, feeManual: false }
+                      : x,
+                  )
+                }
+              >
                 <option value="">{needsAsset ? "Choisir…" : "Aucun"}</option>
+                {needsAsset && <option value={NEW}>＋ Nouveau titre (obligation, ETF, action…)</option>}
                 {assetChoices.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} · {ASSET_KIND_LABELS[a.kind]}
@@ -253,6 +314,17 @@ export function TransactionDialog({
           </Field>
         )}
 
+        {needsAsset && d.newAsset && account && (
+          <NewAssetPanel
+            account={account.kind}
+            value={d.newAsset}
+            onChange={(n) => setD((x) => (x ? { ...x, newAsset: n } : x))}
+            assets={idx.ws.assets}
+            onUseExisting={(a) => setD((x) => (x ? { ...x, assetId: a.id, newAsset: null } : x))}
+            showErrors={showErrors}
+          />
+        )}
+
         {isBond && isTrade ? (
           <FormGrid cols={3}>
             <Field label="Nominal" error={err("quantity")} help="Valeur remboursée à l'échéance.">
@@ -261,10 +333,13 @@ export function TransactionDialog({
             <Field label="Prix (% du nominal)" help="Ex. 96,40 : acheté sous le pair.">
               {(id) => <NumberInput id={id} suffix="%" decimals={3} value={d.pricePct} onChange={(v) => set("pricePct", v)} />}
             </Field>
-            <Field label="Frais" help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.toLowerCase()}.`}>
+            <Field label="Frais" help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.charAt(0).toLowerCase()}${feeSource.slice(1)}.`}>
               {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
             </Field>
-            <Field label={d.type === "achat" ? "Total débité" : "Total reçu"} className="sm:col-span-3" error={err("amount")}>
+            <Field label="Coupon couru" help="Intérêts courus depuis le dernier coupon, payés au vendeur.">
+              {() => <div className="num flex h-9 items-center justify-end rounded-lg bg-surface-2 px-3 text-sm text-fg-muted">{formatEur(accrued)}</div>}
+            </Field>
+            <Field label={d.type === "achat" ? "Total débité" : "Total reçu"} className="sm:col-span-2" error={err("amount")} help="Nominal × prix + coupon couru ± frais.">
               {(id) => <MoneyInput id={id} value={d.amount} onChange={(v) => set("amount", v)} />}
             </Field>
           </FormGrid>
@@ -283,7 +358,7 @@ export function TransactionDialog({
               </Field>
             )}
             {isTrade && (
-              <Field label="dont frais" error={err("fee")} help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.toLowerCase()}.`}>
+              <Field label="dont frais" error={err("fee")} help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.charAt(0).toLowerCase()}${feeSource.slice(1)}.`}>
                 {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
               </Field>
             )}

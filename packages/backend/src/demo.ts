@@ -62,8 +62,8 @@ export async function seedDemo(backend: Backend): Promise<void> {
   const sp = await call("assets.upsert", { kind: "etf", name: "ETF PEA S&P 500", isin: "FR0011871128", priceSource: "auto", symbol: "PSP5.PA", targetWeight: 0.6, ter: 0.0015 });
   const em = await call("assets.upsert", { kind: "etf", name: "ETF PEA MSCI Emerging Markets", isin: "FR0013412020", priceSource: "auto", symbol: "PAEEM.PA", targetWeight: 0.15, ter: 0.002 });
   const eu = await call("assets.upsert", { kind: "etf", name: "ETF Euro Stoxx 50", isin: "FR0007054358", priceSource: "auto", symbol: "MSE.PA", targetWeight: 0.25, ter: 0.002 });
-  const oat1 = await call("assets.upsert", { kind: "obligation", name: `OAT 3 % 25/05/${y + 6}`, priceSource: "modele", couponRate: 0.03, maturityDate: `${y + 6}-05-25`, issuer: "République française" });
-  const oat2 = await call("assets.upsert", { kind: "obligation", name: `OAT 2,75 % 25/10/${y + 9}`, priceSource: "modele", couponRate: 0.0275, maturityDate: `${y + 9}-10-25`, issuer: "République française" });
+  const oat1 = await call("assets.upsert", { kind: "obligation", name: `OAT 3 % 25/05/${y + 6}`, priceSource: "modele", couponRate: 0.03, maturityDate: `${y + 6}-05-25`, issuer: "République française", bondKind: "etat" });
+  const oat2 = await call("assets.upsert", { kind: "obligation", name: `OAT 2,75 % 25/10/${y + 9}`, priceSource: "modele", couponRate: 0.0275, maturityDate: `${y + 9}-10-25`, issuer: "République française", bondKind: "etat" });
   const btc = await call("assets.upsert", { kind: "crypto", name: "Bitcoin", priceSource: "auto", symbol: "bitcoin" });
 
   const tx = (date: string, type: string, accountId: string, amount: number, extra: Record<string, unknown> = {}) =>

@@ -274,3 +274,33 @@ describe("taux datés des livrets", () => {
     expect(ws.accountRates.map((r) => r.fromDate)).toEqual(["2025-01-01", "2026-02-01"]);
   });
 });
+
+describe("achat avec création du titre", () => {
+  async function call<T = unknown>(b: Backend, name: string, input?: unknown): Promise<T> {
+    const res = await b.dispatch(name, input);
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`);
+    return res.data as T;
+  }
+  it("crée l'obligation et l'achat ensemble", async () => {
+    const b = memory();
+    const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO" });
+    const r = await call<{ asset: { id: string; bondKind: string }; transaction: { assetId: string } }>(b, "transactions.createWithAsset", {
+      asset: { kind: "obligation", name: "OAT 3 % 25/05/2033", priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", issuer: "République française", bondKind: "etat" },
+      transaction: { date: "2026-11-07", type: "achat", accountId: cto.id, amount: 2950, quantity: 3000, fee: 0 },
+    });
+    expect(r.asset.bondKind).toBe("etat");
+    expect(r.transaction.assetId).toBe(r.asset.id);
+  });
+  it("tout ou rien : une opération refusée n'ajoute pas le titre", async () => {
+    const b = memory();
+    const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", name: "LEP" });
+    const res = await b.dispatch("transactions.createWithAsset", {
+      asset: { kind: "obligation", name: "OAT", priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", bondKind: "etat" },
+      transaction: { date: "2026-11-07", type: "achat", accountId: lep.id, amount: 100, quantity: 100 },
+    });
+    expect(res.ok).toBe(false);
+    const ws = await call<{ assets: unknown[]; transactions: unknown[] }>(b, "workspace.load");
+    expect(ws.assets).toHaveLength(0);
+    expect(ws.transactions).toHaveLength(0);
+  });
+});

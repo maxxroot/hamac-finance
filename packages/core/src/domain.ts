@@ -77,6 +77,10 @@ export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
   crypto: "speculatif",
 };
 
+export const BOND_KINDS = ["etat", "entreprise"] as const;
+export type BondKind = (typeof BOND_KINDS)[number];
+export const BOND_KIND_LABELS: Record<BondKind, string> = { etat: "OAT (État)", entreprise: "Obligation d'entreprise" };
+
 export const PRICE_SOURCES = ["auto", "manuel", "modele"] as const;
 /** auto = fournisseur de cours ; manuel = saisi ; modele = calculé (obligation détenue à l'échéance). */
 export type PriceSource = (typeof PRICE_SOURCES)[number];
@@ -172,6 +176,8 @@ export interface Asset {
   maturityDate: string | null;
   couponFrequency: number | null;
   issuer: string | null;
+  /** Obligations : d'État (OAT…) ou d'entreprise. */
+  bondKind: BondKind | null;
   archived: boolean;
 }
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_SOURCES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_SOURCES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -50,6 +50,7 @@ export const AssetInput = z.object({
   maturityDate: isoDate.nullable().default(null),
   couponFrequency: z.number().int().min(1).max(12).nullable().default(null),
   issuer: text(80).nullable().default(null),
+  bondKind: z.enum(BOND_KINDS).nullable().default(null),
   archived: z.boolean().default(false),
 });
 export type AssetInput = z.input<typeof AssetInput>;
