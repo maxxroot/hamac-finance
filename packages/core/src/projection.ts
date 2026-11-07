@@ -92,7 +92,7 @@ export interface Returns {
   actions: number;
 }
 
-export function project(input: ProjectionInput, returnsFor: (year: number) => Returns = () => input.params.returns): Projection {
+export function project(input: ProjectionInput, returnsFor: (year: number) => Returns = () => input.params.returns, opts: { drawdown?: boolean } = {}): Projection {
   const p = input.params;
   const retYear = retirementYear(p);
   const { securisationAge, retirementAge } = p.profile;
@@ -196,7 +196,8 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
   let capital = atRetirement.invested;
   const monthlyNominalRate = Math.pow((1 + p.returns.realReturnRetirement) * (1 + p.returns.inflation), 1 / 12) - 1;
   const monthlyInflation = Math.pow(1 + p.returns.inflation, 1 / 12) - 1;
-  for (let y = 0; y < p.profile.horizonAge - p.profile.retirementAge; y++) {
+  // La fourchette n'a pas besoin de la phase de retraits (calcul mois par mois).
+  for (let y = 0; opts.drawdown !== false && y < p.profile.horizonAge - p.profile.retirementAge; y++) {
     let withdrawn = 0;
     for (let m = 0; m < 12; m++) {
       const payment = monthlyNominal * Math.pow(1 + monthlyInflation, y * 12 + m + 1);
@@ -295,10 +296,24 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
     startYear,
     start: { livrets: state.buckets.precaution, fondsEuros: state.buckets.garanti, obligations: state.buckets.obligations, actions: state.buckets.croissance },
     startContributed: state.totals.netContrib - cryptoContrib,
-    contributions,
-    contributionFees,
+    // Identiques d'un tirage à l'autre : calculées une fois par année.
+    contributions: perYear(contributions),
+    contributionFees: perYear(contributionFees),
     feeDrag,
-    expenses,
+    expenses: perYear(expenses),
+  };
+}
+
+/** Mémorise une fonction de l'année (les versements ne dépendent pas des rendements tirés). */
+function perYear<T>(f: (year: number) => T): (year: number) => T {
+  const cache = new Map<number, T>();
+  return (year) => {
+    let v = cache.get(year);
+    if (v === undefined) {
+      v = f(year);
+      cache.set(year, v);
+    }
+    return v;
   };
 }
 
@@ -349,7 +364,7 @@ export function monteCarlo(input: ProjectionInput, runs = 400, volatility = 0.16
         draws.set(year, r);
       }
       return { ...input.params.returns, actions: r };
-    });
+    }, { drawdown: false });
     res.rows.forEach((row, j) => (totals[j] ??= []).push(row.total));
   }
   const q = (arr: number[], p: number) => {

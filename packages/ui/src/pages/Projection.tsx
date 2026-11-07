@@ -1,6 +1,6 @@
 import { RotateCcw, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { BUCKET_LABELS, formatEur, retirementYear, type Flows, type PlanParams } from "@hamac/core";
+import { memo, useMemo, useState } from "react";
+import { BUCKET_LABELS, formatEur, retirementYear, type Flows, type PlanParams, type ProjectionRow } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Chart, axisStyle, type ChartOption } from "@/components/Chart";
 import { Field, MoneyInput, NumberInput, PercentInput, TextInput } from "@/components/form";
@@ -123,66 +123,7 @@ export function Projection() {
         </Card>
       </div>
 
-      {showTable && (
-        <Table>
-          <thead>
-            <tr>
-              <Th>Année</Th>
-              <Th align="right">Âge</Th>
-              <Th align="right">Part actions cible</Th>
-              <Th align="right">Dépense</Th>
-              <Th align="right">Livrets</Th>
-              <Th align="right">Fonds euros</Th>
-              <Th align="right">Obligations</Th>
-              <Th align="right">Actions</Th>
-              <Th align="right">Patrimoine</Th>
-              <Th align="right">€ d'aujourd'hui</Th>
-              <Th align="right">Versé cumulé</Th>
-              <Th align="right">Gains</Th>
-              <Th align="right">Frais cumulés</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {base.rows.map((r) => (
-              <Tr key={r.year} className={cn(r.year === at.year && "bg-accent/10 font-medium")}>
-                <Td>{r.year}</Td>
-                <Td align="right">{r.age}</Td>
-                <Td align="right">
-                  <Pct value={r.etfTarget} />
-                </Td>
-                <Td align="right">{r.expense ? <Amount value={r.expense} compact /> : ""}</Td>
-                <Td align="right" className={cn(r.belowFloor && "text-warning")}>
-                  <Amount value={r.livrets} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.fondsEuros} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.obligations} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.actions} compact />
-                </Td>
-                <Td align="right" className="font-medium">
-                  <Amount value={r.total} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.real} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.contributed} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={r.gains} compact />
-                </Td>
-                <Td align="right" className="text-fg-muted">
-                  <Amount value={r.fees} compact />
-                </Td>
-              </Tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
+      {showTable && <ProjectionTable rows={base.rows} highlightYear={at.year} />}
       <div className="mt-4">
         <Notice>
           Modèle annuel simplifié : les versements de l'année s'ajoutent en fin d'année ; après l'âge de sécurisation, les versements actions vont au fonds euros et la part actions est ramenée à sa cible ; les livrets
@@ -193,6 +134,70 @@ export function Projection() {
     </>
   );
 }
+
+/** Tableau année par année : mémorisé, il ne se redessine pas pendant la saisie d'un scénario. */
+const ProjectionTable = memo(function ProjectionTable({ rows, highlightYear }: { rows: ProjectionRow[]; highlightYear: number }) {
+  return (
+    <Table>
+      <thead>
+        <tr>
+          <Th>Année</Th>
+          <Th align="right">Âge</Th>
+          <Th align="right">Part actions cible</Th>
+          <Th align="right">Dépense</Th>
+          <Th align="right">Livrets</Th>
+          <Th align="right">Fonds euros</Th>
+          <Th align="right">Obligations</Th>
+          <Th align="right">Actions</Th>
+          <Th align="right">Patrimoine</Th>
+          <Th align="right">€ d'aujourd'hui</Th>
+          <Th align="right">Versé cumulé</Th>
+          <Th align="right">Gains</Th>
+          <Th align="right">Frais cumulés</Th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <Tr key={r.year} className={cn(r.year === highlightYear && "bg-accent/10 font-medium")}>
+            <Td>{r.year}</Td>
+            <Td align="right">{r.age}</Td>
+            <Td align="right">
+              <Pct value={r.etfTarget} />
+            </Td>
+            <Td align="right">{r.expense ? <Amount value={r.expense} compact /> : ""}</Td>
+            <Td align="right" className={cn(r.belowFloor && "text-warning")}>
+              <Amount value={r.livrets} compact />
+            </Td>
+            <Td align="right">
+              <Amount value={r.fondsEuros} compact />
+            </Td>
+            <Td align="right">
+              <Amount value={r.obligations} compact />
+            </Td>
+            <Td align="right">
+              <Amount value={r.actions} compact />
+            </Td>
+            <Td align="right" className="font-medium">
+              <Amount value={r.total} compact />
+            </Td>
+            <Td align="right">
+              <Amount value={r.real} compact />
+            </Td>
+            <Td align="right">
+              <Amount value={r.contributed} compact />
+            </Td>
+            <Td align="right">
+              <Amount value={r.gains} compact />
+            </Td>
+            <Td align="right" className="text-fg-muted">
+              <Amount value={r.fees} compact />
+            </Td>
+          </Tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+});
 
 function Result({ label, value, alt, sub, children }: { label: string; value: number | null; alt?: number; sub?: React.ReactNode; children?: React.ReactNode }) {
   const delta = alt != null && value != null ? alt - value : null;
