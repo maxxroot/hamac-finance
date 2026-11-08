@@ -24,9 +24,3 @@ export class RpcError extends Error {
 export interface Transport {
   call<N extends ProcName>(name: N, ...input: ProcInput<N> extends void ? [] : [ProcInput<N>]): Promise<ProcOutput<N>>;
 }
-
-/** Nom du canal IPC et de l'objet exposé par le preload Electron. */
-export const IPC_CHANNEL = "hamac:rpc";
-export interface DesktopBridge {
-  rpc(name: string, input: unknown): Promise<RpcResult<unknown>>;
-}

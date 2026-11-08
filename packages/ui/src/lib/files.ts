@@ -1,4 +1,4 @@
-/** Fichiers : mécanismes standard du navigateur, identiques dans Electron et sur le web. */
+/** Fichiers : mécanismes standard du navigateur. */
 export function downloadText(filename: string, content: string, mime = "text/plain;charset=utf-8") {
   const url = URL.createObjectURL(new Blob([content], { type: mime }));
   const a = document.createElement("a");

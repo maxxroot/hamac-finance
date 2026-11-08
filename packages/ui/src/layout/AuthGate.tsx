@@ -4,22 +4,19 @@ import { Field, TextInput } from "@/components/form";
 import { Button, Card } from "@/components/ui";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
-import { isDesktop } from "@/lib/transport";
 
-/** Mode web : affiche la connexion tant qu'aucune session n'est ouverte. Mode bureau : transparent. */
+/** Affiche la connexion tant qu'aucune session n'est ouverte. */
 export function AuthGate({ children }: { children: (email: string | null) => ReactNode }) {
-  const [state, setState] = useState<{ loading: boolean; email: string | null }>({ loading: !isDesktop, email: null });
+  const [state, setState] = useState<{ loading: boolean; email: string | null }>({ loading: true, email: null });
   const qc = useQueryClient();
 
   useEffect(() => {
-    if (isDesktop) return;
     void auth.me().then((email) => setState({ loading: false, email }));
     const onUnauthorized = () => setState({ loading: false, email: null });
     window.addEventListener("hamac:unauthorized", onUnauthorized);
     return () => window.removeEventListener("hamac:unauthorized", onUnauthorized);
   }, []);
 
-  if (isDesktop) return <>{children(null)}</>;
   if (state.loading) return null;
   if (!state.email)
     return (

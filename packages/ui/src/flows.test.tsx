@@ -19,7 +19,6 @@ import { Parametres } from "@/pages/Parametres";
 const h = vi.hoisted(() => ({ backend: null as unknown as import("@hamac/backend").Backend, file: { name: "", content: "" }, binary: { name: "", bytes: new Uint8Array() as Uint8Array } }));
 
 vi.mock("@/lib/transport", () => ({
-  isDesktop: true,
   call: async (name: string, input?: unknown) => {
     const r = await h.backend.dispatch(name, input);
     if (!r.ok) throw new Error(r.error.message);

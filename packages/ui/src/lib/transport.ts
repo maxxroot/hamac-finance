@@ -1,22 +1,7 @@
-import type { DesktopBridge, ProcInput, ProcName, ProcOutput, RpcResult, Transport } from "@hamac/api";
+import type { ProcInput, ProcName, ProcOutput, RpcResult, Transport } from "@hamac/api";
 import { RpcError } from "@hamac/api";
 
-declare global {
-  interface Window {
-    hamac?: DesktopBridge;
-  }
-}
-
-/** Bureau : canal IPC exposé par le preload Electron. */
-function desktopTransport(bridge: DesktopBridge): Transport {
-  return {
-    async call(name, ...input) {
-      return unwrap(await bridge.rpc(name, input[0]));
-    },
-  } as Transport;
-}
-
-/** Web : POST /api/rpc/<procédure> vers le serveur auto-hébergé (étape 6). */
+/** POST /api/rpc/<procédure> vers le serveur. */
 function httpTransport(baseUrl: string): Transport {
   return {
     async call(name, ...input) {
@@ -43,8 +28,7 @@ function unwrap(res: RpcResult<unknown>) {
   throw new RpcError(res.error.code, res.error.message, res.error.details);
 }
 
-export const transport: Transport = window.hamac ? desktopTransport(window.hamac) : httpTransport("");
-export const isDesktop = Boolean(window.hamac);
+export const transport: Transport = httpTransport("");
 
 export function call<N extends ProcName>(name: N, ...input: ProcInput<N> extends void ? [] : [ProcInput<N>]) {
   return transport.call(name, ...input) as Promise<ProcOutput<N>>;

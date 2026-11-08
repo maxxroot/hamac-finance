@@ -1,7 +1,6 @@
 import { Eye, EyeOff, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/auth";
-import { isDesktop } from "@/lib/transport";
 import { NavLink, Outlet } from "react-router";
 import { cn } from "@/lib/cn";
 import { useSetSetting, useSetting } from "@/lib/queries";
@@ -61,7 +60,7 @@ export function Shell() {
         </nav>
         <div className="border-t border-line p-3">
           <NavEntry item={SETTINGS_ITEM} />
-          {!isDesktop && <WebUser />}
+          <WebUser />
         </div>
       </aside>
 
