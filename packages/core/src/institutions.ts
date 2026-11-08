@@ -71,6 +71,8 @@ export const CryptoOffer = z.object({
 export type CryptoOffer = z.infer<typeof CryptoOffer>;
 
 export const CrowdOffer = z.object({
+  /** Intérêts calculés projet par projet, ou déclarés au journal pour toute la plateforme. */
+  interestMode: z.enum(["calcule", "declare"]).default("declare"),
   /** La plateforme prélève elle-même les impôts sur les intérêts. */
   taxWithheld: z.boolean().default(false),
   /** Taux qu'elle prélève ; null = prélèvement forfaitaire des paramètres. */
@@ -130,7 +132,7 @@ export function emptyOffer(kind: OfferKind): Offers[keyof Offers] {
     case "crypto":
       return CryptoOffer.parse({});
     case "crowdlending":
-      return CrowdOffer.parse({});
+      return CrowdOffer.parse({ interestMode: "calcule" });
     case "livret":
       return {};
   }

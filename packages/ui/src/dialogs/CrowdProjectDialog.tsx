@@ -9,7 +9,7 @@ import { useMutate } from "@/lib/workspace";
 
 type Draft = Required<Omit<CrowdProjectInput, "id">> & { id?: string };
 
-const empty = (accountId: string): Draft => ({ accountId, name: "", amount: 0, rate: 0.09, startDate: todayIso(), termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "" });
+const empty = (accountId: string): Draft => ({ accountId, name: "", amount: 0, rate: 0.09, startDate: todayIso(), termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", interestPauses: [], missedInterests: [] });
 
 export function CrowdProjectDialog({ open, project, platforms, onClose }: { open: boolean; project: CrowdProject | null; platforms: readonly Account[]; onClose: () => void }) {
   const [d, setD] = useState<Draft>(empty(""));
@@ -18,7 +18,14 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
     if (open) setD(project ? { ...project } : empty(platforms[0]?.id ?? ""));
   }, [open, project, platforms]);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
-  const setStatus = (status: CrowdStatus) => setD((x) => ({ ...x, status, statusDate: status === "en_cours" ? null : (x.statusDate ?? todayIso()) }));
+  // En retard : les échéances passent en pause ; à la reprise, la pause se referme.
+  const setStatus = (status: CrowdStatus) =>
+    setD((x) => {
+      const today = todayIso();
+      const open = x.interestPauses.some((p) => p.to == null);
+      const interestPauses = status === "retard" && !open ? [...x.interestPauses, { from: x.statusDate ?? today, to: null }] : x.status === "retard" && status !== "retard" ? x.interestPauses.map((p) => (p.to == null ? { ...p, to: today } : p)) : x.interestPauses;
+      return { ...x, status, statusDate: status === "en_cours" ? null : (x.statusDate ?? today), interestPauses };
+    });
   const valid = d.accountId && d.name.trim() && d.amount > 0 && d.termMonths >= 1 && d.startDate;
 
   return (
@@ -86,6 +93,7 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
           {d.status !== "en_cours" && <Field label="Depuis le">{(id) => <TextInput id={id} type="date" value={d.statusDate ?? ""} onChange={(e) => set("statusDate", e.target.value || null)} />}</Field>}
           <Field label="Capital déjà remboursé" help="Vide : calculé.">{(id) => <MoneyInput id={id} value={d.repaidCapital} onChange={(v) => set("repaidCapital", v)} />}</Field>
         </FormGrid>
+        {d.status === "retard" && <p className="text-xs text-fg-faint">Les échéances sont mises en pause depuis cette date ; vous pouvez ajuster depuis « Échéances ».</p>}
         {d.status === "defaut" && (
           <Field label="Montant espéré" help="Vide : le projet compte pour 0 € tant que vous ne savez pas.">
             {(id) => <MoneyInput id={id} value={d.expectedRecovery} onChange={(v) => set("expectedRecovery", v)} />}

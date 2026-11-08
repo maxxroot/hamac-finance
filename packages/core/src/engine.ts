@@ -25,7 +25,7 @@ import {
 import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
 import { ageInYear, classTargets, type PlanParams } from "./params";
-import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
+import { crowdProjectState, crowdSettingsOf, type CrowdProject, type CrowdProjectState } from "./crowdlending";
 import { loanState, propertyValue, type Loan, type LoanState, type Property } from "./realestate";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
@@ -373,7 +373,9 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const crowdProjects = (data.crowdProjects ?? []).filter((c) => c.accountId === account.id && c.startDate <= asOf).map((c) => crowdProjectState(c, asOf));
     const crowdValue = roundCents(crowdProjects.reduce((s, c) => s + c.value, 0));
     const crowdNet = crowdProjects.reduce((s, c) => s + c.project.amount - c.repaid, 0);
-    const cash = roundCents(acc.cash + scheduledPaid - crowdNet);
+    const crowdCfg = account.kind === "crowdlending" ? crowdSettingsOf(data, account) : null;
+    const crowdInterests = crowdCfg?.calculated ? crowdProjects.reduce((s, c) => s + c.interestPaid, 0) * (crowdCfg.withheld ? 1 - crowdCfg.rate : 1) : 0;
+    const cash = roundCents(acc.cash + scheduledPaid - crowdNet + crowdInterests);
     const positions: PositionState[] = [];
     const maturedBonds: PositionState[] = [];
     for (const p of acc.positions.values()) {
@@ -413,7 +415,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       currentMonthly,
       netContrib,
       gain: roundCents(value - netContrib),
-      interests: roundCents(acc.interests),
+      interests: roundCents(acc.interests + crowdInterests),
       dividends: roundCents(acc.dividends),
       fees: roundCents(acc.fees),
       corrections: roundCents(acc.corrections),
@@ -648,6 +650,14 @@ function computePerformance(data: EngineData, state: PortfolioState, schedule: S
 }
 
 // ——— Aides pour les pages ———
+
+/** Rendement annualisé d'un compte, pertes comprises (TRI) ; null si l'historique est trop court. */
+export function accountIrr(data: EngineData, state: PortfolioState, accountId: string): { irr: number | null; reason: string | null } {
+  const { params } = data;
+  const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth, params.profile.contributionDay);
+  const value = state.accountById.get(accountId)?.value ?? 0;
+  return irrOf(contributionFlows(data, new Set([accountId]), state.asOf, schedule, true), value, state.asOf);
+}
 
 /** Mois de versements écoulés depuis le début du calendrier, mois en cours compris (Paramètres!B12). */
 export function monthsElapsed(params: PlanParams, asOf: string): number {

@@ -2,7 +2,7 @@ import { CalendarClock } from "lucide-react";
 import { Link } from "react-router";
 import { AddTransactionButton } from "./TransactionButton";
 import { SortTh, useSortable } from "@/lib/sort";
-import { TX_LABELS, isScheduled, type AccountKind, type AssetKind, type TxType } from "@hamac/core";
+import { TX_LABELS, isCrowdInterest, isScheduled, type AccountKind, type AssetKind, type TxType } from "@hamac/core";
 import { Amount } from "./Amount";
 import { EmptyRow, Table, Td, Tr } from "./table";
 import { Badge, Card } from "./ui";
@@ -86,7 +86,7 @@ export function Movements({
                 <Td className="whitespace-nowrap">
                   <span title={isScheduled(t) ? "Versement programmé : modifiable dans Versements" : undefined}>
                     <Badge>
-                      {isScheduled(t) && <CalendarClock size={12} className="mr-1" aria-label="programmé" />}
+                      {(isScheduled(t) || isCrowdInterest(t)) && <CalendarClock size={12} className="mr-1" aria-label="programmé" />}
                       {TX_LABELS[t.type]}
                     </Badge>
                   </span>

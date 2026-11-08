@@ -59,5 +59,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0014_happy_longshot",
     "sql": "CREATE TABLE `crowd_projects` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`account_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`amount_cents` integer NOT NULL,\n\t`rate` real NOT NULL,\n\t`start_date` text NOT NULL,\n\t`term_months` integer NOT NULL,\n\t`repayment` text NOT NULL,\n\t`status` text DEFAULT 'en_cours' NOT NULL,\n\t`status_date` text,\n\t`repaid_capital_cents` integer,\n\t`expected_recovery_cents` integer,\n\t`in_allocation` integer,\n\t`comment` text DEFAULT '' NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\tFOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON UPDATE no action ON DELETE cascade\n);\n"
+  },
+  {
+    "tag": "0015_whole_sunfire",
+    "sql": "ALTER TABLE `crowd_projects` ADD `interest_pauses` text DEFAULT '[]' NOT NULL;--> statement-breakpoint\nALTER TABLE `crowd_projects` ADD `missed_interests` text DEFAULT '[]' NOT NULL;"
   }
 ];

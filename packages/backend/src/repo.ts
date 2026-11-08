@@ -152,6 +152,8 @@ export const mapCrowdProject = (r: typeof t.crowdProjects.$inferSelect): CrowdPr
   expectedRecovery: r.expectedRecoveryCents == null ? null : fromCents(r.expectedRecoveryCents),
   inAllocation: r.inAllocation,
   comment: r.comment,
+  interestPauses: JSON.parse(r.interestPauses) as CrowdProject["interestPauses"],
+  missedInterests: JSON.parse(r.missedInterests) as string[],
 });
 
 export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({

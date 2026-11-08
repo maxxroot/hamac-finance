@@ -90,6 +90,7 @@ function InstitutionCard({ inst, onEdit, onDelete }: { inst: Institution; onEdit
   }
   const av = inst.offers.assurance_vie;
   if (av) lines.push(["Assurance-vie", `versements ${pct(av.entryFee)} · gestion fonds euros ${pct(av.euroFee)} · UC ${pct(av.ucFee)}`]);
+  if (inst.offers.crowdlending) lines.push(["Intérêts", inst.offers.crowdlending.interestMode === "calcule" ? "calculés par projet" : "déclarés pour la plateforme"]);
   if (inst.offers.crowdlending) lines.push(["Impôts", inst.offers.crowdlending.taxWithheld ? `prélevés par la plateforme : ${pct(inst.offers.crowdlending.taxRate ?? 0)}` : "à déclarer soi-même"]);
   if (inst.offers.crypto) lines.push(["Crypto", `${pct(inst.offers.crypto.tradeFee)} par opération · spread ${pct(inst.offers.crypto.spread)}`]);
 

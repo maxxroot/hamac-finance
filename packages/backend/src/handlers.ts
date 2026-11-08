@@ -407,6 +407,8 @@ export const handlers: Handlers = {
       expectedRecoveryCents: input.status === "defaut" && input.expectedRecovery != null ? toCents(input.expectedRecovery) : null,
       inAllocation: input.inAllocation,
       comment: input.comment,
+      interestPauses: JSON.stringify(input.interestPauses),
+      missedInterests: JSON.stringify([...new Set(input.missedInterests)].sort()),
       updatedAt: nowIso(),
     };
     if (input.id) await ctx.db.update(t.crowdProjects).set(row).where(eq(t.crowdProjects.id, id));

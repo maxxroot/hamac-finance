@@ -1,5 +1,6 @@
+import { crowdProjectState, crowdSettingsOf } from "./crowdlending";
 import { addMonths } from "./dates";
-import type { Account, Asset, Transaction } from "./domain";
+import type { Asset, Transaction } from "./domain";
 import type { AccountState, EngineData, PortfolioState } from "./engine";
 import { roundCents } from "./money";
 import { incomeTaxRate, isRetirementPlan, retirementYear, type PlanParams } from "./params";
@@ -128,7 +129,7 @@ export function withdrawalTaxes(data: EngineData, state: PortfolioState, crypto:
   const cryptoTotal = shown.filter((s) => s.account.kind === "crypto").reduce((t, s) => t + s.positionsValue, 0);
   return shown.map((s) => {
     const base = { accountId: s.account.id, label: s.account.name, value: s.value, gain: s.gain };
-    return { ...base, ...taxFor(s, p, ir, state.asOf, crypto, year, cryptoTotal, crowdTaxOf(data, s.account)) };
+    return { ...base, ...taxFor(s, p, ir, state.asOf, crypto, year, cryptoTotal, crowdSettingsOf(data, s.account)) };
   });
 }
 
@@ -239,12 +240,6 @@ export interface YearTaxRow {
   total: number;
 }
 
-/** Impôts d'une plateforme de crowdlending, réglés sur la fiche de l'établissement. */
-export function crowdTaxOf(data: Pick<EngineData, "params" | "institutions">, account: Pick<Account, "institutionId">): { withheld: boolean; rate: number } {
-  const offer = data.institutions?.find((i) => i.id === account.institutionId)?.offers.crowdlending;
-  return { withheld: offer?.taxWithheld ?? false, rate: offer?.taxRate ?? data.params.tax.pfuIncomeTax + data.params.tax.socialGeneral };
-}
-
 /**
  * Intérêts saisis nets (tels que crédités) : on retrouve le brut et les prélèvements.
  * Fonds euros : PS retenus par l'assureur. Coupons et dividendes du compte-titres :
@@ -268,10 +263,16 @@ export function yearlyTaxes(data: EngineData, crypto: CryptoTaxReport, asOf: str
     let crowdDue = 0;
     for (const a of data.accounts.filter((x) => x.kind === "crowdlending")) {
       const received = inYear.filter((t) => t.type === "interets" && t.accountId === a.id).reduce((s, t) => s + t.amount, 0);
-      const { withheld, rate } = crowdTaxOf(data, a);
+      const { calculated, withheld, rate } = crowdSettingsOf(data, a);
       crowdReceived += received;
       if (withheld) crowdWithheld += (received * rate) / (1 - rate);
       else crowdDue += received * (ir + p.tax.socialGeneral);
+      if (!calculated) continue;
+      // Intérêts calculés échéance par échéance : ils sont bruts.
+      const gross = (data.crowdProjects ?? []).filter((c) => c.accountId === a.id && c.startDate <= asOf).flatMap((c) => crowdProjectState(c, asOf).lines).filter((l) => l.status === "verse" && l.date.startsWith(`${year}-`)).reduce((s, l) => s + l.interest, 0);
+      crowdReceived += withheld ? gross * (1 - rate) : gross;
+      if (withheld) crowdWithheld += gross * rate;
+      else crowdDue += gross * (ir + p.tax.socialGeneral);
     }
     const avSocial = (avInterestNet * p.tax.socialAv) / (1 - p.tax.socialAv);
     const couponsGross = couponsNet / (1 - p.tax.socialGeneral - withholdingRate);

@@ -4,7 +4,7 @@ import { SortTh, useSortable } from "@/lib/sort";
 import { downloadText, toCsv } from "@/lib/files";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { TX_LABELS, TX_TYPES, isScheduled, type Transaction, type TxType } from "@hamac/core";
+import { TX_LABELS, TX_TYPES, isCrowdInterest, isScheduled, type Transaction, type TxType } from "@hamac/core";
 import type { TxPreset } from "@/dialogs/TransactionDialog";
 import { Amount } from "@/components/Amount";
 import { Select, TextInput } from "@/components/form";
@@ -39,6 +39,7 @@ export function Journal() {
   const idx = useWorkspaceIndex();
   const del = useMutate("transactions.delete", { success: "Opération supprimée" });
   const skip = useMutate("skips.upsert", { success: "Mois déclaré manqué" });
+  const crowdMissed = useMutate("crowdProjects.upsert", { success: "Échéance déclarée non versée" });
   const navigate = useNavigate();
   const all = useJournal();
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -203,16 +204,18 @@ export function Journal() {
             const counter = t.counterAccountId ? idx.accountById.get(t.counterAccountId) : null;
             const asset = t.assetId ? idx.assetById.get(t.assetId) : null;
             const dir = direction(t);
-            const planned = isScheduled(t);
+            const interest = isCrowdInterest(t) ? t : null;
+            const planned = isScheduled(t) || !!interest;
+            const plannedPage = interest ? "/crowdlending" : "/versements";
             return (
-              <Tr key={t.id} className="group cursor-pointer" onDoubleClick={() => (planned ? navigate("/versements") : setEditing(t))}>
+              <Tr key={t.id} className="group cursor-pointer" onDoubleClick={() => (planned ? navigate(plannedPage) : setEditing(t))}>
                 <Td className="num whitespace-nowrap text-fg-muted">{formatDate(t.date)}</Td>
                 <Td className="whitespace-nowrap">
                   {acc?.name}
                   {counter && <span className="text-fg-muted"> → {counter.name}</span>}
                 </Td>
                 <Td className="whitespace-nowrap">
-                  <span title={planned ? "Versement programmé : calculé depuis la page Versements" : undefined}>
+                  <span title={interest ? "Intérêt calculé d'après l'échéancier du projet" : planned ? "Versement programmé : calculé depuis la page Versements" : undefined}>
                     <Badge tone={t.type === "achat" || t.type === "vente" ? "accent" : "neutral"}>
                       {planned && <CalendarClock size={12} className="mr-1" aria-label="programmé" />}
                       {TX_LABELS[t.type]}
@@ -235,20 +238,24 @@ export function Journal() {
                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
                       <button
                         className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg"
-                        onClick={() => navigate("/versements")}
-                        aria-label="Modifier dans Versements"
-                        title="Modifier dans Versements"
+                        onClick={() => navigate(plannedPage)}
+                        aria-label={interest ? "Voir dans Crowdlending" : "Modifier dans Versements"}
+                        title={interest ? "Voir dans Crowdlending" : "Modifier dans Versements"}
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         className="rounded p-1.5 text-fg-muted hover:bg-warning/15 hover:text-warning"
-                        aria-label="Déclarer ce mois manqué"
-                        title="Ce versement n'a pas eu lieu : le déclarer manqué"
-                        onClick={() =>
-                          confirm(`Déclarer manqué le versement de ${formatDate(t.date)} sur ${acc?.name ?? "ce compte"} ?`) &&
-                          skip.mutate({ accountId: t.accountId, month: t.date.slice(0, 7), amount: t.amount, comment: "" })
-                        }
+                        aria-label={interest ? "Déclarer cette échéance non versée" : "Déclarer ce mois manqué"}
+                        title={interest ? "Cet intérêt n'a pas été versé : le déclarer" : "Ce versement n'a pas eu lieu : le déclarer manqué"}
+                        onClick={() => {
+                          if (interest) {
+                            const project = idx.ws.crowdProjects.find((p) => p.id === interest.projectId);
+                            if (project && confirm(`Déclarer non versée l'échéance du ${formatDate(t.date)} de « ${project.name} » ?`)) crowdMissed.mutate({ ...project, missedInterests: [...project.missedInterests, t.date] });
+                          } else if (confirm(`Déclarer manqué le versement de ${formatDate(t.date)} sur ${acc?.name ?? "ce compte"} ?`)) {
+                            skip.mutate({ accountId: t.accountId, month: t.date.slice(0, 7), amount: t.amount, comment: "" });
+                          }
+                        }}
                       >
                         <CalendarX2 size={14} />
                       </button>

@@ -308,9 +308,17 @@ function AvEditor({ offer, onChange }: { offer: AvOffer; onChange: (o: AvOffer) 
 function CrowdEditor({ offer, forfait, onChange }: { offer: CrowdOffer; forfait: number; onChange: (o: CrowdOffer) => void }) {
   return (
     <div className="space-y-3">
+      <Field label="Intérêts" help="Déclarés : un seul montant par mois pour toute la plateforme, depuis la page Crowdlending.">
+        {(id) => (
+          <Select id={id} value={offer.interestMode} onChange={(e) => onChange({ ...offer, interestMode: e.target.value as CrowdOffer["interestMode"] })}>
+            <option value="calcule">Calculés automatiquement, projet par projet</option>
+            <option value="declare">Déclarés chaque mois pour toute la plateforme</option>
+          </Select>
+        )}
+      </Field>
       <Checkbox checked={offer.taxWithheld} onChange={(v) => onChange({ ...offer, taxWithheld: v, taxRate: v ? (offer.taxRate ?? forfait) : null })} label="La plateforme prélève les impôts automatiquement" />
       {offer.taxWithheld && (
-        <Field label="Taux prélevé" help="Notez alors au Journal les intérêts nets, tels que crédités sur la plateforme.">
+        <Field label="Taux prélevé" help="Les intérêts déclarés se saisissent alors nets, tels que crédités sur la plateforme.">
           {(id) => <PercentInput id={id} value={offer.taxRate} onChange={(v) => onChange({ ...offer, taxRate: v })} />}
         </Field>
       )}

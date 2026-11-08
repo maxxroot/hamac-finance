@@ -131,6 +131,8 @@ export const CrowdProjectInput = z.object({
   expectedRecovery: money.min(0).nullable().default(null),
   inAllocation: z.boolean().nullable().default(null),
   comment: text(500).default(""),
+  interestPauses: z.array(z.object({ from: isoDate, to: isoDate.nullable() })).max(100).default([]),
+  missedInterests: z.array(isoDate).max(1000).default([]),
 });
 export type CrowdProjectInput = z.input<typeof CrowdProjectInput>;
 

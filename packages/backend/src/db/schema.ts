@@ -212,6 +212,8 @@ export const crowdProjects = sqliteTable("crowd_projects", {
   expectedRecoveryCents: integer("expected_recovery_cents"),
   inAllocation: integer("in_allocation", { mode: "boolean" }),
   comment: text("comment").notNull().default(""),
+  interestPauses: text("interest_pauses").notNull().default("[]"),
+  missedInterests: text("missed_interests").notNull().default("[]"),
   ...timestamps,
 });
 
