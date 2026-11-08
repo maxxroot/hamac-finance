@@ -25,7 +25,7 @@ import {
 import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
 import { ageInYear, classTargets, type PlanParams } from "./params";
-import { crowdProjectState, crowdSettingsOf, type CrowdProject, type CrowdProjectState } from "./crowdlending";
+import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
 import { loanState, propertyValue, type Loan, type LoanState, type Property } from "./realestate";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
@@ -373,9 +373,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const crowdProjects = (data.crowdProjects ?? []).filter((c) => c.accountId === account.id && c.startDate <= asOf).map((c) => crowdProjectState(c, asOf));
     const crowdValue = roundCents(crowdProjects.reduce((s, c) => s + c.value, 0));
     const crowdNet = crowdProjects.reduce((s, c) => s + c.project.amount - c.repaid, 0);
-    const crowdCfg = account.kind === "crowdlending" ? crowdSettingsOf(data, account) : null;
-    const crowdInterests = crowdCfg?.calculated ? crowdProjects.reduce((s, c) => s + c.interestPaid, 0) * (crowdCfg.withheld ? 1 - crowdCfg.rate : 1) : 0;
-    const cash = roundCents(acc.cash + scheduledPaid - crowdNet + crowdInterests);
+    const cash = roundCents(acc.cash + scheduledPaid - crowdNet);
     const positions: PositionState[] = [];
     const maturedBonds: PositionState[] = [];
     for (const p of acc.positions.values()) {
@@ -415,7 +413,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       currentMonthly,
       netContrib,
       gain: roundCents(value - netContrib),
-      interests: roundCents(acc.interests + crowdInterests),
+      interests: roundCents(acc.interests),
       dividends: roundCents(acc.dividends),
       fees: roundCents(acc.fees),
       corrections: roundCents(acc.corrections),

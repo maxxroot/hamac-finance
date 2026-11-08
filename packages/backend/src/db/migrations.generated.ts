@@ -63,5 +63,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0015_whole_sunfire",
     "sql": "ALTER TABLE `crowd_projects` ADD `interest_pauses` text DEFAULT '[]' NOT NULL;--> statement-breakpoint\nALTER TABLE `crowd_projects` ADD `missed_interests` text DEFAULT '[]' NOT NULL;"
+  },
+  {
+    "tag": "0016_medical_phil_sheldon",
+    "sql": "ALTER TABLE `crowd_projects` DROP COLUMN `interest_pauses`;--> statement-breakpoint\nALTER TABLE `crowd_projects` DROP COLUMN `missed_interests`;"
   }
 ];

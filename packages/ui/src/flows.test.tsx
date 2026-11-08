@@ -40,7 +40,6 @@ interface Ws {
   assets: Array<{ id: string; inAllocation: boolean | null }>;
 }
 const workspace = () => rpc<Ws>("workspace.load");
-const workspaceProject = async (id: string) => (await rpc<{ crowdProjects: Array<{ id: string; missedInterests: string[]; interestPauses: unknown[] }> }>("workspace.load")).crowdProjects.find((p) => p.id === id)!;
 
 function show(ui: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -174,33 +173,13 @@ describe("parcours de l'interface", () => {
     expect(ws.institutions[0]!.offers.crowdlending!.taxRate).toBeCloseTo(0.314);
   });
 
-  it("échéances : déclarer une échéance non versée, mettre en pause, puis déclarer au global", async () => {
-    const user = userEvent.setup();
-    const e = await rpc<{ id: string }>("institutions.upsert", { name: "Calcul", kind: "crowdlending", offers: { crowdlending: { interestMode: "calcule" } } });
-    const c = await rpc<{ id: string }>("accounts.upsert", { kind: "crowdlending", name: "Bricks", institutionId: e.id });
-    await rpc("transactions.upsert", { date: "2025-01-02", type: "versement", accountId: c.id, amount: 2_000 });
-    const start = new Date(Date.now() - 100 * 86_400_000).toISOString().slice(0, 10);
-    const p = await rpc<{ id: string }>("crowdProjects.upsert", { accountId: c.id, name: "Résidence", amount: 1_200, rate: 0.1, startDate: start, termMonths: 24, repayment: "coupons" });
-    const missed = () => workspaceProject(p.id);
-    show(<Crowdlending />);
-    await user.click(await screen.findByRole("button", { name: "Échéances" }));
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getAllByRole("button", { name: "Non versé" })[0]!);
-    await waitFor(async () => expect((await missed()).missedInterests).toHaveLength(1));
-    expect(await within(dialog).findByRole("button", { name: "Finalement versé" })).toBeTruthy();
-    await user.click(within(dialog).getByRole("button", { name: "Mettre en pause" }));
-    expect(await within(dialog).findByRole("button", { name: "Reprendre les paiements" })).toBeTruthy();
-    expect((await missed()).interestPauses).toMatchObject([{ to: null }]);
-  });
-
   it("intérêts déclarés pour toute la plateforme : un montant par mois, rendement affiché", async () => {
     const user = userEvent.setup();
     const c = await rpc<{ id: string }>("accounts.upsert", { kind: "crowdlending", name: "Bricks" });
     show(<Crowdlending />);
     await user.click(await screen.findByRole("button", { name: "Déclarer les intérêts du mois" }));
     expect(await screen.findByText("Rendement réel annualisé")).toBeTruthy();
-    const amount = await screen.findByLabelText("Intérêts reçus");
-    await user.type(amount, "42");
+    await user.type(await screen.findByLabelText("Intérêts reçus"), "42");
     await user.tab();
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(async () => expect((await workspace()).transactions).toMatchObject([{ type: "interets", amount: 42 }]));

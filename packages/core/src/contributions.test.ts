@@ -115,7 +115,7 @@ describe("gestion suggérée des versements", () => {
   it("crowdlending : l'argent investi quitte les espèces, hors allocation par défaut, défaut à 0 €", () => {
     const base = defaultParams(new Date(2026, 10, 7));
     const params: PlanParams = { ...base, profile: { ...base.profile, birthYear: 1990, startMonth: "2026-11" } };
-    const project = (id: string, o: Partial<CrowdProject>): CrowdProject => ({ id, accountId: "c", name: id, amount: 1_000, rate: 0.1, startDate: "2026-02-01", termMonths: 24, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", interestPauses: [], missedInterests: [], ...o });
+    const project = (id: string, o: Partial<CrowdProject>): CrowdProject => ({ id, accountId: "c", name: id, amount: 1_000, rate: 0.1, startDate: "2026-02-01", termMonths: 24, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", ...o });
     const data = (crowdProjects: CrowdProject[], platform: Partial<Account> = {}): EngineData => ({ params, accounts: [acc("c", "crowdlending", platform)], assets: [], transactions: [apport("c", 3_000)], plans: [], skips: [], prices: [], crowdProjects });
     const one = computePortfolio(data([project("a", {}), project("b", { status: "defaut" })]), "2026-11-07");
     const a = one.accountById.get("c")!;

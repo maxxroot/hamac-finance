@@ -1,12 +1,11 @@
 import { useMemo } from "react";
-import { Schedule, crowdInterestTransactions, type Transaction } from "@hamac/core";
+import { Schedule, type Transaction } from "@hamac/core";
 import { todayIso } from "./numbers";
 import { useWorkspaceIndex } from "./workspace";
 
 /**
  * Opérations du journal : celles saisies, plus les versements programmés déjà prélevés
- * (calculés depuis Versements au jour fixé dans Paramètres › Plan, jamais enregistrés)
- * et les intérêts calculés des plateformes de crowdlending.
+ * (calculés depuis Versements au jour fixé dans Paramètres › Plan, jamais enregistrés).
  */
 export function useJournal(): Transaction[] {
   const idx = useWorkspaceIndex();
@@ -15,6 +14,6 @@ export function useJournal(): Transaction[] {
     if (!idx) return [];
     const { startMonth, contributionDay } = idx.ws.params.profile;
     const scheduled = new Schedule(idx.ws.plans, idx.ws.skips, startMonth, contributionDay).paidTransactions(today);
-    return [...idx.ws.transactions, ...scheduled, ...crowdInterestTransactions(idx.ws, today)];
+    return [...idx.ws.transactions, ...scheduled];
   }, [idx, today]);
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, Asset, ContributionPlan, PricePoint, Transaction } from "./domain";
 import { advisedMonthlyPurchase, computePortfolio, splitByTarget, type EngineData } from "./engine";
-import { crowdInterestTransactions } from "./crowdlending";
 import { embeddedFee } from "./fees";
 import type { Institution } from "./institutions";
 import { defaultParams } from "./params";
@@ -288,21 +287,5 @@ describe("historique reconstruit", () => {
     const regime = (id: string) => withdrawalTaxes(d, s, cryptoTax(d, "2026-06-01")).find((r) => r.accountId === id)!.regime;
     expect(regime("preleve")).toContain("30 %");
     expect(regime("adeclarer")).toContain("à déclarer");
-  });
-
-  it("crowdlending : intérêts calculés crédités sur la plateforme, nets si l'impôt est prélevé, imposés dans l'année", () => {
-    const p = defaultParams(new Date(2026, 0, 1));
-    const account = { id: "c", kind: "crowdlending", livretType: null, name: "c", institutionId: "e", openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false } as Account;
-    const inst = (interestMode: "calcule" | "declare") => ({ id: "e", name: "e", kind: "crowdlending", website: "", score: null, comment: "", offers: { crowdlending: { interestMode, taxWithheld: true, taxRate: 0.3 } } }) as Institution;
-    const project = { id: "p", accountId: "c", name: "P", amount: 1_200, rate: 0.1, startDate: "2026-01-15", termMonths: 12, repayment: "coupons", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", interestPauses: [], missedInterests: [] } as const;
-    const d = (mode: "calcule" | "declare"): EngineData => ({ params: p, accounts: [account], assets: [], plans: [], skips: [], prices: [], institutions: [inst(mode)], crowdProjects: [{ ...project, interestPauses: [], missedInterests: [] }], transactions: [{ id: "t", date: "2026-01-02", type: "versement", accountId: "c", assetId: null, counterAccountId: null, amount: 2_000, quantity: null, fee: null, comment: "" }] });
-    const calc = computePortfolio(d("calcule"), "2026-04-20").accountById.get("c")!;
-    // Trois échéances de 10 € bruts, 7 € nets.
-    expect(calc).toMatchObject({ cash: 821, interests: 21, value: 2_021, netContrib: 2_000 });
-    expect(computePortfolio(d("declare"), "2026-04-20").accountById.get("c")!).toMatchObject({ cash: 800, interests: 0 });
-    expect(crowdInterestTransactions(d("calcule") as Parameters<typeof crowdInterestTransactions>[0], "2026-04-20").map((t) => t.amount)).toEqual([7, 7, 7]);
-    expect(crowdInterestTransactions(d("declare") as Parameters<typeof crowdInterestTransactions>[0], "2026-04-20")).toEqual([]);
-    const row = yearlyTaxes(d("calcule"), cryptoTax(d("calcule"), "2026-04-20"), "2026-04-20").find((y) => y.year === 2026)!;
-    expect(row).toMatchObject({ crowdReceived: 21, crowdWithheld: 9, crowdDue: 0 });
   });
 });
