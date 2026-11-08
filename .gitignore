@@ -13,6 +13,11 @@ CLAUDE.md
 .env
 .env.*
 
+# Relevés personnels déposés à la racine du projet
+/*.csv
+/*.ofx
+/*.qif
+
 # Cahier des charges tiré du Google Sheet personnel : contient des données privées.
 docs/cahier-des-charges/
 
