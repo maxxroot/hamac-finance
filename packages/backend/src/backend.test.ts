@@ -197,6 +197,16 @@ describe("sauvegarde et import", () => {
     expect(ws.plans.some((p) => p.fromMonth === "2099-01")).toBe(false);
   });
 
+  it("espace de travail : cours quotidiens pour la crypto, dernier du mois pour le reste", async () => {
+    const b = memory();
+    const btc = await call<{ id: string }>(b, "assets.upsert", { kind: "crypto", name: "BTC", symbol: "bitcoin", priceSource: "manuel" });
+    const etf = await call<{ id: string }>(b, "assets.upsert", { kind: "etf", name: "ETF", priceSource: "manuel" });
+    for (const id of [btc.id, etf.id]) for (const date of ["2026-03-10", "2026-03-15", "2026-03-31"]) await call(b, "prices.setManual", { assetId: id, date, price: 10 });
+    const ws = await call<{ prices: Array<{ assetId: string; date: string }> }>(b, "workspace.load");
+    expect(ws.prices.filter((p) => p.assetId === btc.id)).toHaveLength(3);
+    expect(ws.prices.filter((p) => p.assetId === etf.id).map((p) => p.date)).toEqual(["2026-03-31"]);
+  });
+
   it("crédits : immobilier par défaut, seul un crédit immobilier ou travaux se rattache à un bien", async () => {
     const b = memory();
     const bien = await call<{ id: string }>(b, "properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });

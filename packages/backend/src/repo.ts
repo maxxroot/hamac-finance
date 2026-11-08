@@ -203,7 +203,8 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     db
       .select()
       .from(t.prices)
-      .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id, substr(date, 1, 7))`)
+      // Crypto : tous les jours, la plus-value d'une vente se calcule sur la valeur du portefeuille à sa date.
+      .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id, substr(date, 1, 7)) OR ${t.prices.assetId} IN (SELECT id FROM assets WHERE kind = 'crypto')`)
       .all(),
     db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).get(),
     db.select().from(t.institutions).orderBy(t.institutions.name).all(),
