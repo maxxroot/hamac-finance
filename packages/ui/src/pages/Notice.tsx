@@ -52,7 +52,7 @@ export function Notice() {
               ["Paramètres › Plan", "Plancher et plafond des livrets, seuil d'alerte, tranche d'imposition", "7 500 € · 15 000 € · 5 % · 11 %"],
               ["Établissements", "Votre banque, votre courtier, votre assurance-vie : comptes proposés et grille de frais (paliers de courtage, droits de garde, frais sur versements et de gestion)", "jusqu'à 500 € : 1,99 € · au-delà : 0,5 %"],
               ["Paramètres › Comptes", "Chaque compte : son établissement (qui fixe ses frais), date d'ouverture (règles des 5 et 8 ans), taux et plafond des livrets, clause bénéficiaire", "PEA ouvert le 15/03/2021"],
-              ["Paramètres › Titres", "Les ETF, obligations et cryptos détenus : recherche par nom ou ISIN, part cible de chaque ETF (total 100 %)", "ETF monde · FR00… · 100 %"],
+              ["Paramètres › Actifs", "Les ETF, obligations et cryptos détenus : recherche par nom ou ISIN, part cible de chaque ETF (total 100 %), classe personnalisée, dans ou hors allocation", "ETF monde · FR00… · 100 %"],
               ["Journal", "Un « Apport initial » par compte avec l'argent déjà là au départ", "LEP · Apport initial · 5 000 €"],
               ["Versements", "Le montant de chaque virement automatique, à partir de quel mois", "PEA · dès janvier 2027 · 150 €/mois"],
             ].map(([a, b, c]) => (
@@ -138,7 +138,7 @@ export function Notice() {
           <li>Regarder les espèces disponibles : alerte du Tableau de bord ou page <L to="/obligations">Obligations</L>.</li>
           <li>Acheter chez le courtier une obligation dont l'échéance tombe avant l'âge de départ (OAT ou obligation d'entreprise).</li>
           <li>
-            Ajouter le titre dans Paramètres › Titres : la recherche par ISIN pré-remplit le coupon et l'échéance.
+            Ajouter le titre dans Paramètres › Actifs : la recherche par ISIN pré-remplit le coupon et l'échéance.
           </li>
           <li>Saisir l'achat dans le Journal : nominal, prix en % du nominal (ex. 96,40) et frais. Le montant, le rendement à l'échéance et la valeur se calculent seuls.</li>
           <li>Chaque année, noter le coupon reçu. À l'échéance, le nominal revient automatiquement dans les espèces du compte-titres.</li>

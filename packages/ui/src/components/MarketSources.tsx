@@ -74,7 +74,7 @@ export function MarketSources() {
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-xs text-fg-faint">Un titre peut imposer sa propre source, ou une adresse personnalisée, depuis sa fiche (Paramètres › Titres).</p>
+        <p className="mt-3 text-xs text-fg-faint">Un titre peut imposer sa propre source, ou une adresse personnalisée, depuis sa fiche (Paramètres › Actifs).</p>
       </Card>
 
       <Card>

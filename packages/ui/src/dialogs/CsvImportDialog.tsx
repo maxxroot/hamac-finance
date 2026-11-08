@@ -212,7 +212,7 @@ export function CsvImportDialog({ open, onClose }: { open: boolean; onClose: () 
             </Table>
           </div>
           <p className="text-xs text-fg-faint">
-            {valid.length} ligne(s) prête(s), {parsed.length - valid.length} à compléter. Les titres sont reconnus par ISIN ou par nom parmi ceux de Paramètres › Titres : ajoutez-les d'abord si besoin.
+            {valid.length} ligne(s) prête(s), {parsed.length - valid.length} à compléter. Les titres sont reconnus par ISIN ou par nom parmi ceux de Paramètres › Actifs : ajoutez-les d'abord si besoin.
           </p>
         </div>
       )}

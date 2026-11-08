@@ -283,7 +283,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
         <AllocationChoice value={d.inAllocation} defaultLabel={d.kind === "crypto" ? "hors allocation, sauf choix du compte" : "comme son compte"} onChange={(v) => set("inAllocation", v)} />
 
         {classes.length > 0 && (d.kind !== "crypto" || d.inAllocation === true) && (
-          <Field label="Classe d'actifs" help="Par défaut, selon le type du titre. Les classes se créent dans Paramètres › Plan.">
+          <Field label="Classe d'actifs" help="Par défaut, selon le type du titre. Les classes se créent dans Paramètres › Actifs.">
             {(id) => (
               <Select id={id} value={d.classId ?? ""} onChange={(e) => set("classId", e.target.value || null)}>
                 <option value="">Par défaut</option>

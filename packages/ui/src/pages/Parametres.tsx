@@ -10,6 +10,7 @@ import { useSearchParams } from "react-router";
 import { MarketSources } from "@/components/MarketSources";
 import {
   ACCOUNT_KIND_LABELS,
+  ASSET_BUCKET,
   ASSET_KIND_LABELS,
   BUCKET_LABELS,
   MODULES,
@@ -43,7 +44,7 @@ import { usePortfolio } from "@/lib/portfolio";
 import { SortTh, useSortable } from "@/lib/sort";
 import { SETTINGS_ITEM } from "@/nav";
 
-const TABS = ["Plan", "Comptes", "Titres", "Cours", "Application"] as const;
+const TABS = ["Plan", "Comptes", "Actifs", "Cours", "Application"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Parametres() {
@@ -65,7 +66,7 @@ export function Parametres() {
       </div>
       {tab === "Plan" && <PlanTab />}
       {tab === "Comptes" && <AccountsTab />}
-      {tab === "Titres" && <AssetsTab />}
+      {tab === "Actifs" && <AssetsTab />}
       {tab === "Cours" && <MarketSources />}
       {tab === "Application" && <AppTab />}
     </>
@@ -185,7 +186,7 @@ function PlanTab() {
         </FormGrid>
       </Section>
 
-      <Section title="Allocation cible de la partie investie" hint="Par défaut hors livrets et crypto : chaque compte ou titre peut être inclus ou exclu depuis sa fiche.">
+      <Section title="Allocation cible de la partie investie" hint="Par défaut hors livrets et crypto. Classes personnalisées et choix par titre : onglet Actifs.">
         <FormGrid cols={3}>
           {pctField(retraite ? "Part actions avant sécurisation" : "Part actions", ["allocation", "etfBefore"])}
           {retraite && pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse linéaire entre l'âge de sécurisation et l'âge de départ.")}
@@ -196,8 +197,6 @@ function PlanTab() {
           <b className="text-fg">{formatPct(Math.max(0, 1 - p.allocation.obligations - etfTarget(p, age)))}</b> (le reste).
         </p>
       </Section>
-
-      <CustomClasses params={p} age={age} onChange={(customClasses) => setP((x) => (x ? { ...x, customClasses } : x))} issues={issues} />
 
       <CustomAllocations params={p} accounts={idx.ws.accounts} onChange={(customAllocations) => setP((x) => (x ? { ...x, customAllocations } : x))} issues={issues} />
 
@@ -289,7 +288,7 @@ function Section({ title, hint, actions, children }: { title: string; hint?: str
 const CLASS_COLORS = ["#e0a458", "#7aa2f7", "#9ece6a", "#f7768e", "#bb9af7", "#2ac3de"];
 
 /** Classes d'actifs ajoutées à la demande (or, immobilier papier…), prises sur les cibles de base. */
-function CustomClasses({ params, age, onChange, issues }: { params: PlanParams; age: number; onChange: (c: AssetClass[]) => void; issues: Map<string, string> }) {
+function CustomClasses({ params, age, onChange, issues, save }: { params: PlanParams; age: number; onChange: (c: AssetClass[]) => void; issues: Map<string, string>; save: ReactNode }) {
   const list = params.customClasses;
   const update = (i: number, patch: Partial<AssetClass>) => onChange(list.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const add = () => onChange([...list, { id: crypto.randomUUID(), label: "", color: CLASS_COLORS[list.length % CLASS_COLORS.length]!, behavesLike: "croissance", target: 0.05 }]);
@@ -297,11 +296,14 @@ function CustomClasses({ params, age, onChange, issues }: { params: PlanParams; 
   return (
     <Section
       title="Classes d'actifs personnalisées"
-      hint="Or, immobilier papier, petites capitalisations… Chaque classe prend sa part sur la cible de la classe dont elle a le comportement. Rattachez ensuite vos titres depuis leur fiche."
+      hint="Or, immobilier papier, petites capitalisations… Chaque classe prend sa part sur la cible de la classe dont elle a le comportement. Rattachez ensuite vos actifs dans le tableau ci-dessous."
       actions={
-        <Button onClick={add}>
-          <Plus size={14} /> Ajouter
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {save}
+          <Button onClick={add}>
+            <Plus size={14} /> Ajouter
+          </Button>
+        </div>
       }
     >
       {list.length === 0 ? (
@@ -506,68 +508,118 @@ function AccountsTab() {
   );
 }
 
-// ——— Titres ———
+// ——— Actifs ———
 
 function AssetsTab() {
   const idx = useWorkspaceIndex();
-  const del = useMutate("assets.delete", { success: "Titre supprimé" });
+  const del = useMutate("assets.delete", { success: "Actif supprimé" });
+  const upsert = useMutate("assets.upsert");
+  const saveParams = useMutate("params.update", { success: "Classes enregistrées" });
   const [editing, setEditing] = useState<Asset | null>(null);
   const [creating, setCreating] = useState(false);
+  const [classes, setClasses] = useState<AssetClass[] | null>(null);
+  const saved = idx?.ws.params.customClasses;
+  useEffect(() => {
+    if (saved) setClasses(saved);
+  }, [saved]);
+  const draft = useMemo(() => (idx && classes ? { ...idx.ws.params, customClasses: classes } : null), [idx, classes]);
+  const issues = useMemo(() => {
+    if (!draft) return new Map<string, string>();
+    const r = PlanParams.safeParse(draft);
+    return new Map(r.success ? [] : r.error.issues.map((i) => [i.path.join("."), i.message]));
+  }, [draft]);
   const assetSort = useSortable(idx?.ws.assets ?? [], {
     nom: (a) => a.name,
     type: (a) => ASSET_KIND_LABELS[a.kind],
     isin: (a) => a.isin,
     cours: (a) => a.priceSource,
     cible: (a) => a.targetWeight,
-    echeance: (a) => a.maturityDate,
   });
-  if (!idx) return null;
+  if (!idx || !draft) return null;
   const equityTargets = idx.activeAssets.filter((a) => a.kind !== "obligation" && a.kind !== "crypto").reduce((s, a) => s + (a.targetWeight ?? 0), 0);
+  const age = new Date().getFullYear() - draft.profile.birthYear;
+  const dirty = JSON.stringify(classes) !== JSON.stringify(saved);
+  const patch = (a: Asset, change: Partial<Asset>) => upsert.mutate({ ...a, ...change });
+  const allocValue = (a: Asset) => (a.inAllocation == null ? "" : a.inAllocation ? "in" : "out");
+  const inAllocation = (a: Asset) => a.inAllocation ?? a.kind !== "crypto";
   return (
-    <>
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-fg-muted">
-          Parts cibles des actions :{" "}
-          <span className={cn("font-medium", Math.abs(equityTargets - 1) > 0.0001 && equityTargets > 0 ? "text-warning" : "text-fg")}>{formatPct(equityTargets)}</span>
-          {Math.abs(equityTargets - 1) > 0.0001 && equityTargets > 0 && " (devrait faire 100 %)"}
-        </p>
-        <Button variant="primary" onClick={() => setCreating(true)}>
-          <Plus size={16} /> Nouveau titre
-        </Button>
+    <div className="space-y-5 pb-20">
+      <CustomClasses
+        params={draft}
+        age={age}
+        onChange={setClasses}
+        issues={issues}
+        save={
+          dirty && (
+            <Button variant="primary" disabled={issues.size > 0 || saveParams.isPending} onClick={() => saveParams.mutate(draft)}>
+              Enregistrer
+            </Button>
+          )
+        }
+      />
+
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm text-fg-muted">
+            Parts cibles des actions :{" "}
+            <span className={cn("font-medium", Math.abs(equityTargets - 1) > 0.0001 && equityTargets > 0 ? "text-warning" : "text-fg")}>{formatPct(equityTargets)}</span>
+            {Math.abs(equityTargets - 1) > 0.0001 && equityTargets > 0 && " (devrait faire 100 %)"}
+          </p>
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            <Plus size={16} /> Nouvel actif
+          </Button>
+        </div>
+        <Table>
+          <thead>
+            <tr>
+              <SortTh {...assetSort.by("nom")}>Nom</SortTh>
+              <SortTh {...assetSort.by("type")}>Type</SortTh>
+              <Th>Classe</Th>
+              <Th>Allocation cible</Th>
+              <SortTh {...assetSort.by("cours")}>Cours</SortTh>
+              <SortTh {...assetSort.by("cible")} align="right">Part cible</SortTh>
+              <Th />
+            </tr>
+          </thead>
+          <tbody>
+            {idx.ws.assets.length === 0 && <EmptyRow cols={7}>Aucun actif. Ajoutez vos ETF, obligations ou cryptos.</EmptyRow>}
+            {assetSort.sorted.map((a) => (
+              <Tr key={a.id} className={cn("group", a.archived && "opacity-50")}>
+                <Td className="font-medium">
+                  {a.name}
+                  <div className="font-mono text-xs font-normal text-fg-faint">{a.isin}</div>
+                  {a.kind === "obligation" && <div className="text-xs font-normal text-fg-muted">{`${a.couponRate != null ? formatPct(a.couponRate) : "?"} · échéance ${formatDate(a.maturityDate)}`}</div>}
+                </Td>
+                <Td>{ASSET_KIND_LABELS[a.kind]}</Td>
+                <Td>
+                  <Select aria-label={`Classe de ${a.name}`} className="h-8 min-w-36 text-xs" disabled={!inAllocation(a)} value={saved?.some((c) => c.id === a.classId) ? (a.classId ?? "") : ""} onChange={(e) => patch(a, { classId: e.target.value || null })}>
+                    <option value="">{BUCKET_LABELS[ASSET_BUCKET[a.kind]]} (par défaut)</option>
+                    {saved?.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Td>
+                <Td>
+                  <Select aria-label={`Allocation de ${a.name}`} className="h-8 min-w-32 text-xs" value={allocValue(a)} onChange={(e) => patch(a, { inAllocation: e.target.value === "" ? null : e.target.value === "in" })}>
+                    <option value="">Par défaut</option>
+                    <option value="in">Dans l'allocation</option>
+                    <option value="out">Hors allocation</option>
+                  </Select>
+                </Td>
+                <Td className="text-fg-muted">{a.priceSource === "auto" ? `auto${a.symbol ? ` · ${a.symbol}` : ""}` : a.priceSource === "modele" ? "calculé" : "manuel"}</Td>
+                <Td align="right">{a.targetWeight != null ? formatPct(a.targetWeight) : "—"}</Td>
+                <Td className="w-20">
+                  <RowActions onEdit={() => setEditing(a)} onDelete={() => confirm(`Supprimer « ${a.name} » ?`) && del.mutate({ id: a.id })} />
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
       </div>
-      <Table>
-        <thead>
-          <tr>
-            <SortTh {...assetSort.by("nom")}>Nom</SortTh>
-            <SortTh {...assetSort.by("type")}>Type</SortTh>
-            <SortTh {...assetSort.by("isin")}>ISIN</SortTh>
-            <SortTh {...assetSort.by("cours")}>Cours</SortTh>
-            <SortTh {...assetSort.by("cible")} align="right">Part cible</SortTh>
-            <SortTh {...assetSort.by("echeance")}>Obligation</SortTh>
-            <Th />
-          </tr>
-        </thead>
-        <tbody>
-          {idx.ws.assets.length === 0 && <EmptyRow cols={7}>Aucun titre. Ajoutez vos ETF, obligations ou cryptos.</EmptyRow>}
-          {assetSort.sorted.map((a) => (
-            <Tr key={a.id} className={cn("group", a.archived && "opacity-50")}>
-              <Td className="font-medium">{a.name}</Td>
-              <Td>{ASSET_KIND_LABELS[a.kind]}</Td>
-              <Td className="font-mono text-xs text-fg-muted">{a.isin ?? "—"}</Td>
-              <Td className="text-fg-muted">{a.priceSource === "auto" ? `auto${a.symbol ? ` · ${a.symbol}` : ""}` : a.priceSource === "modele" ? "calculé" : "manuel"}</Td>
-              <Td align="right">{a.targetWeight != null ? formatPct(a.targetWeight) : "—"}</Td>
-              <Td className="text-fg-muted">
-                {a.kind === "obligation" ? `${a.couponRate != null ? formatPct(a.couponRate) : "?"} · échéance ${formatDate(a.maturityDate)}` : ""}
-              </Td>
-              <Td className="w-20">
-                <RowActions onEdit={() => setEditing(a)} onDelete={() => confirm(`Supprimer « ${a.name} » ?`) && del.mutate({ id: a.id })} />
-              </Td>
-            </Tr>
-          ))}
-        </tbody>
-      </Table>
       <AssetDialog open={creating || !!editing} asset={editing} onClose={() => (setCreating(false), setEditing(null))} />
-    </>
+    </div>
   );
 }
 
