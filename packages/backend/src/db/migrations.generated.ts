@@ -51,5 +51,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0012_zippy_dark_beast",
     "sql": "DROP TABLE `checklist_items`;"
+  },
+  {
+    "tag": "0013_arret_versements_archives",
+    "sql": "-- Les comptes déjà archivés cessent de recevoir leurs versements programmés à partir du mois prochain.\nDELETE FROM `contribution_plans`\nWHERE `from_month` > strftime('%Y-%m', 'now', '+1 month')\n  AND `account_id` IN (SELECT `id` FROM `accounts` WHERE `archived` = 1);\n--> statement-breakpoint\nINSERT OR IGNORE INTO `contribution_plans` (`id`, `account_id`, `from_month`, `amount_cents`, `comment`)\nSELECT lower(hex(randomblob(16))), a.`id`, strftime('%Y-%m', 'now', '+1 month'), 0, 'Compte archivé'\nFROM `accounts` a\nWHERE a.`archived` = 1\n  AND (SELECT p.`amount_cents` FROM `contribution_plans` p WHERE p.`account_id` = a.`id` ORDER BY p.`from_month` DESC LIMIT 1) > 0;\n"
   }
 ];

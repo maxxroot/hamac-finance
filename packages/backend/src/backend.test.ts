@@ -185,6 +185,18 @@ describe("sauvegarde et import", () => {
     expect(res.errors.map((e) => e.index)).toEqual([1]);
   });
 
+  it("archiver un compte arrête ses versements programmés sans effacer le passé", async () => {
+    const b = memory();
+    const pea = await call<Record<string, unknown> & { id: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA" });
+    await call(b, "plans.set", { accountId: pea.id, fromMonth: "2020-01", amount: 200 });
+    await call(b, "plans.set", { accountId: pea.id, fromMonth: "2099-01", amount: 500 });
+    await call(b, "accounts.upsert", { ...pea, archived: true });
+    const ws = await call<{ plans: Array<{ fromMonth: string; amount: number }> }>(b, "workspace.load");
+    expect(ws.plans[0]).toMatchObject({ fromMonth: "2020-01", amount: 200 });
+    expect(ws.plans.at(-1)).toMatchObject({ amount: 0 });
+    expect(ws.plans.some((p) => p.fromMonth === "2099-01")).toBe(false);
+  });
+
   it("crédits : immobilier par défaut, seul un crédit immobilier ou travaux se rattache à un bien", async () => {
     const b = memory();
     const bien = await call<{ id: string }>(b, "properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });

@@ -1,7 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, addMonth, dayOfMonth, monthOf, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -23,7 +23,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapLoan, mapProperty } from "./repo";
+  toCents, mapLoan, mapProperty, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -61,6 +61,18 @@ async function syncCurrentRate(ctx: BackendContext, accountId: string) {
 
 async function count(query: Promise<{ n: number } | undefined>): Promise<number> {
   return (await query)?.n ?? 0;
+}
+
+/** Un compte archivé cesse de recevoir ses versements programmés ; ceux déjà passés restent dans son historique. */
+async function stopPlans(ctx: BackendContext, accountId: string): Promise<void> {
+  const plans = await ctx.db.select().from(t.contributionPlans).where(eq(t.contributionPlans.accountId, accountId)).all();
+  if (!plans.some((p) => p.amountCents > 0)) return;
+  const today = nowIso().slice(0, 10);
+  const month = monthOf(today);
+  const { contributionDay } = (await loadParams(ctx.db)).profile;
+  const from = dayOfMonth(month, contributionDay) <= today ? addMonth(month, 1) : month;
+  await ctx.db.delete(t.contributionPlans).where(and(eq(t.contributionPlans.accountId, accountId), sql`${t.contributionPlans.fromMonth} > ${from}`));
+  await handlers["plans.set"]({ accountId, fromMonth: from, amount: 0, comment: "Compte archivé" }, ctx);
 }
 
 async function marketSettings(ctx: BackendContext): Promise<MarketSettings> {
@@ -167,6 +179,7 @@ export const handlers: Handlers = {
         if (used > 0) throw new RpcError("CONFLICT", "Impossible de changer le type d'un compte qui a déjà des opérations.");
       }
       await ctx.db.update(t.accounts).set(row).where(eq(t.accounts.id, id));
+      if (input.archived && !current.archived) await stopPlans(ctx, id);
     } else {
       await ctx.db.insert(t.accounts).values({ id, ...row });
     }
