@@ -1,16 +1,14 @@
-import { PRICE_PROVIDERS, type Asset, type PriceProvider } from "@hamac/core";
+import { PRICE_PROVIDERS, type PriceProvider } from "@hamac/core";
 import { one } from "../db/driver";
 import { eq } from "drizzle-orm";
 import type { BackendContext } from "../context";
 import * as t from "../db/schema";
 import { nowIso } from "../repo";
-import { chainFor, DEFAULT_PROVIDER_ORDER, type ProviderSetting } from "./index";
+import { chainFor, DEFAULT_PROVIDER_ORDER, type MarketAsset, type ProviderSetting } from "./index";
 import type { TwelveDataUsage } from "./twelvedata";
 
-/** Réglages des sources de cours. Les clés sont à part : jamais envoyées à l'interface ni exportées. */
-export const MARKET_CONFIG_KEY = "market.config";
+/** Ancien emplacement de la clé d'API dans les données d'un tenant : jamais restauré ni exporté. */
 export const MARKET_SECRETS_KEY = "market.secrets";
-export const MARKET_USAGE_KEY = "market.usage";
 
 export async function readSetting<T>(ctx: BackendContext, key: string): Promise<T | null> {
   const row = await ctx.db.select().from(t.settings).where(eq(t.settings.key, key)).limit(1).then(one);
@@ -38,17 +36,8 @@ export interface MarketState {
   usage: TwelveDataUsage | null;
 }
 
-export async function loadMarketState(ctx: BackendContext): Promise<MarketState> {
-  const [config, secrets, usage] = await Promise.all([
-    readSetting<{ order?: ProviderSetting[] }>(ctx, MARKET_CONFIG_KEY),
-    readSetting<{ twelveDataKey?: string | null }>(ctx, MARKET_SECRETS_KEY),
-    readSetting<TwelveDataUsage>(ctx, MARKET_USAGE_KEY),
-  ]);
-  return { order: normalizeOrder(config?.order), twelveDataKey: secrets?.twelveDataKey ?? null, usage };
-}
-
 /** Nombre de titres pouvant solliciter Twelve Data à chaque actualisation (pire cas : toutes les sources avant lui échouent). */
-export function twelveDataAssets(assets: readonly Asset[], state: Pick<MarketState, "order" | "twelveDataKey">): number {
+export function twelveDataAssets(assets: readonly MarketAsset[], state: Pick<MarketState, "order" | "twelveDataKey">): number {
   if (!state.twelveDataKey) return 0;
-  return assets.filter((a) => !a.archived && chainFor(a, state.order, true).chain.includes("twelvedata")).length;
+  return assets.filter((a) => chainFor(a, state.order, true).chain.includes("twelvedata")).length;
 }

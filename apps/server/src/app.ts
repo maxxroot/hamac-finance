@@ -3,7 +3,7 @@ import { extname, join, normalize, resolve } from "node:path";
 import { Hono, type Context } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { createBackend, type Backend, type PgProvider } from "@hamac/backend";
+import { createBackend, SharedMarket, type Backend, type PgProvider } from "@hamac/backend";
 import { UserStore, type User } from "./users";
 
 export type SignupMode = "invite" | "open" | "closed";
@@ -34,7 +34,10 @@ class BackendPool {
   private pool = new Map<string, { backend: Promise<Backend>; lastUsed: number }>();
   private timer = setInterval(() => this.closeIdle(), 60_000);
 
-  constructor(private cfg: ServerConfig) {
+  constructor(
+    private cfg: ServerConfig,
+    private market: SharedMarket,
+  ) {
     this.timer.unref?.();
   }
 
@@ -46,6 +49,8 @@ class BackendPool {
         lastUsed: Date.now(),
         backend: createBackend({
           provider: this.cfg.provider,
+          market: this.market,
+          isAdmin: user.isAdmin,
           tenantId: id,
           backupsDir: this.cfg.dataDir ? join(this.cfg.dataDir, "tenants", id, "sauvegardes") : null,
           appVersion: this.cfg.appVersion,
@@ -119,7 +124,9 @@ const MIME: Record<string, string> = {
 export async function createApp(cfg: ServerConfig) {
   if (cfg.dataDir) mkdirSync(cfg.dataDir, { recursive: true });
   const users = await UserStore.open(cfg.provider, cfg.onAdminLost);
-  const pool = new BackendPool(cfg);
+  const market = await SharedMarket.open(cfg.provider, undefined, cfg.onAdminLost);
+  if (cfg.autoRefreshPrices) market.start(() => users.tenantIds());
+  const pool = new BackendPool(cfg, market);
   const limiter = new RateLimiter(10, 15 * 60_000);
   // Par compte visé : freine une attaque répartie sur plusieurs adresses.
   const accountLimiter = new RateLimiter(20, 15 * 60_000);
@@ -248,6 +255,7 @@ export async function createApp(cfg: ServerConfig) {
     async close() {
       clearInterval(purge);
       pool.close();
+      await market.close();
       await users.close();
     },
   };

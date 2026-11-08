@@ -43,8 +43,6 @@ export async function importDump(ctx: BackendContext, dump: unknown): Promise<Re
     throw new RpcError("VALIDATION", "Cette sauvegarde vient d'une version plus récente de Hamac : mettez l'application à jour.");
   }
   const counts: Record<string, number> = {};
-  // La clé d'API reste celle de cette installation, quel que soit le fichier restauré.
-  const secrets = await ctx.raw.get<{ key: string; value: string; updated_at: string }>("SELECT key, value, updated_at FROM settings WHERE key = ?", [MARKET_SECRETS_KEY]);
   try {
     await ctx.raw.transaction(async () => {
       for (const t of [...TABLES].reverse()) await ctx.raw.exec(`DELETE FROM ${t}`);
@@ -62,7 +60,6 @@ export async function importDump(ctx: BackendContext, dump: unknown): Promise<Re
         counts[t] = rows.length;
       }
       await ctx.raw.run("DELETE FROM settings WHERE key = ?", [MARKET_SECRETS_KEY]);
-      if (secrets) await ctx.raw.run("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)", [secrets.key, secrets.value, secrets.updated_at]);
     });
   } catch (e) {
     throw e instanceof RpcError ? e : new RpcError("VALIDATION", `Import impossible : ${(e as Error).message}`);

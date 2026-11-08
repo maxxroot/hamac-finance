@@ -101,6 +101,8 @@ export interface PriceStatus {
 
 /** Réglages des sources de cours, tels que vus par l'interface (la clé n'en sort jamais entière). */
 export interface MarketSettings {
+  /** Réservé à l'administrateur de l'instance. */
+  canEdit: boolean;
   order: Array<{ id: PriceProvider; enabled: boolean }>;
   twelveData: {
     configured: boolean;

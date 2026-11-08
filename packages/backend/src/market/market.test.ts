@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Backend } from "../index";
-import { testBackend } from "../testkit";
+import { testBackend, testMarket } from "../testkit";
 import type { Fetcher } from "./http";
 import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./custom";
 import { euronextHistory, parseEuronextCsv } from "./euronext";
-import { chainFor, defaultProviderSettings, parseBondTicker, searchAssets } from "./index";
-import { assertPlausible } from "./refresh";
+import { chainFor, defaultProviderSettings, instrumentKey, parseBondTicker, searchAssets } from "./index";
+import { assertPlausible } from "./plausible";
 import { yahooRange } from "./yahoo";
 import { refreshIntervalMinutes, TD_SAFE_LIMIT, TwelveDataBudget, twelveDataSymbol } from "./twelvedata";
 
@@ -205,5 +205,69 @@ describe("sources de cours", () => {
     expect(mine.find((p) => p.date === today)).toMatchObject({ price: 60, source: "manuel" });
     expect(mine.find((p) => p.date === "2026-10-01")).toMatchObject({ price: 58, source: "justetf" });
     expect(ws.priceStatus).not.toBeNull();
+  });
+});
+
+describe("base de cours commune", () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const etf = { kind: "etf", name: "S&P 500", isin: "FR0011871128", priceSource: "auto" };
+
+  it("un même titre n'est téléchargé qu'une fois pour tous les tenants", async () => {
+    let calls = 0;
+    const f = (async (url: string) => {
+      if (/justetf/.test(url)) {
+        calls++;
+        return new Response(JSON.stringify({ latestQuote: { raw: 59 }, latestQuoteDate: today, series: [{ date: today, value: { raw: 59 } }] }));
+      }
+      return new Response("introuvable", { status: 404 });
+    }) as Fetcher;
+    const market = await testMarket(f);
+    const a = await testBackend({ fetcher: f, market });
+    const b = await testBackend({ fetcher: f, market });
+    await call(a, "assets.upsert", etf);
+    await call(b, "assets.upsert", etf);
+    await call(a, "prices.refresh");
+    await call(b, "prices.refresh");
+    expect(calls).toBe(1);
+    for (const x of [a, b]) {
+      const ws = await call<{ prices: Array<{ price: number }> }>(x, "workspace.load");
+      expect(ws.prices).toHaveLength(1);
+      expect(ws.prices[0]).toMatchObject({ price: 59 });
+      x.close();
+    }
+  });
+
+  it("une restauration ne modifie pas les cours des autres", async () => {
+    const market = await testMarket(fakeFetcher([]));
+    const a = await testBackend({ market });
+    const b = await testBackend({ market });
+    const assetA = await call<{ id: string }>(a, "assets.upsert", etf);
+    await call(b, "assets.upsert", etf);
+    const dump = await call<{ tables: Record<string, unknown[]> }>(a, "data.export");
+    dump.tables.prices = [{ asset_id: assetA.id, date: "2026-01-31", price: 999, source: "justetf" }];
+    await call(a, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await call<{ prices: unknown[] }>(a, "workspace.load")).prices).toHaveLength(1);
+    expect((await call<{ prices: unknown[] }>(b, "workspace.load")).prices).toHaveLength(0);
+    a.close();
+    b.close();
+  });
+
+  it("seul l'administrateur règle les sources, et lui seul voit la fin de la clé", async () => {
+    const market = await testMarket(fakeFetcher([]));
+    const admin = await testBackend({ market });
+    const other = await testBackend({ market, isAdmin: false });
+    await call(admin, "market.configure", { twelveDataKey: "cle-secrete-abcd" });
+    expect((await other.dispatch("market.configure", { twelveDataKey: null })).ok).toBe(false);
+    const seen = await call<{ canEdit: boolean; twelveData: { configured: boolean; hint: string | null } }>(other, "market.settings");
+    expect(seen).toMatchObject({ canEdit: false, twelveData: { configured: true, hint: null } });
+    admin.close();
+    other.close();
+  });
+
+  it("une adresse personnalisée reste propre à la personne", () => {
+    const base = { kind: "etf", isin: "FR0011871128", symbol: null, priceSource: "auto", priceProvider: null, priceUrl: null, pricePath: null } as const;
+    expect(instrumentKey(base)).toBe("etf|FR0011871128||auto");
+    expect(instrumentKey({ ...base, symbol: "CW8.PA" })).not.toBe(instrumentKey({ ...base, symbol: "LCWD.L" }));
+    expect(instrumentKey({ ...base, priceUrl: "https://a.fr/x", pricePath: "p" })).toBeNull();
   });
 });

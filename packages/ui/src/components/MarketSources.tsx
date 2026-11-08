@@ -17,7 +17,7 @@ const KEY = ["market.settings"] as const;
 const DESCRIPTIONS: Partial<Record<PriceProvider, string>> = {
   justetf: "ETF en euros, par ISIN. Sans clé.",
   euronext: "Actions et ETF cotés en euros (Paris, Bruxelles, Lisbonne, Dublin, Milan), par ISIN. Sans clé, site public non documenté.",
-  twelvedata: "Par symbole, avec votre clé. L'offre gratuite ne couvre que le marché américain.",
+  twelvedata: "Par symbole, avec une clé. L'offre gratuite ne couvre que le marché américain.",
   yahoo: "Dernier recours, par symbole. Non officiel : l'accès peut être refusé selon le réseau.",
   coingecko: "Cryptomonnaies. Sans clé.",
 };
@@ -62,8 +62,8 @@ export function MarketSources() {
                 <div className="text-sm font-medium">{PRICE_PROVIDER_LABELS[o.id]}</div>
                 <div className="text-xs text-fg-muted">{DESCRIPTIONS[o.id]}</div>
               </div>
-              <Checkbox checked={o.enabled} onChange={(v) => toggle(i, v)} label="Active" />
-              <div className="flex gap-1">
+              {data.canEdit ? <Checkbox checked={o.enabled} onChange={(v) => toggle(i, v)} label="Active" /> : <Badge>{o.enabled ? "Active" : "Désactivée"}</Badge>}
+              <div className={cn("flex gap-1", !data.canEdit && "hidden")}>
                 <Button variant="ghost" className="h-8 w-8 p-0" disabled={i === 0 || configure.isPending} onClick={() => move(i, -1)} aria-label={`Monter ${PRICE_PROVIDER_LABELS[o.id]}`}>
                   <ArrowUp size={15} />
                 </Button>
@@ -74,9 +74,12 @@ export function MarketSources() {
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-xs text-fg-faint">Un titre peut imposer sa propre source, ou une adresse personnalisée, depuis sa fiche (Paramètres › Actifs).</p>
+        <p className="mt-3 text-xs text-fg-faint">
+          {!data.canEdit && "Les cours sont communs à toute l'instance et réglés par son administrateur. "}Un titre peut imposer sa propre source, ou une adresse personnalisée, depuis sa fiche (Paramètres › Actifs).
+        </p>
       </Card>
 
+      {data.canEdit && (
       <Card>
         <CardTitle hint={<a href="https://twelvedata.com/pricing" target="_blank" rel="noreferrer" className="text-accent hover:underline">twelvedata.com</a>}>Clé Twelve Data (facultative)</CardTitle>
         {td.configured ? (
@@ -113,6 +116,7 @@ export function MarketSources() {
           La clé reste dans cette installation : elle n'est jamais affichée en entier, ni incluse dans les exports et les sauvegardes. L'offre gratuite ne couvre que les titres américains ; les cotations européennes demandent une offre payante.
         </p>
       </Card>
+      )}
 
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-3">

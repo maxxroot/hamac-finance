@@ -6,7 +6,6 @@ import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionEr
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
-import { loadMarketState, MARKET_CONFIG_KEY, MARKET_SECRETS_KEY, normalizeOrder, twelveDataAssets, writeSetting } from "./market/config";
 import { refreshPrices } from "./market/refresh";
 import { refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget } from "./market/twelvedata";
 import * as t from "./db/schema";
@@ -77,13 +76,13 @@ async function stopPlans(ctx: BackendContext, accountId: string): Promise<void> 
 }
 
 async function marketSettings(ctx: BackendContext): Promise<MarketSettings> {
-  const state = await loadMarketState(ctx);
-  const assets = (await ctx.db.select().from(t.assets)).map(mapAsset);
-  const n = twelveDataAssets(assets, state);
+  const state = await ctx.market.state();
+  const n = await ctx.market.twelveDataCount(state);
   const key = state.twelveDataKey;
   return {
+    canEdit: ctx.isAdmin,
     order: state.order,
-    twelveData: { configured: !!key, hint: key ? key.slice(-4) : null, used: key ? new TwelveDataBudget(key, state.usage).usage.used : 0, limit: TD_DAILY_LIMIT, assets: n, intervalMinutes: refreshIntervalMinutes(n) },
+    twelveData: { configured: !!key, hint: ctx.isAdmin && key ? key.slice(-4) : null, used: key ? new TwelveDataBudget(key, state.usage).usage.used : 0, limit: TD_DAILY_LIMIT, assets: n, intervalMinutes: refreshIntervalMinutes(n) },
   };
 }
 
@@ -113,7 +112,7 @@ export const handlers: Handlers = {
   },
 
   async "workspace.load"(_input, ctx) {
-    return loadWorkspace(ctx.db);
+    return loadWorkspace(ctx.db, ctx.market);
   },
 
   async "workspace.createStarter"(_input, ctx) {
@@ -569,8 +568,8 @@ export const handlers: Handlers = {
   },
 
   async "market.configure"({ order, twelveDataKey }, ctx) {
-    if (order) await writeSetting(ctx, MARKET_CONFIG_KEY, { order: normalizeOrder(order) });
-    if (twelveDataKey !== undefined) await writeSetting(ctx, MARKET_SECRETS_KEY, { twelveDataKey });
+    if (!ctx.isAdmin) throw new RpcError("UNAUTHORIZED", "Réservé à l'administrateur de l'instance.");
+    await ctx.market.configure({ order, twelveDataKey });
     return marketSettings(ctx);
   },
 

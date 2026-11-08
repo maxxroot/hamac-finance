@@ -11,6 +11,8 @@ export interface User {
   /** Espace de données isolé (schéma et rôle PostgreSQL). */
   tenantId: string;
   email: string;
+  /** Premier compte de l'instance : règle les sources de cours. */
+  isAdmin: boolean;
   createdAt: string;
 }
 
@@ -21,8 +23,8 @@ function sha(s: string): string {
   return createHash("sha256").update(s).digest("base64url");
 }
 
-type Row = { id: string; tenant_id: string; email: string; created_at: string };
-const toUser = (r: Row): User => ({ id: r.id, tenantId: r.tenant_id, email: r.email, createdAt: r.created_at });
+type Row = { id: string; tenant_id: string; email: string; is_admin: boolean; created_at: string };
+const toUser = (r: Row): User => ({ id: r.id, tenantId: r.tenant_id, email: r.email, isAdmin: r.is_admin, createdAt: r.created_at });
 
 export class UserStore {
   private constructor(
@@ -78,15 +80,15 @@ export class UserStore {
 
   /** Crée le compte et son tenant. Le premier compte de l'instance en est l'administrateur. */
   async createUser(email: string, password: string): Promise<User> {
-    const user: User = { id: crypto.randomUUID(), tenantId: crypto.randomUUID(), email: email.trim().toLowerCase(), createdAt: new Date().toISOString() };
     const isAdmin = (await this.count()) === 0;
+    const user: User = { id: crypto.randomUUID(), tenantId: crypto.randomUUID(), email: email.trim().toLowerCase(), isAdmin, createdAt: new Date().toISOString() };
     await this.db.run("INSERT INTO comptes.tenants (id, created_at) VALUES (?, ?)", [user.tenantId, user.createdAt]);
     await this.db.run("INSERT INTO comptes.users (id, tenant_id, email, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)", [user.id, user.tenantId, user.email, UserStore.hashPassword(password), isAdmin, user.createdAt]);
     return user;
   }
 
   async findByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
-    const r = await this.db.get<Row & { password_hash: string }>("SELECT id, tenant_id, email, password_hash, created_at FROM comptes.users WHERE email = ?", [email.trim().toLowerCase()]);
+    const r = await this.db.get<Row & { password_hash: string }>("SELECT id, tenant_id, email, is_admin, password_hash, created_at FROM comptes.users WHERE email = ?", [email.trim().toLowerCase()]);
     return r ? { ...toUser(r), passwordHash: r.password_hash } : null;
   }
 
@@ -100,7 +102,7 @@ export class UserStore {
   }
 
   async list(): Promise<User[]> {
-    return (await this.db.all<Row>("SELECT id, tenant_id, email, created_at FROM comptes.users ORDER BY created_at")).map(toUser);
+    return (await this.db.all<Row>("SELECT id, tenant_id, email, is_admin, created_at FROM comptes.users ORDER BY created_at")).map(toUser);
   }
 
   /** Crée une session ; renvoie le jeton en clair (à poser dans le cookie). */
@@ -112,7 +114,7 @@ export class UserStore {
   }
 
   async userForSession(token: string): Promise<User | null> {
-    const r = await this.db.get<Row>("SELECT u.id, u.tenant_id, u.email, u.created_at FROM comptes.sessions s JOIN comptes.users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?", [sha(token), new Date().toISOString()]);
+    const r = await this.db.get<Row>("SELECT u.id, u.tenant_id, u.email, u.is_admin, u.created_at FROM comptes.sessions s JOIN comptes.users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?", [sha(token), new Date().toISOString()]);
     return r ? toUser(r) : null;
   }
 
@@ -122,6 +124,10 @@ export class UserStore {
 
   async purgeExpired(): Promise<void> {
     await this.db.run("DELETE FROM comptes.sessions WHERE expires_at <= ?", [new Date().toISOString()]);
+  }
+
+  async tenantIds(): Promise<string[]> {
+    return (await this.db.all<{ id: string }>("SELECT id FROM comptes.tenants")).map((r) => r.id);
   }
 
   async createInvite(days = 7): Promise<string> {

@@ -28,6 +28,9 @@ import type { Workspace } from "@hamac/api";
 import { eq } from "drizzle-orm";
 import * as t from "./db/schema";
 import type { Db } from "./db/postgres";
+import { instrumentKey } from "./market/index";
+import { mergePrices, type PriceRow } from "./market/merge";
+import type { SharedMarket } from "./market/shared";
 
 export const toCents = (euros: number) => Math.round(euros * 100);
 export const fromCents = (cents: number) => cents / 100;
@@ -209,7 +212,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
     .onConflictDoUpdate({ target: t.settings.key, set: { value, updatedAt } });
 }
 
-export async function loadWorkspace(db: Db): Promise<Workspace> {
+export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
   const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
@@ -234,10 +237,16 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     db.select().from(t.loans).orderBy(t.loans.name),
     db.select().from(t.crowdProjects).orderBy(desc(t.crowdProjects.startDate)),
   ]);
+  // Cours communs à l'instance, fusionnés avec ceux propres au tenant.
+  const mappedAssets = assets.map(mapAsset);
+  const keyOf = new Map(mappedAssets.flatMap((a) => { const key = instrumentKey(a); return key ? [[a.id, key] as const] : []; }));
+  const common = await market.quotes([...new Set(keyOf.values())]);
+  const sharedRows = [...keyOf].flatMap(([assetId, key]) => common.filter((q) => q.key === key).map((q): PriceRow => ({ assetId, date: q.date, price: q.price, source: q.source })));
+  const merged = mergePrices(prices, sharedRows, new Set(mappedAssets.filter((a) => a.kind === "crypto").map((a) => a.id)));
   return {
     params,
     accounts: accounts.map(mapAccount),
-    assets: assets.map(mapAsset),
+    assets: mappedAssets,
     transactions: txs.map(mapTx),
     plans: plans.map(mapPlan),
     skips: skips.map(mapSkip),
@@ -248,7 +257,7 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     properties: propertyRows.map(mapProperty),
     loans: loanRows.map(mapLoan),
     crowdProjects: crowdRows.map(mapCrowdProject),
-    prices: prices.map((p): PricePoint => ({ ...p })),
+    prices: merged.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,
     institutions: institutions.map(mapInstitution),
     accountRates: rates.map((r): AccountRate => ({ id: r.id, accountId: r.accountId, fromDate: r.fromDate, rate: r.rate, comment: r.comment })),

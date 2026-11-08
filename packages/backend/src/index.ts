@@ -7,10 +7,13 @@ import { drizzleFor, enterTenant, rawFor } from "./db/postgres";
 import { handlers } from "./handlers";
 import { defaultFetcher, type Fetcher } from "./market";
 import { refreshPrices } from "./market/refresh";
+import type { SharedMarket } from "./market/shared";
 import { BASE_REFRESH_MINUTES } from "./market/twelvedata";
 
 export interface BackendOptions {
   provider: PgProvider;
+  market: SharedMarket;
+  isAdmin: boolean;
   /** UUID du tenant : son schéma et son rôle PostgreSQL. */
   tenantId: string;
   appVersion: string;
@@ -54,6 +57,8 @@ export async function createBackend(opts: BackendOptions): Promise<Backend> {
       schemaVersion,
       backupsDir: opts.backupsDir,
       fetcher: opts.fetcher ?? defaultFetcher,
+      market: opts.market,
+      isAdmin: opts.isAdmin,
       displayPath: opts.displayPath ?? "Base PostgreSQL de l'instance",
     };
     const backup = async () => {
@@ -158,4 +163,5 @@ export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: bo
 }
 export type { PgProvider, PgSession } from "./db/driver";
 export { postgresProvider, rawFor, waitForDatabase } from "./db/postgres";
+export { SharedMarket } from "./market/shared";
 export { seedDemo } from "./demo";

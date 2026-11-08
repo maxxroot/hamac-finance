@@ -15,6 +15,21 @@ export { parseBondTicker } from "./openfigi";
 /** Ordre par défaut de la chaîne : sources sans clé d'abord, Yahoo en dernier recours. */
 export const DEFAULT_PROVIDER_ORDER: PriceProvider[] = ["justetf", "euronext", "twelvedata", "yahoo", "coingecko"];
 
+/** Ce qu'il faut savoir d'un titre pour trouver son cours. */
+export type MarketAsset = Pick<Asset, "kind" | "isin" | "symbol" | "priceSource" | "priceProvider" | "priceUrl" | "pricePath">;
+
+/** Adresse personnalisée : propre à la personne, jamais dans la base commune. */
+export const isPersonal = (a: MarketAsset): boolean => !!a.priceUrl && !!a.pricePath && (a.priceProvider == null || a.priceProvider === "url");
+
+/**
+ * Identité d'un titre dans la base commune, ou null s'il n'y figure pas. L'ISIN seul ne suffit pas :
+ * le symbole distingue les places de cotation et les devises.
+ */
+export function instrumentKey(a: MarketAsset): string | null {
+  if (a.priceSource !== "auto" || isPersonal(a) || a.priceProvider === "url" || a.kind === "obligation" || a.kind === "scpi" || (!a.isin && !a.symbol)) return null;
+  return [a.kind, (a.isin ?? "").toUpperCase(), (a.symbol ?? "").toUpperCase(), a.priceProvider ?? "auto"].join("|");
+}
+
 export interface ProviderSetting {
   id: PriceProvider;
   enabled: boolean;
@@ -23,7 +38,7 @@ export interface ProviderSetting {
 export const defaultProviderSettings = (): ProviderSetting[] => DEFAULT_PROVIDER_ORDER.map((id) => ({ id, enabled: true }));
 
 /** Ce fournisseur peut-il donner le cours de ce titre ? */
-export function supports(p: PriceProvider, asset: Asset, hasTwelveDataKey: boolean): boolean {
+export function supports(p: PriceProvider, asset: MarketAsset, hasTwelveDataKey: boolean): boolean {
   const crypto = asset.kind === "crypto";
   switch (p) {
     case "justetf":
@@ -42,7 +57,7 @@ export function supports(p: PriceProvider, asset: Asset, hasTwelveDataKey: boole
 }
 
 /** Sources à essayer pour un titre, dans l'ordre, ou la raison pour laquelle il n'y en a pas. */
-export function chainFor(asset: Asset, order: readonly ProviderSetting[], hasTwelveDataKey: boolean): { chain: PriceProvider[]; reason: string | null } {
+export function chainFor(asset: MarketAsset, order: readonly ProviderSetting[], hasTwelveDataKey: boolean): { chain: PriceProvider[]; reason: string | null } {
   if (asset.priceSource !== "auto") return { chain: [], reason: "Cours manuel ou calculé" };
   if (asset.kind === "obligation") return { chain: [], reason: "Obligation : valeur calculée" };
   if (asset.kind === "scpi" && asset.priceProvider !== "url") return { chain: [], reason: "SCPI : prix de part saisi à la main" };
@@ -66,7 +81,7 @@ export interface MarketEnv {
 }
 
 /** Cours d'un titre chez un fournisseur, depuis `since` (exclu). Premier chargement : deux ans d'historique. */
-export async function fetchFrom(fetcher: Fetcher, provider: PriceProvider, asset: Asset, since: string | null, today: string, env: MarketEnv): Promise<Quote[]> {
+export async function fetchFrom(fetcher: Fetcher, provider: PriceProvider, asset: MarketAsset, since: string | null, today: string, env: MarketEnv): Promise<Quote[]> {
   const from = since ?? addMonths(today, -24);
   let quotes: Quote[];
   switch (provider) {

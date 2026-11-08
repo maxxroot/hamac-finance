@@ -1,6 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import type { PgProvider, PgSession } from "./db/driver";
-import { createBackend, type Backend, type BackendOptions } from "./index";
+import { createBackend, SharedMarket, type Backend, type BackendOptions } from "./index";
+import type { Fetcher } from "./market";
 
 /**
  * PostgreSQL en mémoire pour les tests. PGlite n'a qu'une connexion : chaque session y rejoue
@@ -41,6 +42,14 @@ let shared: PgProvider | null = null;
 export const testProvider = () => (shared ??= pgliteProvider());
 
 /** Un backend sur un tenant neuf. */
-export function testBackend(opts: Partial<BackendOptions> = {}): Promise<Backend> {
-  return createBackend({ provider: testProvider(), tenantId: crypto.randomUUID(), appVersion: "test", backupsDir: null, ...opts });
+export async function testBackend(opts: Partial<BackendOptions> = {}): Promise<Backend> {
+  const provider = testProvider();
+  return createBackend({ provider, tenantId: crypto.randomUUID(), appVersion: "test", backupsDir: null, isAdmin: true, ...opts, market: opts.market ?? (await testMarket(opts.fetcher)) });
+}
+
+/** Une base de cours vide. */
+export async function testMarket(fetcher?: Fetcher): Promise<SharedMarket> {
+  const market = await SharedMarket.open(testProvider(), fetcher);
+  await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config CASCADE");
+  return market;
 }
