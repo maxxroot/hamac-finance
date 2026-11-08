@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdSummary, crowdTaxOf, formatPct, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
+import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdInitialEndDate, crowdSummary, crowdTaxOf, formatPct, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
 import { AddAccountButton } from "@/components/AccountButtons";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
@@ -142,7 +142,10 @@ export function Crowdlending() {
                       )}
                     </Td>
                     <Td className="whitespace-nowrap text-fg-muted">{formatDate(c.nextDate)}</Td>
-                    <Td className="whitespace-nowrap text-fg-muted">{formatDate(c.endDate)}</Td>
+                    <Td className="whitespace-nowrap text-fg-muted">
+                      {formatDate(c.endDate)}
+                      {c.project.extendedTo && <div className="text-xs text-warning">Prolongée{crowdInitialEndDate(c.project) ? ` (prévue le ${formatDate(crowdInitialEndDate(c.project))})` : ""}</div>}
+                    </Td>
                     <Td>{c.overdue ? <Badge tone="accent">Échéance dépassée</Badge> : <Badge tone={TONES[c.status]}>{CROWD_STATUS_LABELS[c.status]}</Badge>}</Td>
                     <Td className="w-20 pr-5"><RowActions onEdit={() => setEditing(c.project)} onDelete={() => confirm(`Supprimer « ${c.project.name} » ?`) && del.mutate({ id: c.project.id })} /></Td>
                   </Tr>

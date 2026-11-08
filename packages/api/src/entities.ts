@@ -127,6 +127,7 @@ export const CrowdProjectInput = z.object({
   repayment: z.enum(CROWD_REPAYMENTS).default("in_fine"),
   status: z.enum(CROWD_STATUSES).default("en_cours"),
   statusDate: isoDate.nullable().default(null),
+  extendedTo: isoDate.nullable().default(null),
   repaidCapital: money.min(0).nullable().default(null),
   expectedRecovery: money.min(0).nullable().default(null),
   inAllocation: z.boolean().nullable().default(null),

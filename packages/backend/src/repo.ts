@@ -154,6 +154,7 @@ export const mapCrowdProject = (r: typeof t.crowdProjects.$inferSelect): CrowdPr
   inAllocation: r.inAllocation,
   comment: r.comment,
   externalId: r.externalId,
+  extendedTo: r.extendedTo,
 });
 
 export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({

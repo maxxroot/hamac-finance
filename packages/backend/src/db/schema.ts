@@ -217,6 +217,7 @@ export const crowdProjects = sqliteTable(
   inAllocation: integer("in_allocation", { mode: "boolean" }),
   comment: text("comment").notNull().default(""),
   externalId: text("external_id"),
+  extendedTo: text("extended_to"),
   ...timestamps,
 },
   (t) => [uniqueIndex("crowd_external_uq").on(t.accountId, t.externalId)],

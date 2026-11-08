@@ -1,4 +1,4 @@
-import { addMonths } from "./dates";
+import { addMonths, monthsBetween } from "./dates";
 import { roundCents } from "./money";
 import { loanState } from "./realestate";
 
@@ -44,6 +44,8 @@ export interface CrowdProject {
   comment: string;
   /** Identifiant dans un fichier importé. */
   externalId?: string | null;
+  /** Nouvelle échéance quand la plateforme la prolonge ; remplace celle issue de la durée. */
+  extendedTo?: string | null;
 }
 
 export interface CrowdProjectState {
@@ -61,7 +63,17 @@ export interface CrowdProjectState {
   overdue: boolean;
 }
 
-export const crowdEndDate = (p: Pick<CrowdProject, "startDate" | "termMonths">): string | null => (p.termMonths == null ? null : addMonths(p.startDate, p.termMonths));
+/** Échéance prévue au départ, d'après la durée. */
+export const crowdInitialEndDate = (p: Pick<CrowdProject, "startDate" | "termMonths">): string | null => (p.termMonths == null ? null : addMonths(p.startDate, p.termMonths));
+/** Échéance en vigueur, prolongation comprise. */
+export const crowdEndDate = (p: Pick<CrowdProject, "startDate" | "termMonths" | "extendedTo">): string | null => p.extendedTo ?? crowdInitialEndDate(p);
+/** Une prolongation doit reculer l'échéance. */
+export function crowdExtensionError(p: Pick<CrowdProject, "startDate" | "termMonths" | "extendedTo">): string | null {
+  if (!p.extendedTo) return null;
+  const initial = crowdInitialEndDate(p);
+  if (p.extendedTo <= p.startDate) return "La nouvelle échéance doit suivre la date d'investissement.";
+  return initial && p.extendedTo <= initial ? "La nouvelle échéance doit être après l'échéance initiale." : null;
+}
 
 export function crowdProjectState(project: CrowdProject, asOf: string): CrowdProjectState {
   const endDate = crowdEndDate(project);
@@ -79,7 +91,7 @@ export function crowdProjectState(project: CrowdProject, asOf: string): CrowdPro
   let nextDate: string | null = null;
   if (status === "en_cours" || status === "retard") {
     if (project.repayment === "in_fine") nextDate = endDate && endDate > asOf ? endDate : null;
-    else for (let i = 0; i < (project.termMonths ?? 0) && !nextDate; i++) if (addMonths(firstPayment, i) > asOf) nextDate = addMonths(firstPayment, i);
+    else for (let i = 0; i < (endDate ? monthsBetween(project.startDate, endDate) : 0) && !nextDate; i++) if (addMonths(firstPayment, i) > asOf) nextDate = addMonths(firstPayment, i);
   }
   return { project, status, endDate, repaid, outstanding, value, nextDate, overdue: status === "en_cours" && endDate != null && endDate < asOf };
 }

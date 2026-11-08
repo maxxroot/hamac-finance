@@ -220,6 +220,14 @@ describe("sauvegarde et import", () => {
     expect(ws.crowdProjects).toHaveLength(1);
   });
 
+  it("crowdlending : la prolongation d'une échéance est enregistrée, et refusée si elle ne la recule pas", async () => {
+    const b = memory();
+    const c = await call<{ id: string }>(b, "accounts.upsert", { kind: "crowdlending", name: "Plateforme" });
+    const base = { accountId: c.id, name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12 };
+    expect(await call(b, "crowdProjects.upsert", { ...base, extendedTo: "2027-07-15" })).toMatchObject({ extendedTo: "2027-07-15" });
+    expect((await b.dispatch("crowdProjects.upsert", { ...base, extendedTo: "2026-06-01" })).ok).toBe(false);
+  });
+
   it("crédits : immobilier par défaut, seul un crédit immobilier ou travaux se rattache à un bien", async () => {
     const b = memory();
     const bien = await call<{ id: string }>(b, "properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });

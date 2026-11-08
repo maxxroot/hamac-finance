@@ -212,6 +212,24 @@ describe("parcours de l'interface", () => {
     expect(await screen.findByText("Tout est déjà à jour.")).toBeTruthy();
   });
 
+  it("crowdlending : prolonger l'échéance d'un projet", async () => {
+    const user = userEvent.setup();
+    const c = await rpc<{ id: string }>("accounts.upsert", { kind: "crowdlending", name: "Bricks" });
+    const p = await rpc<{ id: string }>("crowdProjects.upsert", { accountId: c.id, name: "Obligation X", amount: 1_000, rate: 0.1, startDate: "2025-01-15", termMonths: 12 });
+    show(<Crowdlending />);
+    const row = (await screen.findByText("Obligation X")).closest("tr")!;
+    await user.click(within(row).getByRole("button", { name: "Modifier" }));
+    const field = await screen.findByLabelText("Échéance prolongée au");
+    await user.type(field, "2025-06-01");
+    expect((screen.getByRole("button", { name: "Valider" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(await screen.findByText(/après l'échéance initiale/)).toBeTruthy();
+    await user.clear(field);
+    await user.type(field, "2031-06-01");
+    await user.click(screen.getByRole("button", { name: "Valider" }));
+    await waitFor(async () => expect((await rpc<{ crowdProjects: Array<{ id: string; extendedTo: string }> }>("workspace.load")).crowdProjects.find((x) => x.id === p.id)?.extendedTo).toBe("2031-06-01"));
+    expect(await screen.findByText(/Prolongée \(prévue le/)).toBeTruthy();
+  });
+
   it("onglet Actifs : l'allocation se règle sur la ligne d'un titre", async () => {
     const user = userEvent.setup();
     const a = await rpc<{ id: string }>("assets.upsert", { kind: "etf", name: "ETF Monde", priceSource: "manuel" });

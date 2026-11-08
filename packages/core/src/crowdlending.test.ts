@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crowdProjectState, crowdSummary, type CrowdProject } from "./crowdlending";
+import { crowdExtensionError, crowdProjectState, crowdSummary, type CrowdProject } from "./crowdlending";
 
 const p = (o: Partial<CrowdProject> = {}): CrowdProject => ({ id: "p", accountId: "c", name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", ...o });
 
@@ -36,6 +36,19 @@ describe("crowdlending", () => {
     expect(early.nextDate).toBe("2026-04-15");
     expect(crowdProjectState({ ...a, repaidCapital: 700 }, "2026-03-20").outstanding).toBe(300);
     expect(crowdProjectState(a, "2027-03-01").outstanding).toBe(0);
+  });
+
+  it("échéance prolongée : plus d'alerte, nouvelle date, y compris sans durée renseignée", () => {
+    expect(crowdProjectState(p({ extendedTo: "2027-07-15" }), "2027-03-01")).toMatchObject({ overdue: false, endDate: "2027-07-15", nextDate: "2027-07-15", value: 1_000 });
+    expect(crowdProjectState(p({ extendedTo: "2027-02-15" }), "2027-03-01").overdue).toBe(true);
+    expect(crowdProjectState(p({ termMonths: null, extendedTo: "2027-07-15" }), "2027-03-01")).toMatchObject({ endDate: "2027-07-15", nextDate: "2027-07-15" });
+    expect(crowdProjectState(p({ repayment: "coupons", extendedTo: "2027-07-15" }), "2027-03-20").nextDate).toBe("2027-04-15");
+  });
+
+  it("une prolongation doit reculer l'échéance", () => {
+    expect(crowdExtensionError(p({ extendedTo: "2027-07-15" }))).toBeNull();
+    expect(crowdExtensionError(p({ extendedTo: "2027-01-15" }))).toMatch(/après l'échéance/);
+    expect(crowdExtensionError(p({ termMonths: null, extendedTo: "2025-01-01" }))).toMatch(/investissement/);
   });
 
   it("en retard : les mensualités cessent d'être comptées comme remboursées", () => {

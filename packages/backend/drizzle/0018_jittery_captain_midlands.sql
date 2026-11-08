@@ -1,0 +1,1 @@
+ALTER TABLE `crowd_projects` ADD `extended_to` text;

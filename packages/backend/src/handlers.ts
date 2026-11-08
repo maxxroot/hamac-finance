@@ -1,7 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, addMonth, dayOfMonth, monthOf, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionError, addMonth, dayOfMonth, monthOf, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -392,6 +392,8 @@ export const handlers: Handlers = {
   async "crowdProjects.upsert"(input, ctx) {
     const account = await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, input.accountId)).get();
     if (account?.kind !== "crowdlending") throw new RpcError("VALIDATION", "Un projet doit être rattaché à une plateforme de crowdlending.");
+    const extensionError = crowdExtensionError(input);
+    if (extensionError) throw new RpcError("VALIDATION", extensionError);
     const id = input.id ?? newId();
     const row = {
       accountId: input.accountId,
@@ -403,6 +405,7 @@ export const handlers: Handlers = {
       repayment: input.repayment,
       status: input.status,
       statusDate: input.status === "en_cours" ? null : input.statusDate,
+      extendedTo: input.extendedTo,
       repaidCapitalCents: input.repaidCapital == null ? null : toCents(input.repaidCapital),
       expectedRecoveryCents: input.status === "defaut" && input.expectedRecovery != null ? toCents(input.expectedRecovery) : null,
       inAllocation: input.inAllocation,

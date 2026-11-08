@@ -1,25 +1,27 @@
 import { useEffect, useState } from "react";
-import { CROWD_REPAYMENT_LABELS, CROWD_REPAYMENTS, CROWD_STATUS_LABELS, CROWD_STATUSES, type Account, type CrowdProject, type CrowdRepayment, type CrowdStatus } from "@hamac/core";
+import { CROWD_REPAYMENT_LABELS, CROWD_REPAYMENTS, CROWD_STATUS_LABELS, CROWD_STATUSES, crowdExtensionError, crowdInitialEndDate, type Account, type CrowdProject, type CrowdRepayment, type CrowdStatus } from "@hamac/core";
 import type { CrowdProjectInput } from "@hamac/api";
 import { Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
 import { AllocationChoice } from "./AllocationChoice";
-import { todayIso } from "@/lib/numbers";
+import { formatDate, todayIso } from "@/lib/numbers";
 import { useMutate } from "@/lib/workspace";
 
 type Draft = Required<Omit<CrowdProjectInput, "id">> & { id?: string };
 
-const empty = (accountId: string): Draft => ({ accountId, name: "", amount: 0, rate: 0.09, startDate: todayIso(), termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "" });
+const empty = (accountId: string): Draft => ({ accountId, name: "", amount: 0, rate: 0.09, startDate: todayIso(), termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, extendedTo: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "" });
 
 export function CrowdProjectDialog({ open, project, platforms, onClose }: { open: boolean; project: CrowdProject | null; platforms: readonly Account[]; onClose: () => void }) {
   const [d, setD] = useState<Draft>(empty(""));
   const save = useMutate("crowdProjects.upsert", { success: project ? "Projet mis à jour" : "Projet ajouté" });
   useEffect(() => {
-    if (open) setD(project ? { ...project } : empty(platforms[0]?.id ?? ""));
+    if (open) setD(project ? { ...project, extendedTo: project.extendedTo ?? null } : empty(platforms[0]?.id ?? ""));
   }, [open, project, platforms]);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
   const setStatus = (status: CrowdStatus) => setD((x) => ({ ...x, status, statusDate: status === "en_cours" ? null : (x.statusDate ?? todayIso()) }));
-  const valid = d.accountId && d.name.trim() && d.amount > 0 && (d.termMonths == null || d.termMonths >= 1) && d.startDate;
+  const extensionError = crowdExtensionError(d);
+  const initialEnd = crowdInitialEndDate(d);
+  const valid = d.accountId && d.name.trim() && d.amount > 0 && (d.termMonths == null || d.termMonths >= 1) && d.startDate && !extensionError;
 
   return (
     <Modal
@@ -86,6 +88,9 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
           {d.status !== "en_cours" && <Field label="Depuis le">{(id) => <TextInput id={id} type="date" value={d.statusDate ?? ""} onChange={(e) => set("statusDate", e.target.value || null)} />}</Field>}
           <Field label="Capital déjà remboursé" help="Vide : calculé.">{(id) => <MoneyInput id={id} value={d.repaidCapital} onChange={(v) => set("repaidCapital", v)} />}</Field>
         </FormGrid>
+        <Field label="Échéance prolongée au" help={initialEnd ? `Facultatif : si la plateforme repousse l'échéance initiale du ${formatDate(initialEnd)}.` : "Facultatif : si la plateforme repousse l'échéance."} error={extensionError}>
+          {(id) => <TextInput id={id} type="date" value={d.extendedTo ?? ""} onChange={(e) => set("extendedTo", e.target.value || null)} />}
+        </Field>
         {d.status === "defaut" && (
           <Field label="Montant espéré" help="Vide : le projet compte pour 0 € tant que vous ne savez pas.">
             {(id) => <MoneyInput id={id} value={d.expectedRecovery} onChange={(v) => set("expectedRecovery", v)} />}
