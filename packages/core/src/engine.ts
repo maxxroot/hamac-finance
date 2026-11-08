@@ -25,6 +25,7 @@ import {
 import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
 import { ageInYear, classTargets, type PlanParams } from "./params";
+import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
 import { loanState, propertyValue, type Loan, type LoanState, type Property } from "./realestate";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
@@ -42,6 +43,7 @@ export interface EngineData {
   fundRates?: readonly FundRate[];
   bondPlans?: readonly BondPlan[];
   properties?: readonly Property[];
+  crowdProjects?: readonly CrowdProject[];
   loans?: readonly Loan[];
   /** Historique des cours (ou au moins le dernier cours de chaque titre). */
   prices: readonly PricePoint[];
@@ -107,6 +109,8 @@ export interface AccountState {
   corrections: number;
   realizedGain: number;
   byBucket: Partial<Record<Bucket, number>>;
+  /** Crowdlending : état de chaque projet commencé. */
+  crowdProjects: CrowdProjectState[];
   lastStatement: Statement | null;
   statementGap: number | null;
 }
@@ -365,7 +369,11 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const acc = accs.get(account.id)!;
     const scheduledPaid = schedule.paidTotal(account.id, asOf);
     const currentMonthly = schedule.current(account.id, asOf);
-    const cash = roundCents(acc.cash + scheduledPaid);
+    // Crowdlending : l'argent investi quitte les espèces et y revient à mesure des remboursements.
+    const crowdProjects = (data.crowdProjects ?? []).filter((c) => c.accountId === account.id && c.startDate <= asOf).map((c) => crowdProjectState(c, asOf));
+    const crowdValue = roundCents(crowdProjects.reduce((s, c) => s + c.value, 0));
+    const crowdNet = crowdProjects.reduce((s, c) => s + c.project.amount - c.repaid, 0);
+    const cash = roundCents(acc.cash + scheduledPaid - crowdNet);
     const positions: PositionState[] = [];
     const maturedBonds: PositionState[] = [];
     for (const p of acc.positions.values()) {
@@ -375,16 +383,18 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     }
     positions.sort((a, b) => b.value - a.value);
     const positionsValue = roundCents(positions.reduce((s, p) => s + p.value, 0));
-    const value = roundCents(cash + positionsValue);
+    const value = roundCents(cash + positionsValue + crowdValue);
     const netContrib = roundCents(acc.contrib + scheduledPaid);
     const byBucket: Partial<Record<Bucket, number>> = {};
     const cashBucket = CASH_BUCKET[account.kind];
     byBucket[cashBucket] = cash;
     for (const p of positions) byBucket[p.bucket] = (byBucket[p.bucket] ?? 0) + p.value;
+    if (crowdValue) byBucket.crowdlending = (byBucket.crowdlending ?? 0) + crowdValue;
     if (!account.archived || value !== 0) {
       for (const [b, v] of Object.entries(byBucket)) buckets[b as Bucket] += v ?? 0;
       if (cashInAllocation(account)) allocated[allocationBucket(cashBucket)] += cash;
       for (const p of positions) if (p.inAllocation) allocated[allocationBucket(p.bucket)] += p.value;
+      for (const c of crowdProjects) if (c.project.inAllocation ?? account.inAllocation ?? false) allocated.obligations += c.value;
     }
     if (cash < -0.01) warnings.push(`Espèces négatives sur « ${account.name} » (${formatEur(cash)}) : un versement manque probablement dans le journal.`);
 
@@ -409,6 +419,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       corrections: roundCents(acc.corrections),
       realizedGain: roundCents([...acc.positions.values()].reduce((s, p) => s + p.realized, 0)),
       byBucket,
+      crowdProjects,
       lastStatement,
       statementGap: lastStatement ? roundCents(lastStatement.value - value) : null,
     });
@@ -573,6 +584,7 @@ export const PERF_GROUPS: Array<{ key: string; label: string; kinds: AccountKind
   { key: "pea", label: "PEA", kinds: ["pea", "pea_pme"], assumption: (p) => p.returns.actions },
   { key: "per", label: "PER", kinds: ["per"], assumption: () => null },
   { key: "epargne_salariale", label: "Épargne salariale", kinds: ["epargne_salariale"], assumption: () => null },
+  { key: "crowdlending", label: "Crowdlending", kinds: ["crowdlending"], assumption: () => null },
   { key: "crypto", label: "Crypto", kinds: ["crypto"], assumption: () => null },
 ];
 

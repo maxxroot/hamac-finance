@@ -96,7 +96,7 @@ export type OfferKind = keyof Offers;
 /** Grille de frais applicable à un type de compte : le PEA-PME suit celle du PEA ; PER et épargne salariale n'en ont pas. */
 export function offerKindOf(kind: AccountKind): OfferKind | null {
   if (kind === "pea_pme") return "pea";
-  return kind === "per" || kind === "epargne_salariale" ? null : kind;
+  return kind === "per" || kind === "epargne_salariale" || kind === "crowdlending" ? null : kind;
 }
 
 export const DEFAULT_OFFER_KINDS: Record<InstitutionKind, OfferKind[]> = {

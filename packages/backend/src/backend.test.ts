@@ -132,7 +132,7 @@ describe("jeu de démonstration", () => {
     expect(res.ok).toBe(true);
     if (res.ok) {
       const ws = res.data as { accounts: unknown[]; transactions: unknown[]; plans: unknown[] };
-      expect(ws.accounts).toHaveLength(7);
+      expect(ws.accounts).toHaveLength(8);
       expect(ws.transactions.length).toBeGreaterThan(15);
       expect(ws.plans.length).toBe(5);
     }
@@ -205,6 +205,19 @@ describe("sauvegarde et import", () => {
     const ws = await call<{ prices: Array<{ assetId: string; date: string }> }>(b, "workspace.load");
     expect(ws.prices.filter((p) => p.assetId === btc.id)).toHaveLength(3);
     expect(ws.prices.filter((p) => p.assetId === etf.id).map((p) => p.date)).toEqual(["2026-03-31"]);
+  });
+
+  it("crowdlending : un projet exige une plateforme, qui ne se supprime plus ensuite", async () => {
+    const b = memory();
+    const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO" });
+    const c = await call<{ id: string }>(b, "accounts.upsert", { kind: "crowdlending", name: "Plateforme" });
+    const base = { name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12 };
+    expect((await b.dispatch("crowdProjects.upsert", { ...base, accountId: cto.id })).ok).toBe(false);
+    const p = await call<{ id: string; status: string; statusDate: string | null; repayment: string }>(b, "crowdProjects.upsert", { ...base, accountId: c.id });
+    expect(p).toMatchObject({ status: "en_cours", repayment: "in_fine", statusDate: null });
+    expect((await b.dispatch("accounts.delete", { id: c.id })).ok).toBe(false);
+    const ws = await call<{ crowdProjects: unknown[] }>(b, "workspace.load");
+    expect(ws.crowdProjects).toHaveLength(1);
   });
 
   it("crédits : immobilier par défaut, seul un crédit immobilier ou travaux se rattache à un bien", async () => {

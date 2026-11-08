@@ -9,6 +9,7 @@ import type {
   ContributionPlan,
   ContributionSkip,
   FundRate,
+  CrowdProject,
   Loan,
   PlannedExpense,
   Property,
@@ -25,6 +26,7 @@ import {
   FundRateInput,
   ManualPriceInput,
   PlanInput,
+  CrowdProjectInput,
   LoanInput,
   PlannedExpenseInput,
   PropertyInput,
@@ -65,6 +67,7 @@ export interface Workspace {
   statements: Statement[];
   plannedExpenses: PlannedExpense[];
   properties: Property[];
+  crowdProjects: CrowdProject[];
   loans: Loan[];
   institutions: Institution[];
   accountRates: AccountRate[];
@@ -162,6 +165,8 @@ export const procedures = {
   "statements.delete": { input: byId, output: ok },
   "plannedExpenses.upsert": { input: PlannedExpenseInput, output: entity<PlannedExpense>() },
   "plannedExpenses.delete": { input: byId, output: ok },
+  "crowdProjects.upsert": { input: CrowdProjectInput, output: entity<CrowdProject>() },
+  "crowdProjects.delete": { input: byId, output: ok },
   "properties.upsert": { input: PropertyInput, output: entity<Property>() },
   "properties.delete": { input: byId, output: ok },
   "loans.upsert": { input: LoanInput, output: entity<Loan>() },

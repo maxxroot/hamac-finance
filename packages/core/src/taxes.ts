@@ -176,6 +176,8 @@ function taxFor(s: AccountState, p: PlanParams, ir: number, asOf: string, crypto
       const gainTax = Math.max(0, gain) * (p.tax.pfuIncomeTax + p.tax.socialGeneral);
       return { tax: roundCents(capital * p.tax.tmi + gainTax), regime: `Sortie en capital, versements déduits : capital à ${pct(p.tax.tmi)}, gains à ${pct(p.tax.pfuIncomeTax + p.tax.socialGeneral)}` };
     }
+    case "crowdlending":
+      return { tax: 0, regime: "Intérêts déjà imposés à leur versement ; capital non imposable. Pertes sur projets non déduites ici" };
     case "epargne_salariale": {
       if (gain <= 0) return { tax: 0, regime: "Pas de gain" };
       return { tax: roundCents(gain * p.tax.socialGeneral), regime: `Prélèvements sociaux seulement (${pct(p.tax.socialGeneral)})` };
@@ -249,7 +251,7 @@ export function yearlyTaxes(data: EngineData, crypto: CryptoTaxReport, asOf: str
   for (let year = firstYear; year <= lastYear; year++) {
     const inYear = data.transactions.filter((t) => t.date.startsWith(`${year}-`) && t.date <= asOf);
     const avInterestNet = inYear.filter((t) => t.type === "interets" && kind.get(t.accountId) === "assurance_vie").reduce((s, t) => s + t.amount, 0);
-    const couponsNet = inYear.filter((t) => (t.type === "interets" || t.type === "dividende") && kind.get(t.accountId) === "cto").reduce((s, t) => s + t.amount, 0);
+    const couponsNet = inYear.filter((t) => (t.type === "interets" || t.type === "dividende") && (kind.get(t.accountId) === "cto" || kind.get(t.accountId) === "crowdlending")).reduce((s, t) => s + t.amount, 0);
     const avSocial = (avInterestNet * p.tax.socialAv) / (1 - p.tax.socialAv);
     const couponsGross = couponsNet / (1 - p.tax.socialGeneral - withholdingRate);
     const couponsSocial = couponsGross * p.tax.socialGeneral;

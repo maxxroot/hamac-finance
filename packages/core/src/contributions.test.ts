@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, Asset, Transaction } from "./domain";
+import type { CrowdProject } from "./crowdlending";
 import { computePortfolio, type EngineData } from "./engine";
 import { proposeContributions } from "./contributions";
 import { defaultParams, type PlanParams } from "./params";
@@ -109,5 +110,24 @@ describe("gestion suggérée des versements", () => {
     const withLivret = compute(null, null, true);
     expect(row(withLivret, "garanti")).toBe(500);
     expect(withLivret.totals.value).toBe(byDefault.totals.value);
+  });
+
+  it("crowdlending : l'argent investi quitte les espèces, hors allocation par défaut, défaut à 0 €", () => {
+    const base = defaultParams(new Date(2026, 10, 7));
+    const params: PlanParams = { ...base, profile: { ...base.profile, birthYear: 1990, startMonth: "2026-11" } };
+    const project = (id: string, o: Partial<CrowdProject>): CrowdProject => ({ id, accountId: "c", name: id, amount: 1_000, rate: 0.1, startDate: "2026-02-01", termMonths: 24, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", ...o });
+    const data = (crowdProjects: CrowdProject[], platform: Partial<Account> = {}): EngineData => ({ params, accounts: [acc("c", "crowdlending", platform)], assets: [], transactions: [apport("c", 3_000)], plans: [], skips: [], prices: [], crowdProjects });
+    const one = computePortfolio(data([project("a", {}), project("b", { status: "defaut" })]), "2026-11-07");
+    const a = one.accountById.get("c")!;
+    expect(a).toMatchObject({ cash: 1_000, value: 2_000, netContrib: 3_000, gain: -1_000 });
+    expect(one.buckets.crowdlending).toBe(1_000 + 1_000);
+    expect(one.allocation.invested).toBe(0);
+    // Un projet pas encore commencé ne sort rien des espèces.
+    expect(computePortfolio(data([project("a", { startDate: "2027-01-01" })]), "2026-11-07").accountById.get("c")!.cash).toBe(3_000);
+    // Remboursé : le capital revient sur la plateforme.
+    expect(computePortfolio(data([project("a", { status: "rembourse" })]), "2026-11-07").accountById.get("c")!).toMatchObject({ cash: 3_000, value: 3_000 });
+    // Inclus par choix : compté avec les obligations.
+    const inc = computePortfolio(data([project("a", { inAllocation: true })]), "2026-11-07");
+    expect(inc.allocation.rows.find((r) => r.key === "obligations")!.value).toBe(1_000);
   });
 });

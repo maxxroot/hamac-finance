@@ -1,0 +1,96 @@
+import { addMonths } from "./dates";
+import { roundCents } from "./money";
+import { loanState } from "./realestate";
+
+/**
+ * Crowdlending : chaque plateforme est un compte, chaque prêt un projet.
+ * L'argent investi quitte les espèces de la plateforme et y revient au fil des remboursements.
+ * Les intérêts réellement reçus se notent dans le journal.
+ */
+
+export const CROWD_REPAYMENTS = ["in_fine", "coupons", "amortissable"] as const;
+export type CrowdRepayment = (typeof CROWD_REPAYMENTS)[number];
+export const CROWD_REPAYMENT_LABELS: Record<CrowdRepayment, string> = {
+  in_fine: "In fine (tout à l'échéance)",
+  coupons: "Intérêts mensuels, capital à l'échéance",
+  amortissable: "Mensualités (capital et intérêts)",
+};
+
+export const CROWD_STATUSES = ["en_cours", "retard", "defaut", "rembourse"] as const;
+export type CrowdStatus = (typeof CROWD_STATUSES)[number];
+export const CROWD_STATUS_LABELS: Record<CrowdStatus, string> = { en_cours: "En cours", retard: "En retard", defaut: "En défaut", rembourse: "Remboursé" };
+
+export interface CrowdProject {
+  id: string;
+  /** Compte de type crowdlending (la plateforme). */
+  accountId: string;
+  name: string;
+  amount: number;
+  /** Taux annuel (fraction). */
+  rate: number;
+  startDate: string;
+  termMonths: number;
+  repayment: CrowdRepayment;
+  status: CrowdStatus;
+  /** Date du passage en défaut ou du remboursement : avant, le projet comptait comme en cours. */
+  statusDate: string | null;
+  /** Capital déjà remboursé, d'après la plateforme ; null = calculé. */
+  repaidCapital: number | null;
+  /** En défaut : montant qu'on espère récupérer ; null = 0 € tant qu'on ne sait pas. */
+  expectedRecovery: number | null;
+  /** Dans ou hors de l'allocation cible ; null = comme la plateforme (hors, par défaut). */
+  inAllocation: boolean | null;
+  comment: string;
+}
+
+export interface CrowdProjectState {
+  project: CrowdProject;
+  /** Statut à la date demandée. */
+  status: CrowdStatus;
+  endDate: string;
+  repaid: number;
+  /** Capital restant dû par l'emprunteur. */
+  outstanding: number;
+  /** Ce que le projet vaut dans le patrimoine. */
+  value: number;
+  nextDate: string | null;
+  /** Encore « en cours » après son échéance. */
+  overdue: boolean;
+}
+
+export const crowdEndDate = (p: Pick<CrowdProject, "startDate" | "termMonths">) => addMonths(p.startDate, p.termMonths);
+
+export function crowdProjectState(project: CrowdProject, asOf: string): CrowdProjectState {
+  const endDate = crowdEndDate(project);
+  const status: CrowdStatus = project.statusDate && project.statusDate > asOf ? "en_cours" : project.status;
+  const firstPayment = addMonths(project.startDate, 1);
+  const scheduled = (): number =>
+    project.repayment === "amortissable"
+      ? project.amount - loanState({ id: project.id, kind: "autre", name: "", propertyId: null, principal: project.amount, rate: project.rate, termMonths: project.termMonths, firstPayment, insurance: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false }, asOf).balance
+      : 0;
+  const repaid = roundCents(Math.min(project.amount, status === "rembourse" ? project.amount : (project.repaidCapital ?? (status === "defaut" ? 0 : scheduled()))));
+  const outstanding = roundCents(project.amount - repaid);
+  const value = status === "rembourse" ? 0 : status === "defaut" ? roundCents(Math.min(outstanding, project.expectedRecovery ?? 0)) : outstanding;
+  let nextDate: string | null = null;
+  if (status === "en_cours" || status === "retard") {
+    if (project.repayment === "in_fine") nextDate = endDate > asOf ? endDate : null;
+    else for (let i = 0; i < project.termMonths && !nextDate; i++) if (addMonths(firstPayment, i) > asOf) nextDate = addMonths(firstPayment, i);
+  }
+  return { project, status, endDate, repaid, outstanding, value, nextDate, overdue: status === "en_cours" && endDate < asOf };
+}
+
+export interface CrowdSummary {
+  /** Capital en cours (en cours et en retard). */
+  active: number;
+  /** Capital en retard ou en défaut. */
+  atRisk: number;
+  /** Taux moyen pondéré du capital en cours. */
+  averageRate: number | null;
+}
+
+export function crowdSummary(states: readonly CrowdProjectState[]): CrowdSummary {
+  const live = states.filter((s) => s.status === "en_cours" || s.status === "retard");
+  const active = live.reduce((t, s) => t + s.outstanding, 0);
+  const atRisk = states.filter((s) => s.status === "retard" || s.status === "defaut").reduce((t, s) => t + s.outstanding, 0);
+  return { active: roundCents(active), atRisk: roundCents(atRisk), averageRate: active > 0 ? live.reduce((t, s) => t + s.outstanding * s.project.rate, 0) / active : null };
+}

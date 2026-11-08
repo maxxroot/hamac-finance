@@ -128,7 +128,7 @@ export function Notice() {
             <b className="text-fg">Classes personnalisées</b> (Paramètres › Actifs) : par exemple « Métaux précieux » à 5 %, avec plusieurs titres rattachés. « Prend sa part sur » indique la classe de base dont cette cible est retirée (actions à 30 % deviennent 25 %) et dont la projection reprend le rendement.
           </li>
           <li><b className="text-fg">Allocations personnalisées</b> (Paramètres › Plan) : une part du patrimoine et/ou des versements pour un compte ou un type de compte, éventuellement jusqu'à une limite. Une fois la limite atteinte, sa part va à la ligne choisie, sinon aux autres au prorata.</li>
-          <li><b className="text-fg">Dans ou hors allocation</b> : à régler sur chaque compte, titre ou bien. Par défaut, livrets, crypto, SCPI et immobilier sont hors allocation. Hors allocation, un élément reste compté dans le patrimoine.</li>
+          <li><b className="text-fg">Dans ou hors allocation</b> : à régler sur chaque compte, titre ou bien. Par défaut, livrets, crypto, SCPI, immobilier et crowdlending sont hors allocation. Hors allocation, un élément reste compté dans le patrimoine.</li>
         </ul>
       </Section>
 
@@ -218,7 +218,16 @@ export function Notice() {
         </p>
       </Section>
 
-      <Section n={13} title="Crédits">
+      <Section n={13} title="Crowdlending">
+        <p>
+          Dans <L to="/crowdlending">Crowdlending</L>, créez chaque plateforme (Bricks, par exemple), puis chaque projet : montant, taux, durée, type de remboursement. L'argent déposé sur la plateforme se note en « Versement » au <L to="/journal">Journal</L> ; investir dans un projet le sort des espèces, et le capital remboursé y revient. Les intérêts reçus se notent aussi au Journal.
+        </p>
+        <p>
+          Un projet « En cours » dont l'échéance est passée déclenche une alerte : indiquez alors s'il est remboursé, en retard ou en défaut. Un projet en défaut compte pour 0 € dans le patrimoine, jusqu'à ce que vous saisissiez le montant espéré. Le crowdlending reste hors allocation par défaut (dans l'allocation, il compte avec les obligations) et n'entre pas dans la projection. La déduction fiscale des pertes n'est pas calculée.
+        </p>
+      </Section>
+
+      <Section n={14} title="Crédits">
         <p>
           Dans <L to="/credits">Crédits</L>, indiquez le type (immobilier, travaux, consommation, auto, autre), le montant emprunté, le taux, la durée, la première échéance et l'assurance. Hamac calcule l'échéance, le capital restant dû et la date de fin. Seuls les crédits immobiliers et travaux peuvent être rattachés à un bien.
         </p>
@@ -227,10 +236,10 @@ export function Notice() {
         </p>
       </Section>
 
-      <Section n={14} title="Petit lexique">
+      <Section n={15} title="Petit lexique">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[180px_1fr]">
           {[
-            ["Enveloppe (compte)", "Le cadre fiscal qui contient les placements : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale, plateforme crypto."],
+            ["Enveloppe (compte)", "Le cadre fiscal qui contient les placements : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale, plateforme de crowdlending, plateforme crypto."],
             ["Classe d'actifs", "Ce que contient une enveloppe : livrets, fonds euros, obligations, actions, immobilier, crypto, ou une classe que vous créez. L'allocation cible porte par défaut sur fonds euros, obligations et actions."],
             ["Allocation cible", "La répartition visée entre classes d'actifs, à laquelle Hamac compare vos placements."],
             ["Espèces", "Argent arrivé sur un compte mais pas encore investi."],
@@ -238,6 +247,7 @@ export function Notice() {
             ["Gain", "Valeur actuelle moins versé net."],
             ["Patrimoine net", "Patrimoine financier, plus les biens immobiliers (part détenue), moins le capital restant dû des crédits."],
             ["Capital restant dû", "Ce qu'il reste à rembourser sur un crédit, hors intérêts à venir."],
+            ["Crowdlending", "Prêt à des entreprises ou à des projets via une plateforme, en échange d'intérêts, avec un risque de perte du capital."],
             ["SCPI", "Société qui détient de l'immobilier, dont on achète des parts et qui reverse des loyers."],
             ["PRU", "Prix de revient unitaire : prix moyen payé par part, frais compris."],
             ["Rendement annualisé", "Ce que l'argent a rapporté par an, en tenant compte de la date de chaque versement (TRI)."],

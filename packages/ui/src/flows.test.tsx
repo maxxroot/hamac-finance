@@ -10,6 +10,7 @@ import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { LoanDialog } from "@/dialogs/LoanDialog";
 import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
 import { ToastProvider } from "@/lib/toast";
+import { Crowdlending } from "@/pages/Crowdlending";
 import { Parametres } from "@/pages/Parametres";
 
 /** Parcours réels : l'interface parle au vrai backend, sur une base en mémoire. */
@@ -129,6 +130,29 @@ describe("parcours de l'interface", () => {
     expect(screen.queryByLabelText("Âge de départ visé")).toBeNull();
     await user.click(await screen.findByRole("button", { name: /Enregistrer/ }));
     await waitFor(async () => expect((await workspace()).params.profile.goal).toBe("patrimoine"));
+  });
+
+  it("crowdlending : nouveau projet, puis passage en défaut à 0 €", async () => {
+    const user = userEvent.setup();
+    const c = await rpc<{ id: string }>("accounts.upsert", { kind: "crowdlending", name: "Bricks" });
+    await rpc("transactions.upsert", { date: "2026-01-02", type: "versement", accountId: c.id, amount: 2_000 });
+    show(<Crowdlending />);
+    await user.click(await screen.findByRole("button", { name: "Nouveau projet" }));
+    await user.type(fieldOf("Nom du projet"), "Résidence Lyon");
+    const amount = fieldOf("Montant investi");
+    await user.clear(amount);
+    await user.type(amount, "1000");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    const row = (await screen.findByText("Résidence Lyon")).closest("tr")!;
+    expect(within(row).getByText("En cours")).toBeTruthy();
+    await user.click(within(row).getByRole("button", { name: "Modifier" }));
+    expect(screen.queryByLabelText("Montant espéré")).toBeNull();
+    await user.selectOptions(fieldOf("Statut"), "defaut");
+    expect(screen.getByLabelText("Montant espéré")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Valider" }));
+    await waitFor(() => expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText("En défaut")).toBeTruthy());
+    expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText(/compté/)).toBeTruthy();
   });
 
   it("onglet Actifs : l'allocation se règle sur la ligne d'un titre", async () => {

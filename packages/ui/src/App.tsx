@@ -5,6 +5,7 @@ import { Shell } from "@/layout/Shell";
 import { ALL_ITEMS } from "@/nav";
 import { Actions } from "@/pages/Actions";
 import { Credits } from "@/pages/Credits";
+import { Crowdlending } from "@/pages/Crowdlending";
 import { Crypto } from "@/pages/Crypto";
 import { FondsEuros } from "@/pages/FondsEuros";
 import { Historique } from "@/pages/Historique";
@@ -36,6 +37,7 @@ const PAGES: Record<string, ReactNode> = {
   "/obligations": <Obligations />,
   "/actions": <Actions />,
   "/crypto": <Crypto />,
+  "/crowdlending": <Crowdlending />,
   "/immobilier": <Immobilier />,
   "/credits": <Credits />,
   "/performance": <Performance />,

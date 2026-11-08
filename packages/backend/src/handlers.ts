@@ -23,7 +23,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapLoan, mapProperty, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLoan, mapProperty, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -213,6 +213,8 @@ export const handlers: Handlers = {
   async "accounts.delete"({ id }, ctx) {
     const used = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.transactions).where(or(eq(t.transactions.accountId, id), eq(t.transactions.counterAccountId, id))).get());
     if (used > 0) throw new RpcError("CONFLICT", `Ce compte a ${used} opération(s) : archivez-le plutôt que de le supprimer.`);
+    const projects = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.crowdProjects).where(eq(t.crowdProjects.accountId, id)).get());
+    if (projects > 0) throw new RpcError("CONFLICT", `Cette plateforme a ${projects} projet(s) : archivez-la plutôt que de la supprimer.`);
     await ctx.db.delete(t.accounts).where(eq(t.accounts.id, id));
     return OK;
   },
@@ -384,6 +386,36 @@ export const handlers: Handlers = {
 
   async "statements.delete"({ id }, ctx) {
     await ctx.db.delete(t.statements).where(eq(t.statements.id, id));
+    return OK;
+  },
+
+  async "crowdProjects.upsert"(input, ctx) {
+    const account = await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, input.accountId)).get();
+    if (account?.kind !== "crowdlending") throw new RpcError("VALIDATION", "Un projet doit être rattaché à une plateforme de crowdlending.");
+    const id = input.id ?? newId();
+    const row = {
+      accountId: input.accountId,
+      name: input.name,
+      amountCents: toCents(input.amount),
+      rate: input.rate,
+      startDate: input.startDate,
+      termMonths: input.termMonths,
+      repayment: input.repayment,
+      status: input.status,
+      statusDate: input.status === "en_cours" ? null : input.statusDate,
+      repaidCapitalCents: input.repaidCapital == null ? null : toCents(input.repaidCapital),
+      expectedRecoveryCents: input.status === "defaut" && input.expectedRecovery != null ? toCents(input.expectedRecovery) : null,
+      inAllocation: input.inAllocation,
+      comment: input.comment,
+      updatedAt: nowIso(),
+    };
+    if (input.id) await ctx.db.update(t.crowdProjects).set(row).where(eq(t.crowdProjects.id, id));
+    else await ctx.db.insert(t.crowdProjects).values({ id, ...row });
+    return mapCrowdProject((await ctx.db.select().from(t.crowdProjects).where(eq(t.crowdProjects.id, id)).get())!);
+  },
+
+  async "crowdProjects.delete"({ id }, ctx) {
+    await ctx.db.delete(t.crowdProjects).where(eq(t.crowdProjects.id, id));
     return OK;
   },
 

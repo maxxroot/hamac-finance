@@ -198,6 +198,13 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
     });
   }
 
+  // Crowdlending.
+  for (const a of active) {
+    for (const c of a.crowdProjects.filter((x) => x.overdue)) out.push({ id: `crowd-${c.project.id}`, level: "attention", title: `Échéance dépassée : ${c.project.name}`, detail: `${a.account.name} · prévue le ${frDate(c.endDate)}. Indiquez s'il est remboursé, en retard ou en défaut.`, link: "/crowdlending" });
+    const defaults = a.crowdProjects.filter((x) => x.status === "defaut" && x.outstanding > 0);
+    if (defaults.length) out.push({ id: `crowd-defaut-${a.account.id}`, level: "info", title: `${defaults.length} projet${defaults.length > 1 ? "s" : ""} en défaut sur ${a.account.name}`, detail: `${eur(defaults.reduce((s, x) => s + x.outstanding, 0))} de capital, compté${defaults.length > 1 ? "s" : ""} pour ${eur(defaults.reduce((s, x) => s + x.value, 0))}.`, link: "/crowdlending" });
+  }
+
   // Janvier–mars : intérêts de l'année passée à saisir.
   const month = +today.slice(5, 7);
   if (month <= 3) {

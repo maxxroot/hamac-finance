@@ -18,6 +18,7 @@ const TABLES = [
   "prices",
   "planned_expenses",
   "properties",
+  "crowd_projects",
   "loans",
   "account_rates",
 ] as const;

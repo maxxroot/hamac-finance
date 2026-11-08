@@ -12,6 +12,7 @@ import type {
   ContributionSkip,
   FundRate,
   LivretType,
+  CrowdProject,
   Loan,
   PlannedExpense,
   Property,
@@ -136,6 +137,23 @@ export const mapExpense = (r: typeof t.plannedExpenses.$inferSelect): PlannedExp
   accountId: r.accountId,
 });
 
+export const mapCrowdProject = (r: typeof t.crowdProjects.$inferSelect): CrowdProject => ({
+  id: r.id,
+  accountId: r.accountId,
+  name: r.name,
+  amount: fromCents(r.amountCents),
+  rate: r.rate,
+  startDate: r.startDate,
+  termMonths: r.termMonths,
+  repayment: r.repayment as CrowdProject["repayment"],
+  status: r.status as CrowdProject["status"],
+  statusDate: r.statusDate,
+  repaidCapital: r.repaidCapitalCents == null ? null : fromCents(r.repaidCapitalCents),
+  expectedRecovery: r.expectedRecoveryCents == null ? null : fromCents(r.expectedRecoveryCents),
+  inAllocation: r.inAllocation,
+  comment: r.comment,
+});
+
 export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
   id: r.id,
   kind: r.kind as Property["kind"],
@@ -188,7 +206,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
     db.select().from(t.assets).orderBy(t.assets.name).all(),
@@ -211,6 +229,7 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     db.select().from(t.accountRates).orderBy(t.accountRates.fromDate).all(),
     db.select().from(t.properties).orderBy(t.properties.name).all(),
     db.select().from(t.loans).orderBy(t.loans.name).all(),
+    db.select().from(t.crowdProjects).orderBy(desc(t.crowdProjects.startDate)).all(),
   ]);
   return {
     params,
@@ -225,6 +244,7 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     plannedExpenses: expenses.map(mapExpense),
     properties: propertyRows.map(mapProperty),
     loans: loanRows.map(mapLoan),
+    crowdProjects: crowdRows.map(mapCrowdProject),
     prices: prices.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,
     institutions: institutions.map(mapInstitution),

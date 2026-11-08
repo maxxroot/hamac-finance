@@ -7,7 +7,7 @@
  * Opération = un mouvement daté dans un compte (versement, achat, coupon, transfert…).
  */
 
-export const ACCOUNT_KINDS = ["livret", "assurance_vie", "pea", "pea_pme", "cto", "per", "epargne_salariale", "crypto"] as const;
+export const ACCOUNT_KINDS = ["livret", "assurance_vie", "pea", "pea_pme", "cto", "per", "epargne_salariale", "crowdlending", "crypto"] as const;
 export type AccountKind = (typeof ACCOUNT_KINDS)[number];
 
 export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
@@ -18,6 +18,7 @@ export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
   cto: "Compte-titres",
   per: "PER (retraite)",
   epargne_salariale: "Épargne salariale (PEE, PERCO)",
+  crowdlending: "Plateforme de crowdlending",
   crypto: "Plateforme crypto",
 };
 
@@ -42,7 +43,7 @@ export const LIVRET_LEGAL_CEILINGS: Record<LivretType, number | null> = {
  * obligations et actions ; livrets (précaution) et crypto en sont exclus par défaut, modifiable par élément.
  * Identifiants techniques inchangés, libellés concrets.
  */
-export const BUCKETS = ["precaution", "garanti", "obligations", "croissance", "immobilier", "speculatif"] as const;
+export const BUCKETS = ["precaution", "garanti", "obligations", "croissance", "immobilier", "crowdlending", "speculatif"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 export const BUCKET_LABELS: Record<Bucket, string> = {
   precaution: "Livrets",
@@ -50,6 +51,7 @@ export const BUCKET_LABELS: Record<Bucket, string> = {
   obligations: "Obligations",
   croissance: "Actions",
   immobilier: "Immobilier",
+  crowdlending: "Crowdlending",
   speculatif: "Crypto",
 };
 /** Classes d'actifs qui composent la « partie investie » soumise à l'allocation cible. */
@@ -64,6 +66,7 @@ export const CASH_BUCKET: Record<AccountKind, Bucket> = {
   cto: "obligations",
   per: "garanti", // comme une assurance-vie : les espèces = le fonds en euros
   epargne_salariale: "garanti", // fonds monétaire ou en attente d'arbitrage
+  crowdlending: "crowdlending",
   crypto: "speculatif",
 };
 
@@ -88,7 +91,7 @@ export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
 
 /** Les espèces de ce compte comptent-elles dans l'allocation cible ? */
 export function cashInAllocation(account: Pick<Account, "kind" | "inAllocation">): boolean {
-  return account.inAllocation ?? (account.kind !== "livret" && account.kind !== "crypto");
+  return account.inAllocation ?? (account.kind !== "livret" && account.kind !== "crypto" && account.kind !== "crowdlending");
 }
 
 /** Ce titre compte-t-il dans l'allocation cible ? Le choix du titre prime sur celui du compte. */
@@ -98,7 +101,7 @@ export function positionInAllocation(asset: Pick<Asset, "kind" | "inAllocation">
 
 /** Ligne de l'allocation cible d'un élément inclus par choix : livrets avec le garanti, crypto avec les actions. */
 export function allocationBucket(b: Bucket): "garanti" | "obligations" | "croissance" {
-  return b === "precaution" || b === "garanti" ? "garanti" : b === "obligations" ? "obligations" : "croissance";
+  return b === "precaution" || b === "garanti" ? "garanti" : b === "obligations" || b === "crowdlending" ? "obligations" : "croissance";
 }
 
 export const BOND_KINDS = ["etat", "entreprise"] as const;

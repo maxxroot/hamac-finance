@@ -198,7 +198,7 @@ export function AccountDialog({
           </Field>
         )}
 
-        <AllocationChoice value={d.inAllocation} defaultLabel={d.kind === "livret" || d.kind === "crypto" ? "hors allocation" : "dans l'allocation"} onChange={(v) => set("inAllocation", v)} />
+        <AllocationChoice value={d.inAllocation} defaultLabel={d.kind === "livret" || d.kind === "crypto" || d.kind === "crowdlending" ? "hors allocation" : "dans l'allocation"} onChange={(v) => set("inAllocation", v)} />
 
         {account && <Checkbox checked={d.archived} onChange={(v) => set("archived", v)} label="Archivé (masqué des listes, l'historique est conservé)" />}
       </div>

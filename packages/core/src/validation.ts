@@ -10,6 +10,7 @@ export const ALLOWED_ASSETS: Record<AccountKind, readonly AssetKind[]> = {
   cto: ["etf", "action", "obligation", "fonds", "scpi"],
   per: ["etf", "action", "obligation", "fonds", "scpi"],
   epargne_salariale: ["etf", "fonds"],
+  crowdlending: [],
   crypto: ["crypto"],
 };
 
@@ -20,6 +21,7 @@ export const ALLOWED_TYPES: Record<AccountKind, readonly TxType[]> = {
   pea: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
   pea_pme: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
   per: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
+  crowdlending: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "correction"],
   epargne_salariale: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
   cto: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
   crypto: ["apport_initial", "versement", "retrait", "interets", "achat", "vente", "transfert", "frais", "correction"],

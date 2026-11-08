@@ -281,7 +281,7 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
     return f;
   };
   const expenses = (year: number) => (data as { plannedExpenses?: Array<{ year: number; amount: number }> }).plannedExpenses?.filter((e) => e.year === year).reduce((s, e) => s + e.amount, 0) ?? 0;
-  const cryptoContrib = state.accounts.filter((a) => a.account.kind === "crypto").reduce((s, a) => s + a.netContrib, 0);
+  const cryptoContrib = state.accounts.filter((a) => a.account.kind === "crypto" || a.account.kind === "crowdlending").reduce((s, a) => s + a.netContrib, 0);
   // Frais proportionnels à l'encours, pondérés par la valeur actuelle de chaque compte.
   const weighted = (kindsOf: string[], rateOf: (a: (typeof data.accounts)[number]) => number) => {
     const members = state.accounts.filter((s) => kindsOf.includes(s.account.kind) && s.value > 0);

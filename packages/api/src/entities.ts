@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, LIVRET_TYPES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -116,6 +116,24 @@ export const PlannedExpenseInput = z.object({
   label: text(120).min(1),
   accountId: id.nullable().default(null),
 });
+export const CrowdProjectInput = z.object({
+  id: id.optional(),
+  accountId: id,
+  name: text(160).min(1, "Nom requis"),
+  amount: money.positive("Montant investi requis"),
+  rate: z.number().min(0).max(1),
+  startDate: isoDate,
+  termMonths: z.number().int().min(1).max(600),
+  repayment: z.enum(CROWD_REPAYMENTS).default("in_fine"),
+  status: z.enum(CROWD_STATUSES).default("en_cours"),
+  statusDate: isoDate.nullable().default(null),
+  repaidCapital: money.min(0).nullable().default(null),
+  expectedRecovery: money.min(0).nullable().default(null),
+  inAllocation: z.boolean().nullable().default(null),
+  comment: text(500).default(""),
+});
+export type CrowdProjectInput = z.input<typeof CrowdProjectInput>;
+
 export const PropertyInput = z.object({
   id: id.optional(),
   kind: z.enum(PROPERTY_KINDS),

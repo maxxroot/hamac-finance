@@ -55,5 +55,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0013_arret_versements_archives",
     "sql": "-- Les comptes déjà archivés cessent de recevoir leurs versements programmés à partir du mois prochain.\nDELETE FROM `contribution_plans`\nWHERE `from_month` > strftime('%Y-%m', 'now', '+1 month')\n  AND `account_id` IN (SELECT `id` FROM `accounts` WHERE `archived` = 1);\n--> statement-breakpoint\nINSERT OR IGNORE INTO `contribution_plans` (`id`, `account_id`, `from_month`, `amount_cents`, `comment`)\nSELECT lower(hex(randomblob(16))), a.`id`, strftime('%Y-%m', 'now', '+1 month'), 0, 'Compte archivé'\nFROM `accounts` a\nWHERE a.`archived` = 1\n  AND (SELECT p.`amount_cents` FROM `contribution_plans` p WHERE p.`account_id` = a.`id` ORDER BY p.`from_month` DESC LIMIT 1) > 0;\n"
+  },
+  {
+    "tag": "0014_happy_longshot",
+    "sql": "CREATE TABLE `crowd_projects` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`account_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`amount_cents` integer NOT NULL,\n\t`rate` real NOT NULL,\n\t`start_date` text NOT NULL,\n\t`term_months` integer NOT NULL,\n\t`repayment` text NOT NULL,\n\t`status` text DEFAULT 'en_cours' NOT NULL,\n\t`status_date` text,\n\t`repaid_capital_cents` integer,\n\t`expected_recovery_cents` integer,\n\t`in_allocation` integer,\n\t`comment` text DEFAULT '' NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\tFOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON UPDATE no action ON DELETE cascade\n);\n"
   }
 ];

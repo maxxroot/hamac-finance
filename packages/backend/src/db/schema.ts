@@ -195,6 +195,26 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
   ...timestamps,
 });
 
+export const crowdProjects = sqliteTable("crowd_projects", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id")
+    .notNull()
+    .references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  rate: real("rate").notNull(),
+  startDate: text("start_date").notNull(),
+  termMonths: integer("term_months").notNull(),
+  repayment: text("repayment").notNull(),
+  status: text("status").notNull().default("en_cours"),
+  statusDate: text("status_date"),
+  repaidCapitalCents: integer("repaid_capital_cents"),
+  expectedRecoveryCents: integer("expected_recovery_cents"),
+  inAllocation: integer("in_allocation", { mode: "boolean" }),
+  comment: text("comment").notNull().default(""),
+  ...timestamps,
+});
+
 export const properties = sqliteTable("properties", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),

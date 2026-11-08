@@ -89,6 +89,7 @@ ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend to
 - Formulaires guidés : frais calculés d'après la grille de l'établissement, titres créés au moment de
   l'achat, obligations saisies par leur coupon et leur échéance.
 - **Recherche de titres** par nom ou par ISIN (actions, ETF, obligations d'État et d'entreprise, crypto).
+- **Crowdlending** : suivi des prêts projet par projet, plateforme par plateforme.
 - **Import des relevés** de banque ou de courtier en CSV, OFX ou QIF (aperçu avant import, doublons repérés) et export.
 - **Sauvegarde complète** exportable et restaurable, pour passer du bureau au web et inversement.
 - Tableaux triables, mode discret qui masque les montants, interface sombre.
