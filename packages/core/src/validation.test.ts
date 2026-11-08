@@ -7,7 +7,7 @@ const acc = (id: string, kind: Account["kind"]): Account => ({
   beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, sortOrder: 0, archived: false,
 });
 const asset = (id: string, kind: Asset["kind"]): Asset => ({
-  id, kind, name: id, isin: null, symbol: null, priceSource: "manuel", manualPrice: null, manualPriceDate: null, targetWeight: null,
+  id, kind, name: id, isin: null, symbol: null, priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, manualPrice: null, manualPriceDate: null, targetWeight: null,
   ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, bondKind: null, archived: false,
 });
 const accounts = new Map([["pea", acc("pea", "pea")], ["lep", acc("lep", "livret")], ["btc", acc("btc", "crypto")]]);

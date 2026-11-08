@@ -85,6 +85,18 @@ export const PRICE_SOURCES = ["auto", "manuel", "modele"] as const;
 /** auto = fournisseur de cours ; manuel = saisi ; modele = calculé (obligation détenue à l'échéance). */
 export type PriceSource = (typeof PRICE_SOURCES)[number];
 
+/** Fournisseurs de cours automatiques. « url » : adresse propre à un titre. */
+export const PRICE_PROVIDERS = ["justetf", "euronext", "twelvedata", "yahoo", "coingecko", "url"] as const;
+export type PriceProvider = (typeof PRICE_PROVIDERS)[number];
+export const PRICE_PROVIDER_LABELS: Record<PriceProvider, string> = {
+  justetf: "justETF",
+  euronext: "Euronext",
+  twelvedata: "Twelve Data",
+  yahoo: "Yahoo Finance",
+  coingecko: "CoinGecko",
+  url: "URL personnalisée",
+};
+
 export const TX_TYPES = [
   "apport_initial",
   "versement",
@@ -165,6 +177,11 @@ export interface Asset {
   /** Symbole chez le fournisseur de cours (ex. PSP5.PA, bitcoin). */
   symbol: string | null;
   priceSource: PriceSource;
+  /** Source imposée pour ce titre ; null = la chaîne de sources (Paramètres › Cours). */
+  priceProvider: PriceProvider | null;
+  /** Source « url » : adresse ({isin}, {symbol}) renvoyant du JSON, et chemin du prix (ex. data.0.close). */
+  priceUrl: string | null;
+  pricePath: string | null;
   manualPrice: number | null;
   manualPriceDate: string | null;
   /** Poids cible parmi les actions (somme = 100 %). */

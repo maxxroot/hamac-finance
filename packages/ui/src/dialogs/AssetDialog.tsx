@@ -2,7 +2,7 @@ import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AssetCandidate } from "@hamac/api";
 import type { AssetInput } from "@hamac/api";
-import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, OAT_MATURITY_DAY, maturityFromMonth, type BondKind, type Asset, type AssetKind, type PriceSource } from "@hamac/core";
+import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, OAT_MATURITY_DAY, PRICE_PROVIDER_LABELS, maturityFromMonth, type BondKind, type Asset, type AssetKind, type PriceProvider, type PriceSource } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate } from "@/lib/workspace";
@@ -24,6 +24,9 @@ function empty(kind: AssetKind): Draft {
     isin: null,
     symbol: null,
     priceSource: kind === "obligation" ? "modele" : "auto",
+    priceProvider: null,
+    priceUrl: null,
+    pricePath: null,
     manualPrice: null,
     manualPriceDate: null,
     targetWeight: null,
@@ -35,6 +38,17 @@ function empty(kind: AssetKind): Draft {
     bondKind: kind === "obligation" ? "etat" : null,
     archived: false,
   };
+}
+
+/** Sans objet : on n'enregistre ni source imposée hors cours automatique, ni adresse hors source « URL ». */
+function cleaned(d: Draft): Draft {
+  const provider = d.priceSource === "auto" ? d.priceProvider : null;
+  return { ...d, isin: d.isin?.trim() || null, symbol: d.symbol?.trim() || null, priceProvider: provider, priceUrl: provider === "url" ? d.priceUrl?.trim() || null : null, pricePath: provider === "url" ? d.pricePath?.trim() || null : null };
+}
+
+function providersFor(kind: AssetKind): PriceProvider[] {
+  if (kind === "crypto") return ["coingecko", "url"];
+  return kind === "action" ? ["euronext", "twelvedata", "yahoo", "url"] : ["justetf", "euronext", "twelvedata", "yahoo", "url"];
 }
 
 const SOURCE_LABELS: Record<PriceSource, string> = {
@@ -105,7 +119,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
           <Button variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button variant="primary" onClick={() => save.mutate({ ...d, isin: d.isin?.trim() || null, symbol: d.symbol?.trim() || null }, { onSuccess: onClose })} disabled={save.isPending || !d.name.trim()}>
+          <Button variant="primary" onClick={() => save.mutate(cleaned(d), { onSuccess: onClose })} disabled={save.isPending || !d.name.trim()}>
             Enregistrer
           </Button>
         </>
@@ -234,6 +248,33 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
             <div className="self-end pb-2 text-xs text-fg-faint">Valeur calculée : prix d'achat amorti jusqu'au remboursement à 100 %, plus coupon couru.</div>
           )}
         </FormGrid>
+
+        {d.priceSource === "auto" && (
+          <FormGrid>
+            <Field label="Fournisseur" help="Automatique : la chaîne de sources de Paramètres › Cours, avec repli si l'une ne répond pas.">
+              {(id) => (
+                <Select id={id} value={d.priceProvider ?? ""} onChange={(e) => set("priceProvider", (e.target.value || null) as PriceProvider | null)}>
+                  <option value="">Automatique</option>
+                  {providersFor(d.kind).map((p) => (
+                    <option key={p} value={p}>
+                      {PRICE_PROVIDER_LABELS[p]}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            {d.priceProvider === "url" && (
+              <Field label="Chemin du prix dans la réponse" help="Ex. data.0.close pour {data:[{close:12}]}.">
+                {(id) => <TextInput id={id} value={d.pricePath ?? ""} onChange={(e) => set("pricePath", e.target.value || null)} className="font-mono" placeholder="data.0.close" />}
+              </Field>
+            )}
+          </FormGrid>
+        )}
+        {d.priceSource === "auto" && d.priceProvider === "url" && (
+          <Field label="Adresse (JSON)" help="{isin} et {symbol} sont remplacés par ceux du titre. Le cours renvoyé doit être en euros.">
+            {(id) => <TextInput id={id} value={d.priceUrl ?? ""} onChange={(e) => set("priceUrl", e.target.value || null)} className="font-mono" placeholder="https://exemple.fr/cours/{isin}" />}
+          </Field>
+        )}
 
         {!isBond && d.kind !== "crypto" && (
           <FormGrid>

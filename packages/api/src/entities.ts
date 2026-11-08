@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_SOURCES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_PROVIDERS, PRICE_SOURCES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -42,6 +42,9 @@ export const AssetInput = z.object({
     .default(null),
   symbol: text(40).nullable().default(null),
   priceSource: z.enum(PRICE_SOURCES).default("manuel"),
+  priceProvider: z.enum(PRICE_PROVIDERS).nullable().default(null),
+  priceUrl: z.string().trim().url("Adresse invalide").max(500).nullable().default(null),
+  pricePath: text(200).nullable().default(null),
   manualPrice: money.min(0).nullable().default(null),
   manualPriceDate: isoDate.nullable().default(null),
   targetWeight: z.number().min(0).max(1).nullable().default(null),

@@ -1,11 +1,13 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
-import { AccountInput, RpcError, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
+import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
 import { DEFAULT_CHECKLIST, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
+import { loadMarketState, MARKET_CONFIG_KEY, MARKET_SECRETS_KEY, normalizeOrder, twelveDataAssets, writeSetting } from "./market/config";
 import { refreshPrices } from "./market/refresh";
+import { refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget } from "./market/twelvedata";
 import * as t from "./db/schema";
 import {
   loadWorkspace,
@@ -61,6 +63,17 @@ async function syncCurrentRate(ctx: BackendContext, accountId: string) {
 
 async function count(query: Promise<{ n: number } | undefined>): Promise<number> {
   return (await query)?.n ?? 0;
+}
+
+async function marketSettings(ctx: BackendContext): Promise<MarketSettings> {
+  const state = await loadMarketState(ctx);
+  const assets = (await ctx.db.select().from(t.assets).all()).map(mapAsset);
+  const n = twelveDataAssets(assets, state);
+  const key = state.twelveDataKey;
+  return {
+    order: state.order,
+    twelveData: { configured: !!key, hint: key ? key.slice(-4) : null, used: key ? new TwelveDataBudget(key, state.usage).usage.used : 0, limit: TD_DAILY_LIMIT, assets: n, intervalMinutes: refreshIntervalMinutes(n) },
+  };
 }
 
 export const handlers: Handlers = {
@@ -205,6 +218,9 @@ export const handlers: Handlers = {
       isin: input.isin,
       symbol: input.symbol,
       priceSource: isBond && input.priceSource === "auto" ? "modele" : input.priceSource,
+      priceProvider: input.priceProvider,
+      priceUrl: input.priceUrl,
+      pricePath: input.pricePath,
       manualPrice: input.manualPrice,
       manualPriceDate: input.manualPriceDate,
       targetWeight: input.targetWeight,
@@ -458,6 +474,16 @@ export const handlers: Handlers = {
 
   async "prices.refresh"(_input, ctx) {
     return refreshPrices(ctx);
+  },
+
+  async "market.settings"(_input, ctx) {
+    return marketSettings(ctx);
+  },
+
+  async "market.configure"({ order, twelveDataKey }, ctx) {
+    if (order) await writeSetting(ctx, MARKET_CONFIG_KEY, { order: normalizeOrder(order) });
+    if (twelveDataKey !== undefined) await writeSetting(ctx, MARKET_SECRETS_KEY, { twelveDataKey });
+    return marketSettings(ctx);
   },
 
   async "assets.search"({ query }, ctx) {

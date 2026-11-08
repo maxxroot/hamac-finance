@@ -27,5 +27,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0006_type_obligation",
     "sql": "ALTER TABLE `assets` ADD `bond_kind` text;--> statement-breakpoint\n-- Reprise : les obligations dont l'émetteur est l'État français sont des OAT.\nUPDATE `assets` SET `bond_kind` = CASE WHEN lower(coalesce(`issuer`, '')) LIKE '%publique fran%' OR lower(`name`) LIKE 'oat%' THEN 'etat' ELSE 'entreprise' END WHERE `kind` = 'obligation';\n"
+  },
+  {
+    "tag": "0007_demonic_doctor_faustus",
+    "sql": "ALTER TABLE `assets` ADD `price_provider` text;--> statement-breakpoint\nALTER TABLE `assets` ADD `price_url` text;--> statement-breakpoint\nALTER TABLE `assets` ADD `price_path` text;"
   }
 ];

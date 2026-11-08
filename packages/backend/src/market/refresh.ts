@@ -1,48 +1,117 @@
 import type { PriceStatus } from "@hamac/api";
-import { eq, sql } from "drizzle-orm";
+import { PRICE_PROVIDER_LABELS, type Asset, type PriceProvider } from "@hamac/core";
+import { eq } from "drizzle-orm";
 import type { BackendContext } from "../context";
 import * as t from "../db/schema";
 import { mapAsset, nowIso, PRICE_STATUS_KEY } from "../repo";
-import { fetchQuotes, providerFor } from "./index";
+import { loadMarketState, MARKET_USAGE_KEY, twelveDataAssets, writeSetting } from "./config";
+import { MarketError, type Quote } from "./http";
+import { chainFor, fetchFrom } from "./index";
+import { refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget } from "./twelvedata";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Accès exclusif à la base (file des appels). Le réseau se fait hors de cette file, pour ne pas bloquer l'interface. */
+export type Exclusive = <T>(fn: () => Promise<T>) => Promise<T>;
+
+/** Écart maximal avec le dernier cours connu d'une autre source, au-delà : devise ou cotation différente. */
+const MAX_JUMP = 0.25;
+
+interface LastPrice {
+  date: string;
+  price: number;
+  source: string;
+}
+
+/** Rejette un cours incohérent avec celui d'une autre source (classique : ligne en dollars). */
+export function assertPlausible(asset: Pick<Asset, "kind">, provider: PriceProvider, quotes: readonly Quote[], last: LastPrice | undefined): void {
+  const q = quotes.at(-1);
+  if (!q || !last || last.source === provider || asset.kind === "crypto") return;
+  if (Math.abs(Date.parse(q.date) - Date.parse(last.date)) > 30 * 86_400_000) return;
+  if (Math.abs(q.price / last.price - 1) > MAX_JUMP) {
+    throw new MarketError(`Cours incohérent (${q.price.toLocaleString("fr-FR")} € contre ${last.price.toLocaleString("fr-FR")} € connu) : devise ou cotation différente ?`);
+  }
+}
+
 /**
- * Récupère les cours manquants de chaque titre à cours automatique.
+ * Récupère les cours manquants de chaque titre à cours automatique, en suivant sa chaîne de sources.
  * Un cours saisi à la main n'est jamais écrasé par un cours automatique du même jour.
  */
-export async function refreshPrices(ctx: BackendContext): Promise<PriceStatus> {
-  const assets = (await ctx.db.select().from(t.assets).where(eq(t.assets.archived, false)).all()).map(mapAsset);
+export async function refreshPrices(ctx: BackendContext, exclusive: Exclusive = (fn) => fn()): Promise<PriceStatus> {
+  const { assets, market, last } = await exclusive(async () => {
+    const assets = (await ctx.db.select().from(t.assets).where(eq(t.assets.archived, false)).all()).map(mapAsset);
+    const market = await loadMarketState(ctx);
+    const rows = ctx.raw.prepare("SELECT asset_id AS assetId, date, price, source FROM prices p WHERE date = (SELECT MAX(date) FROM prices WHERE asset_id = p.asset_id)").all() as unknown as Array<LastPrice & { assetId: string }>;
+    return { assets, market, last: new Map(rows.map((r) => [r.assetId, r])) };
+  });
+  const budget = market.twelveDataKey ? new TwelveDataBudget(market.twelveDataKey, market.usage) : null;
+  const env = { twelveDataKey: market.twelveDataKey, budget, web: ctx.mode === "web" };
+  const hasKey = !!market.twelveDataKey;
   const errors: PriceStatus["errors"] = [];
+  const lines: NonNullable<PriceStatus["assets"]> = [];
   let updated = 0;
   const day = today();
   const upsert = ctx.raw.prepare(
     `INSERT INTO prices (asset_id, date, price, source) VALUES (?, ?, ?, ?)
      ON CONFLICT (asset_id, date) DO UPDATE SET price = excluded.price, source = excluded.source WHERE prices.source <> 'manuel'`,
   );
+  const lastAuto = ctx.raw.prepare("SELECT MAX(date) AS d FROM prices WHERE asset_id = ? AND source <> 'manuel'");
+
   for (const asset of assets) {
-    const p = providerFor(asset);
-    if (!p.provider) continue;
-    try {
-      const last = await ctx.db.select({ d: sql<string | null>`MAX(${t.prices.date})` }).from(t.prices).where(sql`${t.prices.assetId} = ${asset.id} AND ${t.prices.source} <> 'manuel'`).get();
-      // On re-télécharge le dernier jour connu (cours de clôture qui a pu changer).
-      const since = last?.d ? new Date(Date.parse(last.d) - 86_400_000 * 3).toISOString().slice(0, 10) : null;
-      const quotes = await fetchQuotes(ctx.fetcher, asset, since, day);
-      ctx.raw.exec("BEGIN");
+    if (asset.priceSource !== "auto") continue;
+    const { chain, reason } = chainFor(asset, market.order, hasKey);
+    if (!chain.length) {
+      if (asset.kind !== "obligation") lines.push({ assetId: asset.id, name: asset.name, provider: null, lastDate: last.get(asset.id)?.date ?? null, message: reason, tried: [] });
+      continue;
+    }
+    const tried: Array<{ provider: PriceProvider; message: string }> = [];
+    let done = false;
+    for (const provider of chain) {
       try {
-        for (const q of quotes) upsert.run(asset.id, q.date, q.price, p.provider);
-        ctx.raw.exec("COMMIT");
+        const known = await exclusive(async () => (lastAuto.get(asset.id) as { d: string | null } | undefined)?.d ?? null);
+        // On re-télécharge les derniers jours connus (cours de clôture qui a pu changer).
+        const since = known ? new Date(Date.parse(known) - 86_400_000 * 3).toISOString().slice(0, 10) : null;
+        const quotes = await fetchFrom(ctx.fetcher, provider, asset, since, day, env);
+        assertPlausible(asset, provider, quotes, last.get(asset.id));
+        await exclusive(async () => {
+          ctx.raw.exec("BEGIN");
+          try {
+            for (const q of quotes) upsert.run(asset.id, q.date, q.price, provider);
+            ctx.raw.exec("COMMIT");
+          } catch (e) {
+            ctx.raw.exec("ROLLBACK");
+            throw e;
+          }
+        });
+        if (quotes.length) updated++;
+        lines.push({ assetId: asset.id, name: asset.name, provider, lastDate: quotes.at(-1)?.date ?? last.get(asset.id)?.date ?? null, message: null, tried });
+        done = true;
+        break;
       } catch (e) {
-        ctx.raw.exec("ROLLBACK");
-        throw e;
+        tried.push({ provider, message: (e as Error).message });
       }
-      if (quotes.length) updated++;
-    } catch (e) {
-      errors.push({ assetId: asset.id, name: asset.name, message: (e as Error).message });
+    }
+    if (!done) {
+      const message = tried.map((x) => (tried.length > 1 ? `${PRICE_PROVIDER_LABELS[x.provider]} : ${x.message}` : x.message)).join(" · ");
+      errors.push({ assetId: asset.id, name: asset.name, message });
+      lines.push({ assetId: asset.id, name: asset.name, provider: null, lastDate: last.get(asset.id)?.date ?? null, message: "Aucune source n'a répondu", tried });
     }
   }
-  const status: PriceStatus = { at: nowIso(), updated, errors };
-  const value = JSON.stringify(status);
-  await ctx.db.insert(t.settings).values({ key: PRICE_STATUS_KEY, value, updatedAt: status.at }).onConflictDoUpdate({ target: t.settings.key, set: { value, updatedAt: status.at } });
+
+  const n = twelveDataAssets(assets, market);
+  const intervalMinutes = refreshIntervalMinutes(n);
+  const now = Date.now();
+  const status: PriceStatus = {
+    at: nowIso(),
+    updated,
+    errors,
+    assets: lines,
+    nextAt: new Date(now + intervalMinutes * 60_000).toISOString(),
+    twelveData: budget ? { used: budget.usage.used, limit: TD_DAILY_LIMIT, assets: n, intervalMinutes } : null,
+  };
+  await exclusive(async () => {
+    if (budget) await writeSetting(ctx, MARKET_USAGE_KEY, budget.usage);
+    await writeSetting(ctx, PRICE_STATUS_KEY, status);
+  });
   return status;
 }

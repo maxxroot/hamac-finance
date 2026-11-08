@@ -5,6 +5,8 @@ import { migrate } from "./db/migrate";
 import { openSqlite } from "./db/sqlite";
 import { handlers } from "./handlers";
 import { defaultFetcher, type Fetcher } from "./market";
+import { refreshPrices } from "./market/refresh";
+import { BASE_REFRESH_MINUTES } from "./market/twelvedata";
 
 export interface BackendOptions {
   databasePath: string;
@@ -12,7 +14,7 @@ export interface BackendOptions {
   appVersion: string;
   /** Dossier des sauvegardes quotidiennes ; null pour désactiver (tests, base en mémoire). */
   backupsDir: string | null;
-  /** Actualise les cours au démarrage puis toutes les 30 minutes. */
+  /** Actualise les cours au démarrage, puis à un rythme qui respecte les quotas des sources. */
   autoRefreshPrices?: boolean;
   /** Libellé affiché à la place du chemin de la base (mode web : ne pas exposer le serveur). */
   displayPath?: string;
@@ -69,27 +71,56 @@ export function createBackend(opts: BackendOptions): Backend {
     }
   }
 
-  let priceTimer: ReturnType<typeof setInterval> | null = null;
-  let firstRefresh: ReturnType<typeof setTimeout> | null = null;
+  let priceTimer: ReturnType<typeof setTimeout> | null = null;
+  let closed = false;
+
+  /** Passe dans la file des appels : les écritures restent une par une pendant que le réseau travaille à côté. */
+  const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = queue.then(() => {
+      if (closed) throw new Error("Base fermée");
+      return fn();
+    });
+    queue = result.catch(() => undefined);
+    return result;
+  };
+
+  // Une seule actualisation à la fois ; elle ne bloque pas les autres appels (limites par minute des sources).
+  let refreshing: Promise<RpcResult<unknown>> | null = null;
+  const refresh = (): Promise<RpcResult<unknown>> => {
+    refreshing ??= refreshPrices(ctx, exclusive)
+      .then((data): RpcResult<unknown> => ({ ok: true, data: procedures["prices.refresh"].output.parse(data) }))
+      .catch((err: Error): RpcResult<unknown> => ({ ok: false, error: { code: "INTERNAL", message: err.message ?? "Erreur interne" } }))
+      .finally(() => {
+        refreshing = null;
+      });
+    return refreshing;
+  };
 
   const backend: Backend = {
     dispatch(name, input) {
+      if (name === "prices.refresh") return refresh();
       const result = queue.then(() => run(name, input));
       queue = result.catch(() => undefined);
       return result;
     },
     close() {
+      closed = true;
       if (backupTimer) clearInterval(backupTimer);
-      if (priceTimer) clearInterval(priceTimer);
-      if (firstRefresh) clearTimeout(firstRefresh);
+      if (priceTimer) clearTimeout(priceTimer);
       raw.close();
     },
   };
 
   if (opts.autoRefreshPrices) {
-    const refresh = () => void backend.dispatch("prices.refresh", undefined);
-    firstRefresh = setTimeout(refresh, 3_000);
-    priceTimer = setInterval(refresh, 30 * 60_000);
+    // Chaque passage fixe la date du suivant, calculée d'après le quota des sources.
+    const tick = async () => {
+      const res = await refresh();
+      if (closed) return;
+      const next = res.ok ? Date.parse((res.data as { nextAt?: string }).nextAt ?? "") : NaN;
+      priceTimer = setTimeout(() => void tick(), Number.isFinite(next) ? Math.max(60_000, next - Date.now()) : BASE_REFRESH_MINUTES * 60_000);
+      priceTimer.unref?.();
+    };
+    priceTimer = setTimeout(() => void tick(), 3_000);
     priceTimer.unref?.();
   }
   return backend;

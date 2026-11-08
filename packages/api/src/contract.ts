@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PlanParams, PlanParamsInput } from "@hamac/core";
+import { PRICE_PROVIDERS, PlanParams, PlanParamsInput, type PriceProvider } from "@hamac/core";
 import type {
   AccountRate,
   ChecklistItem,
@@ -84,6 +84,26 @@ export interface PriceStatus {
   at: string;
   updated: number;
   errors: Array<{ assetId: string; name: string; message: string }>;
+  /** Détail par titre à cours automatique : source qui a répondu, dernier cours, essais échoués. */
+  assets?: Array<{ assetId: string; name: string; provider: PriceProvider | null; lastDate: string | null; message: string | null; tried: Array<{ provider: PriceProvider; message: string }> }>;
+  /** Prochaine actualisation automatique. */
+  nextAt?: string;
+  twelveData?: { used: number; limit: number; assets: number; intervalMinutes: number } | null;
+}
+
+/** Réglages des sources de cours, tels que vus par l'interface (la clé n'en sort jamais entière). */
+export interface MarketSettings {
+  order: Array<{ id: PriceProvider; enabled: boolean }>;
+  twelveData: {
+    configured: boolean;
+    /** Quatre derniers caractères de la clé. */
+    hint: string | null;
+    used: number;
+    limit: number;
+    /** Titres pouvant passer par Twelve Data à chaque actualisation. */
+    assets: number;
+    intervalMinutes: number;
+  };
 }
 
 export interface AssetCandidate {
@@ -155,6 +175,15 @@ export const procedures = {
   "data.import": { input: z.object({ dump: z.unknown(), confirm: z.literal("REMPLACER") }), output: entity<{ tables: Record<string, number> }>() },
 
   "prices.refresh": { input: z.void(), output: entity<PriceStatus>() },
+  "market.settings": { input: z.void(), output: entity<MarketSettings>() },
+  "market.configure": {
+    input: z.object({
+      order: z.array(z.object({ id: z.enum(PRICE_PROVIDERS), enabled: z.boolean() })).optional(),
+      /** Absent : inchangée ; null : supprimée. */
+      twelveDataKey: z.string().trim().min(8, "Clé trop courte").max(100).nullable().optional(),
+    }),
+    output: entity<MarketSettings>(),
+  },
   "assets.search": { input: z.object({ query: z.string().trim().min(2).max(80) }), output: entity<{ candidates: AssetCandidate[]; errors: string[] }>() },
 } as const;
 

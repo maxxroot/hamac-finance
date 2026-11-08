@@ -6,6 +6,8 @@ import { downloadText, pickTextFile } from "@/lib/files";
 import { call } from "@/lib/transport";
 import { useToast } from "@/lib/toast";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router";
+import { MarketSources } from "@/components/MarketSources";
 import {
   ACCOUNT_KIND_LABELS,
   ASSET_KIND_LABELS,
@@ -36,11 +38,12 @@ import { usePortfolio } from "@/lib/portfolio";
 import { SortTh, useSortable } from "@/lib/sort";
 import { SETTINGS_ITEM } from "@/nav";
 
-const TABS = ["Plan", "Comptes", "Titres", "Application"] as const;
+const TABS = ["Plan", "Comptes", "Titres", "Cours", "Application"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Parametres() {
-  const [tab, setTab] = useState<Tab>("Plan");
+  const [search] = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t === search.get("onglet")) ?? "Plan");
   return (
     <>
       <PageHeader title="Paramètres" description={SETTINGS_ITEM.description} />
@@ -58,6 +61,7 @@ export function Parametres() {
       {tab === "Plan" && <PlanTab />}
       {tab === "Comptes" && <AccountsTab />}
       {tab === "Titres" && <AssetsTab />}
+      {tab === "Cours" && <MarketSources />}
       {tab === "Application" && <AppTab />}
     </>
   );

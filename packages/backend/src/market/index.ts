@@ -1,43 +1,94 @@
-import { addMonths, type Asset } from "@hamac/core";
+import { addMonths, PRICE_PROVIDER_LABELS, type Asset, type PriceProvider } from "@hamac/core";
 import { coingeckoHistory, coingeckoSearch } from "./coingecko";
+import { customQuote } from "./custom";
+import { euronextHistory } from "./euronext";
 import { type Fetcher, MarketError, type Quote } from "./http";
 import { justEtfHistory } from "./justetf";
 import { figiByIsin, figiSearch, ISIN_RE, type Candidate } from "./openfigi";
+import { twelveDataHistory, type TwelveDataBudget } from "./twelvedata";
 import { yahooHistory } from "./yahoo";
 
 export type { Candidate, Fetcher, Quote };
 export { defaultFetcher } from "./http";
 export { parseBondTicker } from "./openfigi";
 
-export type Provider = "justetf" | "yahoo" | "coingecko";
+/** Ordre par défaut de la chaîne : sources sans clé d'abord, Yahoo en dernier recours. */
+export const DEFAULT_PROVIDER_ORDER: PriceProvider[] = ["justetf", "euronext", "twelvedata", "yahoo", "coingecko"];
 
-/** Fournisseur à utiliser pour un titre, ou la raison pour laquelle il n'y en a pas. */
-export function providerFor(asset: Asset): { provider: Provider; key: string } | { provider: null; reason: string } {
-  if (asset.priceSource !== "auto") return { provider: null, reason: "Cours manuel ou calculé" };
-  if (asset.kind === "crypto") return asset.symbol ? { provider: "coingecko", key: asset.symbol } : { provider: null, reason: "Identifiant CoinGecko manquant (ex. bitcoin)" };
-  if (asset.kind === "obligation") return { provider: null, reason: "Obligation : valeur calculée" };
-  if ((asset.kind === "etf" || asset.kind === "fonds") && asset.isin) return { provider: "justetf", key: asset.isin };
-  if (asset.symbol) return { provider: "yahoo", key: asset.symbol };
-  return { provider: null, reason: "Ni ISIN d'ETF ni symbole : saisissez le cours à la main" };
+export interface ProviderSetting {
+  id: PriceProvider;
+  enabled: boolean;
 }
 
-/** Cours depuis `since` (exclu) jusqu'à aujourd'hui. Premier chargement : deux ans d'historique. */
-export async function fetchQuotes(fetcher: Fetcher, asset: Asset, since: string | null, today: string): Promise<Quote[]> {
-  const p = providerFor(asset);
-  if (!p.provider) throw new MarketError(p.reason);
+export const defaultProviderSettings = (): ProviderSetting[] => DEFAULT_PROVIDER_ORDER.map((id) => ({ id, enabled: true }));
+
+/** Ce fournisseur peut-il donner le cours de ce titre ? */
+export function supports(p: PriceProvider, asset: Asset, hasTwelveDataKey: boolean): boolean {
+  const crypto = asset.kind === "crypto";
+  switch (p) {
+    case "justetf":
+      return (asset.kind === "etf" || asset.kind === "fonds") && !!asset.isin;
+    case "euronext":
+      return !crypto && !!asset.isin;
+    case "twelvedata":
+      return !crypto && !!asset.symbol && hasTwelveDataKey;
+    case "yahoo":
+      return !crypto && !!asset.symbol;
+    case "coingecko":
+      return crypto && !!asset.symbol;
+    case "url":
+      return !!asset.priceUrl && !!asset.pricePath;
+  }
+}
+
+/** Sources à essayer pour un titre, dans l'ordre, ou la raison pour laquelle il n'y en a pas. */
+export function chainFor(asset: Asset, order: readonly ProviderSetting[], hasTwelveDataKey: boolean): { chain: PriceProvider[]; reason: string | null } {
+  if (asset.priceSource !== "auto") return { chain: [], reason: "Cours manuel ou calculé" };
+  if (asset.kind === "obligation") return { chain: [], reason: "Obligation : valeur calculée" };
+  if (asset.priceProvider) {
+    if (supports(asset.priceProvider, asset, hasTwelveDataKey)) return { chain: [asset.priceProvider], reason: null };
+    if (asset.priceProvider === "twelvedata" && !hasTwelveDataKey) return { chain: [], reason: "Clé Twelve Data manquante (Paramètres › Cours)" };
+    if (asset.priceProvider === "url") return { chain: [], reason: "Adresse ou chemin du prix manquant" };
+    return { chain: [], reason: `${PRICE_PROVIDER_LABELS[asset.priceProvider]} ne peut pas donner le cours de ce titre (ISIN ou symbole manquant)` };
+  }
+  const chain = [...(supports("url", asset, hasTwelveDataKey) ? (["url"] as PriceProvider[]) : []), ...order.filter((o) => o.enabled && o.id !== "url" && supports(o.id, asset, hasTwelveDataKey)).map((o) => o.id)];
+  if (chain.length) return { chain, reason: null };
+  if (asset.kind === "crypto") return { chain, reason: "Identifiant CoinGecko manquant (ex. bitcoin), ou source désactivée" };
+  return { chain, reason: asset.isin || asset.symbol ? "Aucune source active ne couvre ce titre" : "Ni ISIN ni symbole : saisissez le cours à la main" };
+}
+
+export interface MarketEnv {
+  twelveDataKey: string | null;
+  budget: TwelveDataBudget | null;
+  /** Instance web : les adresses personnalisées ne peuvent pas viser le réseau interne. */
+  web: boolean;
+}
+
+/** Cours d'un titre chez un fournisseur, depuis `since` (exclu). Premier chargement : deux ans d'historique. */
+export async function fetchFrom(fetcher: Fetcher, provider: PriceProvider, asset: Asset, since: string | null, today: string, env: MarketEnv): Promise<Quote[]> {
   const from = since ?? addMonths(today, -24);
   let quotes: Quote[];
-  switch (p.provider) {
+  switch (provider) {
     case "justetf":
-      quotes = await justEtfHistory(fetcher, p.key, from, today);
+      quotes = await justEtfHistory(fetcher, asset.isin!, from, today);
+      break;
+    case "euronext":
+      quotes = await euronextHistory(fetcher, asset.isin!, from, today);
+      break;
+    case "twelvedata":
+      if (!env.twelveDataKey || !env.budget) throw new MarketError("Clé Twelve Data manquante.");
+      quotes = await twelveDataHistory(fetcher, env.twelveDataKey, env.budget, asset.symbol!, from);
       break;
     case "coingecko": {
       const days = Math.ceil((Date.parse(today) - Date.parse(from)) / 86_400_000) + 1;
-      quotes = await coingeckoHistory(fetcher, p.key, days);
+      quotes = await coingeckoHistory(fetcher, asset.symbol!, days);
       break;
     }
     case "yahoo":
-      quotes = await yahooHistory(fetcher, p.key, since ? "5d" : "2y");
+      quotes = await yahooHistory(fetcher, asset.symbol!, since ? "5d" : "2y");
+      break;
+    case "url":
+      quotes = await customQuote(fetcher, asset, today, env.web);
       break;
   }
   return quotes.filter((q) => (!since || q.date > since) && q.date <= today);

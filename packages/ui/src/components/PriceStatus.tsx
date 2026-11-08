@@ -1,5 +1,6 @@
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { cn } from "@/lib/cn";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
@@ -44,15 +45,20 @@ export function PriceStatus() {
               </li>
             ))}
           </ul>
-          <button
-            className="text-accent hover:underline"
-            onClick={() => {
-              setOpen(false);
-              refresh.mutate(undefined as never);
-            }}
-          >
-            Réessayer
-          </button>
+          <div className="flex gap-4">
+            <button
+              className="text-accent hover:underline"
+              onClick={() => {
+                setOpen(false);
+                refresh.mutate(undefined as never);
+              }}
+            >
+              Réessayer
+            </button>
+            <Link to="/parametres?onglet=Cours" className="text-accent hover:underline" onClick={() => setOpen(false)}>
+              Voir les sources
+            </Link>
+          </div>
         </div>
       )}
     </div>
