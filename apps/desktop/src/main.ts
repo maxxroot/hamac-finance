@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { IPC_CHANNEL } from "@hamac/api";
 import { createBackend, seedDemo, type Backend } from "@hamac/backend";
+import { isTrustedUrl } from "./trust";
 
 const DEV_URL = process.env.HAMAC_DEV_URL;
 let backend: Backend | null = null;
@@ -113,9 +115,7 @@ function createWindow() {
 }
 
 function isTrustedSender(url: string | undefined): boolean {
-  if (!url) return false;
-  if (DEV_URL) return url.startsWith(DEV_URL);
-  return url.startsWith("file://");
+  return isTrustedUrl(url, pathToFileURL(join(__dirname, "../renderer/index.html")).href, DEV_URL);
 }
 
 app.on("window-all-closed", () => {
