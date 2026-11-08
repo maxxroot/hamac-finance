@@ -16,7 +16,7 @@ export function Onboarding() {
         Hamac part d'une page blanche : vous créez vos établissements et vos comptes, puis vous saisissez ce qui s'y trouve. Tout le reste se calcule. Vos données restent sur cet ordinateur.
       </p>
       <div className="mt-8 space-y-4">
-        <Step n={1} icon={<Settings size={18} />} title="Votre profil" text="Année de naissance, âge de départ visé, hypothèses de rendement et allocation cible.">
+        <Step n={1} icon={<Settings size={18} />} title="Votre profil" text="Préparer votre retraite ou simplement gérer votre patrimoine, puis année de naissance, hypothèses de rendement et allocation cible.">
           <Link to="/parametres" className="text-sm text-accent hover:underline">
             Ouvrir Paramètres › Plan
           </Link>

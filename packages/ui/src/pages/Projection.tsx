@@ -11,11 +11,33 @@ import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS, INK } from "@/lib/colors";
 import { cn } from "@/lib/cn";
 import { useProjection } from "@/lib/projection";
-import { useMutate } from "@/lib/workspace";
+import { Link } from "react-router";
+import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
 const eurAxis = (v: number) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)} k€` : `${v} €`);
 
 export function Projection() {
+  const idx = useWorkspaceIndex();
+  if (!idx) return null;
+  if (idx.ws.params.profile.goal === "patrimoine")
+    return (
+      <div className="max-w-2xl">
+        <PageHeader title="Projection" description="Projection du patrimoine jusqu'à la retraite et revenu mensuel possible." />
+        <Card>
+          <p className="text-sm text-fg-muted">
+            Hamac est réglé en <b className="text-fg">gestion de patrimoine</b> : pas de projection de retraite. Pour la retrouver, choisissez « Préparer ma retraite » dans{" "}
+            <Link to="/parametres" className="text-accent hover:underline">
+              Paramètres › Plan
+            </Link>
+            .
+          </p>
+        </Card>
+      </div>
+    );
+  return <ProjectionPage />;
+}
+
+function ProjectionPage() {
   const [scenario, setScenario] = useState<{ params: PlanParams; extraMonthly: Partial<Flows> } | null>(null);
   const proj = useProjection(scenario);
   const [showTable, setShowTable] = useState(false);

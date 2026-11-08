@@ -45,6 +45,7 @@ export function Notice() {
           </thead>
           <tbody>
             {[
+              ["Paramètres › Plan", "Usage : préparer sa retraite (projection, baisse des actions avec l'âge) ou gérer son patrimoine (allocation fixe, sans projection)", "Préparer ma retraite"],
               ["Paramètres › Plan", "Année de naissance, âge de départ, âge de sécurisation (début de la baisse des actions), âge horizon (jusqu'où l'argent doit durer)", "1990 · 64 · 57 · 90"],
               ["Paramètres › Plan", "Premier mois des versements, hypothèses de rendement et d'inflation", "janvier 2027 · 2 % · 3 % · 3,5 % · 6 % · 2 %"],
               ["Paramètres › Plan", "Allocation cible : part actions avant la sécurisation et au départ, part obligations (le fonds euros prend le reste)", "30 % · 15 % · 50 %"],

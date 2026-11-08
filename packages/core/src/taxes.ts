@@ -2,7 +2,7 @@ import { addMonths } from "./dates";
 import type { Asset, Transaction } from "./domain";
 import type { AccountState, EngineData, PortfolioState } from "./engine";
 import { roundCents } from "./money";
-import { incomeTaxRate, retirementYear, type PlanParams } from "./params";
+import { incomeTaxRate, isRetirementPlan, retirementYear, type PlanParams } from "./params";
 import { PriceBook } from "./prices";
 
 // ——— Crypto : article 150 VH bis du CGI ———
@@ -190,7 +190,8 @@ export interface NetYieldRow {
 export function netYields(p: PlanParams, asOf: string, livretRates: { lep: number | null; ldds: number | null }): NetYieldRow[] {
   const ir = incomeTaxRate(p);
   const ps = p.tax.socialGeneral;
-  const years = Math.max(5, retirementYear(p) - +asOf.slice(0, 4));
+  // Durée de détention : jusqu'au départ en retraite, ou 10 ans en gestion de patrimoine.
+  const years = isRetirementPlan(p) ? Math.max(5, retirementYear(p) - +asOf.slice(0, 4)) : 10;
   const pea = Math.pow(1 + (Math.pow(1 + p.returns.actions, years) - 1) * (1 - ps), 1 / years) - 1;
   return [
     { label: "LEP", gross: livretRates.lep, taxation: "Exonéré", net: livretRates.lep },

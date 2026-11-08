@@ -27,6 +27,8 @@ export interface NavItem {
   /** Étape du plan V1 où la page devient fonctionnelle. */
   step: number;
   description: string;
+  /** Page masquée en gestion de patrimoine (Paramètres › Plan › Usage). */
+  retirementOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -38,9 +40,9 @@ export const NAV: NavGroup[] = [
   {
     label: "Vue d'ensemble",
     items: [
-      { path: "/", label: "Tableau de bord", icon: Gauge, sheetTab: "Tableau de bord", step: 4, description: "Patrimoine, revenu retraite projeté, alertes et répartition." },
+      { path: "/", label: "Tableau de bord", icon: Gauge, sheetTab: "Tableau de bord", step: 4, description: "Patrimoine, projection retraite, alertes et répartition." },
       { path: "/performance", label: "Performance", icon: TrendingUp, sheetTab: "Performance", step: 3, description: "Rendement annualisé (TRI) et plus-values par enveloppe." },
-      { path: "/projection", label: "Projection", icon: ChartLine, sheetTab: "Projection", step: 4, description: "Projection année par année jusqu'à la retraite et simulations." },
+      { path: "/projection", label: "Projection", icon: ChartLine, sheetTab: "Projection", step: 4, description: "Projection année par année jusqu'à la retraite et simulations.", retirementOnly: true },
       { path: "/historique", label: "Historique", icon: History, sheetTab: "Historique", step: 3, description: "Photos mensuelles du patrimoine et leur évolution." },
     ],
   },

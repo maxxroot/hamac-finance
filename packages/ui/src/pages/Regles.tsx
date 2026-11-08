@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { formatEur, retirementYear } from "@hamac/core";
+import { formatEur, isRetirementPlan, retirementYear } from "@hamac/core";
 import { TextInput } from "@/components/form";
 import { Table, Td, Th, Tr } from "@/components/table";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
@@ -19,13 +19,14 @@ export function Regles() {
   const year = +pf.today.slice(0, 4);
   const ctoYear = pf.data.accounts.filter((a) => a.kind === "cto").reduce((s, a) => s + schedule.inYear(a.id, year + 1), 0);
   const sec = p.profile.securisationAge;
+  const retraite = isRetirementPlan(p);
 
   const rules: Array<[string, string]> = [
     ["Chaque mois", "Virements automatiques le lendemain de la paie (programmés une fois dans Versements, à modifier seulement s'ils changent). Acheter des ETF avec les espèces du PEA quand le Tableau de bord le conseille, et noter l'achat dans le Journal."],
     ["Toujours", "Ne rien vendre quand la bourse baisse : une baisse n'est une perte que si l'on vend."],
     [
       "Une fois par an (janvier)",
-      `Avec les espèces du compte-titres${ctoYear ? ` (environ ${eur(ctoYear)} par an d'après vos versements)` : ""}, acheter une obligation dont l'échéance tombe avant ${p.profile.retirementAge} ans (${retirementYear(p)}), et la garder jusqu'à l'échéance.`,
+      `Avec les espèces du compte-titres${ctoYear ? ` (environ ${eur(ctoYear)} par an d'après vos versements)` : ""}, acheter une obligation${retraite ? ` dont l'échéance tombe avant ${p.profile.retirementAge} ans (${retirementYear(p)})` : ""}, et la garder jusqu'à l'échéance.`,
     ],
     [
       "Une fois par an",
@@ -35,9 +36,11 @@ export function Regles() {
       "Deux fois par an",
       `Comparer la valeur du fonds euros sur le site de l'assureur avec celle de Hamac, et saisir l'écart en correction si besoin. Rééquilibrer seulement si une classe d'actifs s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} % de sa cible, en orientant les versements plutôt qu'en vendant.`,
     ],
-    ["À l'échéance d'une obligation", `Avant ${sec} ans : racheter une obligation plus lointaine. À partir de ${sec} ans : transférer le capital remboursé vers le fonds euros.`],
-    [`Dès ${sec} ans`, "Versements actions redirigés vers le fonds euros. Chaque année, vendre une partie des ETF et transférer vers le fonds euros pour suivre la part cible (la projection en tient compte)."],
-    ["Grosse dépense (voiture, travaux)", "Payée uniquement par les livrets. Saisir le retrait dans le Journal, et l'année prévue dans Projection."],
+    retraite
+      ? ["À l'échéance d'une obligation", `Avant ${sec} ans : racheter une obligation plus lointaine. À partir de ${sec} ans : transférer le capital remboursé vers le fonds euros.`]
+      : ["À l'échéance d'une obligation", "Racheter une obligation, ou placer le capital remboursé là où l'allocation cible est en retard."],
+    ...(retraite ? [[`Dès ${sec} ans`, "Versements actions redirigés vers le fonds euros. Chaque année, vendre une partie des ETF et transférer vers le fonds euros pour suivre la part cible (la projection en tient compte)."] as [string, string]] : []),
+    ["Grosse dépense (voiture, travaux)", `Payée uniquement par les livrets. Saisir le retrait dans le Journal${retraite ? ", et l'année prévue dans Projection" : ""}.`],
   ];
 
   return (

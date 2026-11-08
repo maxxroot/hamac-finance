@@ -4,6 +4,7 @@ import { addMonths, monthsBetween } from "./dates";
 import { BUCKET_LABELS } from "./domain";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
 import { formatEur } from "./money";
+import { isRetirementPlan } from "./params";
 import { daysBetween } from "./xirr";
 
 /** Niveaux réservés : toujours affichés avec une icône et un libellé, jamais par la couleur seule. */
@@ -116,12 +117,13 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
     }
   }
 
-  // Phase du plan.
-  out.push(
-    state.age >= p.profile.securisationAge
-      ? { id: "phase", level: "info", title: "Phase de sécurisation", detail: "Versements actions redirigés vers le fonds euros, allègement progressif." }
-      : { id: "phase", level: "ok", title: `Phase de constitution : sécurisation à partir de ${p.profile.securisationAge} ans` },
-  );
+  // Phase du plan (retraite seulement).
+  if (isRetirementPlan(p))
+    out.push(
+      state.age >= p.profile.securisationAge
+        ? { id: "phase", level: "info", title: "Phase de sécurisation", detail: "Versements actions redirigés vers le fonds euros, allègement progressif." }
+        : { id: "phase", level: "ok", title: `Phase de constitution : sécurisation à partir de ${p.profile.securisationAge} ans` },
+    );
 
   // Obligations : espèces à investir, prochaine échéance.
   for (const a of active.filter((x) => x.account.kind === "cto" && x.cash >= p.alerts.ctoCashThreshold)) {

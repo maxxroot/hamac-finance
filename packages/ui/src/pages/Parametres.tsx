@@ -92,6 +92,7 @@ function PlanTab() {
   const err = (path: Path) => issues.get(path.join(".")) ?? null;
   const year = new Date().getFullYear();
   const age = year - p.profile.birthYear;
+  const retraite = p.profile.goal === "retraite";
 
   const pctField = (label: string, path: Path, help?: ReactNode) => (
     <Field label={label} help={help} error={err(path)}>
@@ -111,12 +112,41 @@ function PlanTab() {
 
   return (
     <div className="space-y-5 pb-20">
-      <Section title="Profil et calendrier">
+      <Section title="Usage" hint="Ce que Hamac doit faire pour vous. Vous pouvez changer à tout moment : vos données ne bougent pas.">
+        <div className="grid gap-3 sm:grid-cols-2" role="radiogroup">
+          {(
+            [
+              ["retraite", "Préparer ma retraite", "Projection jusqu'au départ, revenu mensuel possible, part actions qui baisse à l'approche de la retraite."],
+              ["patrimoine", "Gérer mon patrimoine", "Suivi, allocation cible fixe, versements et alertes, sans projection de retraite."],
+            ] as const
+          ).map(([goal, label, text]) => (
+            <button
+              key={goal}
+              type="button"
+              role="radio"
+              aria-checked={p.profile.goal === goal}
+              onClick={() => set(["profile", "goal"], goal)}
+              className={cn(
+                "rounded-lg border px-4 py-3 text-left transition-colors",
+                p.profile.goal === goal ? "border-accent bg-accent/10" : "border-line hover:border-fg-faint hover:bg-surface-2",
+              )}
+            >
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <span className={cn("size-3.5 rounded-full border-2", p.profile.goal === goal ? "border-accent bg-accent" : "border-fg-faint")} />
+                {label}
+              </div>
+              <p className="mt-1 pl-5.5 text-xs text-fg-muted">{text}</p>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title={retraite ? "Profil et calendrier" : "Profil et versements"}>
         <FormGrid cols={3}>
           {intField("Année de naissance", ["profile", "birthYear"], `Âge cette année : ${age} ans.`)}
-          {intField("Âge de départ visé", ["profile", "retirementAge"], `Départ en ${retirementYear(p)}.`)}
-          {intField("Âge de début de sécurisation", ["profile", "securisationAge"], "À partir de cet âge, la part actions baisse progressivement.")}
-          {intField("Âge horizon (fin des retraits)", ["profile", "horizonAge"], "Sert au calcul du revenu mensuel possible.")}
+          {retraite && intField("Âge de départ visé", ["profile", "retirementAge"], `Départ en ${retirementYear(p)}.`)}
+          {retraite && intField("Âge de début de sécurisation", ["profile", "securisationAge"], "À partir de cet âge, la part actions baisse progressivement.")}
+          {retraite && intField("Âge horizon (fin des retraits)", ["profile", "horizonAge"], "Sert au calcul du revenu mensuel possible.")}
           <Field label="Premier mois des versements" help="Début du calendrier des versements mensuels." error={err(["profile", "startMonth"])}>
             {(id) => <TextInput id={id} type="month" value={p.profile.startMonth} onChange={(e) => set(["profile", "startMonth"], e.target.value)} />}
           </Field>
@@ -134,14 +164,14 @@ function PlanTab() {
           {pctField("Obligations (taux moyen de l'échelle)", ["returns", "obligations"])}
           {pctField("Actions (ETF monde)", ["returns", "actions"], "Moyenne de long terme, avec des années à −30 % ou −50 %.")}
           {pctField("Inflation", ["returns", "inflation"])}
-          {pctField("Rendement réel pendant la retraite", ["returns", "realReturnRetirement"], "Rendement après inflation du capital pendant les retraits.")}
+          {retraite && pctField("Rendement réel pendant la retraite", ["returns", "realReturnRetirement"], "Rendement après inflation du capital pendant les retraits.")}
         </FormGrid>
       </Section>
 
       <Section title="Allocation cible de la partie investie" hint="Hors livrets de précaution et hors crypto.">
         <FormGrid cols={3}>
-          {pctField("Part actions avant sécurisation", ["allocation", "etfBefore"])}
-          {pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse linéaire entre l'âge de sécurisation et l'âge de départ.")}
+          {pctField(retraite ? "Part actions avant sécurisation" : "Part actions", ["allocation", "etfBefore"])}
+          {retraite && pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse linéaire entre l'âge de sécurisation et l'âge de départ.")}
           {pctField("Part obligations", ["allocation", "obligations"])}
         </FormGrid>
         <p className="mt-3 text-sm text-fg-muted">

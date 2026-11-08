@@ -1,6 +1,6 @@
 import { CalendarX2, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Schedule, addMonth, monthOf, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
+import { Schedule, addMonth, monthOf, isRetirementPlan, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { ContributionSplitCard } from "@/components/CustomAllocationCards";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
@@ -26,7 +26,8 @@ export function Versements() {
 
   const { params } = idx.ws;
   const withPlans = idx.activeAccounts.filter((a) => idx.ws.plans.some((p) => p.accountId === a.id));
-  const endMonth = `${retirementYear(params)}-12`;
+  // Calendrier jusqu'au départ en retraite, ou sur dix ans en gestion de patrimoine.
+  const endMonth = isRetirementPlan(params) ? `${retirementYear(params)}-12` : `${Math.max(+current.slice(0, 4), +params.profile.startMonth.slice(0, 4)) + 10}-12`;
   const allMonths = monthsBetweenInclusive(params.profile.startMonth, endMonth);
   const months = showAll ? allMonths : allMonths.filter((m) => m >= addMonth(current, -3) && m <= addMonth(current, 14));
   const monthlyTotal = withPlans.reduce((s, a) => s + schedule.current(a.id, today), 0);

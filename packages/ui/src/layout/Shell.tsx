@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { useSetSetting, useSetting } from "@/lib/queries";
 import { NAV, SETTINGS_ITEM, type NavItem } from "@/nav";
 import { PriceStatus } from "@/components/PriceStatus";
+import { useWorkspace } from "@/lib/workspace";
 
 function NavEntry({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -34,6 +35,7 @@ function NavEntry({ item }: { item: NavItem }) {
 export function Shell() {
   const privacy = useSetting<boolean>("ui.privacyMode", false);
   const setPrivacy = useSetSetting("ui.privacyMode");
+  const retraite = useWorkspace().data?.params.profile.goal !== "patrimoine";
 
   return (
     <div className={cn("flex h-full", privacy.value && "privacy")}>
@@ -47,7 +49,7 @@ export function Shell() {
             <div key={group.label}>
               <div className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-fg-faint">{group.label}</div>
               <div className="space-y-0.5">
-                {group.items.map((item) => (
+                {group.items.filter((item) => retraite || !item.retirementOnly).map((item) => (
                   <NavEntry key={item.path} item={item} />
                 ))}
               </div>

@@ -39,4 +39,18 @@ describe("paramètres", () => {
     expect(n.profile.birthYear).toBe(1995);
     expect(n.tax.socialGeneral).toBe(0.186);
   });
+
+  it("gestion de patrimoine : allocation fixe, contrôles de retraite ignorés", () => {
+    const q = { ...p, profile: { ...p.profile, goal: "patrimoine" as const, securisationAge: 57, retirementAge: 67 } };
+    expect(etfTarget(q, 50)).toBe(0.3);
+    expect(etfTarget(q, 70)).toBe(0.3);
+    // Part actions sous l'ancienne part « au départ » et âges incohérents : sans objet ici.
+    const r = { ...q, profile: { ...q.profile, securisationAge: 70, horizonAge: 60 }, allocation: { ...q.allocation, etfBefore: 0.1, etfAtRetirement: 0.6 } };
+    expect(PlanParams.safeParse(r).success).toBe(true);
+    expect(PlanParams.safeParse({ ...r, profile: { ...r.profile, goal: "retraite" } }).success).toBe(false);
+  });
+
+  it("anciens paramètres : plan de retraite par défaut", () => {
+    expect(normalizeParams({ profile: { birthYear: 1995 } }, new Date(2026, 10, 7)).profile.goal).toBe("retraite");
+  });
 });

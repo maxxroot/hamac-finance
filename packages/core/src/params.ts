@@ -12,6 +12,8 @@ const eur = z.number().min(0);
 export const PlanParams = z
   .object({
     profile: z.object({
+      /** Usage : plan de retraite (projection, sécurisation avec l'âge) ou simple gestion de patrimoine. */
+      goal: z.enum(["retraite", "patrimoine"]),
       birthYear: z.number().int().min(1900).max(2100),
       retirementAge: z.number().int().min(40).max(80),
       securisationAge: z.number().int().min(18).max(80),
@@ -71,20 +73,21 @@ export const PlanParams = z
   })
   .superRefine((p, ctx) => {
     const { birthYear: _b, retirementAge, securisationAge, horizonAge } = p.profile;
-    if (securisationAge > retirementAge) {
+    const retraite = p.profile.goal === "retraite";
+    if (retraite && securisationAge > retirementAge) {
       ctx.addIssue({ code: "custom", path: ["profile", "securisationAge"], message: "L'âge de sécurisation doit précéder (ou égaler) l'âge de départ." });
     }
-    if (horizonAge <= retirementAge) {
+    if (retraite && horizonAge <= retirementAge) {
       ctx.addIssue({ code: "custom", path: ["profile", "horizonAge"], message: "L'âge horizon doit dépasser l'âge de départ." });
     }
     const { etfBefore, etfAtRetirement, obligations } = p.allocation;
     for (const i of allocationIssues(p.customAllocations)) {
       ctx.addIssue({ code: "custom", path: ["customAllocations", i.index, i.field], message: i.message });
     }
-    if (obligations + Math.max(etfBefore, etfAtRetirement) > 1 + 1e-9) {
+    if (obligations + (retraite ? Math.max(etfBefore, etfAtRetirement) : etfBefore) > 1 + 1e-9) {
       ctx.addIssue({ code: "custom", path: ["allocation", "obligations"], message: "Obligations + ETF ne peuvent pas dépasser 100 % (le fonds euros prend le reste)." });
     }
-    if (etfAtRetirement > etfBefore) {
+    if (retraite && etfAtRetirement > etfBefore) {
       ctx.addIssue({ code: "custom", path: ["allocation", "etfAtRetirement"], message: "La part ETF au départ doit être inférieure ou égale à la part avant sécurisation." });
     }
     if (p.livrets.floor > p.livrets.ceiling) {
@@ -97,6 +100,7 @@ export function defaultParams(today = new Date()): PlanParams {
   const y = today.getFullYear();
   return {
     profile: {
+      goal: "retraite",
       birthYear: y - 35,
       retirementAge: 64,
       securisationAge: 57,
@@ -157,6 +161,11 @@ export const PlanParamsInput = z.preprocess((v) => withDefaultParams(v), PlanPar
 
 // ——— Valeurs dérivées (Paramètres B5–B28) ———
 
+/** Plan de retraite (projection, revenu possible, sécurisation) plutôt que simple gestion de patrimoine. */
+export function isRetirementPlan(p: PlanParams): boolean {
+  return p.profile.goal === "retraite";
+}
+
 export function retirementYear(p: PlanParams): number {
   return p.profile.birthYear + p.profile.retirementAge;
 }
@@ -168,12 +177,13 @@ export function ageInYear(p: PlanParams, year: number): number {
 
 /**
  * Part ETF cible à un âge donné (désensibilisation linéaire entre l'âge de sécurisation et le départ).
- * Paramètres!B27.
+ * Paramètres!B27. En gestion de patrimoine, la part reste celle de `etfBefore`.
  */
 export function etfTarget(p: PlanParams, age: number): number {
   const { etfBefore, etfAtRetirement } = p.allocation;
   const { securisationAge, retirementAge } = p.profile;
-  if (age < securisationAge) return etfBefore;
+  // Gestion de patrimoine : allocation fixe, sans désensibilisation avec l'âge.
+  if (!isRetirementPlan(p) || age < securisationAge) return etfBefore;
   if (retirementAge <= securisationAge) return etfAtRetirement;
   const t = (age - securisationAge) / (retirementAge - securisationAge);
   return Math.max(etfAtRetirement, etfBefore - (etfBefore - etfAtRetirement) * t);
