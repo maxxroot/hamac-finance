@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createBackend, type Backend } from "../index";
 import type { Fetcher } from "./http";
-import { assertPublicUrl, readPath, toPrice } from "./custom";
+import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./custom";
 import { euronextHistory, parseEuronextCsv } from "./euronext";
 import { chainFor, defaultProviderSettings, parseBondTicker, searchAssets } from "./index";
 import { assertPlausible } from "./refresh";
@@ -123,6 +123,19 @@ describe("sources de cours", () => {
     await expect(assertPublicUrl("https://169.254.169.254/latest")).rejects.toThrow(/privé/);
     await expect(assertPublicUrl("https://[::1]/x")).rejects.toThrow(/privé/);
     await expect(assertPublicUrl("https://1.1.1.1/x")).resolves.toBeUndefined();
+  });
+
+  it("URL personnalisée : la résolution DNS est revérifiée à la connexion", async () => {
+    const look = (addresses: Array<{ address: string; family: number }>) =>
+      new Promise<{ err: Error | null; address: unknown }>((done) => guardedLookup((async () => addresses) as never)("exemple.fr", { all: true }, (err, address) => done({ err, address })));
+    expect((await look([{ address: "93.184.216.34", family: 4 }])).err).toBeNull();
+    expect((await look([{ address: "93.184.216.34", family: 4 }, { address: "10.0.0.5", family: 4 }])).err?.message).toMatch(/privé/);
+    expect((await look([{ address: "::ffff:127.0.0.1", family: 6 }])).err?.message).toMatch(/privé/);
+  });
+
+  it("URL personnalisée : une réponse trop volumineuse est interrompue", async () => {
+    const big = (async () => new Response("x".repeat(2_000_100))) as Fetcher;
+    await expect(customQuote(big, { priceUrl: "https://a.fr/x", pricePath: "p", isin: null, symbol: null }, "2026-11-08", false)).rejects.toThrow(/volumineuse/);
   });
 
   it("repli : si la première source échoue, la suivante répond", async () => {

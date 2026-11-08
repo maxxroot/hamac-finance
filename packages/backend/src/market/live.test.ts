@@ -19,6 +19,10 @@ describe.skipIf(!live)("sources réelles", () => {
     expect(q.length).toBeGreaterThan(100);
     expect(q.at(-1)!.price).toBeGreaterThan(1);
   }, 30_000);
+  it("URL personnalisée en mode web : une vraie adresse https répond", async () => {
+    const q = await fetchFrom(defaultFetcher, "url", { ...base, kind: "action", priceUrl: "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur", pricePath: "bitcoin.eur" }, null, today, { ...env, web: true });
+    expect(q[0]!.price).toBeGreaterThan(1000);
+  }, 30_000);
   it("CoinGecko : cours du bitcoin", async () => {
     const q = await fetchFrom(defaultFetcher, "coingecko", { ...base, kind: "crypto", symbol: "bitcoin" }, null, today, env);
     expect(q.at(-1)!.price).toBeGreaterThan(1000);

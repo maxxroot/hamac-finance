@@ -1,7 +1,7 @@
 /** Client HTTP minimal, injectable (tests sans réseau). */
 export type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
-const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36";
+export const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36";
 
 export const defaultFetcher: Fetcher = (url, init = {}) =>
   fetch(url, {

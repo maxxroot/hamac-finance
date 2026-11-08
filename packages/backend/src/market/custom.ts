@@ -1,6 +1,8 @@
-import { lookup } from "node:dns/promises";
+import type { LookupAddress } from "node:dns";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { get as httpsGet } from "node:https";
 import { BlockList, isIP } from "node:net";
-import { MarketError, type Fetcher, type Quote } from "./http";
+import { MarketError, UA, type Fetcher, type Quote } from "./http";
 
 /** Source « URL personnalisée » : une adresse propre au titre, renvoyant du JSON, et le chemin du prix. */
 
@@ -28,7 +30,7 @@ export async function assertPublicUrl(raw: string): Promise<void> {
   const host = url.hostname.replace(/^\[|\]$/g, "");
   let addresses: string[];
   try {
-    addresses = isIP(host) ? [host] : (await lookup(host, { all: true })).map((a) => a.address);
+    addresses = isIP(host) ? [host] : (await dnsLookup(host, { all: true })).map((a) => a.address);
   } catch {
     throw new MarketError(`Adresse introuvable : ${host}.`);
   }
@@ -50,14 +52,75 @@ export function toPrice(v: unknown): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Résolution DNS contrôlée au moment même de la connexion : une réponse changée entre-temps ne passe pas. */
+export function guardedLookup(resolve: typeof dnsLookup = dnsLookup) {
+  return (host: string, options: { family?: number; all?: boolean }, callback: (err: Error | null, address: string | LookupAddress[], family?: number) => void): void => {
+    void resolve(host, { all: true, family: options.family ?? 0 }).then(
+      (found) => {
+        if (!found.length || found.some((a) => isPrivate(a.address))) return callback(new MarketError("Cette adresse pointe vers un réseau privé : refusée sur un serveur."), []);
+        if (options.all) callback(null, found);
+        else callback(null, found[0]!.address, found[0]!.family);
+      },
+      (err: Error) => callback(err, []),
+    );
+  };
+}
+
+/** GET https pour une instance web : DNS contrôlé, sans redirection, taille et durée limitées. */
+function publicGet(url: string): Promise<{ status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpsGet(url, { lookup: guardedLookup() as never, timeout: 15_000, headers: { Accept: "application/json", "User-Agent": UA } }, (res) => {
+      const chunks: Buffer[] = [];
+      let size = 0;
+      res.on("data", (c: Buffer) => {
+        size += c.length;
+        if (size > MAX_BYTES) {
+          req.destroy(new MarketError("Réponse trop volumineuse."));
+          return;
+        }
+        chunks.push(c);
+      });
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }));
+      res.on("error", reject);
+    });
+    req.on("timeout", () => req.destroy(new MarketError("Délai dépassé.")));
+    req.on("error", reject);
+  });
+}
+
+/** Lit une réponse en s'arrêtant à la taille maximale, sans tout charger en mémoire. */
+async function readLimited(res: Response): Promise<string> {
+  if (!res.body) return res.text();
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > MAX_BYTES) {
+      await reader.cancel();
+      throw new MarketError("Réponse trop volumineuse.");
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 export async function customQuote(fetcher: Fetcher, asset: { priceUrl: string | null; pricePath: string | null; isin: string | null; symbol: string | null }, today: string, web: boolean): Promise<Quote[]> {
   if (!asset.priceUrl || !asset.pricePath) throw new MarketError("Adresse ou chemin du prix manquant.");
   const url = asset.priceUrl.replaceAll("{isin}", encodeURIComponent(asset.isin ?? "")).replaceAll("{symbol}", encodeURIComponent(asset.symbol ?? ""));
-  if (web) await assertPublicUrl(url);
-  const res = await fetcher(url, web ? { redirect: "error" } : undefined);
-  if (!res.ok) throw new MarketError(`Réponse ${res.status} de ${new URL(url).host}.`);
-  const text = await res.text();
-  if (text.length > MAX_BYTES) throw new MarketError("Réponse trop volumineuse.");
+  let status: number;
+  let text: string;
+  if (web) {
+    await assertPublicUrl(url);
+    ({ status, text } = await publicGet(url));
+  } else {
+    const res = await fetcher(url);
+    status = res.status;
+    text = await readLimited(res);
+  }
+  if (status < 200 || status >= 300) throw new MarketError(`Réponse ${status} de ${new URL(url).host}.`);
   let json: unknown;
   try {
     json = JSON.parse(text);
