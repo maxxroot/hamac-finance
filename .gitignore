@@ -7,6 +7,11 @@ release
 *.log
 *.sqlite
 *.sqlite-*
+CLAUDE.md
+
+# Clés et secrets locaux
+.env
+.env.*
 
 # Cahier des charges tiré du Google Sheet personnel : contient des données privées.
 docs/cahier-des-charges/
