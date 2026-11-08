@@ -123,15 +123,16 @@ export function withdrawalTaxes(data: EngineData, state: PortfolioState, crypto:
   const p = data.params;
   const ir = incomeTaxRate(p);
   const year = +state.asOf.slice(0, 4);
-  return state.accounts
-    .filter((s) => !s.account.archived || s.value !== 0)
-    .map((s) => {
-      const base = { accountId: s.account.id, label: s.account.name, value: s.value, gain: s.gain };
-      return { ...base, ...taxFor(s, p, ir, state.asOf, crypto, year) };
-    });
+  const shown = state.accounts.filter((s) => !s.account.archived || s.value !== 0);
+  // La plus-value crypto se calcule sur le portefeuille global, toutes plateformes confondues.
+  const cryptoTotal = shown.filter((s) => s.account.kind === "crypto").reduce((t, s) => t + s.positionsValue, 0);
+  return shown.map((s) => {
+    const base = { accountId: s.account.id, label: s.account.name, value: s.value, gain: s.gain };
+    return { ...base, ...taxFor(s, p, ir, state.asOf, crypto, year, cryptoTotal) };
+  });
 }
 
-function taxFor(s: AccountState, p: PlanParams, ir: number, asOf: string, crypto: CryptoTaxReport, year: number): { tax: number; regime: string } {
+function taxFor(s: AccountState, p: PlanParams, ir: number, asOf: string, crypto: CryptoTaxReport, year: number, cryptoTotal: number): { tax: number; regime: string } {
   const gain = s.gain;
   switch (s.account.kind) {
     case "livret":
@@ -180,10 +181,11 @@ function taxFor(s: AccountState, p: PlanParams, ir: number, asOf: string, crypto
       return { tax: roundCents(gain * p.tax.socialGeneral), regime: `Prélèvements sociaux seulement (${pct(p.tax.socialGeneral)})` };
     }
     case "crypto": {
-      const latent = s.positionsValue - crypto.remainingAcquisition;
+      // Le prix d'acquisition restant est global : chaque compte porte sa part de la plus-value latente.
+      const latent = cryptoTotal > 0 ? (cryptoTotal - crypto.remainingAcquisition) * (s.positionsValue / cryptoTotal) : 0;
       const salesThisYear = crypto.years.find((y) => y.year === year)?.grossSales ?? 0;
       if (latent <= 0) return { tax: 0, regime: "Pas de plus-value latente" };
-      if (s.positionsValue + salesThisYear <= p.crypto.exemptionThreshold) return { tax: 0, regime: `Ventes de l'année sous ${p.crypto.exemptionThreshold} € : exonéré` };
+      if (cryptoTotal + salesThisYear <= p.crypto.exemptionThreshold) return { tax: 0, regime: `Ventes de l'année sous ${p.crypto.exemptionThreshold} € : exonéré` };
       return { tax: roundCents(latent * (ir + p.tax.socialGeneral)), regime: `Impôt ${pct(ir)} + prélèvements sociaux ${pct(p.tax.socialGeneral)} sur la plus-value (formulaire 2086)` };
     }
   }

@@ -253,4 +253,18 @@ describe("historique reconstruit", () => {
     expect(s.buckets.garanti).toBe(2_200);
     expect(s.buckets.croissance).toBe(1_100);
   });
+
+  it("crypto sur deux plateformes : le prix d'acquisition global n'est déduit qu'une fois", () => {
+    const p = defaultParams(new Date(2026, 0, 1));
+    const crypto = (id: string) => ({ id, kind: "crypto", livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
+    const btc = { id: "btc", kind: "crypto", name: "BTC", isin: null, symbol: "bitcoin", priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, bondKind: null, archived: false } as Asset;
+    const tx = (id: string, accountId: string, type: "apport_initial" | "achat") => ({ id, date: "2026-01-02", type, accountId, assetId: type === "achat" ? "btc" : null, counterAccountId: null, amount: 6_000, quantity: type === "achat" ? 5 : null, fee: null, comment: "" }) as Transaction;
+    const accounts = [crypto("a"), crypto("b")];
+    const d: EngineData = { params: p, accounts, assets: [btc], plans: [], skips: [], prices: [{ assetId: "btc", date: "2026-06-01", price: 2_000, source: "manuel" }], transactions: accounts.flatMap((a) => [tx(`d${a.id}`, a.id, "apport_initial"), tx(`b${a.id}`, a.id, "achat")]) };
+    const s = computePortfolio(d, "2026-06-02");
+    const rows = withdrawalTaxes(d, s, cryptoTax(d, "2026-06-02"));
+    // 20 000 € de valeur, 12 000 € d'acquisition : 8 000 € de plus-value latente, à 11 % + 18,6 %.
+    expect(rows.reduce((t, r) => t + r.tax, 0)).toBeCloseTo(8_000 * (0.11 + 0.186), 2);
+    expect(rows[0]!.tax).toBeCloseTo(rows[1]!.tax, 2);
+  });
 });
