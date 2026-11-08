@@ -17,6 +17,7 @@ CLAUDE.md
 /*.csv
 /*.ofx
 /*.qif
+/*.xlsx
 
 # Cahier des charges tiré du Google Sheet personnel : contient des données privées.
 docs/cahier-des-charges/
