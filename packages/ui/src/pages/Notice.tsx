@@ -52,7 +52,7 @@ export function Notice() {
               ["Paramètres › Plan", "Modules : les pages à garder dans le menu", "Crypto masquée"],
               ["Paramètres › Plan", "Année de naissance et, pour la retraite : âge de départ, âge de sécurisation (début de la baisse des actions), âge horizon (jusqu'où l'argent doit durer)", "1990 · 64 · 57 · 90"],
               ["Paramètres › Plan", "Premier mois et jour des versements, hypothèses de rendement et d'inflation", "janvier 2027 · le 5 · 2 % · 3 % · 3,5 % · 6 % · 2 %"],
-              ["Paramètres › Plan", "Allocation cible : part actions avant la sécurisation et au départ, part obligations (le fonds euros prend le reste)", "30 % · 15 % · 50 %"],
+              ["Paramètres › Plan", "Ma répartition cible : la part visée de chaque classe, et la part actions au départ pour une retraite", "actions 30 % · obligations 50 %"],
               ["Paramètres › Plan", "Plancher et plafond des livrets, seuil d'alerte, tranche d'imposition", "7 500 € · 15 000 € · 5 % · 11 %"],
               ["Paramètres › Établissements", "Votre banque, votre courtier, votre assurance-vie : comptes proposés et grille de frais (paliers de courtage, droits de garde, frais sur versements et de gestion)", "jusqu'à 500 € : 1,99 € · au-delà : 0,5 %"],
               ["Paramètres › Comptes", "Chaque compte : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale ou plateforme crypto. Son établissement (qui fixe ses frais), sa date d'ouverture (règles des 5 et 8 ans), taux et plafond des livrets, clause bénéficiaire, dans ou hors allocation", "PEA ouvert le 15/03/2021"],
@@ -123,12 +123,10 @@ export function Notice() {
 
       <Section n={6} title="Allocation : régler sa répartition">
         <ul className="list-disc space-y-1.5 pl-5">
-          <li><b className="text-fg">Allocation de base</b> (Paramètres › Plan) : part d'actions et d'obligations, le fonds euros prend le reste. On rééquilibre en orientant les versements, sans vendre.</li>
-          <li>
-            <b className="text-fg">Classes personnalisées</b> (Paramètres › Actifs) : par exemple « Métaux précieux » à 5 %, avec plusieurs titres rattachés. « Prend sa part sur » indique la classe de base dont cette cible est retirée (actions à 30 % deviennent 25 %) et dont la projection reprend le rendement.
-          </li>
-          <li><b className="text-fg">Allocations personnalisées</b> (Paramètres › Plan) : une part du patrimoine et/ou des versements pour un compte ou un type de compte, éventuellement jusqu'à une limite. Une fois la limite atteinte, sa part va à la ligne choisie, sinon aux autres au prorata.</li>
-          <li><b className="text-fg">Dans ou hors allocation</b> : à régler sur chaque compte, titre ou bien. Par défaut, livrets, crypto, SCPI, immobilier et crowdlending sont hors allocation. Hors allocation, un élément reste compté dans le patrimoine.</li>
+          <li><b className="text-fg">Ma répartition cible</b> (Paramètres › Plan) : une ligne par classe que vous détenez, avec sa cible et son rendement attendu. Le total doit faire 100 %. Une classe sans rendement renseigné n'entre pas dans la projection (l'immobilier physique n'y entre jamais).</li>
+          <li><b className="text-fg">Dans ou hors allocation</b> : à régler classe par classe. Une exception reste possible sur chaque compte, titre, bien ou projet (par exemple inclure seulement le Livret A). Hors allocation, un élément reste compté dans le patrimoine.</li>
+          <li><b className="text-fg">Vos propres classes</b> : « Ajouter une classe » dans le même tableau, par exemple « Métaux précieux », puis choisissez la classe de chaque titre dans Paramètres › Actifs.</li>
+          <li><b className="text-fg">Allocations personnalisées</b> (Paramètres › Plan) : une part des versements vers un compte ou un type de compte, éventuellement jusqu'à une limite. Une fois la limite atteinte, sa part va à la ligne choisie, sinon aux autres au prorata.</li>
         </ul>
       </Section>
 
@@ -191,7 +189,7 @@ export function Notice() {
 
       <Section n={10} title="Crypto">
         <p>
-          La crypto compte dans le patrimoine, l'historique et la performance, mais reste par défaut hors de l'allocation cible, et toujours hors de la projection. Les euros envoyés sur la plateforme sont un « Versement » sur le compte crypto ;
+          La crypto compte dans le patrimoine, l'historique et la performance, mais reste par défaut hors de l'allocation cible et de la projection. Les euros envoyés sur la plateforme sont un « Versement » sur le compte crypto ;
           un achat est un « Achat » du titre (Bitcoin…) avec la quantité reçue ; une vente contre des euros est une « Vente ».
         </p>
         <p>
@@ -214,7 +212,7 @@ export function Notice() {
           Dans <L to="/immobilier">Immobilier</L>, chaque bien a une valeur estimée et une part détenue (50 % pour un bien à deux). Il s'ajoute au patrimoine net et reste hors allocation cible, sauf si vous cochez le contraire.
         </p>
         <p>
-          Une SCPI se crée comme un actif (type SCPI), puis s'achète dans le Journal sur un compte-titres, une assurance-vie ou un PER ; les loyers se notent en « Dividende ». Elle compte dans le patrimoine financier, reste hors allocation par défaut et n'entre pas dans la projection. L'impôt sur ses revenus n'est pas calculé.
+          Une SCPI se crée comme un actif (type SCPI), puis s'achète dans le Journal sur un compte-titres, une assurance-vie ou un PER ; les loyers se notent en « Dividende ». Elle compte dans le patrimoine financier, reste hors allocation par défaut, et n'entre dans la projection que si sa classe est incluse avec un rendement attendu. L'impôt sur ses revenus n'est pas calculé.
         </p>
       </Section>
 
@@ -223,7 +221,7 @@ export function Notice() {
           Créez chaque plateforme (Bricks, par exemple) dans Paramètres › Établissements, ajoutez-lui un compte de crowdlending, puis saisissez chaque projet dans <L to="/crowdlending">Crowdlending</L> : montant, taux, durée, type de remboursement. L'argent déposé sur la plateforme se note en « Versement » au <L to="/journal">Journal</L> ; investir dans un projet le sort des espèces, et le capital remboursé y revient. Les intérêts se déclarent avec le bouton « Déclarer les intérêts du mois » : un seul montant pour toute la plateforme, paiements partiels compris. La page affiche le rendement réel de chaque plateforme, pertes et argent non investi compris, à partir d'un an d'historique. Le bouton « Importer un fichier Bricks » lit l'export de transactions (.xlsx) et propose uniquement ce qui est nouveau ou a changé : réimporter le même fichier ne crée aucun doublon. Le taux et la durée d'un projet importé restent à compléter si vous voulez le taux moyen et les échéances.
         </p>
         <p>
-          Un projet « En cours » dont l'échéance est passée déclenche une alerte : indiquez alors s'il est remboursé, en retard, en défaut, ou renseignez sa nouvelle date dans « Échéance prolongée au » si la plateforme l'a repoussée. En retard, ses mensualités cessent d'être comptées comme remboursées ; si la plateforme indique un autre chiffre, saisissez le capital déjà remboursé. Un projet en défaut compte pour 0 € dans le patrimoine, jusqu'à ce que vous saisissiez le montant espéré. Le crowdlending reste hors allocation par défaut (dans l'allocation, il compte avec les obligations) et n'entre pas dans la projection. La déduction fiscale des pertes n'est pas calculée.
+          Un projet « En cours » dont l'échéance est passée déclenche une alerte : indiquez alors s'il est remboursé, en retard, en défaut, ou renseignez sa nouvelle date dans « Échéance prolongée au » si la plateforme l'a repoussée. En retard, ses mensualités cessent d'être comptées comme remboursées ; si la plateforme indique un autre chiffre, saisissez le capital déjà remboursé. Un projet en défaut compte pour 0 € dans le patrimoine, jusqu'à ce que vous saisissiez le montant espéré. Le crowdlending reste hors allocation par défaut, et n'entre dans la projection que si sa classe est incluse avec un rendement attendu. La déduction fiscale des pertes n'est pas calculée.
         </p>
         <p>
           Sur la fiche de la plateforme (Paramètres › Établissements), cochez « La plateforme prélève les impôts automatiquement » et indiquez le taux : déclarez alors les intérêts nets, et l'impôt prélevé apparaît dans la page Impôts. Sans cette case, les intérêts sont considérés comme bruts et l'impôt est affiché à payer.
@@ -243,7 +241,7 @@ export function Notice() {
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[180px_1fr]">
           {[
             ["Enveloppe (compte)", "Le cadre fiscal qui contient les placements : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale, plateforme de crowdlending, plateforme crypto."],
-            ["Classe d'actifs", "Ce que contient une enveloppe : livrets, fonds euros, obligations, actions, immobilier, crypto, ou une classe que vous créez. L'allocation cible porte par défaut sur fonds euros, obligations et actions."],
+            ["Classe d'actifs", "Ce que contient une enveloppe : livrets, fonds euros, obligations, actions, immobilier, crypto, ou une classe que vous créez. L'allocation cible se règle classe par classe."],
             ["Allocation cible", "La répartition visée entre classes d'actifs, à laquelle Hamac compare vos placements."],
             ["Espèces", "Argent arrivé sur un compte mais pas encore investi."],
             ["Versé net", "Tout l'argent mis de sa poche, moins ce qui a été retiré."],

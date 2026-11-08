@@ -6,8 +6,6 @@ const rule = (id: string, over: Partial<AllocationRule> = {}): AllocationRule =>
   id,
   label: "",
   target: { kind: "type", accountKind: "livret" },
-  asTarget: true,
-  asContribution: true,
   share: 0.2,
   limit: null,
   overflowTo: null,
@@ -41,24 +39,21 @@ describe("allocations personnalisées", () => {
     const before = allocationReport(rules, accounts, 20_000);
     expect(before.monthlyBase).toBe(500);
     expect(before.rows[0]).toMatchObject({ name: "Livrets", done: false, remaining: 2_000, advisedMonthly: 100, programmedMonthly: 100 });
-    expect(before.rows[0].currentShare).toBeCloseTo(0.45);
     expect(before.rows[1]).toMatchObject({ name: "PEA", advisedMonthly: 400 });
 
     const after = allocationReport(rules, [acc("lep", "livret", 10_500, 10_000, 100), accounts[1]], 21_500);
-    expect(after.rows[0]).toMatchObject({ done: true, progress: 1, advisedMonthly: 0, targetShare: 0 });
-    expect(after.rows[1]).toMatchObject({ advisedMonthly: 500, targetShare: 1 });
+    expect(after.rows[0]).toMatchObject({ done: true, progress: 1, advisedMonthly: 0 });
+    expect(after.rows[1]).toMatchObject({ advisedMonthly: 500 });
   });
 
-  it("limite « valeur » et ligne qui ne sert que de cible", () => {
-    const rules = [rule("liv", { asContribution: false, share: 0.3, limit: { basis: "valeur", amount: 5_000 } })];
-    const r = allocationReport(rules, [acc("lep", "livret", 4_000, 4_500, 0)], 10_000);
-    expect(r.rows[0]).toMatchObject({ done: false, remaining: 1_000, contributionShare: 0, advisedMonthly: 0 });
-    expect(r.rows[0].drift).toBeCloseTo(0.1);
+  it("limite « valeur »", () => {
+    const rules = [rule("liv", { share: 0.3, limit: { basis: "valeur", amount: 5_000 } })];
+    const r = allocationReport(rules, [acc("lep", "livret", 4_000, 4_500, 0)], 10_000, 100);
+    expect(r.rows[0]).toMatchObject({ done: false, remaining: 1_000, contributionShare: 0.3, advisedMonthly: 30 });
   });
 
-  it("validation : au moins un usage, total ≤ 100 % par usage, destination existante", () => {
-    expect(allocationIssues([rule("a", { asTarget: false, asContribution: false })]).map((i) => i.field)).toEqual(["usage"]);
-    expect(allocationIssues([rule("a", { share: 0.7 }), rule("b", { share: 0.4, asTarget: false })]).map((i) => i.field)).toEqual(["share"]);
+  it("validation : total ≤ 100 %, destination existante", () => {
+    expect(allocationIssues([rule("a", { share: 0.7 }), rule("b", { share: 0.4 })]).map((i) => i.field)).toEqual(["share"]);
     expect(allocationIssues([rule("a", { overflowTo: "zz" })]).map((i) => i.field)).toEqual(["overflowTo"]);
     const p = defaultParams(new Date(2026, 10, 7));
     expect(PlanParams.safeParse({ ...p, customAllocations: [rule("a", { share: 0.7 }), rule("b", { share: 0.4 })] }).success).toBe(false);
@@ -72,7 +67,7 @@ describe("allocations personnalisées", () => {
 });
 
 describe("alerte de limite atteinte", () => {
-  it("précise la destination usage par usage", async () => {
+  it("précise la destination de sa part", async () => {
     const { computeAlerts } = await import("./alerts");
     const { computePortfolio } = await import("./engine");
     const p = defaultParams(new Date(2026, 10, 7));
@@ -80,7 +75,7 @@ describe("alerte de limite atteinte", () => {
       ...p,
       customAllocations: [
         rule("liv", { share: 0.2, limit: { basis: "verse" as const, amount: 1000 }, overflowTo: "av" }),
-        rule("av", { target: { kind: "type", accountKind: "assurance_vie" }, asTarget: false, share: 0.2 }),
+        rule("av", { target: { kind: "type", accountKind: "assurance_vie" }, share: 0.2 }),
       ],
     };
     const data = {
@@ -94,6 +89,6 @@ describe("alerte de limite atteinte", () => {
     };
     const state = computePortfolio(data as never, "2026-11-07");
     const alert = computeAlerts(data as never, state).find((a) => a.id === "alloc-limite-liv");
-    expect(alert?.detail).toBe("Sa part de 20 % va désormais pour les versements, à « Assurance-vie » ; pour la cible, aux autres lignes, au prorata.");
+    expect(alert?.detail).toBe("Sa part de 20 % des versements va désormais à « Assurance-vie ».");
   });
 });

@@ -1,3 +1,4 @@
+import type { AccountKind, Bucket } from "./domain";
 import type { EngineData, PortfolioState } from "./engine";
 import { roundCents } from "./money";
 import { ageInYear, etfTarget, retirementYear, type PlanParams } from "./params";
@@ -5,7 +6,7 @@ import { Schedule } from "./schedule";
 import { orderFee } from "./institutions";
 
 /**
- * Projection annuelle simplifiée (onglet « Projection » du sheet), avant impôts, hors crypto.
+ * Projection annuelle simplifiée (onglet « Projection » du sheet), avant impôts.
  * Améliorations : versements tirés du calendrier complet (changements futurs compris),
  * plancher des livrets respecté (une dépense trop forte puise dans le fonds euros),
  * phase de retraits jusqu'à l'âge horizon, et fourchette de résultats (Monte-Carlo).
@@ -32,6 +33,8 @@ export interface ProjectionInput {
   contributionFees?: (year: number) => number;
   /** Frais annuels proportionnels à l'encours, retranchés du rendement de chaque classe d'actifs. */
   feeDrag?: Partial<Returns>;
+  /** Autres classes incluses avec un rendement attendu : valeur de départ, rendement, versements annuels. */
+  others?: ReadonlyArray<{ key: string; start: number; rate: number; contribution: (year: number) => number }>;
 }
 
 export interface ProjectionRow {
@@ -45,6 +48,8 @@ export interface ProjectionRow {
   obligations: number;
   actions: number;
   fondsEuros: number;
+  /** Autres classes projetées avec leur rendement attendu. */
+  others: number;
   invested: number;
   total: number;
   /** En euros d'aujourd'hui. */
@@ -107,6 +112,7 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
     obligations: input.start.obligations,
     actions: input.start.actions,
     fondsEuros: input.start.fondsEuros,
+    others: 0,
     invested: input.start.obligations + input.start.actions + input.start.fondsEuros,
     total: 0,
     real: 0,
@@ -115,6 +121,9 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
     belowFloor: input.start.livrets < p.livrets.floor,
     fees: 0,
   };
+  const otherValues = new Map((input.others ?? []).map((o) => [o.key, o.start]));
+  first.others = [...otherValues.values()].reduce((s, v) => s + v, 0);
+  first.invested += first.others;
   first.total = first.livrets + first.invested;
   first.real = first.total;
   first.gains = first.total - first.contributed;
@@ -156,12 +165,19 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
     const etfPre = prev.actions * (1 + r.actions) + (secured ? 0 : c.actions);
     const actions = secured ? Math.min(etfPre, target * (obligations + etfPre + fePre)) : etfPre;
     const fondsEuros = etfPre + fePre - actions;
-    const invested = obligations + actions + fondsEuros;
+    let otherContributions = 0;
+    for (const o of input.others ?? []) {
+      const added = active ? o.contribution(year) : 0;
+      otherContributions += added;
+      otherValues.set(o.key, (otherValues.get(o.key) ?? 0) * (1 + o.rate) + added);
+    }
+    const others = [...otherValues.values()].reduce((s, v) => s + v, 0);
+    const invested = obligations + actions + fondsEuros + others;
     const total = livrets + invested;
     const entryFees = active ? (input.contributionFees?.(year) ?? 0) : 0;
     const dragFees =
       prev.livrets * (drag.livrets ?? 0) + prev.fondsEuros * (drag.fondsEuros ?? 0) + prev.obligations * (drag.obligations ?? 0) + prev.actions * (drag.actions ?? 0);
-    const contributed = prev.contributed + (active ? c.livrets + c.fondsEuros + c.obligations + c.actions + entryFees : 0);
+    const contributed = prev.contributed + (active ? c.livrets + c.fondsEuros + c.obligations + c.actions + otherContributions + entryFees : 0);
     rows.push({
       year,
       age,
@@ -173,6 +189,7 @@ export function project(input: ProjectionInput, returnsFor: (year: number) => Re
       obligations,
       actions,
       fondsEuros,
+      others,
       invested,
       total,
       real: total / Math.pow(1 + p.returns.inflation, year - input.startYear),
@@ -281,7 +298,31 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
     return f;
   };
   const expenses = (year: number) => (data as { plannedExpenses?: Array<{ year: number; amount: number }> }).plannedExpenses?.filter((e) => e.year === year).reduce((s, e) => s + e.amount, 0) ?? 0;
-  const cryptoContrib = state.accounts.filter((a) => a.account.kind === "crypto" || a.account.kind === "crowdlending").reduce((s, a) => s + a.netContrib, 0);
+  // Classes incluses avec un rendement attendu : hors des quatre lignes de base, elles suivent leur propre taux.
+  const start = { livrets: state.buckets.precaution, fondsEuros: state.buckets.garanti, obligations: state.buckets.obligations, actions: state.buckets.croissance };
+  const naturalLine: Partial<Record<Bucket, keyof Flows>> = { garanti: "fondsEuros", obligations: "obligations", croissance: "actions" };
+  const others: Array<{ key: string; start: number; rate: number; contribution: (year: number) => number }> = [];
+  const projectedKinds = new Set<AccountKind>();
+  for (const line of params.targets.filter((l) => l.inAllocation && l.expectedReturn != null)) {
+    const custom = params.customClasses.some((c) => c.id === line.key);
+    if (custom) {
+      let value = 0;
+      for (const a of state.accounts) {
+        for (const pos of a.positions) {
+          if (pos.classId !== line.key) continue;
+          value += pos.value;
+          const natural = naturalLine[pos.bucket];
+          if (natural) start[natural] -= pos.value;
+        }
+      }
+      others.push({ key: line.key, start: value, rate: line.expectedReturn!, contribution: () => 0 });
+    } else if (line.key === "immobilier" || line.key === "crowdlending" || line.key === "speculatif") {
+      const kind: AccountKind | null = line.key === "crowdlending" ? "crowdlending" : line.key === "speculatif" ? "crypto" : null;
+      if (kind) projectedKinds.add(kind);
+      others.push({ key: line.key, start: state.buckets[line.key], rate: line.expectedReturn!, contribution: (year) => (kind ? data.accounts.filter((a) => a.kind === kind).reduce((s, a) => s + schedule.inYear(a.id, year), 0) : 0) });
+    }
+  }
+  const excludedContrib = state.accounts.filter((a) => (a.account.kind === "crypto" || a.account.kind === "crowdlending") && !projectedKinds.has(a.account.kind)).reduce((s, a) => s + a.netContrib, 0);
   // Frais proportionnels à l'encours, pondérés par la valeur actuelle de chaque compte.
   const weighted = (kindsOf: string[], rateOf: (a: (typeof data.accounts)[number]) => number) => {
     const members = state.accounts.filter((s) => kindsOf.includes(s.account.kind) && s.value > 0);
@@ -297,8 +338,9 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
   return {
     params,
     startYear,
-    start: { livrets: state.buckets.precaution, fondsEuros: state.buckets.garanti, obligations: state.buckets.obligations, actions: state.buckets.croissance },
-    startContributed: state.totals.netContrib - cryptoContrib,
+    start,
+    startContributed: state.totals.netContrib - excludedContrib,
+    others: others.map((o) => ({ ...o, contribution: perYear(o.contribution) })),
     // Identiques d'un tirage à l'autre : calculées une fois par année.
     contributions: perYear(contributions),
     contributionFees: perYear(contributionFees),

@@ -23,8 +23,8 @@ export interface Property {
   purchaseDate: string | null;
   /** Part détenue (fraction) : 0,5 pour un bien à deux. */
   share: number;
-  /** Compte dans l'allocation cible (non par défaut). */
-  inAllocation: boolean;
+  /** Dans ou hors de l'allocation cible ; null = comme la classe Immobilier. */
+  inAllocation: boolean | null;
   classId: string | null;
   comment: string;
   archived: boolean;

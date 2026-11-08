@@ -3,12 +3,13 @@ import { PROPERTY_KIND_LABELS, PROPERTY_KINDS, type Property, type PropertyKind 
 import type { PropertyInput } from "@hamac/api";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
+import { AllocationChoice } from "./AllocationChoice";
 import { todayIso } from "@/lib/numbers";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
 type PropertyDraft = Required<Omit<PropertyInput, "id">> & { id?: string };
 
-const emptyProperty = (): PropertyDraft => ({ kind: "residence_principale", name: "", value: 0, valueDate: todayIso(), purchasePrice: null, purchaseDate: null, share: 1, inAllocation: false, classId: null, comment: "", archived: false });
+const emptyProperty = (): PropertyDraft => ({ kind: "residence_principale", name: "", value: 0, valueDate: todayIso(), purchasePrice: null, purchaseDate: null, share: 1, inAllocation: null, classId: null, comment: "", archived: false });
 
 export function PropertyDialog({ open, property, onClose }: { open: boolean; property: Property | null; onClose: () => void }) {
   const [d, setD] = useState<PropertyDraft>(emptyProperty());
@@ -58,9 +59,9 @@ export function PropertyDialog({ open, property, onClose }: { open: boolean; pro
           <Field label="Prix d'achat (facultatif)">{(id) => <MoneyInput id={id} value={d.purchasePrice} onChange={(v) => set("purchasePrice", v)} />}</Field>
           <Field label="Date d'achat (facultative)">{(id) => <TextInput id={id} type="date" value={d.purchaseDate ?? ""} onChange={(e) => set("purchaseDate", e.target.value || null)} />}</Field>
         </FormGrid>
-        <Checkbox checked={d.inAllocation} onChange={(v) => set("inAllocation", v)} label="Inclure ce bien dans l'allocation cible" />
-        {d.inAllocation && classes.length > 0 && (
-          <Field label="Classe d'actifs" help="Sans classe, le bien compte avec les actions.">
+        <AllocationChoice value={d.inAllocation} defaultLabel="comme la classe Immobilier" onChange={(v) => set("inAllocation", v)} />
+        {classes.length > 0 && (
+          <Field label="Classe d'actifs" help="Sans classe, le bien compte dans la classe Immobilier.">
             {(id) => (
               <Select id={id} value={d.classId ?? ""} onChange={(e) => set("classId", e.target.value || null)}>
                 <option value="">Aucune</option>

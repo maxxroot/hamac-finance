@@ -232,7 +232,7 @@ export const properties = sqliteTable("properties", {
   purchasePriceCents: integer("purchase_price_cents"),
   purchaseDate: text("purchase_date"),
   share: real("share").notNull().default(1),
-  inAllocation: integer("in_allocation", { mode: "boolean" }).notNull().default(false),
+  inAllocation: integer("in_allocation", { mode: "boolean" }),
   classId: text("class_id"),
   comment: text("comment").notNull().default(""),
   archived: integer("archived", { mode: "boolean" }).notNull().default(false),

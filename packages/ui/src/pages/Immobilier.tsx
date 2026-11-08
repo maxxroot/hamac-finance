@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { PROPERTY_KIND_LABELS, formatPct, propertyValue, type Property } from "@hamac/core";
+import { PROPERTY_KIND_LABELS, classEnabled, formatPct, propertyValue, type Property } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
 import { Stat, StatGrid } from "@/components/Stat";
@@ -19,6 +19,7 @@ export function Immobilier() {
   const [editing, setEditing] = useState<Property | "new" | null>(null);
   if (!pf) return null;
   const properties = pf.idx.ws.properties;
+  const immobilierIn = classEnabled(pf.data.params, "immobilier");
   const scpi = pf.state.accounts.flatMap((a) => a.positions.filter((p) => p.asset.kind === "scpi").map((p) => ({ account: a.account, position: p })));
   const scpiValue = scpi.reduce((s, x) => s + x.position.value, 0);
 
@@ -26,7 +27,7 @@ export function Immobilier() {
     <>
       <PageHeader
         title="Immobilier"
-        description="Vos biens et vos SCPI. Ils restent hors allocation cible, sauf choix contraire."
+        description="Vos biens et vos SCPI. Par défaut hors allocation cible : réglable dans Paramètres › Plan ou sur chaque bien."
         actions={
           <Button variant="primary" onClick={() => setEditing("new")}>
             <Plus size={16} /> Nouveau bien
@@ -73,7 +74,7 @@ export function Immobilier() {
                   <Td align="right"><Amount value={p.value} compact /></Td>
                   <Td align="right">{formatPct(p.share)}</Td>
                   <Td align="right"><Amount value={propertyValue(p)} compact /></Td>
-                  <Td><Badge tone={p.inAllocation ? "accent" : "neutral"}>{p.inAllocation ? "Dedans" : "Hors"}</Badge></Td>
+                  <Td><Badge tone={(p.inAllocation ?? immobilierIn) ? "accent" : "neutral"}>{(p.inAllocation ?? immobilierIn) ? "Dedans" : "Hors"}</Badge></Td>
                   <Td className="w-20"><RowActions onEdit={() => setEditing(p)} onDelete={() => confirm(`Supprimer « ${p.name} » ?`) && del.mutate({ id: p.id })} /></Td>
                 </Tr>
               ))}

@@ -7,6 +7,7 @@ import { call } from "@/lib/transport";
 import { useToast } from "@/lib/toast";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
+import { AllocationTargets } from "@/components/AllocationTargets";
 import { MarketSources } from "@/components/MarketSources";
 import { Etablissements } from "@/pages/Etablissements";
 import { RowActions } from "@/components/RowActions";
@@ -18,17 +19,17 @@ import {
   MODULES,
   MODULE_LABELS,
   PlanParams,
-  classTargets,
   etfTarget,
   formatPct,
   incomeTaxRate,
   retirementYear,
   ruleName,
   targetLabel,
+  targetRows,
+  targetsTotal,
   taxRegimeLabel,
   type Account,
   type AllocationRule,
-  type AssetClass,
   type Asset,
 } from "@hamac/core";
 import { Amount } from "@/components/Amount";
@@ -92,8 +93,13 @@ function PlanTab() {
   const issues = useMemo(() => {
     if (!p) return new Map<string, string>();
     const r = PlanParams.safeParse(p);
-    return new Map(r.success ? [] : r.error.issues.map((i) => [i.path.join("."), i.message]));
-  }, [p]);
+    const found = new Map(r.success ? [] : r.error.issues.map((i) => [i.path.join("."), i.message]));
+    if (idx) {
+      const total = targetsTotal(targetRows(p, idx.ws));
+      if (Math.abs(total - 1) >= 0.0005) found.set("targets.total", `La répartition doit faire 100 % (${formatPct(total)} actuellement).`);
+    }
+    return found;
+  }, [p, idx]);
 
   if (!p || !idx) return null;
   // Taux moyen des livrets, pondéré par leur solde : repère pour l'hypothèse de rendement.
@@ -178,27 +184,34 @@ function PlanTab() {
         </FormGrid>
       </Section>
 
-      <Section title="Hypothèses de rendement" hint="Par an, avant impôts. Prudentes et modifiables : rien n'est garanti hors livrets, fonds euros et obligations gardées jusqu'à l'échéance.">
+      <Section title="Hypothèses" hint="Le rendement attendu de chaque classe se règle dans « Ma répartition cible ».">
         <FormGrid cols={3}>
-          {pctField("Livrets", ["returns", "livrets"], livretRate != null ? `Taux moyen actuel de vos livrets : ${(livretRate * 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %.` : undefined)}
-          {pctField("Fonds euros", ["returns", "fondsEuros"], "Bon fonds euros en ligne : 3 à 4 % brut ces dernières années.")}
-          {pctField("Obligations (taux moyen de l'échelle)", ["returns", "obligations"])}
-          {pctField("Actions (ETF monde)", ["returns", "actions"], "Moyenne de long terme, avec des années à −30 % ou −50 %.")}
           {pctField("Inflation", ["returns", "inflation"])}
           {retraite && pctField("Rendement réel pendant la retraite", ["returns", "realReturnRetirement"], "Rendement après inflation du capital pendant les retraits.")}
         </FormGrid>
       </Section>
 
-      <Section title="Allocation cible de la partie investie" hint="Par défaut hors livrets et crypto. Classes personnalisées et choix par titre : onglet Actifs.">
-        <FormGrid cols={3}>
-          {pctField(retraite ? "Part actions avant sécurisation" : "Part actions", ["allocation", "etfBefore"])}
-          {retraite && pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse linéaire entre l'âge de sécurisation et l'âge de départ.")}
-          {pctField("Part obligations", ["allocation", "obligations"])}
-        </FormGrid>
-        <p className="mt-3 text-sm text-fg-muted">
-          Cette année : actions <b className="text-fg">{formatPct(etfTarget(p, age))}</b> · obligations <b className="text-fg">{formatPct(p.allocation.obligations)}</b> · fonds euros{" "}
-          <b className="text-fg">{formatPct(Math.max(0, 1 - p.allocation.obligations - etfTarget(p, age)))}</b> (le reste).
-        </p>
+      <Section title="Ma répartition cible" hint="Une ligne par classe que vous détenez. Chaque compte ou titre suit sa classe, sauf choix contraire sur sa fiche. Les classes sans rendement renseigné n'entrent pas dans la projection.">
+        <AllocationTargets
+          params={p}
+          data={idx.ws}
+          onChange={setP}
+          labelErrors={new Map(p.customClasses.map((c, i) => [c.id, issues.get(`customClasses.${i}.label`) ?? ""]))}
+          returnHints={livretRate != null ? { precaution: `Moyenne actuelle : ${(livretRate * 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` } : undefined}
+        />
+        {err(["targets", "total"]) && <p className="mt-2 text-sm text-negative">{err(["targets", "total"])}</p>}
+        {retraite && (
+          <div className="mt-4 max-w-xs">{pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse progressive à partir de l'âge de sécurisation, au profit du fonds euros.")}</div>
+        )}
+        {retraite && <p className="mt-2 text-sm text-fg-muted">Actions cette année : <b className="text-fg">{formatPct(etfTarget(p, age))}</b>.</p>}
+        {p.removedTargets.length > 0 && (
+          <div className="mt-4 rounded-lg border border-warning/40 p-3 text-sm text-fg-muted">
+            <p>Ces anciennes cibles posées sur des comptes ont été retirées : {p.removedTargets.map((r) => `${r.label} (${formatPct(r.share)})`).join(", ")}. Reportez-les ci-dessus si besoin.</p>
+            <Button variant="ghost" className="mt-2 h-7 text-xs" onClick={() => setP((x) => (x ? { ...x, removedTargets: [] } : x))}>
+              Compris
+            </Button>
+          </div>
+        )}
       </Section>
 
       <CustomAllocations params={p} accounts={idx.ws.accounts} onChange={(customAllocations) => setP((x) => (x ? { ...x, customAllocations } : x))} issues={issues} />
@@ -288,59 +301,6 @@ function Section({ title, hint, actions, children }: { title: string; hint?: str
   );
 }
 
-const CLASS_COLORS = ["#e0a458", "#7aa2f7", "#9ece6a", "#f7768e", "#bb9af7", "#2ac3de"];
-
-/** Classes d'actifs ajoutées à la demande (or, immobilier papier…), prises sur les cibles de base. */
-function CustomClasses({ params, age, onChange, issues, save }: { params: PlanParams; age: number; onChange: (c: AssetClass[]) => void; issues: Map<string, string>; save: ReactNode }) {
-  const list = params.customClasses;
-  const update = (i: number, patch: Partial<AssetClass>) => onChange(list.map((c, j) => (j === i ? { ...c, ...patch } : c)));
-  const add = () => onChange([...list, { id: crypto.randomUUID(), label: "", color: CLASS_COLORS[list.length % CLASS_COLORS.length]!, behavesLike: "croissance", target: 0.05 }]);
-  const baseLines = classTargets(params, age).filter((c) => c.label == null);
-  return (
-    <Section
-      title="Classes d'actifs personnalisées"
-      hint="Métaux précieux, immobilier papier, petites capitalisations… Une classe peut regrouper plusieurs actifs : rattachez-les dans le tableau ci-dessous."
-      actions={
-        <div className="flex shrink-0 gap-2">
-          {save}
-          <Button onClick={add}>
-            <Plus size={14} /> Ajouter
-          </Button>
-        </div>
-      }
-    >
-      {list.length === 0 ? (
-        <p className="text-sm text-fg-muted">Aucune classe personnalisée : l'allocation de base s'applique seule.</p>
-      ) : (
-        <div className="space-y-3">
-          {list.map((c, i) => (
-            <div key={c.id} className="grid items-start gap-3 sm:grid-cols-[auto_1.4fr_1.2fr_0.8fr_auto]">
-              <input type="color" aria-label={`Couleur de ${c.label || "la classe"}`} value={c.color} onChange={(e) => update(i, { color: e.target.value })} className="mt-6 size-9 cursor-pointer rounded-md border border-line bg-transparent p-1" />
-              <Field label="Nom" error={issues.get(`customClasses.${i}.label`) ?? null}>{(id) => <TextInput id={id} value={c.label} onChange={(e) => update(i, { label: e.target.value })} placeholder="Métaux précieux" />}</Field>
-              <Field label="Prend sa part sur" help="Cette cible est retirée de celle-ci. La projection lui applique le même rendement.">
-                {(id) => (
-                  <Select id={id} value={c.behavesLike} onChange={(e) => update(i, { behavesLike: e.target.value as AssetClass["behavesLike"] })}>
-                    <option value="garanti">{BUCKET_LABELS.garanti}</option>
-                    <option value="obligations">{BUCKET_LABELS.obligations}</option>
-                    <option value="croissance">{BUCKET_LABELS.croissance}</option>
-                  </Select>
-                )}
-              </Field>
-              <Field label="Part cible" error={issues.get(`customClasses.${i}.target`) ?? null}>{(id) => <PercentInput id={id} value={c.target} onChange={(v) => update(i, { target: v ?? 0 })} />}</Field>
-              <Button variant="ghost" className="mt-6 h-9 w-9 p-0" aria-label={`Supprimer ${c.label || "la classe"}`} onClick={() => onChange(list.filter((_, j) => j !== i))}>
-                <Trash2 size={15} />
-              </Button>
-            </div>
-          ))}
-          <p className="text-sm text-fg-muted">
-            Il reste cette année : {baseLines.map((b) => `${BUCKET_LABELS[b.bucket].toLowerCase()} ${formatPct(b.target)}`).join(" · ")}.
-          </p>
-        </div>
-      )}
-    </Section>
-  );
-}
-
 /** Allocations personnalisées : lignes ajoutées à la demande (cible du patrimoine et/ou part des versements). */
 function CustomAllocations({
   params,
@@ -397,10 +357,7 @@ function CustomAllocations({
                       {r.label.trim() && <div className="text-xs text-fg-faint">{targetLabel(r.target, accounts)}</div>}
                     </Td>
                     <Td className="whitespace-nowrap">
-                      <span className="inline-flex gap-1.5">
-                        {r.asTarget && <Badge>Cible</Badge>}
-                        {r.asContribution && <Badge>Versements</Badge>}
-                      </span>
+                      <Badge>Versements</Badge>
                     </Td>
                     <Td align="right">{formatPct(r.share)}</Td>
                     <Td className="whitespace-nowrap text-fg-muted">
@@ -429,7 +386,7 @@ function CustomAllocations({
             </tbody>
           </Table>
           <p className="mt-3 text-sm text-fg-muted">
-            Cibles du patrimoine : <b className="text-fg">{formatPct(totalOf((r) => r.asTarget))}</b> · Parts des versements : <b className="text-fg">{formatPct(totalOf((r) => r.asContribution))}</b>. Le reste n'a pas de consigne.
+            Parts des versements : <b className="text-fg">{formatPct(totalOf(() => true))}</b>. Le reste n'a pas de consigne.
           </p>
         </>
       )}
@@ -517,20 +474,9 @@ function AssetsTab() {
   const idx = useWorkspaceIndex();
   const del = useMutate("assets.delete", { success: "Actif supprimé" });
   const upsert = useMutate("assets.upsert");
-  const saveParams = useMutate("params.update", { success: "Classes enregistrées" });
   const [editing, setEditing] = useState<Asset | null>(null);
   const [creating, setCreating] = useState(false);
-  const [classes, setClasses] = useState<AssetClass[] | null>(null);
   const saved = idx?.ws.params.customClasses;
-  useEffect(() => {
-    if (saved) setClasses(saved);
-  }, [saved]);
-  const draft = useMemo(() => (idx && classes ? { ...idx.ws.params, customClasses: classes } : null), [idx, classes]);
-  const issues = useMemo(() => {
-    if (!draft) return new Map<string, string>();
-    const r = PlanParams.safeParse(draft);
-    return new Map(r.success ? [] : r.error.issues.map((i) => [i.path.join("."), i.message]));
-  }, [draft]);
   const assetSort = useSortable(idx?.ws.assets ?? [], {
     nom: (a) => a.name,
     type: (a) => ASSET_KIND_LABELS[a.kind],
@@ -538,29 +484,12 @@ function AssetsTab() {
     cours: (a) => a.priceSource,
     cible: (a) => a.targetWeight,
   });
-  if (!idx || !draft) return null;
+  if (!idx) return null;
   const equityTargets = idx.activeAssets.filter((a) => a.kind !== "obligation" && a.kind !== "crypto").reduce((s, a) => s + (a.targetWeight ?? 0), 0);
-  const age = new Date().getFullYear() - draft.profile.birthYear;
-  const dirty = JSON.stringify(classes) !== JSON.stringify(saved);
   const patch = (a: Asset, change: Partial<Asset>) => upsert.mutate({ ...a, ...change });
   const allocValue = (a: Asset) => (a.inAllocation == null ? "" : a.inAllocation ? "in" : "out");
-  const inAllocation = (a: Asset) => a.inAllocation ?? (a.kind !== "crypto" && a.kind !== "scpi");
   return (
     <div className="space-y-5 pb-20">
-      <CustomClasses
-        params={draft}
-        age={age}
-        onChange={setClasses}
-        issues={issues}
-        save={
-          dirty && (
-            <Button variant="primary" disabled={issues.size > 0 || saveParams.isPending} onClick={() => saveParams.mutate(draft)}>
-              Enregistrer
-            </Button>
-          )
-        }
-      />
-
       <div>
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm text-fg-muted">
@@ -595,7 +524,7 @@ function AssetsTab() {
                 </Td>
                 <Td>{ASSET_KIND_LABELS[a.kind]}</Td>
                 <Td>
-                  <Select aria-label={`Classe de ${a.name}`} className="h-8 min-w-36 text-xs" disabled={!inAllocation(a)} value={saved?.some((c) => c.id === a.classId) ? (a.classId ?? "") : ""} onChange={(e) => patch(a, { classId: e.target.value || null })}>
+                  <Select aria-label={`Classe de ${a.name}`} className="h-8 min-w-36 text-xs" value={saved?.some((c) => c.id === a.classId) ? (a.classId ?? "") : ""} onChange={(e) => patch(a, { classId: e.target.value || null })}>
                     <option value="">{BUCKET_LABELS[ASSET_BUCKET[a.kind]]} (par défaut)</option>
                     {saved?.map((c) => (
                       <option key={c.id} value={c.id}>

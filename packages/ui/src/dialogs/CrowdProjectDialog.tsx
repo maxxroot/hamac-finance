@@ -102,7 +102,7 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
             {(id) => <MoneyInput id={id} value={d.expectedRecovery} onChange={(v) => set("expectedRecovery", v)} />}
           </Field>
         )}
-        <AllocationChoice value={d.inAllocation} defaultLabel="comme la plateforme" onChange={(v) => set("inAllocation", v)} />
+        <AllocationChoice value={d.inAllocation} defaultLabel="comme la plateforme, puis sa classe" onChange={(v) => set("inAllocation", v)} />
       </div>
     </Modal>
   );

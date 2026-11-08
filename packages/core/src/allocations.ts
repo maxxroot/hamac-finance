@@ -3,12 +3,9 @@ import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, type Account } from "./domain";
 import { roundCents } from "./money";
 
 /**
- * Allocations personnalisées (Paramètres › Plan) : des lignes ajoutées à la demande,
- * en plus de l'allocation de base. Chaque ligne vise un compte ou un type de compte et sert :
- * - de cible du patrimoine (« les livrets doivent peser 20 % »),
- * - et/ou de part des versements mensuels (« 20 % de ce que je verse va aux livrets »),
- * éventuellement jusqu'à une limite (montant versé ou valeur atteinte). Une fois la limite
- * atteinte, sa part va à la ligne choisie, ou à défaut se répartit sur les autres au prorata.
+ * Allocations personnalisées (Paramètres › Plan) : une part des versements mensuels vers un compte
+ * ou un type de compte, éventuellement jusqu'à une limite (montant versé ou valeur atteinte). Une fois
+ * la limite atteinte, sa part va à la ligne choisie, ou à défaut se répartit sur les autres au prorata.
  */
 
 export const AllocationTarget = z.discriminatedUnion("kind", [
@@ -29,10 +26,7 @@ export const AllocationRule = z.object({
   /** Nom libre ; à défaut, celui du compte ou du type visé. */
   label: z.string().max(80),
   target: AllocationTarget,
-  /** Cible du patrimoine (part de la valeur totale). */
-  asTarget: z.boolean(),
   /** Part des versements mensuels. */
-  asContribution: z.boolean(),
   share: z.number().min(0).max(1),
   limit: AllocationLimit.nullable(),
   /** Ligne qui reçoit la part une fois la limite atteinte ; null = les autres lignes, au prorata. */
@@ -40,28 +34,16 @@ export const AllocationRule = z.object({
 });
 export type AllocationRule = z.infer<typeof AllocationRule>;
 
-export type AllocationUsage = "cible" | "versements";
-
 /** Vérifications d'ensemble, pour le formulaire et la validation des paramètres. */
-export function allocationIssues(rules: readonly AllocationRule[]): Array<{ index: number; field: "share" | "usage" | "overflowTo"; message: string }> {
-  const out: Array<{ index: number; field: "share" | "usage" | "overflowTo"; message: string }> = [];
+export function allocationIssues(rules: readonly AllocationRule[]): Array<{ index: number; field: "share" | "overflowTo"; message: string }> {
+  const out: Array<{ index: number; field: "share" | "overflowTo"; message: string }> = [];
   const ids = new Set(rules.map((r) => r.id));
   rules.forEach((r, index) => {
-    if (!r.asTarget && !r.asContribution) out.push({ index, field: "usage", message: "Choisissez au moins un usage : cible du patrimoine ou part des versements." });
     if (r.overflowTo && (r.overflowTo === r.id || !ids.has(r.overflowTo))) out.push({ index, field: "overflowTo", message: "Ligne de destination introuvable." });
   });
-  for (const usage of ["cible", "versements"] as const) {
-    const total = rules.filter((r) => uses(r, usage)).reduce((s, r) => s + r.share, 0);
-    if (total > 1 + 1e-9) {
-      const index = rules.findLastIndex((r) => uses(r, usage));
-      out.push({ index, field: "share", message: `Les ${usage === "cible" ? "cibles du patrimoine" : "parts des versements"} dépassent 100 % (${Math.round(total * 1000) / 10} %).` });
-    }
-  }
+  const total = rules.reduce((s, r) => s + r.share, 0);
+  if (total > 1 + 1e-9) out.push({ index: rules.length - 1, field: "share", message: `Les parts des versements dépassent 100 % (${Math.round(total * 1000) / 10} %).` });
   return out;
-}
-
-export function uses(r: AllocationRule, usage: AllocationUsage): boolean {
-  return usage === "cible" ? r.asTarget : r.asContribution;
 }
 
 export function targetLabel(t: AllocationTarget, accounts: readonly Pick<Account, "id" | "name">[]): string {
@@ -116,10 +98,6 @@ export interface AllocationStatus {
   progress: number | null;
   /** Montant restant avant la limite, null sans limite. */
   remaining: number | null;
-  /** Cible du patrimoine : part visée après redistribution, part actuelle, écart. */
-  targetShare: number;
-  currentShare: number;
-  drift: number;
   /** Versements : part après redistribution, montant conseillé et montant programmé par mois. */
   contributionShare: number;
   advisedMonthly: number;
@@ -128,7 +106,6 @@ export interface AllocationStatus {
 
 export interface AllocationReport {
   rows: AllocationStatus[];
-  /** Valeur totale du patrimoine (base des cibles). */
   total: number;
   /** Total des versements programmés ce mois (base des parts de versements). */
   monthlyBase: number;
@@ -155,18 +132,11 @@ export function allocationReport(rules: readonly AllocationRule[], accounts: rea
     };
   });
   const done = new Set(base.filter((b) => b.done).map((b) => b.rule.id));
-  const sharesFor = (usage: AllocationUsage) => effectiveShares(rules.filter((r) => uses(r, usage)), done);
-  const targets = sharesFor("cible");
-  const contributions = sharesFor("versements");
+  const contributions = effectiveShares(rules, done);
   const rows = base.map((b): AllocationStatus => {
-    const targetShare = targets.get(b.rule.id) ?? 0;
-    const currentShare = total > 0 ? b.value / total : 0;
     const contributionShare = contributions.get(b.rule.id) ?? 0;
     return {
       ...b,
-      targetShare,
-      currentShare,
-      drift: currentShare - targetShare,
       contributionShare,
       advisedMonthly: roundCents(contributionShare * monthlyBase),
     };

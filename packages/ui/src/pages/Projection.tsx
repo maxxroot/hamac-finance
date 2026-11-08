@@ -52,6 +52,7 @@ function ProjectionPage() {
       stack(BUCKET_LABELS.garanti, BUCKET_COLORS.garanti, base.rows.map((r) => r.fondsEuros)),
       stack(BUCKET_LABELS.obligations, BUCKET_COLORS.obligations, base.rows.map((r) => r.obligations)),
       stack(BUCKET_LABELS.croissance, BUCKET_COLORS.croissance, base.rows.map((r) => r.actions)),
+      ...(base.rows.some((r) => r.others > 0) ? [stack("Autres classes", INK.muted, base.rows.map((r) => r.others))] : []),
       { name: "Fourchette basse (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p10)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: INK.muted }, itemStyle: { color: INK.muted } },
       { name: "Fourchette haute (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p90)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: INK.fg }, itemStyle: { color: INK.fg } },
     ];

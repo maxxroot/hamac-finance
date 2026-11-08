@@ -39,8 +39,8 @@ export const LIVRET_LEGAL_CEILINGS: Record<LivretType, number | null> = {
 };
 
 /**
- * Classes d'actifs (ce que contiennent les enveloppes). L'allocation cible porte sur fonds euros,
- * obligations et actions ; livrets (précaution) et crypto en sont exclus par défaut, modifiable par élément.
+ * Classes d'actifs (ce que contiennent les enveloppes). L'allocation cible se règle classe par classe
+ * dans « Ma répartition cible », et chaque élément peut y déroger.
  * Identifiants techniques inchangés, libellés concrets.
  */
 export const BUCKETS = ["precaution", "garanti", "obligations", "croissance", "immobilier", "crowdlending", "speculatif"] as const;
@@ -54,8 +54,6 @@ export const BUCKET_LABELS: Record<Bucket, string> = {
   crowdlending: "Crowdlending",
   speculatif: "Crypto",
 };
-/** Classes d'actifs qui composent la « partie investie » soumise à l'allocation cible. */
-export const INVESTED_BUCKETS: readonly Bucket[] = ["garanti", "obligations", "croissance"];
 
 /** Classe d'actifs des espèces d'un compte (le titre détermine celle des positions). */
 export const CASH_BUCKET: Record<AccountKind, Bucket> = {
@@ -89,19 +87,14 @@ export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
   scpi: "immobilier",
 };
 
-/** Les espèces de ce compte comptent-elles dans l'allocation cible ? */
-export function cashInAllocation(account: Pick<Account, "kind" | "inAllocation">): boolean {
-  return account.inAllocation ?? (account.kind !== "livret" && account.kind !== "crypto" && account.kind !== "crowdlending");
+/** Les espèces de ce compte comptent-elles dans l'allocation cible ? Le choix du compte prime sur celui de sa classe. */
+export function cashInAllocation(account: Pick<Account, "kind" | "inAllocation">, enabled: (key: string) => boolean): boolean {
+  return account.inAllocation ?? enabled(CASH_BUCKET[account.kind]);
 }
 
-/** Ce titre compte-t-il dans l'allocation cible ? Le choix du titre prime sur celui du compte. */
-export function positionInAllocation(asset: Pick<Asset, "kind" | "inAllocation">, account: Pick<Account, "inAllocation">): boolean {
-  return asset.inAllocation ?? account.inAllocation ?? (asset.kind !== "crypto" && asset.kind !== "scpi");
-}
-
-/** Ligne de l'allocation cible d'un élément inclus par choix : livrets avec le garanti, crypto avec les actions. */
-export function allocationBucket(b: Bucket): "garanti" | "obligations" | "croissance" {
-  return b === "precaution" || b === "garanti" ? "garanti" : b === "obligations" || b === "crowdlending" ? "obligations" : "croissance";
+/** Ce titre compte-t-il dans l'allocation cible ? Son choix prime sur celui du compte, puis de sa classe. */
+export function positionInAllocation(asset: Pick<Asset, "inAllocation">, account: Pick<Account, "inAllocation">, classKey: string, enabled: (key: string) => boolean): boolean {
+  return asset.inAllocation ?? account.inAllocation ?? enabled(classKey);
 }
 
 export const BOND_KINDS = ["etat", "entreprise"] as const;

@@ -32,54 +32,10 @@ const editLink = (
   </Link>
 );
 
-/** Synthèse : part réelle de chaque ligne « cible du patrimoine » face à sa cible. */
-export function CustomTargetsCard({ driftAlert, className }: { driftAlert: number; className?: string }) {
-  const report = useAllocationReport();
-  const rows = report?.rows.filter((r) => r.rule.asTarget) ?? [];
-  if (!report || rows.length === 0) return null;
-  return (
-    <Card className={className}>
-      <CardTitle hint={<>part de la valeur totale (<Amount value={report.total} compact />) · modifiables dans {editLink}</>}>Allocations personnalisées : cibles du patrimoine</CardTitle>
-      <Table>
-        <thead>
-          <tr>
-            <Th>Ligne</Th>
-            <Th align="right">Valeur</Th>
-            <Th align="right">Part réelle</Th>
-            <Th align="right">Cible</Th>
-            <Th align="right">Écart</Th>
-            <Th>Limite</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <Tr key={r.rule.id}>
-              <Td>{r.name}</Td>
-              <Td align="right">
-                <Amount value={r.value} compact />
-              </Td>
-              <Td align="right">
-                <Pct value={r.currentShare} />
-              </Td>
-              <Td align="right">{r.done ? <span className="text-fg-faint">—</span> : <Pct value={r.targetShare} />}</Td>
-              <Td align="right" className={!r.done && Math.abs(r.drift) > driftAlert ? "text-warning" : undefined}>
-                {r.done ? <span className="text-fg-faint">—</span> : <Pct value={r.drift} signed />}
-              </Td>
-              <Td>
-                <LimitProgress r={r} />
-              </Td>
-            </Tr>
-          ))}
-        </tbody>
-      </Table>
-    </Card>
-  );
-}
-
 /** Versements : répartition conseillée des versements mensuels selon les lignes « part des versements ». */
 export function ContributionSplitCard() {
   const report = useAllocationReport();
-  const rows = report?.rows.filter((r) => r.rule.asContribution) ?? [];
+  const rows = report?.rows ?? [];
   if (!report || rows.length === 0) return null;
   const advised = rows.reduce((t, r) => t + r.advisedMonthly, 0);
   return (

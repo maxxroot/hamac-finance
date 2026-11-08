@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { BUCKET_LABELS, BUCKETS, computeAlerts, formatEur, formatPct, isRetirementPlan, retirementYear, targetAllocation, type PlanParams } from "@hamac/core";
+import { BUCKET_LABELS, BUCKETS, computeAlerts, formatEur, formatPct, isRetirementPlan, retirementYear, type PlanParams } from "@hamac/core";
 import { AlertList } from "@/components/Alerts";
 import { Amount } from "@/components/Amount";
 import { Chart, axisStyle, type ChartOption } from "@/components/Chart";
@@ -62,7 +62,6 @@ export function TableauDeBord() {
   const p = data.params;
   const ry = retirementYear(p);
   const yearsLeft = Math.max(0, ry - +pf.today.slice(0, 4));
-  const target = targetAllocation(p, state.age);
   const total = state.performance.find((r) => r.key === "total");
   const todo = alerts.filter((a) => a.level !== "ok");
   const hasRealEstate = state.netWorth.realEstate !== 0 || state.netWorth.debts !== 0;
@@ -84,7 +83,7 @@ export function TableauDeBord() {
         {state.allocation.rows.map((r) => (
           <div key={r.key} className="flex items-center justify-between gap-3 text-sm">
             <span className="flex items-center gap-2 text-fg-muted">
-              <span className="size-2.5 rounded-sm" style={{ background: r.color ?? BUCKET_COLORS[r.bucket] }} />
+              <span className="size-2.5 rounded-sm" style={{ background: r.color ?? BUCKET_COLORS[r.bucket!] }} />
               {r.label}
             </span>
             <span className="flex items-center gap-3">
@@ -116,7 +115,7 @@ export function TableauDeBord() {
             </>
           ) : (
             <>
-              Gestion de patrimoine · allocation cible : actions {formatPct(target.croissance)}, obligations {formatPct(target.obligations)}, fonds euros {formatPct(target.garanti)}
+              Gestion de patrimoine · allocation cible : {state.allocation.rows.filter((r) => r.target > 0).map((r) => `${r.label.toLowerCase()} ${formatPct(r.target)}`).join(", ")}
             </>
           )}
         </p>

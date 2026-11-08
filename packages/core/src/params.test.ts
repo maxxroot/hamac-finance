@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PlanParams, classTargets, defaultParams, etfTarget, incomeTaxRate, normalizeParams, targetAllocation } from "./params";
+import { PlanParams, classTargets, defaultParams, etfTarget, incomeTaxRate, normalizeParams } from "./params";
 
 describe("paramètres", () => {
   const p = defaultParams(new Date(2026, 10, 7));
@@ -14,8 +14,10 @@ describe("paramètres", () => {
     expect(etfTarget(q, 62)).toBeCloseTo(0.225);
     expect(etfTarget(q, 67)).toBeCloseTo(0.15);
     expect(etfTarget(q, 70)).toBeCloseTo(0.15);
-    const t = targetAllocation(q, 50);
-    expect(t.garanti).toBeCloseTo(0.2);
+    const t = classTargets(q, 62);
+    expect(t.find((c) => c.key === "croissance")?.target).toBeCloseTo(0.225);
+    expect(t.find((c) => c.key === "garanti")?.target).toBeCloseTo(0.275);
+    expect(t.filter((c) => c.inAllocation).reduce((s, c) => s + c.target, 0)).toBeCloseTo(1);
   });
 
   it("sécurisation = départ : bascule au départ (cas du sheet 65/65)", () => {
@@ -31,7 +33,7 @@ describe("paramètres", () => {
 
   it("refuse des âges ou une allocation incohérents", () => {
     expect(PlanParams.safeParse({ ...p, profile: { ...p.profile, securisationAge: 70 } }).success).toBe(false);
-    expect(PlanParams.safeParse({ ...p, allocation: { ...p.allocation, obligations: 0.8 } }).success).toBe(false);
+    expect(PlanParams.safeParse({ ...p, targets: p.targets.map((l) => (l.key === "obligations" ? { ...l, target: 0.8 } : l)) }).success).toBe(false);
   });
 
   it("complète des paramètres partiels", () => {
@@ -45,7 +47,7 @@ describe("paramètres", () => {
     expect(etfTarget(q, 50)).toBe(0.3);
     expect(etfTarget(q, 70)).toBe(0.3);
     // Part actions sous l'ancienne part « au départ » et âges incohérents : sans objet ici.
-    const r = { ...q, profile: { ...q.profile, securisationAge: 70, horizonAge: 60 }, allocation: { ...q.allocation, etfBefore: 0.1, etfAtRetirement: 0.6 } };
+    const r = { ...q, profile: { ...q.profile, securisationAge: 70, horizonAge: 60 }, allocation: { etfAtRetirement: 0.6 } };
     expect(PlanParams.safeParse(r).success).toBe(true);
     expect(PlanParams.safeParse({ ...r, profile: { ...r.profile, goal: "retraite" } }).success).toBe(false);
   });
@@ -54,17 +56,24 @@ describe("paramètres", () => {
     expect(normalizeParams({ profile: { birthYear: 1995 } }, new Date(2026, 10, 7)).profile.goal).toBe("retraite");
   });
 
-  it("classes personnalisées : prises sur la cible de base, réduites si elle baisse avec l'âge", () => {
-    const or = { id: "or", label: "Or", color: "#e0a458", behavesLike: "croissance" as const, target: 0.2 };
-    const q = { ...p, customClasses: [or] };
-    const young = classTargets(q, 40);
-    expect(young.find((c) => c.key === "or")?.target).toBeCloseTo(0.2);
-    expect(young.find((c) => c.key === "croissance")?.target).toBeCloseTo(0.1);
-    expect(young.reduce((s, c) => s + c.target, 0)).toBeCloseTo(1);
-    const old = classTargets({ ...q, profile: { ...q.profile, securisationAge: 57, retirementAge: 64 } }, 64);
-    expect(old.find((c) => c.key === "or")?.target).toBeCloseTo(0.15);
-    expect(old.find((c) => c.key === "croissance")?.target).toBeCloseTo(0);
-    expect(PlanParams.safeParse({ ...q, customClasses: [{ ...or, target: 0.4 }] }).success).toBe(false);
+  it("reprise des anciens réglages : parts de base, classes personnalisées, cibles sur des comptes retirées", () => {
+    const n = normalizeParams({
+      allocation: { etfBefore: 0.4, etfAtRetirement: 0.1, obligations: 0.4 },
+      customClasses: [{ id: "or", label: "Or", color: "#e0a458", behavesLike: "croissance", target: 0.1 }],
+      customAllocations: [
+        { id: "a", label: "", target: { kind: "type", accountKind: "livret" }, asTarget: true, asContribution: true, share: 0.2, limit: null, overflowTo: null },
+        { id: "b", label: "Ma cible", target: { kind: "compte", accountId: "x" }, asTarget: true, asContribution: false, share: 0.1, limit: null, overflowTo: null },
+      ],
+    }, new Date(2026, 10, 7));
+    const target = (k: string) => n.targets.find((l) => l.key === k);
+    expect(target("croissance")).toMatchObject({ inAllocation: true, target: 0.3 });
+    expect(target("or")).toMatchObject({ inAllocation: true, target: 0.1 });
+    expect(target("obligations")?.target).toBeCloseTo(0.4);
+    expect(target("garanti")?.target).toBeCloseTo(0.2);
+    expect(target("precaution")).toMatchObject({ inAllocation: false, target: 0 });
+    expect(n.customClasses).toEqual([{ id: "or", label: "Or", color: "#e0a458" }]);
+    expect(n.customAllocations.map((r) => r.id)).toEqual(["a"]);
+    expect(n.removedTargets).toEqual([{ label: "Livret", share: 0.2 }, { label: "Ma cible", share: 0.1 }]);
     expect(normalizeParams({}, new Date(2026, 10, 7)).customClasses).toEqual([]);
   });
 

@@ -22,16 +22,23 @@ export function migrate(raw: DatabaseSync): string {
   );
   for (const m of migrations) {
     if (applied.has(m.tag)) continue;
+    // Une reconstruction de table supprime l'ancienne : clés étrangères actives, les tables liées perdraient leurs références.
+    // Ce réglage est sans effet dans une transaction, il faut donc le poser avant.
+    const rebuild = m.sql.includes("PRAGMA foreign_keys=OFF");
+    if (rebuild) raw.exec("PRAGMA foreign_keys=OFF");
     raw.exec("BEGIN IMMEDIATE");
     try {
       for (const statement of m.sql.split("--> statement-breakpoint")) {
-        if (statement.trim()) raw.exec(statement);
+        if (statement.trim() && !/^\s*PRAGMA foreign_keys/.test(statement)) raw.exec(statement);
       }
+      if (rebuild && raw.prepare("PRAGMA foreign_key_check").all().length) throw new Error("références cassées");
       raw.prepare("INSERT INTO _hamac_migrations (tag, applied_at) VALUES (?, ?)").run(m.tag, new Date().toISOString());
       raw.exec("COMMIT");
     } catch (err) {
       raw.exec("ROLLBACK");
       throw new Error(`Échec de la migration ${m.tag} : ${(err as Error).message}`);
+    } finally {
+      if (rebuild) raw.exec("PRAGMA foreign_keys=ON");
     }
   }
   return migrations.at(-1)?.tag ?? "vide";

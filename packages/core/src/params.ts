@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AllocationRule, allocationIssues } from "./allocations";
+import { ACCOUNT_KIND_LABELS, BUCKET_LABELS, type AccountKind, type Bucket } from "./domain";
 
 /**
  * Paramètres du plan (onglet « Paramètres » du sheet), typés et validés.
@@ -26,16 +27,24 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   impots: "Impôts",
 };
 
-/** Classe d'actifs ajoutée à la demande : sa cible est prise sur celle de la classe dont elle a le comportement. */
+/** Classe d'actifs créée par l'utilisateur (or, immobilier papier…) ; sa cible est une ligne de `targets`. */
 export const AssetClass = z.object({
   id: z.string().min(1),
   label: z.string().trim().min(1, "Donnez un nom à cette classe.").max(40),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  /** Classe de base sur laquelle sa cible est prise ; la projection lui applique son rendement. */
-  behavesLike: z.enum(["garanti", "obligations", "croissance"]),
-  target: z.number().min(0).max(1),
 });
 export type AssetClass = z.infer<typeof AssetClass>;
+
+/** Une ligne de « Ma répartition cible » : une classe de base (Bucket) ou une classe créée. */
+export const TargetLine = z.object({
+  key: z.string().min(1),
+  /** Les éléments de la classe comptent dans l'allocation, sauf choix contraire sur l'élément. */
+  inAllocation: z.boolean(),
+  target: z.number().min(0).max(1),
+  /** Rendement attendu, facultatif ; une classe hors des quatre de base n'entre dans la projection que s'il est renseigné. */
+  expectedReturn: z.number().min(-1).max(1).nullable(),
+});
+export type TargetLine = z.infer<typeof TargetLine>;
 
 export const PlanParams = z
   .object({
@@ -61,10 +70,11 @@ export const PlanParams = z
       realReturnRetirement: pctSigned,
     }),
     allocation: z.object({
-      etfBefore: pct,
+      /** Plan de retraite : part d'actions visée à l'âge de départ. */
       etfAtRetirement: pct,
-      obligations: pct,
     }),
+    /** Ma répartition cible : une ligne par classe. */
+    targets: z.array(TargetLine),
     livrets: z.object({
       floor: eur,
       ceiling: eur,
@@ -93,8 +103,10 @@ export const PlanParams = z
     }),
     /** Allocations personnalisées, ajoutées à la demande (voir allocations.ts). */
     customAllocations: z.array(AllocationRule),
-    /** Classes d'actifs personnalisées (or, immobilier papier…), prises sur les cibles de base. */
+    /** Classes d'actifs créées par l'utilisateur. */
     customClasses: z.array(AssetClass),
+    /** Anciennes cibles posées sur des comptes, retirées à la reprise : à signaler une fois. */
+    removedTargets: z.array(z.object({ label: z.string(), share: pct })),
     alerts: z.object({
       ctoCashThreshold: eur,
       peaCashThreshold: eur,
@@ -112,23 +124,14 @@ export const PlanParams = z
     if (retraite && horizonAge <= retirementAge) {
       ctx.addIssue({ code: "custom", path: ["profile", "horizonAge"], message: "L'âge horizon doit dépasser l'âge de départ." });
     }
-    const { etfBefore, etfAtRetirement, obligations } = p.allocation;
-    const room = { croissance: etfBefore, obligations, garanti: Math.max(0, 1 - obligations - etfBefore) };
-    for (const base of ["garanti", "obligations", "croissance"] as const) {
-      const members = p.customClasses.map((c, i) => ({ c, i })).filter((x) => x.c.behavesLike === base);
-      const sum = members.reduce((s, x) => s + x.c.target, 0);
-      if (sum > room[base] + 1e-9 && members.length) {
-        ctx.addIssue({ code: "custom", path: ["customClasses", members.at(-1)!.i, "target"], message: `Ces classes dépassent la cible de leur classe de base (${Math.round(room[base] * 1000) / 10} %).` });
-      }
-    }
     for (const i of allocationIssues(p.customAllocations)) {
       ctx.addIssue({ code: "custom", path: ["customAllocations", i.index, i.field], message: i.message });
     }
-    if (obligations + (retraite ? Math.max(etfBefore, etfAtRetirement) : etfBefore) > 1 + 1e-9) {
-      ctx.addIssue({ code: "custom", path: ["allocation", "obligations"], message: "Obligations + ETF ne peuvent pas dépasser 100 % (le fonds euros prend le reste)." });
-    }
-    if (retraite && etfAtRetirement > etfBefore) {
-      ctx.addIssue({ code: "custom", path: ["allocation", "etfAtRetirement"], message: "La part ETF au départ doit être inférieure ou égale à la part avant sécurisation." });
+    const total = p.targets.filter((l) => l.inAllocation).reduce((t, l) => t + l.target, 0);
+    if (total > 1 + 1e-9) ctx.addIssue({ code: "custom", path: ["targets", "total"], message: `La répartition dépasse 100 % (${Math.round(total * 1000) / 10} %).` });
+    const actions = p.targets.find((l) => l.key === "croissance")?.target ?? 0;
+    if (retraite && p.allocation.etfAtRetirement > actions) {
+      ctx.addIssue({ code: "custom", path: ["allocation", "etfAtRetirement"], message: "La part d'actions au départ doit être inférieure ou égale à la part actuelle." });
     }
     if (p.livrets.floor > p.livrets.ceiling) {
       ctx.addIssue({ code: "custom", path: ["livrets", "floor"], message: "Le plancher doit être inférieur au plafond." });
@@ -150,7 +153,16 @@ export function defaultParams(today = new Date()): PlanParams {
       couple: false,
     },
     returns: { livrets: 0.02, fondsEuros: 0.03, obligations: 0.035, actions: 0.06, inflation: 0.02, realReturnRetirement: 0.01 },
-    allocation: { etfBefore: 0.3, etfAtRetirement: 0.15, obligations: 0.5 },
+    allocation: { etfAtRetirement: 0.15 },
+    targets: [
+      { key: "garanti", inAllocation: true, target: 0.2, expectedReturn: null },
+      { key: "obligations", inAllocation: true, target: 0.5, expectedReturn: null },
+      { key: "croissance", inAllocation: true, target: 0.3, expectedReturn: null },
+      { key: "precaution", inAllocation: false, target: 0, expectedReturn: null },
+      { key: "immobilier", inAllocation: false, target: 0, expectedReturn: null },
+      { key: "crowdlending", inAllocation: false, target: 0, expectedReturn: null },
+      { key: "speculatif", inAllocation: false, target: 0, expectedReturn: null },
+    ],
     livrets: { floor: 7500, ceiling: 15000, driftAlert: 0.05 },
     broker: { feeRate: 0.005, minFee: 0 },
     crypto: { feeRate: 0, exemptionThreshold: 305 },
@@ -170,6 +182,7 @@ export function defaultParams(today = new Date()): PlanParams {
     contributions: { mode: "libre", capacity: 0 },
     customAllocations: [],
     customClasses: [],
+    removedTargets: [],
     alerts: {
       ctoCashThreshold: 1000,
       peaCashThreshold: 50,
@@ -180,11 +193,31 @@ export function defaultParams(today = new Date()): PlanParams {
   };
 }
 
+/** Anciens réglages (allocation à trois parts, classes prises sur une base, cibles sur des comptes) vers « Ma répartition cible ». */
+function migrateTargets(stored: Record<string, unknown>): Record<string, unknown> {
+  if (Array.isArray(stored.targets)) return stored;
+  const old = (stored.allocation ?? {}) as { etfBefore?: number; obligations?: number };
+  const etf = old.etfBefore ?? 0.3;
+  const obligations = old.obligations ?? 0.5;
+  const classes = (Array.isArray(stored.customClasses) ? stored.customClasses : []) as Array<{ id: string; target?: number; behavesLike?: string }>;
+  const taken = (key: string) => classes.filter((c) => c.behavesLike === key).reduce((t, c) => t + (c.target ?? 0), 0);
+  const base = (key: string, target: number) => ({ key, inAllocation: true, target: Math.max(0, Math.round((target - taken(key)) * 1e6) / 1e6), expectedReturn: null });
+  const off = (key: string) => ({ key, inAllocation: false, target: 0, expectedReturn: null });
+  const rules = (Array.isArray(stored.customAllocations) ? stored.customAllocations : []) as Array<{ asTarget?: boolean; asContribution?: boolean; label?: string; share?: number; target?: { kind: string; accountKind?: AccountKind } }>;
+  const named = (r: (typeof rules)[number]) => r.label?.trim() || (r.target?.kind === "type" && r.target.accountKind ? ACCOUNT_KIND_LABELS[r.target.accountKind] : "Un compte");
+  return {
+    ...stored,
+    targets: [base("garanti", Math.max(0, 1 - obligations - etf)), base("obligations", obligations), base("croissance", etf), off("precaution"), off("immobilier"), off("crowdlending"), off("speculatif"), ...classes.map((c) => ({ key: c.id, inAllocation: true, target: c.target ?? 0, expectedReturn: null }))],
+    customAllocations: rules.filter((r) => r.asContribution !== false),
+    removedTargets: rules.filter((r) => r.asTarget).map((r) => ({ label: named(r), share: r.share ?? 0 })),
+  };
+}
+
 /** Complète, section par section, des paramètres d'une version antérieure avec les valeurs par défaut. */
 export function withDefaultParams(stored: unknown, today = new Date()): unknown {
   const base = defaultParams(today);
   if (!stored || typeof stored !== "object") return base;
-  const s = stored as Record<string, Record<string, unknown>>;
+  const s = migrateTargets(stored as Record<string, unknown>) as Record<string, Record<string, unknown>>;
   // Sections objets fusionnées champ par champ ; listes reprises telles quelles si présentes.
   return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Array.isArray(v) ? (Array.isArray(s[k]) ? s[k] : v) : { ...v, ...(s[k] ?? {}) }]));
 }
@@ -217,56 +250,46 @@ export function ageInYear(p: PlanParams, year: number): number {
   return year - p.profile.birthYear;
 }
 
+export const targetLine = (p: Pick<PlanParams, "targets">, key: string) => p.targets.find((l) => l.key === key);
+export const classEnabled = (p: Pick<PlanParams, "targets">, key: string) => targetLine(p, key)?.inAllocation ?? false;
+
+/** Nom affiché d'une classe : de base ou créée par l'utilisateur. */
+export function classLabel(p: Pick<PlanParams, "customClasses">, key: string): string {
+  return p.customClasses.find((c) => c.id === key)?.label ?? BUCKET_LABELS[key as Bucket] ?? key;
+}
+
 /**
- * Part ETF cible à un âge donné (désensibilisation linéaire entre l'âge de sécurisation et le départ).
- * Paramètres!B27. En gestion de patrimoine, la part reste celle de `etfBefore`.
+ * Part d'actions visée à un âge donné : baisse linéaire entre l'âge de sécurisation et le départ.
+ * En gestion de patrimoine, la part reste celle du tableau.
  */
 export function etfTarget(p: PlanParams, age: number): number {
-  const { etfBefore, etfAtRetirement } = p.allocation;
+  const base = targetLine(p, "croissance")?.target ?? 0;
   const { securisationAge, retirementAge } = p.profile;
-  // Gestion de patrimoine : allocation fixe, sans désensibilisation avec l'âge.
-  if (!isRetirementPlan(p) || age < securisationAge) return etfBefore;
-  if (retirementAge <= securisationAge) return etfAtRetirement;
+  const atRetirement = p.allocation.etfAtRetirement;
+  if (!isRetirementPlan(p) || age < securisationAge) return base;
+  if (retirementAge <= securisationAge) return Math.min(base, atRetirement);
   const t = (age - securisationAge) / (retirementAge - securisationAge);
-  return Math.max(etfAtRetirement, etfBefore - (etfBefore - etfAtRetirement) * t);
-}
-
-export interface TargetAllocation {
-  garanti: number;
-  obligations: number;
-  croissance: number;
-}
-
-export function targetAllocation(p: PlanParams, age: number): TargetAllocation {
-  const croissance = etfTarget(p, age);
-  const obligations = p.allocation.obligations;
-  return { croissance, obligations, garanti: Math.max(0, 1 - obligations - croissance) };
+  return Math.max(Math.min(base, atRetirement), base - (base - atRetirement) * t);
 }
 
 export interface ClassTarget {
-  /** Identifiant de la classe personnalisée, ou la classe de base. */
   key: string;
-  bucket: keyof TargetAllocation;
-  label: string | null;
-  color: string | null;
+  inAllocation: boolean;
   target: number;
 }
 
-/**
- * Cibles détaillées : chaque classe personnalisée prend sa part sur sa classe de base, qui garde le reste.
- * Si la base rétrécit avec l'âge (actions), les classes personnalisées rétrécissent en proportion.
- */
+/** Cibles à un âge donné : ce que les actions perdent avec l'âge va au fonds euros, sinon aux obligations. */
 export function classTargets(p: PlanParams, age: number): ClassTarget[] {
-  const base = targetAllocation(p, age);
-  return (["garanti", "obligations", "croissance"] as const).flatMap((bucket) => {
-    const members = p.customClasses.filter((c) => c.behavesLike === bucket);
-    const sum = members.reduce((s, c) => s + c.target, 0);
-    const scale = sum > base[bucket] && sum > 0 ? base[bucket] / sum : 1;
-    return [
-      { key: bucket, bucket, label: null, color: null, target: Math.max(0, base[bucket] - sum * scale) },
-      ...members.map((c) => ({ key: c.id, bucket, label: c.label, color: c.color, target: c.target * scale })),
-    ];
-  });
+  const out = p.targets.map((l) => ({ key: l.key, inAllocation: l.inAllocation, target: l.target }));
+  const actions = out.find((l) => l.key === "croissance");
+  if (actions?.inAllocation) {
+    const next = etfTarget(p, age);
+    const freed = actions.target - next;
+    actions.target = next;
+    const dest = out.find((l) => l.key === "garanti" && l.inAllocation) ?? out.find((l) => l.key === "obligations" && l.inAllocation);
+    if (dest) dest.target += freed;
+  }
+  return out;
 }
 
 /** Taux d'impôt sur le revenu appliqué aux revenus de placement : barème si plus avantageux, sinon PFU. */

@@ -156,7 +156,7 @@ export const PropertyInput = z.object({
   purchasePrice: money.min(0).nullable().default(null),
   purchaseDate: isoDate.nullable().default(null),
   share: z.number().gt(0, "Part détenue requise").max(1).default(1),
-  inAllocation: z.boolean().default(false),
+  inAllocation: z.boolean().nullable().default(null),
   classId: id.nullable().default(null),
   comment: text(500).default(""),
   archived: z.boolean().default(false),

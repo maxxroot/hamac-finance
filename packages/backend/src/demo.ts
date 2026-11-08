@@ -23,9 +23,9 @@ export async function seedDemo(backend: Backend): Promise<void> {
     contributions: { mode: "suggere", capacity: 600 },
     // Allocations personnalisées d'exemple : livrets jusqu'à 6 000 € versés, puis vers l'assurance-vie.
     customAllocations: [
-      { id: "demo-livrets", label: "", target: { kind: "type", accountKind: "livret" }, asTarget: true, asContribution: true, share: 0.2, limit: { basis: "verse", amount: 6000 }, overflowTo: "demo-av" },
-      { id: "demo-av", label: "", target: { kind: "type", accountKind: "assurance_vie" }, asTarget: false, asContribution: true, share: 0.2, limit: null, overflowTo: null },
-      { id: "demo-pea", label: "Actions (PEA)", target: { kind: "type", accountKind: "pea" }, asTarget: true, asContribution: true, share: 0.4, limit: null, overflowTo: null },
+      { id: "demo-livrets", label: "", target: { kind: "type", accountKind: "livret" }, share: 0.2, limit: { basis: "verse", amount: 6000 }, overflowTo: "demo-av" },
+      { id: "demo-av", label: "", target: { kind: "type", accountKind: "assurance_vie" }, share: 0.2, limit: null, overflowTo: null },
+      { id: "demo-pea", label: "Actions (PEA)", target: { kind: "type", accountKind: "pea" }, share: 0.4, limit: null, overflowTo: null },
     ],
   });
   await call("workspace.createStarter");

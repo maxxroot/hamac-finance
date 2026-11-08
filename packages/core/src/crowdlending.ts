@@ -39,7 +39,7 @@ export interface CrowdProject {
   repaidCapital: number | null;
   /** En défaut : montant qu'on espère récupérer ; null = 0 € tant qu'on ne sait pas. */
   expectedRecovery: number | null;
-  /** Dans ou hors de l'allocation cible ; null = comme la plateforme (hors, par défaut). */
+  /** Dans ou hors de l'allocation cible ; null = comme la plateforme, puis la classe Crowdlending. */
   inAllocation: boolean | null;
   comment: string;
   /** Identifiant dans un fichier importé. */

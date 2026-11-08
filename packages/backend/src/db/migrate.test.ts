@@ -30,6 +30,17 @@ describe("migrations", () => {
     expect(plans("actif").map((p) => p.c)).toEqual([10000]);
   });
 
+  it("reconstruire la table des biens garde le lien des crédits et remet le choix d'allocation à « par défaut »", () => {
+    const db = upTo(migrations.find((m) => m.sql.includes("__new_properties"))!.tag);
+    db.exec("PRAGMA foreign_keys=ON");
+    db.exec("INSERT INTO properties (id, kind, name, value_cents, in_allocation) VALUES ('hors', 'autre', 'A', 100, 0), ('dans', 'autre', 'B', 100, 1)");
+    db.exec("INSERT INTO loans (id, name, property_id, principal_cents, rate, term_months, first_payment) VALUES ('l', 'Prêt', 'hors', 1000, 0.02, 12, '2026-01-01')");
+    migrate(db);
+    expect(db.prepare("SELECT property_id AS p FROM loans").get()).toEqual({ p: "hors" });
+    expect(db.prepare("SELECT id, in_allocation AS a FROM properties ORDER BY id").all()).toEqual([{ id: "dans", a: 1 }, { id: "hors", a: null }]);
+    expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
+  });
+
   it("base neuve : rien à sauvegarder ; base existante : les migrations manquantes sont listées", () => {
     expect(pendingMigrations(new DatabaseSync(":memory:"))).toEqual([]);
     const last = migrations.at(-1)!.tag;

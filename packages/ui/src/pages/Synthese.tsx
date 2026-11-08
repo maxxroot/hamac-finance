@@ -1,9 +1,8 @@
-import { ACCOUNT_KIND_LABELS, BUCKET_LABELS, BUCKETS, INVESTED_BUCKETS } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, BUCKET_LABELS, BUCKETS } from "@hamac/core";
 import { useMemo } from "react";
 import { SortTh, useSortable } from "@/lib/sort";
 import type { AccountState, PortfolioState } from "@hamac/core";
 import { Amount } from "@/components/Amount";
-import { CustomTargetsCard } from "@/components/CustomAllocationCards";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
@@ -81,7 +80,7 @@ export function Synthese() {
                 <Tr key={r.key}>
                   <Td>
                     <span className="inline-flex items-center gap-2">
-                      <span className="size-2.5 rounded-sm" style={{ background: r.color ?? BUCKET_COLORS[r.bucket] }} />
+                      <span className="size-2.5 rounded-sm" style={{ background: r.color ?? BUCKET_COLORS[r.bucket!] }} />
                       {r.label}
                     </span>
                   </Td>
@@ -105,7 +104,7 @@ export function Synthese() {
             </tbody>
           </Table>
           <p className="mt-3 text-xs text-fg-faint">
-            Partie investie : <Amount value={state.allocation.invested} compact /> ({INVESTED_BUCKETS.map((b) => BUCKET_LABELS[b].toLowerCase()).join(", ")} ; livrets et crypto exclus par défaut, modifiable sur chaque compte ou titre). On rééquilibre en orientant les versements, sans vendre.
+            Partie investie : <Amount value={state.allocation.invested} compact /> (réglée dans Paramètres › Plan). On rééquilibre en orientant les versements, sans vendre.
           </p>
         </Card>
         <Card className="lg:col-span-2">
@@ -113,8 +112,6 @@ export function Synthese() {
           {donut && state.totals.value > 0 ? <Chart option={donut} height={260} /> : <p className="py-16 text-center text-sm text-fg-muted">La répartition apparaîtra avec les premiers montants.</p>}
         </Card>
       </div>
-
-      <CustomTargetsCard driftAlert={pf.data.params.livrets.driftAlert} className="mt-5" />
 
       <div className="mt-5">
         <LivretsStatus />

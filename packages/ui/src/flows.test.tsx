@@ -233,6 +233,27 @@ describe("parcours de l'interface", () => {
     expect(screen.getByText("Juin 2031")).toBeTruthy();
   });
 
+  it("ma répartition cible : 100 % exigés, classe ajoutée, livrets inclus", async () => {
+    const user = userEvent.setup();
+    await rpc("accounts.upsert", { kind: "livret", livretType: "LEP", name: "LEP" });
+    show(<Parametres />);
+    const cible = await screen.findByLabelText("Cible de Actions");
+    expect(screen.getByLabelText("Cible de Livrets")).toBeTruthy();
+    expect((screen.getByLabelText("Cible de Livrets") as HTMLInputElement).disabled).toBe(true);
+    await user.clear(cible);
+    await user.type(cible, "20");
+    await user.tab();
+    expect((await screen.findAllByText(/reste .* à répartir/)).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Ajouter une classe" }));
+    await user.type(await screen.findByLabelText("Nom de la classe"), "Métaux précieux");
+    const cibleOr = screen.getByLabelText("Cible de Métaux précieux");
+    await user.clear(cibleOr);
+    await user.type(cibleOr, "10");
+    await user.tab();
+    await user.click(await screen.findByRole("button", { name: /Enregistrer/ }));
+    await waitFor(async () => expect((await workspace()).params.customClasses).toHaveLength(1));
+  });
+
   it("onglet Actifs : l'allocation se règle sur la ligne d'un titre", async () => {
     const user = userEvent.setup();
     const a = await rpc<{ id: string }>("assets.upsert", { kind: "etf", name: "ETF Monde", priceSource: "manuel" });

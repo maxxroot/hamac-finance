@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, allocationIssues, ruleName, targetLabel, type Account, type AccountKind, type AllocationRule, type AllocationTarget } from "@hamac/core";
-import { Checkbox, Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
+import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
 
 const blank = (): AllocationRule => ({
   id: crypto.randomUUID(),
   label: "",
   target: { kind: "type", accountKind: "livret" },
-  asTarget: true,
-  asContribution: true,
   share: 0.2,
   limit: null,
   overflowTo: null,
@@ -105,16 +103,8 @@ export function AllocationDialog({
           <Field label="Nom (facultatif)">{(id) => <TextInput id={id} value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder={targetLabel(d.target, accounts)} />}</Field>
         </FormGrid>
 
-        <div>
-          <div className="mb-2 text-xs font-medium text-fg-muted">Sert de</div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Checkbox checked={d.asTarget} onChange={(v) => setD({ ...d, asTarget: v })} label="Cible du patrimoine (part de sa valeur totale)" />
-            <Checkbox checked={d.asContribution} onChange={(v) => setD({ ...d, asContribution: v })} label="Part des versements mensuels" />
-          </div>
-        </div>
-
         <FormGrid cols={2}>
-          <Field label="Part" help={d.asContribution ? "Des versements mensuels programmés, tous comptes confondus." : "De la valeur totale du patrimoine."}>
+          <Field label="Part" help="Des versements mensuels programmés, tous comptes confondus.">
             {(id) => <PercentInput id={id} value={d.share} onChange={(v) => setD({ ...d, share: v ?? 0 })} />}
           </Field>
           <Field label="Limite (facultative)">

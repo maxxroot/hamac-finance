@@ -75,5 +75,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0018_jittery_captain_midlands",
     "sql": "ALTER TABLE `crowd_projects` ADD `extended_to` text;"
+  },
+  {
+    "tag": "0019_neat_venom",
+    "sql": "PRAGMA foreign_keys=OFF;--> statement-breakpoint\nCREATE TABLE `__new_properties` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`kind` text NOT NULL,\n\t`name` text NOT NULL,\n\t`value_cents` integer NOT NULL,\n\t`value_date` text,\n\t`purchase_price_cents` integer,\n\t`purchase_date` text,\n\t`share` real DEFAULT 1 NOT NULL,\n\t`in_allocation` integer,\n\t`class_id` text,\n\t`comment` text DEFAULT '' NOT NULL,\n\t`archived` integer DEFAULT false NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL\n);\n--> statement-breakpoint\nINSERT INTO `__new_properties`(\"id\", \"kind\", \"name\", \"value_cents\", \"value_date\", \"purchase_price_cents\", \"purchase_date\", \"share\", \"in_allocation\", \"class_id\", \"comment\", \"archived\", \"created_at\", \"updated_at\") SELECT \"id\", \"kind\", \"name\", \"value_cents\", \"value_date\", \"purchase_price_cents\", \"purchase_date\", \"share\", \"in_allocation\", \"class_id\", \"comment\", \"archived\", \"created_at\", \"updated_at\" FROM `properties`;--> statement-breakpoint\nDROP TABLE `properties`;--> statement-breakpoint\nALTER TABLE `__new_properties` RENAME TO `properties`;--> statement-breakpoint\nPRAGMA foreign_keys=ON;\n--> statement-breakpoint\nUPDATE `properties` SET `in_allocation` = NULL WHERE `in_allocation` = 0;\n"
   }
 ];

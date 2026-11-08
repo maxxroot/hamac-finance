@@ -45,7 +45,7 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   const off = state.allocation.rows.filter((r) => r.action !== "ok");
   if (state.allocation.invested > 0) {
     if (off.length) {
-      const under = off.filter((r) => r.action === "renforcer").map((r) => (r.key === r.bucket ? r.label.toLowerCase() : r.label));
+      const under = off.filter((r) => r.action === "renforcer").map((r) => (r.bucket ? r.label.toLowerCase() : r.label));
       out.push({
         id: "allocation",
         level: "attention",
@@ -64,30 +64,17 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
     for (const r of report.rows) {
       if (r.done && r.rule.limit) {
         const dest = r.rule.overflowTo ? report.rows.find((x) => x.rule.id === r.rule.overflowTo) : null;
-        // La destination ne vaut que pour les usages qu'elle partage ; sinon, prorata des autres lignes.
-        const where = (usage: "cible" | "versements") => (dest && !dest.done && (usage === "cible" ? dest.rule.asTarget : dest.rule.asContribution) ? `à « ${dest.name} »` : "aux autres lignes, au prorata");
-        const usages = [r.rule.asContribution && (["versements", where("versements")] as const), r.rule.asTarget && (["cible", where("cible")] as const)].filter((u) => !!u);
-        const same = usages.every(([, w]) => w === usages[0][1]);
+        const where = dest && !dest.done ? `à « ${dest.name} »` : "aux autres lignes, au prorata";
         out.push({
           id: `alloc-limite-${r.rule.id}`,
           level: "info",
           title: `« ${r.name} » a atteint sa limite (${eur(r.rule.limit.amount)} ${r.rule.limit.basis === "verse" ? "versés" : "de valeur"})`,
-          detail: same
-            ? `Sa part de ${pct(r.rule.share)} va désormais ${usages[0][1]}.`
-            : `Sa part de ${pct(r.rule.share)} va désormais ${usages.map(([u, w]) => `${u === "versements" ? "pour les versements" : "pour la cible"}, ${w}`).join(" ; ")}.`,
+          detail: `Sa part de ${pct(r.rule.share)} des versements va désormais ${where}.`,
           link: "/parametres",
-        });
-      } else if (r.rule.asTarget && r.targetShare > 0 && report.total > 0 && Math.abs(r.drift) > p.livrets.driftAlert) {
-        out.push({
-          id: `alloc-cible-${r.rule.id}`,
-          level: "attention",
-          title: `« ${r.name} » pèse ${pct(r.currentShare)} du patrimoine, pour une cible de ${pct(r.targetShare)}`,
-          detail: r.drift < 0 ? `Orienter les prochains versements vers « ${r.name} ».` : "Orienter les prochains versements ailleurs, sans vendre.",
-          link: "/enveloppes",
         });
       }
     }
-    const off = report.rows.filter((r) => r.rule.asContribution && report.monthlyBase > 0 && Math.abs(r.programmedMonthly - r.advisedMonthly) > Math.max(5, 0.1 * r.advisedMonthly));
+    const off = report.rows.filter((r) => report.monthlyBase > 0 && Math.abs(r.programmedMonthly - r.advisedMonthly) > Math.max(5, 0.1 * r.advisedMonthly));
     // En gestion suggérée, c'est la proposition complète qui fait foi (alerte ci-dessous).
     if (off.length && !suggested) {
       out.push({

@@ -3,8 +3,6 @@ import { accruedFraction, heldToMaturityValue, yieldToMaturity } from "./bonds";
 import { addMonths, monthsBetween, yearsBetween } from "./dates";
 import {
   ASSET_BUCKET,
-  BUCKET_LABELS,
-  allocationBucket,
   cashInAllocation,
   positionInAllocation,
   BUCKETS,
@@ -24,7 +22,7 @@ import {
 } from "./domain";
 import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
-import { ageInYear, classTargets, type PlanParams } from "./params";
+import { ageInYear, classEnabled, classLabel, classTargets, type PlanParams } from "./params";
 import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
 import { loanState, propertyValue, type Loan, type LoanState, type Property } from "./realestate";
 import { PriceBook } from "./prices";
@@ -118,8 +116,8 @@ export interface AccountState {
 export interface AllocationRow {
   /** La classe de base, ou l'identifiant de la classe personnalisée. */
   key: string;
-  /** Classe de base (celle dont une classe personnalisée a le comportement). */
-  bucket: Bucket;
+  /** Classe de base ; null pour une classe créée par l'utilisateur. */
+  bucket: Bucket | null;
   label: string;
   /** Couleur d'une classe personnalisée ; null = couleur de la classe de base. */
   color: string | null;
@@ -363,7 +361,9 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const accountStates: AccountState[] = [];
   const buckets = Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<Bucket, number>;
   // Allocation cible : uniquement les éléments inclus (par défaut ou par choix).
-  const allocated = { garanti: 0, obligations: 0, croissance: 0 };
+  const allocated = new Map<string, number>();
+  const allocate = (key: string, value: number) => allocated.set(key, (allocated.get(key) ?? 0) + value);
+  const enabled = (key: string) => classEnabled(params, key);
 
   for (const account of data.accounts) {
     const acc = accs.get(account.id)!;
@@ -392,9 +392,9 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     if (crowdValue) byBucket.crowdlending = (byBucket.crowdlending ?? 0) + crowdValue;
     if (!account.archived || value !== 0) {
       for (const [b, v] of Object.entries(byBucket)) buckets[b as Bucket] += v ?? 0;
-      if (cashInAllocation(account)) allocated[allocationBucket(cashBucket)] += cash;
-      for (const p of positions) if (p.inAllocation) allocated[allocationBucket(p.bucket)] += p.value;
-      for (const c of crowdProjects) if (c.project.inAllocation ?? account.inAllocation ?? false) allocated.obligations += c.value;
+      if (cash !== 0 && cashInAllocation(account, enabled)) allocate(cashBucket, cash);
+      for (const p of positions) if (p.inAllocation) allocate(p.classId ?? p.bucket, p.value);
+      for (const c of crowdProjects) if (c.project.inAllocation ?? account.inAllocation ?? enabled("crowdlending")) allocate("crowdlending", c.value);
     }
     if (cash < -0.01) warnings.push(`Espèces négatives sur « ${account.name} » (${formatEur(cash)}) : un versement manque probablement dans le journal.`);
 
@@ -427,32 +427,26 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   for (const b of BUCKETS) buckets[b] = roundCents(buckets[b]);
 
   // ——— Allocation de la partie investie ———
-  // Biens inclus par choix : avec leur classe personnalisée, sinon avec les actions.
-  const classValues = new Map<string, number>();
   const properties = (data.properties ?? []).filter((x) => !x.archived);
   for (const x of properties) {
-    if (!x.inAllocation) continue;
-    const cls = params.customClasses.find((c) => c.id === x.classId);
-    allocated[cls?.behavesLike ?? "croissance"] += propertyValue(x);
-    if (cls) classValues.set(cls.id, (classValues.get(cls.id) ?? 0) + propertyValue(x));
+    const key = params.customClasses.find((c) => c.id === x.classId)?.id ?? "immobilier";
+    if (x.inAllocation ?? enabled(key)) allocate(key, propertyValue(x));
   }
-  const invested = allocated.garanti + allocated.obligations + allocated.croissance;
-  for (const a of accountStates) {
-    if (a.account.archived && a.value === 0) continue;
-    for (const pos of a.positions) if (pos.classId && pos.inAllocation) classValues.set(pos.classId, (classValues.get(pos.classId) ?? 0) + pos.value);
-  }
-  const customInBucket = (b: keyof typeof allocated) => params.customClasses.filter((c) => c.behavesLike === b).reduce((s, c) => s + (classValues.get(c.id) ?? 0), 0);
-  const rows: AllocationRow[] = classTargets(params, age)
-    .map((c): AllocationRow => {
-      const custom = c.label != null;
-      const value = roundCents(custom ? (classValues.get(c.key) ?? 0) : allocated[c.bucket] - customInBucket(c.bucket));
+  const invested = [...allocated.values()].reduce((s, v) => s + v, 0);
+  const targetsNow = classTargets(params, age);
+  // Une classe hors allocation apparaît quand même si un de ses éléments y est inclus.
+  const rowKeys = [...new Set([...targetsNow.filter((t) => t.inAllocation).map((t) => t.key), ...allocated.keys()])];
+  const rows: AllocationRow[] = rowKeys
+    .map((key): AllocationRow => {
+      const custom = params.customClasses.find((c) => c.id === key);
+      const value = roundCents(allocated.get(key) ?? 0);
+      const target = targetsNow.find((t) => t.key === key)?.target ?? 0;
       const share = invested > 0 ? value / invested : 0;
-      const drift = share - c.target;
+      const drift = share - target;
       const action = invested <= 0 ? "renforcer" : drift > params.livrets.driftAlert ? "alleger" : drift < -params.livrets.driftAlert ? "renforcer" : "ok";
-      return { key: c.key, bucket: c.bucket, label: c.label ?? BUCKET_LABELS[c.bucket], color: c.color, value, share, target: c.target, drift, action };
+      return { key, bucket: custom ? null : (key as Bucket), label: classLabel(params, key), color: custom?.color ?? null, value, share, target, drift, action };
     })
-    // Une classe de base entièrement remplacée par des classes personnalisées et vide n'a plus lieu d'être affichée.
-    .filter((r) => r.key !== r.bucket || r.target > 0 || r.value !== 0 || !params.customClasses.some((c) => c.behavesLike === r.bucket));
+    .filter((r) => r.target > 0 || r.value !== 0);
 
   // ——— Livrets ———
   const livretsTotal = roundCents(accountStates.filter((s) => s.account.kind === "livret").reduce((s, a) => s + a.value, 0));
@@ -502,10 +496,9 @@ function roundQty(q: number): string {
 function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBook, params: PlanParams): PositionState {
   const accountId = account.id;
   const { asset } = p;
-  const inAllocation = positionInAllocation(asset, account);
+  const custom = params.customClasses.find((c) => c.id === asset.classId);
+  const inAllocation = positionInAllocation(asset, account, custom?.id ?? ASSET_BUCKET[asset.kind], (key) => classEnabled(params, key));
   const terms = bondTerms(asset);
-  // Hors allocation, une classe personnalisée n'a pas d'effet.
-  const cls = inAllocation ? params.customClasses.find((c) => c.id === asset.classId) : undefined;
   let price: number | null = null;
   let priceDate: string | null = null;
   let priceUsed: PriceUsed = "cout";
@@ -568,8 +561,8 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
     realizedGain: roundCents(p.realized),
     feesPaid: roundCents(p.fees),
     income: roundCents(p.income),
-    bucket: asset.kind === "crypto" ? ASSET_BUCKET.crypto : (cls?.behavesLike ?? ASSET_BUCKET[asset.kind]),
-    classId: cls?.id ?? null,
+    bucket: ASSET_BUCKET[asset.kind],
+    classId: inAllocation ? (custom?.id ?? null) : null,
     inAllocation,
     bond,
   };

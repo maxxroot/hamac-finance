@@ -1,8 +1,8 @@
 import { allocationReport } from "./allocations";
-import { LIVRET_LEGAL_CEILINGS, type AccountKind, type Bucket } from "./domain";
+import { LIVRET_LEGAL_CEILINGS, cashInAllocation, type AccountKind, type Bucket } from "./domain";
 import { splitByTarget, type AccountState, type PortfolioState } from "./engine";
 import { roundCents } from "./money";
-import type { PlanParams } from "./params";
+import { classEnabled, type PlanParams } from "./params";
 
 /**
  * Gestion suggérée des versements : à partir de la capacité d'épargne mensuelle, propose un montant
@@ -31,7 +31,7 @@ export interface ContributionProposal {
 }
 
 /** Compte qui reçoit chaque classe d'actifs de l'allocation de base. */
-const BUCKET_ACCOUNTS: Partial<Record<Bucket, AccountKind[]>> = { garanti: ["assurance_vie"], obligations: ["cto"], croissance: ["pea", "pea_pme"] };
+const BUCKET_ACCOUNTS: Partial<Record<Bucket, AccountKind[]>> = { precaution: ["livret"], garanti: ["assurance_vie"], obligations: ["cto"], croissance: ["pea", "pea_pme"], crowdlending: ["crowdlending"], speculatif: ["crypto"] };
 
 const pctLabel = (v: number) => `${(Math.round(v * 1000) / 10).toLocaleString("fr-FR")} %`;
 const eurLabel = (v: number) => `${Math.round(v).toLocaleString("fr-FR")} €`;
@@ -85,7 +85,7 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
   const rules = params.customAllocations;
   const report = allocationReport(rules, accounts, state.totals.value, capacity);
   for (const row of report.rows) {
-    if (!row.rule.asContribution || row.advisedMonthly <= 0) continue;
+    if (row.advisedMonthly <= 0) continue;
     const amount = row.remaining != null ? Math.min(row.advisedMonthly, row.remaining) : row.advisedMonthly;
     const members = accounts.filter((a) => row.accountIds.includes(a.account.id));
     const received = row.contributionShare - (row.done ? 0 : row.rule.share);
@@ -98,7 +98,7 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
 
   // 2. Matelas de précaution.
   const livrets = accounts.filter((a) => a.account.kind === "livret");
-  const customLivrets = rules.some((r) => r.asContribution && (r.target.kind === "type" ? r.target.accountKind === "livret" : livrets.some((l) => l.account.id === (r.target as { accountId: string }).accountId)));
+  const customLivrets = rules.some((r) => (r.target.kind === "type" ? r.target.accountKind === "livret" : livrets.some((l) => l.account.id === (r.target as { accountId: string }).accountId)));
   if (!customLivrets && rest > 0 && state.livrets.total < params.livrets.floor && livrets.length) {
     const gap = params.livrets.floor - state.livrets.total;
     const amount = Math.min(rest, gap);
@@ -107,12 +107,12 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
 
   // 3. Allocation de base, vers les classes d'actifs en retard sur leur cible.
   if (rest > 0) {
+    const enabled = (key: string) => classEnabled(params, key);
     const membersOf = (r: PortfolioState["allocation"]["rows"][number]) => {
-      const byKind = accounts.filter((a) => BUCKET_ACCOUNTS[r.bucket]?.includes(a.account.kind) && a.account.inAllocation !== false);
-      if (r.key === r.bucket) return byKind;
-      // Classe personnalisée : les comptes qui détiennent déjà ses titres, sinon le compte de sa classe de base.
-      const holders = accounts.filter((a) => a.positions.some((p) => p.classId === r.key));
-      return holders.length ? holders : byKind;
+      // Comptes qui détiennent déjà des titres de la classe (classe créée, SCPI), sinon comptes de ce type inclus dans l'allocation.
+      const holders = accounts.filter((a) => a.positions.some((p) => p.inAllocation && (p.classId === r.key || (r.key === "immobilier" && p.bucket === "immobilier"))));
+      if (holders.length) return holders;
+      return r.bucket ? accounts.filter((a) => BUCKET_ACCOUNTS[r.bucket!]?.includes(a.account.kind) && cashInAllocation(a.account, enabled)) : [];
     };
     const rows = state.allocation.rows.filter((r) => membersOf(r).length);
     const totalTarget = rows.reduce((s, r) => s + r.target, 0);
@@ -124,7 +124,7 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
       let placed = 0;
       for (const r of rows) {
         const amount = split.get(r.key) ?? 0;
-        const name = r.key === r.bucket ? r.label.toLowerCase() : r.label;
+        const name = r.bucket ? r.label.toLowerCase() : r.label;
         placed += amount - place(membersOf(r), amount, `Allocation de base : ${name} (cible ${pctLabel(r.target)}, actuel ${pctLabel(r.share)})`);
       }
       rest -= placed;

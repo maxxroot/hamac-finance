@@ -7,7 +7,7 @@ function sheetInput(): ProjectionInput {
   const params = defaultParams(new Date(2026, 10, 7));
   params.profile = { ...params.profile, birthYear: 1995, retirementAge: 67, securisationAge: 67, horizonAge: 92, startMonth: "2026-11" };
   params.returns = { livrets: 0.02, fondsEuros: 0.03, obligations: 0.04, actions: 0.06, inflation: 0.02, realReturnRetirement: 0.01 };
-  params.allocation = { etfBefore: 0.3, etfAtRetirement: 0.15, obligations: 0.5 };
+  params.allocation = { etfAtRetirement: 0.15 };
   params.livrets = { floor: 0, ceiling: 15000, driftAlert: 0.05 }; // plancher neutralisé : le sheet ne l'appliquait pas
   return {
     params,
@@ -87,5 +87,17 @@ describe("projection", () => {
     expect(b.contributed).toBeCloseTo(a.contributed, 6);
     expect(b.total).toBeLessThan(a.total);
     expect(b.fees).toBeGreaterThan(36 * 24);
+  });
+});
+
+describe("autres classes dans la projection", () => {
+  it("une classe avec un rendement attendu suit son taux et s'ajoute au total", () => {
+    const base = sheetInput();
+    const without = project(base, undefined, { drawdown: false }).rows;
+    const withOther = project({ ...base, others: [{ key: "crowdlending", start: 1_000, rate: 0.08, contribution: () => 100 }] }, undefined, { drawdown: false }).rows;
+    expect(withOther[0]!.others).toBe(1_000);
+    expect(withOther[1]!.others).toBeCloseTo(1_180);
+    expect(withOther[1]!.total - without[1]!.total).toBeCloseTo(1_180);
+    expect(withOther[1]!.contributed - without[1]!.contributed).toBe(100);
   });
 });
