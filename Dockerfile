@@ -1,6 +1,4 @@
-# Hamac — instance web auto-hébergée.
-#   docker build -t hamac .
-#   docker run -d -p 8080:8080 -v hamac-data:/data hamac
+# Hamac — instance web auto-hébergée. Se lance avec PostgreSQL via docker-compose.yml.
 
 FROM node:24-slim AS build
 WORKDIR /src

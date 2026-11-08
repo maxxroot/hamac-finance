@@ -45,7 +45,7 @@ const PAGES: Record<string, ReactNode> = {
   "/historique": <Historique />,
 };
 
-// Routeur par hash : fonctionne en file:// (bureau) comme derrière un serveur web.
+// Routeur par hash : aucune configuration de réécriture d'URL côté reverse proxy.
 const router = createHashRouter([
   {
     element: <Shell />,

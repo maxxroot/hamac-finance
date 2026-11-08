@@ -6,6 +6,7 @@
   "type": "module",
   "description": "Serveur web auto-hébergé de Hamac : comptes utilisateurs, PostgreSQL, un tenant isolé par personne.",
   "scripts": {
+    "dev": "tsup --watch --onSuccess \"node dist/server.mjs\"",
     "build": "tsup && node scripts/copy-ui.mjs",
     "start": "node dist/server.mjs",
     "cli": "node dist/cli.mjs"

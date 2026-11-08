@@ -1,19 +1,45 @@
-# Instance Hamac pour vous et vos proches.
-#   docker compose up -d
-#   docker compose exec hamac node cli.mjs invite      → code d'invitation à envoyer
-# Placez un reverse proxy HTTPS (Caddy, Traefik, nginx) devant, puis mettez HAMAC_SECURE à "1".
+# Hamac, pour vous et vos proches.
+#   docker compose up -d --build     puis ouvrez http://localhost:8080 et créez le premier compte (administrateur)
+#   docker compose exec hamac node cli.mjs invite     code d'invitation à envoyer
+#
+# Réglages facultatifs dans un fichier .env à côté de ce fichier :
+#   HAMAC_DB_PASSWORD   mot de passe PostgreSQL, lettres et chiffres (la base n'est jamais exposée hors de Docker)
+#   HAMAC_BIND          0.0.0.0 pour ouvrir au réseau ; placez alors un reverse proxy HTTPS devant
+#   HAMAC_SECURE        1 derrière HTTPS
+#   HAMAC_TRUST_PROXY   1 derrière un reverse proxy
+#   HAMAC_SIGNUP        invite, open ou closed
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hamac
+      POSTGRES_PASSWORD: ${HAMAC_DB_PASSWORD:-hamac}
+      POSTGRES_DB: hamac
+    volumes:
+      - hamac-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hamac -d hamac"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   hamac:
     build: .
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${HAMAC_BIND:-127.0.0.1}:8080:8080"
     environment:
-      HAMAC_SIGNUP: invite # invite | open | closed
-      HAMAC_SECURE: "0" # "1" derrière HTTPS
-      HAMAC_TRUST_PROXY: "0" # "1" derrière un reverse proxy
+      DATABASE_URL: postgres://hamac:${HAMAC_DB_PASSWORD:-hamac}@db:5432/hamac
+      HAMAC_SIGNUP: ${HAMAC_SIGNUP:-invite}
+      HAMAC_SECURE: ${HAMAC_SECURE:-0}
+      HAMAC_TRUST_PROXY: ${HAMAC_TRUST_PROXY:-0}
     volumes:
       - hamac-data:/data
 
 volumes:
+  hamac-db:
   hamac-data:

@@ -23,4 +23,5 @@ CLAUDE.md
 docs/cahier-des-charges/
 
 # Copie générée de l'interface (pnpm build)
-apps/desktop/renderer/
+/hamac-export-*.json
+data/

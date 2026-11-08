@@ -5,9 +5,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // Chemins relatifs : l'app de bureau charge les fichiers via file://
   base: "./",
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
-  server: { port: 5173, strictPort: true },
+  // En développement, l'API est servie par apps/server.
+  server: { port: 5173, strictPort: true, proxy: { "/api": "http://localhost:8080" } },
   build: { target: "es2022", outDir: "dist", emptyOutDir: true },
 });

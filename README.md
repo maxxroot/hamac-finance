@@ -7,7 +7,7 @@
 Livrets réglementés · assurance-vie · PEA · compte-titres · obligations · crypto
 
 [![Licence : AGPL v3](https://img.shields.io/badge/licence-AGPL--3.0-blue.svg)](LICENSE)
-![Plateformes : macOS · Windows · Linux · Web](https://img.shields.io/badge/plateformes-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20web-lightgrey)
+![Application web auto-hébergée](https://img.shields.io/badge/application-web%20auto--h%C3%A9berg%C3%A9e-green)
 ![Statut : en développement](https://img.shields.io/badge/statut-en%20d%C3%A9veloppement-orange)
 
 <img src="docs/captures/dashboard.png" alt="Tableau de bord de Hamac : patrimoine, projection à la retraite, alertes et répartition" width="900">
@@ -21,9 +21,10 @@ ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend to
 
 - **Pensé pour la France** : livrets réglementés, règle des quinzaines, assurance-vie (8 ans, abattement),
   PEA (5 ans), prélèvements sociaux, flat tax ou barème, plus-values crypto (art. 150 VH bis).
-- **Vos données restent chez vous** : application de bureau avec un simple fichier SQLite local,
-  sauvegardé automatiquement chaque jour. Pas de compte, pas de cloud.
-- **Libre et auto-hébergeable** : une instance web pour vos proches, chacun dans sa propre base.
+- **Vos données restent chez vous** : une application web que vous hébergez, sauvegardée automatiquement
+  chaque jour. Aucun service tiers.
+- **Pour vous et vos proches** : chaque compte a son espace isolé dans PostgreSQL ; les cours sont communs
+  à l'instance et téléchargés une seule fois.
 
 > Nom provisoire. Hamac est en développement actif : les fonctionnalités ci-dessous sont en place et
 > testées, mais aucune version n'est encore publiée.
@@ -35,7 +36,6 @@ ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend to
 - [Fonctionnalités](#fonctionnalités)
 - [Captures](#captures)
 - [Installation](#installation)
-- [Héberger une instance web](#héberger-une-instance-web)
 - [Sources de données et vie privée](#sources-de-données-et-vie-privée)
 - [Avertissement](#avertissement)
 - [Développement](#développement)
@@ -91,7 +91,7 @@ ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend to
 - **Recherche de titres** par nom ou par ISIN (actions, ETF, obligations d'État et d'entreprise, crypto).
 - **Crowdlending** : suivi des prêts projet par projet, plateforme par plateforme.
 - **Import des relevés** de banque ou de courtier en CSV, OFX ou QIF (aperçu avant import, doublons repérés) et export.
-- **Sauvegarde complète** exportable et restaurable, pour passer du bureau au web et inversement.
+- **Sauvegarde complète** exportable et restaurable, pour passer d'une instance à une autre.
 - Tableaux triables, mode discret qui masque les montants, interface sombre.
 
 ## Captures
@@ -121,68 +121,52 @@ Les captures utilisent le jeu de données fictif fourni avec Hamac (`HAMAC_DEMO=
 
 ## Installation
 
-Aucun installateur n'est encore publié. En attendant la première version, Hamac se lance depuis les
-sources.
-
-**Prérequis** : [Node.js](https://nodejs.org) 22.13 ou plus récent (24 recommandé) et
-[pnpm](https://pnpm.io) 9.
+Il faut [Docker](https://www.docker.com) avec Docker Compose, rien d'autre.
 
 ```bash
 git clone <adresse-du-dépôt> hamac
 cd hamac
-pnpm install
-pnpm dev                 # lance l'application de bureau
+docker compose up -d --build
 ```
 
-Pour découvrir l'application sans saisir vos données, démarrez-la avec le jeu de démonstration fictif,
-dans un dossier séparé de vos vraies données :
+Ouvrez <http://localhost:8080> et créez le premier compte : il devient administrateur de l'instance et
+règle les sources de cours. Les suivants s'inscrivent ensuite avec un code d'invitation.
 
 ```bash
-HAMAC_DEMO=1 HAMAC_DATA_DIR=/tmp/hamac-demo pnpm dev
-```
-
-Pour produire l'installateur de votre système (`.dmg`, `.exe` ou `.AppImage`/`.deb`) :
-
-```bash
-pnpm dist                # résultat dans apps/desktop/release
-```
-
-Les installateurs ne sont pas encore signés : au premier lancement, macOS et Windows affichent un
-avertissement qu'il faut confirmer.
-
-## Héberger une instance web
-
-Hamac peut tourner sur un serveur pour vous et quelques proches. Chaque personne a sa propre base, isolée
-des autres.
-
-```bash
-docker compose up -d                              # http://localhost:8080
-docker compose exec hamac node cli.mjs invite     # code d'invitation à transmettre
-docker compose exec hamac node cli.mjs users      # liste des comptes
+docker compose exec hamac node cli.mjs invite              # code d'invitation à transmettre
+docker compose exec hamac node cli.mjs users               # liste des comptes
 docker compose exec hamac node cli.mjs password <e-mail>   # changer un mot de passe
 ```
 
-Le premier compte créé devient celui de l'administrateur. Ensuite, l'inscription demande un code
-d'invitation (par défaut), est libre ou fermée. Placez un reverse proxy HTTPS (Caddy, Traefik, nginx)
-devant le serveur et activez `HAMAC_SECURE=1`.
+Par défaut, Hamac n'écoute que sur la machine qui l'héberge. Pour l'ouvrir à d'autres appareils, placez un
+reverse proxy HTTPS (Caddy, Traefik, nginx) devant le serveur et réglez les variables ci-dessous dans un
+fichier `.env` à côté de `docker-compose.yml`.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `HAMAC_DATA_DIR` | `/data` | Base des comptes + une base SQLite par utilisateur |
-| `HAMAC_PORT` | `8080` | Port d'écoute |
-| `HAMAC_SIGNUP` | `invite` | `invite`, `open` ou `closed` |
+| `HAMAC_BIND` | `127.0.0.1` | `0.0.0.0` pour écouter sur le réseau |
 | `HAMAC_SECURE` | `0` | `1` derrière HTTPS (cookies sécurisés) |
 | `HAMAC_TRUST_PROXY` | `0` | `1` derrière un reverse proxy (sinon tous les visiteurs partagent la même limite de connexions) |
+| `HAMAC_SIGNUP` | `invite` | `invite`, `open` ou `closed` |
+| `HAMAC_DB_PASSWORD` | `hamac` | Mot de passe PostgreSQL, lettres et chiffres ; la base n'est jamais exposée hors de Docker |
 | `HAMAC_PRICES` | `1` | `0` pour ne pas actualiser les cours automatiquement |
 
 Sécurité : mots de passe hachés (scrypt), sessions par cookie `HttpOnly` et `SameSite=Strict`, en-tête
-anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe, chemins du serveur non
-exposés.
+anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe. Chaque compte a son propre
+schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de
+l'instance.
+
+Les sauvegardes quotidiennes de chaque compte (30 jours) sont dans le volume `hamac-data`, en JSON compressé.
+Une sauvegarde se restaure dans Paramètres › Application.
+
+**Reprendre une ancienne base de l'application de bureau** : avec Node.js 22.13 ou plus récent,
+`node apps/server/scripts/export-desktop.mjs` crée `hamac-export-bureau.json`, à restaurer dans
+Paramètres › Application. Le dernier état du bureau reste disponible au tag `derniere-version-desktop`.
 
 ## Sources de données et vie privée
 
 Hamac ne collecte rien et n'envoie vos données nulle part. Les seules requêtes vers l'extérieur servent
-à récupérer des cours et à identifier des titres, sans clé d'API :
+à récupérer des cours et à identifier des titres, sans clé d'API par défaut :
 
 | Source | Utilisation |
 |---|---|
@@ -209,40 +193,30 @@ Hamac est écrit entièrement en TypeScript, en monorepo pnpm :
 
 ```
 apps/
-  desktop/    application de bureau (Electron) : fenêtre, pont IPC, base locale
-  server/     serveur web auto-hébergé (Hono) : comptes, une base SQLite par utilisateur
+  server/     serveur web (Hono) : comptes, tenants, interface
 packages/
   core/       calculs métier purs : fiscalité, frais, obligations, projection, alertes (sans dépendance d'E/S)
   api/        contrat typé (zod) entre l'interface et le backend
-  backend/    SQLite intégré à Node (node:sqlite) + Drizzle, migrations embarquées, sources de cours
-  ui/         interface React, identique sur le bureau et sur le web
+  backend/    PostgreSQL + Drizzle, tenants isolés, migrations embarquées, base de cours commune
+  ui/         interface React
 ```
 
-L'interface ne connaît que le contrat `@hamac/api` : elle l'appelle par IPC sur le bureau et par HTTP sur
-le web. Les calculs vivent dans `@hamac/core` et tournent dans l'interface, ce qui rend les simulations
-instantanées. SQLite est celui intégré à Node : aucun module natif à compiler.
+L'interface ne connaît que le contrat `@hamac/api`, qu'elle appelle en HTTP. Les calculs vivent dans
+`@hamac/core` et tournent dans le navigateur, ce qui rend les simulations instantanées.
 
 ```bash
-pnpm dev            # interface avec rechargement à chaud + Electron (backend redémarré à chaque modification)
-pnpm test           # tests (Vitest)
+pnpm dev:db         # PostgreSQL dans Docker, exposé en local (à lancer une fois)
+pnpm dev            # serveur sur :8080 et interface avec rechargement à chaud sur http://localhost:5173
+pnpm test           # tests (Vitest), sur un PostgreSQL en mémoire (PGlite) : Docker non requis
 pnpm typecheck      # vérification des types de tous les paquets
-pnpm build          # construction de l'interface et du processus principal
-pnpm dist           # installateur pour le système courant
-pnpm server:build   # serveur web (interface incluse) dans apps/server/dist
+pnpm build          # interface et serveur, dans apps/server/dist
 HAMAC_LIVE=1 pnpm test   # inclut les tests sur les vraies sources de cours
 ```
 
 **Modifier le schéma de la base** : éditer `packages/backend/src/db/schema.ts` puis lancer
-`pnpm --filter @hamac/backend db:generate`, qui crée la migration SQL et l'embarque dans le code. Une
-reprise de données s'écrit à la main dans le fichier SQL généré.
-
-| Variable (bureau) | Effet |
-|---|---|
-| `HAMAC_DATA_DIR` | Dossier de données isolé (ne touche pas à vos vraies données) |
-| `HAMAC_DEMO=1` | Remplit une base vide avec le jeu de données fictif |
-| `HAMAC_SMOKE_SHOT` | Capture la fenêtre en PNG à ce chemin puis quitte (test de fumée) |
-| `HAMAC_SMOKE_ROUTE` | Page affichée avant la capture, par exemple `/obligations` |
-| `HAMAC_SMOKE_SCROLL=bas` | Capture le bas de la page |
+`pnpm --filter @hamac/backend db:generate`, qui crée la migration SQL et l'embarque dans le code. Elle
+s'applique à chaque tenant à sa prochaine ouverture. Une reprise de données s'écrit à la main dans le
+fichier SQL généré.
 
 La documentation du modèle de données est dans
 [`docs/architecture/modele-de-donnees.md`](docs/architecture/modele-de-donnees.md).

@@ -10,6 +10,7 @@
     "node": ">=22.13"
   },
   "scripts": {
+    "dev:db": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db",
     "dev": "pnpm --parallel --filter @hamac/server --filter @hamac/ui dev",
     "build": "pnpm --filter @hamac/ui build && pnpm --filter @hamac/server build",
     "test": "vitest run",

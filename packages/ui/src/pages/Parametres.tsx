@@ -659,7 +659,7 @@ function BackupCard() {
     <Card>
       <CardTitle>Sauvegarde et transfert</CardTitle>
       <p className="mb-4 text-sm text-fg-muted">
-        Un fichier unique avec toutes vos données : pour une copie de sécurité, ou pour passer de l'application de bureau à une instance web (et inversement).
+        Un fichier unique avec toutes vos données : pour une copie de sécurité, ou pour passer d'une instance Hamac à une autre.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button onClick={exportAll}>
