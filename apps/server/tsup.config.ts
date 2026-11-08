@@ -10,6 +10,9 @@ export default defineConfig({
   outDir: "dist",
   clean: true,
   noExternal: [/.*/],
-  // Garder « node:sqlite » tel quel : ce module n'existe pas sans le préfixe node:.
+  // pg-native est facultatif et absent de l'image.
+  external: ["pg-native"],
+  // Les dépendances CommonJS (pg) appellent require sur les modules de Node : rétabli dans le module ESM.
+  banner: { js: "import { createRequire as __hamacRequire } from 'node:module'; const require = __hamacRequire(import.meta.url);" },
   removeNodeProtocol: false,
 });

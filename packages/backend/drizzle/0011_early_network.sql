@@ -1,1 +1,0 @@
-ALTER TABLE `loans` ADD `kind` text DEFAULT 'immobilier' NOT NULL;

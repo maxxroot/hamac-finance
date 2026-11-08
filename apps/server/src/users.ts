@@ -1,13 +1,15 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import { DatabaseSync } from "node:sqlite";
+import { rawFor, type PgProvider, type PgSession } from "@hamac/backend";
 
 /**
- * Comptes, sessions et invitations (base « serveur », distincte des bases personnelles).
+ * Comptes, sessions et invitations de l'instance (schéma « comptes », inaccessible aux tenants).
  * Mots de passe : scrypt (intégré à Node), sel aléatoire, comparaison à temps constant.
  * Jetons de session : seule leur empreinte SHA-256 est stockée.
  */
 export interface User {
   id: string;
+  /** Espace de données isolé (schéma et rôle PostgreSQL). */
+  tenantId: string;
   email: string;
   createdAt: string;
 }
@@ -19,31 +21,45 @@ function sha(s: string): string {
   return createHash("sha256").update(s).digest("base64url");
 }
 
-export class UserStore {
-  readonly db: DatabaseSync;
+type Row = { id: string; tenant_id: string; email: string; created_at: string };
+const toUser = (r: Row): User => ({ id: r.id, tenantId: r.tenant_id, email: r.email, createdAt: r.created_at });
 
-  constructor(path: string) {
-    this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode = WAL;");
-    this.db.exec("PRAGMA foreign_keys = ON;");
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
+export class UserStore {
+  private constructor(
+    private session: PgSession,
+    private db: ReturnType<typeof rawFor>,
+  ) {}
+
+  /** Ouvre la connexion d'administration et crée les tables manquantes. `onLost` signale sa perte. */
+  static async open(provider: PgProvider, onLost?: () => void): Promise<UserStore> {
+    const session = await provider.session(onLost);
+    const db = rawFor(session);
+    for (const statement of [
+      "CREATE SCHEMA IF NOT EXISTS comptes",
+      // Un tenant ne doit disposer d'aucun objet partagé.
+      "REVOKE ALL ON SCHEMA public FROM PUBLIC",
+      "CREATE TABLE IF NOT EXISTS comptes.tenants (id TEXT PRIMARY KEY, created_at TEXT NOT NULL)",
+      `CREATE TABLE IF NOT EXISTS comptes.users (
         id TEXT PRIMARY KEY,
-        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        tenant_id TEXT NOT NULL UNIQUE REFERENCES comptes.tenants(id),
+        email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
+        is_admin BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS sessions (
+      )`,
+      `CREATE TABLE IF NOT EXISTS comptes.sessions (
         token_hash TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES comptes.users(id) ON DELETE CASCADE,
         expires_at TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS invites (
+      )`,
+      `CREATE TABLE IF NOT EXISTS comptes.invites (
         code TEXT PRIMARY KEY,
         expires_at TEXT NOT NULL,
-        used_by TEXT REFERENCES users(id) ON DELETE SET NULL
-      );
-    `);
+        used_by TEXT REFERENCES comptes.users(id) ON DELETE SET NULL
+      )`,
+    ])
+      await db.exec(statement);
+    return new UserStore(session, db);
   }
 
   static hashPassword(password: string): string {
@@ -60,78 +76,71 @@ export class UserStore {
     return timingSafeEqual(actual, expected);
   }
 
-  createUser(email: string, password: string): User {
-    const user: User = { id: crypto.randomUUID(), email: email.trim().toLowerCase(), createdAt: new Date().toISOString() };
-    this.db
-      .prepare("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)")
-      .run(user.id, user.email, UserStore.hashPassword(password), user.createdAt);
+  /** Crée le compte et son tenant. Le premier compte de l'instance en est l'administrateur. */
+  async createUser(email: string, password: string): Promise<User> {
+    const user: User = { id: crypto.randomUUID(), tenantId: crypto.randomUUID(), email: email.trim().toLowerCase(), createdAt: new Date().toISOString() };
+    const isAdmin = (await this.count()) === 0;
+    await this.db.run("INSERT INTO comptes.tenants (id, created_at) VALUES (?, ?)", [user.tenantId, user.createdAt]);
+    await this.db.run("INSERT INTO comptes.users (id, tenant_id, email, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)", [user.id, user.tenantId, user.email, UserStore.hashPassword(password), isAdmin, user.createdAt]);
     return user;
   }
 
-  findByEmail(email: string): (User & { passwordHash: string }) | null {
-    const r = this.db.prepare("SELECT id, email, password_hash, created_at FROM users WHERE email = ?").get(email.trim().toLowerCase()) as
-      | { id: string; email: string; password_hash: string; created_at: string }
-      | undefined;
-    return r ? { id: r.id, email: r.email, createdAt: r.created_at, passwordHash: r.password_hash } : null;
+  async findByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
+    const r = await this.db.get<Row & { password_hash: string }>("SELECT id, tenant_id, email, password_hash, created_at FROM comptes.users WHERE email = ?", [email.trim().toLowerCase()]);
+    return r ? { ...toUser(r), passwordHash: r.password_hash } : null;
   }
 
-  setPassword(userId: string, password: string) {
-    this.db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(UserStore.hashPassword(password), userId);
-    this.db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+  async setPassword(userId: string, password: string): Promise<void> {
+    await this.db.run("UPDATE comptes.users SET password_hash = ? WHERE id = ?", [UserStore.hashPassword(password), userId]);
+    await this.db.run("DELETE FROM comptes.sessions WHERE user_id = ?", [userId]);
   }
 
-  count(): number {
-    return (this.db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number }).n;
+  async count(): Promise<number> {
+    return Number((await this.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM comptes.users"))?.n ?? 0);
   }
 
-  list(): User[] {
-    return (this.db.prepare("SELECT id, email, created_at FROM users ORDER BY created_at").all() as Array<{ id: string; email: string; created_at: string }>).map((r) => ({
-      id: r.id,
-      email: r.email,
-      createdAt: r.created_at,
-    }));
+  async list(): Promise<User[]> {
+    return (await this.db.all<Row>("SELECT id, tenant_id, email, created_at FROM comptes.users ORDER BY created_at")).map(toUser);
   }
 
   /** Crée une session ; renvoie le jeton en clair (à poser dans le cookie). */
-  createSession(userId: string): { token: string; expiresAt: Date } {
+  async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
-    this.db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)").run(sha(token), userId, expiresAt.toISOString());
+    await this.db.run("INSERT INTO comptes.sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)", [sha(token), userId, expiresAt.toISOString()]);
     return { token, expiresAt };
   }
 
-  userForSession(token: string): User | null {
-    const r = this.db
-      .prepare("SELECT u.id, u.email, u.created_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?")
-      .get(sha(token), new Date().toISOString()) as { id: string; email: string; created_at: string } | undefined;
-    return r ? { id: r.id, email: r.email, createdAt: r.created_at } : null;
+  async userForSession(token: string): Promise<User | null> {
+    const r = await this.db.get<Row>("SELECT u.id, u.tenant_id, u.email, u.created_at FROM comptes.sessions s JOIN comptes.users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?", [sha(token), new Date().toISOString()]);
+    return r ? toUser(r) : null;
   }
 
-  deleteSession(token: string) {
-    this.db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(sha(token));
+  async deleteSession(token: string): Promise<void> {
+    await this.db.run("DELETE FROM comptes.sessions WHERE token_hash = ?", [sha(token)]);
   }
 
-  purgeExpired() {
-    this.db.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(new Date().toISOString());
+  async purgeExpired(): Promise<void> {
+    await this.db.run("DELETE FROM comptes.sessions WHERE expires_at <= ?", [new Date().toISOString()]);
   }
 
-  createInvite(days = 7): string {
+  async createInvite(days = 7): Promise<string> {
     const code = randomBytes(9).toString("base64url");
-    this.db.prepare("INSERT INTO invites (code, expires_at) VALUES (?, ?)").run(code, new Date(Date.now() + days * 86_400_000).toISOString());
+    await this.db.run("INSERT INTO comptes.invites (code, expires_at) VALUES (?, ?)", [code, new Date(Date.now() + days * 86_400_000).toISOString()]);
     return code;
   }
 
   /** Consomme une invitation valide ; false si inconnue, expirée ou déjà utilisée. */
-  useInvite(code: string, userId: string): boolean {
-    const res = this.db.prepare("UPDATE invites SET used_by = ? WHERE code = ? AND used_by IS NULL AND expires_at > ?").run(userId, code, new Date().toISOString());
-    return Number(res.changes) === 1;
+  async useInvite(code: string, userId: string): Promise<boolean> {
+    const used = await this.db.get("UPDATE comptes.invites SET used_by = ? WHERE code = ? AND used_by IS NULL AND expires_at > ? RETURNING code", [userId, code, new Date().toISOString()]);
+    return !!used;
   }
 
-  inviteIsValid(code: string): boolean {
-    return !!this.db.prepare("SELECT 1 FROM invites WHERE code = ? AND used_by IS NULL AND expires_at > ?").get(code, new Date().toISOString());
+  async inviteIsValid(code: string): Promise<boolean> {
+    return !!(await this.db.get("SELECT 1 AS ok FROM comptes.invites WHERE code = ? AND used_by IS NULL AND expires_at > ?", [code, new Date().toISOString()]));
   }
 
-  close() {
-    this.db.close();
+  async close(): Promise<void> {
+    await this.session.end();
   }
 }

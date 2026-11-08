@@ -1,45 +1,34 @@
-import { DatabaseSync } from "node:sqlite";
-import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { MARKET_SECRETS_KEY } from "./market/config";
+import { gzipSync } from "node:zlib";
+import type { BackendContext } from "./context";
+import { exportDump } from "./dump";
 
 const KEEP = 30;
+type DumpContext = Pick<BackendContext, "raw" | "schemaVersion" | "appVersion">;
 
-/**
- * Sauvegarde quotidienne : une copie cohérente de la base par jour (VACUUM INTO),
- * en gardant les 30 dernières. Sans effet si la copie du jour existe déjà.
- */
-/** Copie cohérente de la base, sans les clés d'API personnelles (effacées pour de bon par le second VACUUM). */
-function copyWithoutSecrets(raw: DatabaseSync, target: string): void {
-  raw.exec(`VACUUM INTO '${target.replaceAll("'", "''")}'`);
-  const copy = new DatabaseSync(target);
-  try {
-    if (copy.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'settings'").get()) {
-      const { changes } = copy.prepare("DELETE FROM settings WHERE key = ?").run(MARKET_SECRETS_KEY);
-      if (Number(changes) > 0) copy.exec("VACUUM");
-    }
-  } finally {
-    copy.close();
-  }
+/** Sauvegarde JSON compressée d'un tenant, restaurable dans Paramètres › Application une fois décompressée. */
+async function write(ctx: DumpContext, target: string): Promise<void> {
+  writeFileSync(target, gzipSync(JSON.stringify(await exportDump(ctx))), { mode: 0o600 });
 }
 
 /** Copie conservée avant une migration, hors rotation : une migration peut supprimer des données. */
-export function backupBeforeMigration(raw: DatabaseSync, dir: string, tag: string): string | null {
+export async function backupBeforeMigration(ctx: DumpContext, dir: string, tag: string): Promise<string | null> {
   mkdirSync(dir, { recursive: true });
-  const target = join(dir, `hamac-avant-${tag}.sqlite`);
+  const target = join(dir, `hamac-avant-${tag}.json.gz`);
   if (existsSync(target)) return null;
-  copyWithoutSecrets(raw, target);
+  await write(ctx, target);
   return target;
 }
 
-export function dailyBackup(raw: DatabaseSync, dir: string, now = new Date()): string | null {
+/** Une sauvegarde par jour, les 30 dernières conservées. Sans effet si celle du jour existe déjà. */
+export async function dailyBackup(ctx: DumpContext, dir: string, now = new Date()): Promise<string | null> {
   mkdirSync(dir, { recursive: true });
-  const day = now.toISOString().slice(0, 10);
-  const target = join(dir, `hamac-${day}.sqlite`);
+  const target = join(dir, `hamac-${now.toISOString().slice(0, 10)}.json.gz`);
   if (existsSync(target)) return null;
-  copyWithoutSecrets(raw, target);
+  await write(ctx, target);
   const files = readdirSync(dir)
-    .filter((f) => /^hamac-\d{4}-\d{2}-\d{2}\.sqlite$/.test(f))
+    .filter((f) => /^hamac-\d{4}-\d{2}-\d{2}\.json\.gz$/.test(f))
     .sort();
   for (const old of files.slice(0, Math.max(0, files.length - KEEP))) rmSync(join(dir, old));
   return target;

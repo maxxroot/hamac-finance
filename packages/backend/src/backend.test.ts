@@ -2,7 +2,8 @@ import { mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createBackend, type Backend } from "./index";
+import type { Backend } from "./index";
+import { testBackend } from "./testkit";
 
 let backend: Backend | null = null;
 afterEach(() => {
@@ -10,44 +11,39 @@ afterEach(() => {
   backend = null;
 });
 
-function memory() {
-  backend = createBackend({ databasePath: ":memory:", mode: "desktop", appVersion: "test", backupsDir: null });
+async function memory() {
+  backend = await testBackend();
   return backend;
 }
 
 describe("backend", () => {
   it("applique les migrations et renvoie les infos système", async () => {
-    const res = await memory().dispatch("system.info", undefined);
+    const res = await (await memory()).dispatch("system.info", undefined);
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.data).toMatchObject({ mode: "desktop", appVersion: "test" });
+    if (res.ok) expect(res.data).toMatchObject({ appVersion: "test" });
   });
 
   it("renvoie null pour un réglage jamais enregistré", async () => {
-    expect(await memory().dispatch("settings.get", { key: "ui.lastRoute" })).toEqual({ ok: true, data: null });
+    expect(await (await memory()).dispatch("settings.get", { key: "ui.lastRoute" })).toEqual({ ok: true, data: null });
   });
 
   it("enregistre et relit un réglage", async () => {
-    const b = memory();
+    const b = await memory();
     expect(await b.dispatch("settings.set", { key: "ui.privacyMode", value: true })).toEqual({ ok: true });
     expect(await b.dispatch("settings.get", { key: "ui.privacyMode" })).toEqual({ ok: true, data: true });
   });
 
   it("refuse une entrée invalide et une procédure inconnue", async () => {
-    const b = memory();
+    const b = await memory();
     const bad = await b.dispatch("settings.set", { key: "nimporte.quoi", value: 1 });
     expect(bad.ok === false && bad.error.code).toBe("VALIDATION");
     const unknown = await b.dispatch("rien.du.tout", {});
     expect(unknown.ok === false && unknown.error.code).toBe("NOT_FOUND");
   });
 
-  it("crée une sauvegarde quotidienne sur disque", () => {
+  it("crée une sauvegarde quotidienne sur disque", async () => {
     const dir = mkdtempSync(join(tmpdir(), "hamac-"));
-    backend = createBackend({
-      databasePath: join(dir, "hamac.sqlite"),
-      mode: "desktop",
-      appVersion: "test",
-      backupsDir: join(dir, "sauvegardes"),
-    });
+    backend = await testBackend({ backupsDir: join(dir, "sauvegardes") });
     expect(readdirSync(join(dir, "sauvegardes"))).toHaveLength(1);
   });
 });
@@ -60,7 +56,7 @@ describe("données du plan", () => {
   }
 
   it("crée la structure type puis la refuse sur une base non vide", async () => {
-    const b = memory();
+    const b = await memory();
     await call(b, "workspace.createStarter");
     const ws = await call<{ accounts: Array<{ name: string; kind: string }> }>(b, "workspace.load");
     expect(ws.accounts.map((a) => a.name)).toEqual(["LEP", "LDDS", "Livret A", "Assurance-vie", "Compte-titres", "PEA", "Crypto"]);
@@ -69,7 +65,7 @@ describe("données du plan", () => {
   });
 
   it("enregistre une opération en centimes exacts et applique les règles métier", async () => {
-    const b = memory();
+    const b = await memory();
     const pea = await call<{ id: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA" });
     const etf = await call<{ id: string }>(b, "assets.upsert", { kind: "etf", name: "ETF S&P 500", isin: "fr0011871128" });
     const tx = await call<{ amount: number; fee: number }>(b, "transactions.upsert", {
@@ -85,7 +81,7 @@ describe("données du plan", () => {
   });
 
   it("normalise l'ISIN et refuse les doublons", async () => {
-    const b = memory();
+    const b = await memory();
     const a = await call<{ isin: string }>(b, "assets.upsert", { kind: "etf", name: "A", isin: "fr0011871128" });
     expect(a.isin).toBe("FR0011871128");
     const dup = await b.dispatch("assets.upsert", { kind: "etf", name: "B", isin: "FR0011871128" });
@@ -93,7 +89,7 @@ describe("données du plan", () => {
   });
 
   it("versements programmés : un plan par compte et par mois (mise à jour en place)", async () => {
-    const b = memory();
+    const b = await memory();
     const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", livretType: "LEP", name: "LEP" });
     await call(b, "plans.set", { accountId: lep.id, fromMonth: "2026-11", amount: 100 });
     await call(b, "plans.set", { accountId: lep.id, fromMonth: "2026-11", amount: 120 });
@@ -103,14 +99,14 @@ describe("données du plan", () => {
   });
 
   it("valide les paramètres", async () => {
-    const b = memory();
+    const b = await memory();
     const ws = await call<{ params: Record<string, unknown> }>(b, "workspace.load");
     const bad = await b.dispatch("params.update", { ...ws.params, profile: { ...(ws.params.profile as object), horizonAge: 50 } });
     expect(bad.ok === false && bad.error.code).toBe("VALIDATION");
   });
 
   it("accepte des paramètres d'une interface plus ancienne (réglage absent → valeur par défaut)", async () => {
-    const b = memory();
+    const b = await memory();
     const ws = await call<{ params: { profile: Record<string, unknown> } }>(b, "workspace.load");
     const { contributionDay: _omis, ...profile } = ws.params.profile;
     const saved = await call<{ profile: { contributionDay: number } }>(b, "params.update", { ...ws.params, profile });
@@ -125,7 +121,7 @@ describe("données du plan", () => {
 describe("jeu de démonstration", () => {
   it("se charge sans erreur sur une base vide, une seule fois", async () => {
     const { seedDemo } = await import("./demo");
-    const b = memory();
+    const b = await memory();
     await seedDemo(b);
     await seedDemo(b);
     const res = await b.dispatch("workspace.load", undefined);
@@ -148,12 +144,12 @@ describe("sauvegarde et import", () => {
 
   it("export puis import dans une autre base : données identiques", async () => {
     const { seedDemo } = await import("./demo");
-    const a = memory();
+    const a = await memory();
     await seedDemo(a);
     const dump = await call<{ tables: Record<string, unknown[]> }>(a, "data.export");
     const before = await call<Record<string, unknown>>(a, "workspace.load");
 
-    const b = createBackend({ databasePath: ":memory:", mode: "web", appVersion: "test", backupsDir: null });
+    const b = await testBackend();
     await call(b, "data.import", { dump, confirm: "REMPLACER" });
     const after = await call<Record<string, unknown>>(b, "workspace.load");
     expect(after.transactions).toEqual(before.transactions);
@@ -163,7 +159,7 @@ describe("sauvegarde et import", () => {
   });
 
   it("refuse un fichier qui n'est pas une sauvegarde, sans rien toucher", async () => {
-    const b = memory();
+    const b = await memory();
     await call(b, "workspace.createStarter");
     const bad = await b.dispatch("data.import", { dump: { format: "autre" }, confirm: "REMPLACER" });
     expect(bad.ok).toBe(false);
@@ -172,7 +168,7 @@ describe("sauvegarde et import", () => {
   });
 
   it("import groupé : lignes valides enregistrées, erreurs signalées par ligne", async () => {
-    const b = memory();
+    const b = await memory();
     const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", name: "LEP" });
     const res = await call<{ created: number; errors: Array<{ index: number }> }>(b, "transactions.bulkCreate", {
       items: [
@@ -186,7 +182,7 @@ describe("sauvegarde et import", () => {
   });
 
   it("archiver un compte arrête ses versements programmés sans effacer le passé", async () => {
-    const b = memory();
+    const b = await memory();
     const pea = await call<Record<string, unknown> & { id: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA" });
     await call(b, "plans.set", { accountId: pea.id, fromMonth: "2020-01", amount: 200 });
     await call(b, "plans.set", { accountId: pea.id, fromMonth: "2099-01", amount: 500 });
@@ -198,7 +194,7 @@ describe("sauvegarde et import", () => {
   });
 
   it("espace de travail : cours quotidiens pour la crypto, dernier du mois pour le reste", async () => {
-    const b = memory();
+    const b = await memory();
     const btc = await call<{ id: string }>(b, "assets.upsert", { kind: "crypto", name: "BTC", symbol: "bitcoin", priceSource: "manuel" });
     const etf = await call<{ id: string }>(b, "assets.upsert", { kind: "etf", name: "ETF", priceSource: "manuel" });
     for (const id of [btc.id, etf.id]) for (const date of ["2026-03-10", "2026-03-15", "2026-03-31"]) await call(b, "prices.setManual", { assetId: id, date, price: 10 });
@@ -208,7 +204,7 @@ describe("sauvegarde et import", () => {
   });
 
   it("crowdlending : un projet exige une plateforme, qui ne se supprime plus ensuite", async () => {
-    const b = memory();
+    const b = await memory();
     const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO" });
     const c = await call<{ id: string }>(b, "accounts.upsert", { kind: "crowdlending", name: "Plateforme" });
     const base = { name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12 };
@@ -221,7 +217,7 @@ describe("sauvegarde et import", () => {
   });
 
   it("crowdlending : la prolongation d'une échéance est enregistrée, et refusée si elle ne la recule pas", async () => {
-    const b = memory();
+    const b = await memory();
     const c = await call<{ id: string }>(b, "accounts.upsert", { kind: "crowdlending", name: "Plateforme" });
     const base = { accountId: c.id, name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12 };
     expect(await call(b, "crowdProjects.upsert", { ...base, extendedTo: "2027-07-15" })).toMatchObject({ extendedTo: "2027-07-15" });
@@ -229,7 +225,7 @@ describe("sauvegarde et import", () => {
   });
 
   it("crédits : immobilier par défaut, seul un crédit immobilier ou travaux se rattache à un bien", async () => {
-    const b = memory();
+    const b = await memory();
     const bien = await call<{ id: string }>(b, "properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
     const base = { name: "Prêt", principal: 10_000, rate: 0.04, termMonths: 24, firstPayment: "2026-01-05", propertyId: bien.id };
     expect(await call(b, "loans.upsert", base)).toMatchObject({ kind: "immobilier", propertyId: bien.id });
@@ -246,7 +242,7 @@ describe("établissements", () => {
   }
 
   it("crée un établissement avec ses offres validées, y rattache un compte, puis le supprime sans perdre le compte", async () => {
-    const b = memory();
+    const b = await memory();
     const inst = await call<{ id: string; offers: { pea?: { orderFees: { tiers: unknown[] }; custodyFixed: number } } }>(b, "institutions.upsert", {
       name: "Courtier",
       kind: "courtier",
@@ -263,41 +259,11 @@ describe("établissements", () => {
   });
 
   it("refuse une grille invalide", async () => {
-    const b = memory();
+    const b = await memory();
     const bad = await b.dispatch("institutions.upsert", { name: "X", kind: "courtier", offers: { pea: { orderFees: { tiers: [] } } } });
     expect(bad.ok === false && bad.error.code).toBe("VALIDATION");
   });
 
-  it("migration : les noms d'établissement des anciens comptes deviennent des établissements rattachés", async () => {
-    const { DatabaseSync } = await import("node:sqlite");
-    const { migrations } = await import("./db/migrations.generated");
-    const { migrate } = await import("./db/migrate");
-    const raw = new DatabaseSync(":memory:");
-    raw.exec("CREATE TABLE _hamac_migrations (tag TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
-    for (const m of migrations.slice(0, 3)) {
-      for (const st of m.sql.split("--> statement-breakpoint")) if (st.trim()) raw.exec(st);
-      raw.prepare("INSERT INTO _hamac_migrations VALUES (?, ?)").run(m.tag, "x");
-    }
-    raw.exec(`INSERT INTO settings VALUES ('plan.parameters', '{"broker":{"feeRate":0.004,"minFee":1}}', 'x')`);
-    raw.exec(`INSERT INTO accounts (id, kind, name, institution) VALUES ('p', 'pea', 'PEA', 'Boursomachin'), ('c', 'cto', 'CTO', ' boursomachin '), ('l', 'livret', 'LEP', 'Ma banque'), ('x', 'livret', 'LDDS', '')`);
-    raw.exec(`INSERT INTO comparisons (id, kind, name, "values", score, comment) VALUES ('k', 'assurance_vie', 'Contrat Z', '{"fraisVersement":"0 %"}', 8, 'bien')`);
-    migrate(raw);
-    const insts = raw.prepare("SELECT name, kind, offers, comment FROM institutions ORDER BY name").all() as Array<{ name: string; kind: string; offers: string; comment: string }>;
-    expect(insts.map((i) => [i.name, i.kind])).toEqual([["Boursomachin", "courtier"], ["Contrat Z", "assureur"], ["Ma banque", "banque"]]);
-    // json_patch retire les clés à null : elles reprennent leur valeur par défaut à la lecture (Offers).
-    const { Offers } = await import("@hamac/core");
-    const broker = Offers.parse(JSON.parse(insts[0].offers));
-    expect(broker.pea!.orderFees).toEqual({ tiers: [{ upTo: null, fixed: 0, rate: 0.004 }], min: 1, max: null });
-    expect(insts[1].comment).toMatch(/fraisVersement/);
-    const links = raw.prepare("SELECT a.id, i.name FROM accounts a LEFT JOIN institutions i ON i.id = a.institution_id ORDER BY a.id").all();
-    expect(links).toEqual([
-      { id: "c", name: "Boursomachin" },
-      { id: "l", name: "Ma banque" },
-      { id: "p", name: "Boursomachin" },
-      { id: "x", name: null },
-    ]);
-    raw.close();
-  });
 });
 
 describe("taux datés des livrets", () => {
@@ -307,7 +273,7 @@ describe("taux datés des livrets", () => {
     return res.data as T;
   }
   it("le taux saisi sur le livret crée l'historique ; un nouveau taux s'ajoute sans effacer l'ancien", async () => {
-    const b = memory();
+    const b = await memory();
     const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", livretType: "LEP", name: "LEP", rate: 0.027, rateFrom: "2025-08-01" });
     await call(b, "accountRates.set", { accountId: lep.id, fromDate: "2026-02-01", rate: 0.025 });
     const ws = await call<{ accountRates: Array<{ fromDate: string; rate: number }>; accounts: Array<{ rate: number }> }>(b, "workspace.load");
@@ -319,7 +285,7 @@ describe("taux datés des livrets", () => {
   });
 
   it("un taux identique au précédent ne crée pas de doublon", async () => {
-    const b = memory();
+    const b = await memory();
     const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", name: "LEP", rate: 0.03, rateFrom: "2025-01-01" });
     await call(b, "accountRates.set", { accountId: lep.id, fromDate: "2025-08-01", rate: 0.03 });
     await call(b, "accountRates.set", { accountId: lep.id, fromDate: "2026-02-01", rate: 0.025 });
@@ -336,7 +302,7 @@ describe("achat avec création du titre", () => {
     return res.data as T;
   }
   it("crée l'obligation et l'achat ensemble", async () => {
-    const b = memory();
+    const b = await memory();
     const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO" });
     const r = await call<{ asset: { id: string; bondKind: string }; transaction: { assetId: string } }>(b, "transactions.createWithAsset", {
       asset: { kind: "obligation", name: "OAT 3 % 25/05/2033", priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", issuer: "République française", bondKind: "etat" },
@@ -346,7 +312,7 @@ describe("achat avec création du titre", () => {
     expect(r.transaction.assetId).toBe(r.asset.id);
   });
   it("tout ou rien : une opération refusée n'ajoute pas le titre", async () => {
-    const b = memory();
+    const b = await memory();
     const lep = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", name: "LEP" });
     const res = await b.dispatch("transactions.createWithAsset", {
       asset: { kind: "obligation", name: "OAT", priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", bondKind: "etat" },
@@ -361,7 +327,7 @@ describe("achat avec création du titre", () => {
 
 describe("comptes uniques (règle légale)", () => {
   it("refuse un second PEA ou un second LEP, accepte plusieurs comptes-titres", async () => {
-    const b = memory();
+    const b = await memory();
     const ok = async (input: unknown) => (await b.dispatch("accounts.upsert", input)).ok;
     expect(await ok({ kind: "pea", name: "PEA" })).toBe(true);
     const second = await b.dispatch("accounts.upsert", { kind: "pea", name: "Autre PEA" });

@@ -1,19 +1,23 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { rawFor } from "@hamac/backend";
+import { testProvider } from "@hamac/backend/testkit";
 import { createApp, type SignupMode } from "./app";
 
-let current: ReturnType<typeof createApp> | null = null;
-afterEach(() => current?.close());
+type App = Awaited<ReturnType<typeof createApp>>;
+let current: App | null = null;
+afterEach(async () => {
+  await current?.close();
+  current = null;
+});
 
-function server(signup: SignupMode = "invite", trustProxy = true) {
-  current = createApp({ dataDir: mkdtempSync(join(tmpdir(), "hamac-srv-")), signup, secureCookies: false, trustProxy, staticDir: null, appVersion: "test", autoRefreshPrices: false });
+async function server(signup: SignupMode = "invite", trustProxy = true) {
+  current = await createApp({ provider: testProvider(), dataDir: null, signup, secureCookies: false, trustProxy, staticDir: null, appVersion: "test", autoRefreshPrices: false });
+  await rawFor(await testProvider().session()).exec("TRUNCATE comptes.users, comptes.tenants, comptes.sessions, comptes.invites CASCADE");
   return current;
 }
 
 /** Petit client : garde le cookie de session comme un navigateur. */
-function client(s: ReturnType<typeof createApp>, ipAddr = "1.1.1.1") {
+function client(s: App, ipAddr = "1.1.1.1") {
   let cookie = "";
   const req = async (method: string, path: string, body?: unknown, headers: Record<string, string> = { "x-hamac": "1" }) => {
     const res = await s.app.request(path, {
@@ -33,13 +37,13 @@ function client(s: ReturnType<typeof createApp>, ipAddr = "1.1.1.1") {
 
 describe("serveur web", () => {
   it("premier compte sans invitation, puis invitation obligatoire et à usage unique", async () => {
-    const s = server();
+    const s = await server();
     const admin = client(s);
     expect((await admin.req("POST", "/api/auth/signup", { email: "admin@exemple.fr", password: "motdepasse-long" })).status).toBe(200);
 
     const friend = client(s, "2.2.2.2");
     expect((await friend.req("POST", "/api/auth/signup", { email: "ami@exemple.fr", password: "motdepasse-long" })).status).toBe(403);
-    const code = s.users.createInvite();
+    const code = await s.users.createInvite();
     expect((await friend.req("POST", "/api/auth/signup", { email: "ami@exemple.fr", password: "motdepasse-long", invite: code })).status).toBe(200);
     const other = client(s, "3.3.3.3");
     expect((await other.req("POST", "/api/auth/signup", { email: "autre@exemple.fr", password: "motdepasse-long", invite: code })).status).toBe(403);
@@ -48,14 +52,14 @@ describe("serveur web", () => {
   const login = (c: ReturnType<typeof client>, email: string, password = "mauvais") => c.req("POST", "/api/auth/login", { email, password });
 
   it("sans proxy de confiance, changer X-Forwarded-For ne contourne pas la limite", async () => {
-    const s = server("open", false);
+    const s = await server("open", false);
     let last = 0;
     for (let i = 0; i < 11; i++) last = (await login(client(s, `9.9.9.${i}`), "inconnu@exemple.fr")).status;
     expect(last).toBe(429);
   });
 
   it("derrière un proxy : seule l'adresse ajoutée par le proxy compte", async () => {
-    const s = server("open", true);
+    const s = await server("open", true);
     let last = 0;
     for (let i = 0; i < 11; i++) last = (await login(client(s, `${i}.1.1.1, 7.7.7.7`), `a${i}@exemple.fr`)).status;
     expect(last).toBe(429);
@@ -63,7 +67,7 @@ describe("serveur web", () => {
   });
 
   it("un même compte visé depuis 20 adresses est bloqué ; une connexion réussie remet à zéro", async () => {
-    const s = server("open", true);
+    const s = await server("open", true);
     expect((await client(s, "1.0.0.1").req("POST", "/api/auth/signup", { email: "cible@exemple.fr", password: "motdepasse-long" })).status).toBeLessThan(300);
     for (let i = 0; i < 19; i++) await login(client(s, `2.0.0.${i}`), "cible@exemple.fr");
     expect((await login(client(s, "3.0.0.1"), "cible@exemple.fr", "motdepasse-long")).status).toBe(200);
@@ -72,7 +76,7 @@ describe("serveur web", () => {
   });
 
   it("chaque utilisateur a sa propre base, totalement isolée", async () => {
-    const s = server("open");
+    const s = await server("open");
     const a = client(s, "1.1.1.1");
     const b = client(s, "2.2.2.2");
     await a.req("POST", "/api/auth/signup", { email: "a@exemple.fr", password: "motdepasse-long" });
@@ -83,12 +87,11 @@ describe("serveur web", () => {
     expect(((wa.json.data as { accounts: unknown[] }).accounts).length).toBe(7);
     expect(((wb.json.data as { accounts: unknown[] }).accounts).length).toBe(0);
     const info = await a.rpc("system.info");
-    expect((info.json.data as { mode: string; databasePath: string }).mode).toBe("web");
     expect((info.json.data as { databasePath: string }).databasePath).not.toMatch(/sqlite/);
   });
 
   it("refuse l'API sans session, et sans l'en-tête anti-CSRF", async () => {
-    const s = server("open");
+    const s = await server("open");
     const anon = client(s);
     expect((await anon.rpc("workspace.load")).status).toBe(401);
     await anon.req("POST", "/api/auth/signup", { email: "a@exemple.fr", password: "motdepasse-long" });
@@ -97,7 +100,7 @@ describe("serveur web", () => {
   });
 
   it("connexion, mauvais mot de passe, déconnexion", async () => {
-    const s = server("open");
+    const s = await server("open");
     const c = client(s);
     await c.req("POST", "/api/auth/signup", { email: "a@exemple.fr", password: "motdepasse-long" });
     await c.req("POST", "/api/auth/logout");
@@ -108,7 +111,7 @@ describe("serveur web", () => {
   });
 
   it("refuse un mot de passe trop court et limite les tentatives", async () => {
-    const s = server("open");
+    const s = await server("open");
     const c = client(s);
     expect((await c.req("POST", "/api/auth/signup", { email: "a@exemple.fr", password: "court" })).status).toBe(400);
     let last = 0;

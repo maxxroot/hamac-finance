@@ -1,11 +1,13 @@
 import { serve } from "@hono/node-server";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { postgresProvider, waitForDatabase } from "@hamac/backend";
 import { createApp, type SignupMode } from "./app";
 
 /**
  * Serveur Hamac auto-hébergé.
- *   HAMAC_DATA_DIR   dossier des données (défaut : ./data)
+ *   DATABASE_URL     connexion PostgreSQL (défaut : postgres://hamac:hamac@localhost:5432/hamac)
+ *   HAMAC_DATA_DIR   dossier des sauvegardes (défaut : ./data)
  *   HAMAC_PORT       port d'écoute (défaut : 8080)
  *   HAMAC_SIGNUP     invite (défaut) | open | closed
  *   HAMAC_SECURE     1 si le serveur est derrière HTTPS (cookies « Secure »)
@@ -17,7 +19,16 @@ if (!["invite", "open", "closed"].includes(signup)) throw new Error("HAMAC_SIGNU
 
 if (process.env.HAMAC_SECURE !== "1") console.warn("[hamac] Cookies non sécurisés : placez un proxy HTTPS devant le serveur et activez HAMAC_SECURE=1.");
 
-const { app, close } = createApp({
+const provider = postgresProvider(process.env.DATABASE_URL ?? "postgres://hamac:hamac@localhost:5432/hamac");
+await waitForDatabase(provider);
+
+const { app, close } = await createApp({
+  provider,
+  // Sans sa connexion d'administration, l'instance ne peut plus rien faire : Docker la relance.
+  onAdminLost: () => {
+    console.error("[hamac] connexion à PostgreSQL perdue : arrêt.");
+    process.exit(1);
+  },
   dataDir: process.env.HAMAC_DATA_DIR ?? join(process.cwd(), "data"),
   signup,
   secureCookies: process.env.HAMAC_SECURE === "1",
@@ -35,7 +46,7 @@ const server = serve({ fetch: app.fetch, port, hostname: process.env.HAMAC_HOST 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, () => {
     server.close();
-    close();
-    process.exit(0);
+    process.removeAllListeners(sig);
+    void close().finally(() => process.exit(0));
   });
 }

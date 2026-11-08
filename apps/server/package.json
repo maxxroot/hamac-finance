@@ -4,7 +4,7 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "description": "Serveur web auto-hébergé de Hamac : comptes utilisateurs, une base SQLite par personne.",
+  "description": "Serveur web auto-hébergé de Hamac : comptes utilisateurs, PostgreSQL, un tenant isolé par personne.",
   "scripts": {
     "build": "tsup && node scripts/copy-ui.mjs",
     "start": "node dist/server.mjs",

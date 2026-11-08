@@ -6,7 +6,8 @@
   "type": "module",
   "description": "Données (SQLite natif), migrations, sauvegardes et handlers de l'API. Partagé par l'app de bureau et le serveur web.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testkit": "./src/testkit.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate && node scripts/embed-migrations.mjs"

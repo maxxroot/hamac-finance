@@ -44,10 +44,9 @@ import {
 
 export const SystemInfo = z.object({
   appVersion: z.string(),
-  mode: z.enum(["desktop", "web"]),
   databasePath: z.string(),
   schemaVersion: z.string(),
-  sqliteVersion: z.string(),
+  databaseVersion: z.string(),
   backupsDir: z.string().nullable(),
 });
 export type SystemInfo = z.infer<typeof SystemInfo>;
@@ -77,10 +76,12 @@ export interface Workspace {
   priceStatus: PriceStatus | null;
 }
 
-/** Sauvegarde complète et portable (bureau ↔ web), lignes brutes de chaque table. */
+/** Sauvegarde complète et portable, lignes brutes de chaque table. */
 export interface DataDump {
   format: "hamac";
   version: 1;
+  /** Absent ou « sqlite » : sauvegarde de l'ancienne application de bureau. */
+  engine?: "sqlite" | "postgres";
   schemaVersion: string;
   exportedAt: string;
   appVersion: string;

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { bigint, boolean, doublePrecision, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * Schéma de la base. Toute modification se fait ici, puis :
@@ -7,55 +7,55 @@ import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from
  * qui produit la migration SQL et l'embarque dans migrations.generated.ts.
  *
  * Conventions : identifiants texte (UUID), montants en CENTIMES entiers (*_cents),
- * dates « AAAA-MM-JJ », mois « AAAA-MM », booléens en 0/1.
+ * dates « AAAA-MM-JJ » et mois « AAAA-MM » en texte (les calculs travaillent sur ces chaînes).
  */
 
 const timestamps = {
-  createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
-  updatedAt: text("updated_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+  updatedAt: text("updated_at").notNull().default(sql`to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
 };
 
 /** Réglages clé → valeur JSON (paramètres du plan, préférences d'interface…). */
-export const settings = sqliteTable("settings", {
+export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
 
 /** Banques, courtiers, assureurs, plateformes crypto, avec leurs grilles de frais par type de compte. */
-export const institutions = sqliteTable("institutions", {
+export const institutions = pgTable("institutions", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   kind: text("kind").notNull(),
   website: text("website").notNull().default(""),
-  score: real("score"),
+  score: doublePrecision("score"),
   comment: text("comment").notNull().default(""),
   /** Offres par type de compte (JSON validé par Offers dans @hamac/core). */
   offers: text("offers").notNull().default("{}"),
   ...timestamps,
 });
 
-export const accounts = sqliteTable("accounts", {
+export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
   livretType: text("livret_type"),
   name: text("name").notNull(),
   institutionId: text("institution_id").references(() => institutions.id, { onDelete: "set null" }),
   openedOn: text("opened_on"),
-  depositCeilingCents: integer("deposit_ceiling_cents"),
-  rate: real("rate"),
+  depositCeilingCents: bigint("deposit_ceiling_cents", { mode: "number" }),
+  rate: doublePrecision("rate"),
   role: text("role").notNull().default(""),
-  beneficiaryClause: integer("beneficiary_clause", { mode: "boolean" }).notNull().default(false),
-  entryFeeRate: real("entry_fee_rate"),
-  managementFeeRate: real("management_fee_rate"),
-  monthsToInvest: integer("months_to_invest"),
-  inAllocation: integer("in_allocation", { mode: "boolean" }),
-  sortOrder: integer("sort_order").notNull().default(0),
-  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  beneficiaryClause: boolean("beneficiary_clause").notNull().default(false),
+  entryFeeRate: doublePrecision("entry_fee_rate"),
+  managementFeeRate: doublePrecision("management_fee_rate"),
+  monthsToInvest: bigint("months_to_invest", { mode: "number" }),
+  inAllocation: boolean("in_allocation"),
+  sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
+  archived: boolean("archived").notNull().default(false),
   ...timestamps,
 });
 
-export const assets = sqliteTable(
+export const assets = pgTable(
   "assets",
   {
     id: text("id").primaryKey(),
@@ -68,23 +68,23 @@ export const assets = sqliteTable(
     priceUrl: text("price_url"),
     pricePath: text("price_path"),
     classId: text("class_id"),
-    inAllocation: integer("in_allocation", { mode: "boolean" }),
-    manualPrice: real("manual_price"),
+    inAllocation: boolean("in_allocation"),
+    manualPrice: doublePrecision("manual_price"),
     manualPriceDate: text("manual_price_date"),
-    targetWeight: real("target_weight"),
-    ter: real("ter"),
-    couponRate: real("coupon_rate"),
+    targetWeight: doublePrecision("target_weight"),
+    ter: doublePrecision("ter"),
+    couponRate: doublePrecision("coupon_rate"),
     maturityDate: text("maturity_date"),
-    couponFrequency: integer("coupon_frequency"),
+    couponFrequency: bigint("coupon_frequency", { mode: "number" }),
     issuer: text("issuer"),
     bondKind: text("bond_kind"),
-    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    archived: boolean("archived").notNull().default(false),
     ...timestamps,
   },
   (t) => [index("assets_isin_idx").on(t.isin)],
 );
 
-export const transactions = sqliteTable(
+export const transactions = pgTable(
   "transactions",
   {
     id: text("id").primaryKey(),
@@ -95,9 +95,9 @@ export const transactions = sqliteTable(
       .references(() => accounts.id, { onDelete: "restrict" }),
     assetId: text("asset_id").references(() => assets.id, { onDelete: "restrict" }),
     counterAccountId: text("counter_account_id").references(() => accounts.id, { onDelete: "restrict" }),
-    amountCents: integer("amount_cents").notNull(),
-    quantity: real("quantity"),
-    feeCents: integer("fee_cents"),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    quantity: doublePrecision("quantity"),
+    feeCents: bigint("fee_cents", { mode: "number" }),
     comment: text("comment").notNull().default(""),
     externalId: text("external_id"),
     ...timestamps,
@@ -111,7 +111,7 @@ export const transactions = sqliteTable(
   ],
 );
 
-export const contributionPlans = sqliteTable(
+export const contributionPlans = pgTable(
   "contribution_plans",
   {
     id: text("id").primaryKey(),
@@ -119,14 +119,14 @@ export const contributionPlans = sqliteTable(
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     fromMonth: text("from_month").notNull(),
-    amountCents: integer("amount_cents").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
     comment: text("comment").notNull().default(""),
     ...timestamps,
   },
   (t) => [uniqueIndex("plan_account_month_uq").on(t.accountId, t.fromMonth)],
 );
 
-export const contributionSkips = sqliteTable(
+export const contributionSkips = pgTable(
   "contribution_skips",
   {
     id: text("id").primaryKey(),
@@ -134,70 +134,70 @@ export const contributionSkips = sqliteTable(
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     month: text("month").notNull(),
-    amountCents: integer("amount_cents").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
     comment: text("comment").notNull().default(""),
     ...timestamps,
   },
   (t) => [index("skip_account_month_idx").on(t.accountId, t.month)],
 );
 
-export const bondPlans = sqliteTable("bond_plans", {
+export const bondPlans = pgTable("bond_plans", {
   id: text("id").primaryKey(),
   accountId: text("account_id").references(() => accounts.id, { onDelete: "set null" }),
   label: text("label").notNull(),
-  targetYear: integer("target_year").notNull(),
-  nominalCents: integer("nominal_cents").notNull(),
+  targetYear: bigint("target_year", { mode: "number" }).notNull(),
+  nominalCents: bigint("nominal_cents", { mode: "number" }).notNull(),
   comment: text("comment").notNull().default(""),
   ...timestamps,
 });
 
-export const fundRates = sqliteTable(
+export const fundRates = pgTable(
   "fund_rates",
   {
     accountId: text("account_id")
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
-    year: integer("year").notNull(),
-    rate: real("rate").notNull(),
+    year: bigint("year", { mode: "number" }).notNull(),
+    rate: doublePrecision("rate").notNull(),
     comment: text("comment").notNull().default(""),
   },
   (t) => [primaryKey({ columns: [t.accountId, t.year] })],
 );
 
-export const statements = sqliteTable("statements", {
+export const statements = pgTable("statements", {
   id: text("id").primaryKey(),
   accountId: text("account_id")
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" }),
   date: text("date").notNull(),
-  valueCents: integer("value_cents").notNull(),
+  valueCents: bigint("value_cents", { mode: "number" }).notNull(),
   comment: text("comment").notNull().default(""),
   ...timestamps,
 });
 
-export const prices = sqliteTable(
+export const prices = pgTable(
   "prices",
   {
     assetId: text("asset_id")
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
     date: text("date").notNull(),
-    price: real("price").notNull(),
+    price: doublePrecision("price").notNull(),
     source: text("source").notNull(),
   },
   (t) => [primaryKey({ columns: [t.assetId, t.date] })],
 );
 
-export const plannedExpenses = sqliteTable("planned_expenses", {
+export const plannedExpenses = pgTable("planned_expenses", {
   id: text("id").primaryKey(),
-  year: integer("year").notNull(),
-  amountCents: integer("amount_cents").notNull(),
+  year: bigint("year", { mode: "number" }).notNull(),
+  amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
   label: text("label").notNull(),
   accountId: text("account_id").references(() => accounts.id, { onDelete: "set null" }),
   ...timestamps,
 });
 
-export const crowdProjects = sqliteTable(
+export const crowdProjects = pgTable(
   "crowd_projects",
   {
   id: text("id").primaryKey(),
@@ -205,16 +205,16 @@ export const crowdProjects = sqliteTable(
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  amountCents: integer("amount_cents").notNull(),
-  rate: real("rate"),
+  amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+  rate: doublePrecision("rate"),
   startDate: text("start_date").notNull(),
-  termMonths: integer("term_months"),
+  termMonths: bigint("term_months", { mode: "number" }),
   repayment: text("repayment").notNull(),
   status: text("status").notNull().default("en_cours"),
   statusDate: text("status_date"),
-  repaidCapitalCents: integer("repaid_capital_cents"),
-  expectedRecoveryCents: integer("expected_recovery_cents"),
-  inAllocation: integer("in_allocation", { mode: "boolean" }),
+  repaidCapitalCents: bigint("repaid_capital_cents", { mode: "number" }),
+  expectedRecoveryCents: bigint("expected_recovery_cents", { mode: "number" }),
+  inAllocation: boolean("in_allocation"),
   comment: text("comment").notNull().default(""),
   externalId: text("external_id"),
   extendedTo: text("extended_to"),
@@ -223,41 +223,41 @@ export const crowdProjects = sqliteTable(
   (t) => [uniqueIndex("crowd_external_uq").on(t.accountId, t.externalId)],
 );
 
-export const properties = sqliteTable("properties", {
+export const properties = pgTable("properties", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
   name: text("name").notNull(),
-  valueCents: integer("value_cents").notNull(),
+  valueCents: bigint("value_cents", { mode: "number" }).notNull(),
   valueDate: text("value_date"),
-  purchasePriceCents: integer("purchase_price_cents"),
+  purchasePriceCents: bigint("purchase_price_cents", { mode: "number" }),
   purchaseDate: text("purchase_date"),
-  share: real("share").notNull().default(1),
-  inAllocation: integer("in_allocation", { mode: "boolean" }),
+  share: doublePrecision("share").notNull().default(1),
+  inAllocation: boolean("in_allocation"),
   classId: text("class_id"),
   comment: text("comment").notNull().default(""),
-  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  archived: boolean("archived").notNull().default(false),
   ...timestamps,
 });
 
-export const loans = sqliteTable("loans", {
+export const loans = pgTable("loans", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull().default("immobilier"),
   name: text("name").notNull(),
   propertyId: text("property_id").references(() => properties.id, { onDelete: "set null" }),
-  principalCents: integer("principal_cents").notNull(),
-  rate: real("rate").notNull(),
-  termMonths: integer("term_months").notNull(),
+  principalCents: bigint("principal_cents", { mode: "number" }).notNull(),
+  rate: doublePrecision("rate").notNull(),
+  termMonths: bigint("term_months", { mode: "number" }).notNull(),
   firstPayment: text("first_payment").notNull(),
-  insuranceCents: integer("insurance_cents").notNull().default(0),
-  manualPaymentCents: integer("manual_payment_cents"),
-  manualBalanceCents: integer("manual_balance_cents"),
+  insuranceCents: bigint("insurance_cents", { mode: "number" }).notNull().default(0),
+  manualPaymentCents: bigint("manual_payment_cents", { mode: "number" }),
+  manualBalanceCents: bigint("manual_balance_cents", { mode: "number" }),
   manualBalanceDate: text("manual_balance_date"),
-  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  archived: boolean("archived").notNull().default(false),
   ...timestamps,
 });
 
 /** Historique des taux d'un compte (livrets) : taux en vigueur à partir d'une date. */
-export const accountRates = sqliteTable(
+export const accountRates = pgTable(
   "account_rates",
   {
     id: text("id").primaryKey(),
@@ -265,7 +265,7 @@ export const accountRates = sqliteTable(
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     fromDate: text("from_date").notNull(),
-    rate: real("rate").notNull(),
+    rate: doublePrecision("rate").notNull(),
     comment: text("comment").notNull().default(""),
     ...timestamps,
   },

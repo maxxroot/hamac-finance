@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBackend, type Backend } from "@hamac/backend";
+import { testBackend } from "@hamac/backend/testkit";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
 import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
@@ -52,8 +52,8 @@ function show(ui: ReactNode) {
   );
 }
 
-beforeEach(() => {
-  h.backend = createBackend({ databasePath: ":memory:", mode: "desktop", appVersion: "test", backupsDir: null }) as Backend;
+beforeEach(async () => {
+  h.backend = await testBackend();
 });
 afterEach(() => {
   cleanup();

@@ -1,22 +1,26 @@
 import { procedures, RpcError, type ProcName, type RpcResult } from "@hamac/api";
 import { backupBeforeMigration, dailyBackup } from "./backup";
 import type { BackendContext } from "./context";
+import type { PgProvider } from "./db/driver";
 import { migrate, pendingMigrations } from "./db/migrate";
-import { openSqlite } from "./db/sqlite";
+import { drizzleFor, enterTenant, rawFor } from "./db/postgres";
 import { handlers } from "./handlers";
 import { defaultFetcher, type Fetcher } from "./market";
 import { refreshPrices } from "./market/refresh";
 import { BASE_REFRESH_MINUTES } from "./market/twelvedata";
 
 export interface BackendOptions {
-  databasePath: string;
-  mode: "desktop" | "web";
+  provider: PgProvider;
+  /** UUID du tenant : son schéma et son rôle PostgreSQL. */
+  tenantId: string;
   appVersion: string;
+  /** Signale la perte de la connexion : l'appelant doit rouvrir ce backend. */
+  onLost?: () => void;
   /** Dossier des sauvegardes quotidiennes ; null pour désactiver (tests, base en mémoire). */
   backupsDir: string | null;
   /** Actualise les cours au démarrage, puis à un rythme qui respecte les quotas des sources. */
   autoRefreshPrices?: boolean;
-  /** Libellé affiché à la place du chemin de la base (mode web : ne pas exposer le serveur). */
+  /** Libellé affiché pour la base : ne jamais exposer le serveur. */
   displayPath?: string;
   /** Client HTTP (injectable pour les tests). */
   fetcher?: Fetcher;
@@ -28,38 +32,51 @@ export interface Backend {
   close(): void;
 }
 
-export function createBackend(opts: BackendOptions): Backend {
-  const { file, raw, db } = openSqlite(opts.databasePath);
-  // Avant toute migration : si la copie échoue, on s'arrête plutôt que de modifier la base sans filet.
-  const pending = opts.backupsDir ? pendingMigrations(file) : [];
-  if (opts.backupsDir && pending.length) {
-    try {
-      backupBeforeMigration(file, opts.backupsDir, pending[0]!);
-    } catch (err) {
-      file.close();
-      throw new Error(`Sauvegarde impossible avant la mise à jour de la base : ${(err as Error).message}`);
+export async function createBackend(opts: BackendOptions): Promise<Backend> {
+  const session = await opts.provider.session(opts.onLost);
+  try {
+    await enterTenant(session, opts.tenantId);
+    const raw = rawFor(session);
+    const base = { raw, appVersion: opts.appVersion };
+    // Avant toute migration : si la copie échoue, on s'arrête plutôt que de modifier les données sans filet.
+    const pending = opts.backupsDir ? await pendingMigrations(raw) : [];
+    if (opts.backupsDir && pending.length) {
+      try {
+        await backupBeforeMigration({ ...base, schemaVersion: "avant-migration" }, opts.backupsDir, pending[0]!);
+      } catch (err) {
+        throw new Error(`Sauvegarde impossible avant la mise à jour de la base : ${(err as Error).message}`);
+      }
     }
+    const schemaVersion = await migrate(raw);
+    const ctx: BackendContext = {
+      ...base,
+      db: drizzleFor(session),
+      schemaVersion,
+      backupsDir: opts.backupsDir,
+      fetcher: opts.fetcher ?? defaultFetcher,
+      displayPath: opts.displayPath ?? "Base PostgreSQL de l'instance",
+    };
+    const backup = async () => {
+      if (!opts.backupsDir) return;
+      try {
+        await dailyBackup(ctx, opts.backupsDir);
+      } catch (err) {
+        console.error("[hamac] sauvegarde impossible :", err);
+      }
+    };
+    await backup();
+    const backupTimer = opts.backupsDir ? setInterval(() => void backup(), 6 * 3600_000) : null;
+    backupTimer?.unref?.();
+    return startBackend(ctx, { autoRefreshPrices: opts.autoRefreshPrices, onClose: () => backupTimer && clearInterval(backupTimer) });
+  } catch (err) {
+    await session.end().catch(() => undefined);
+    throw err;
   }
-  const schemaVersion = migrate(file);
-  const ctx: BackendContext = { db, raw, schemaVersion, ...opts, fetcher: opts.fetcher ?? defaultFetcher };
-
-  const backup = () => {
-    if (!opts.backupsDir) return;
-    try {
-      dailyBackup(file, opts.backupsDir);
-    } catch (err) {
-      console.error("[hamac] sauvegarde impossible :", err);
-    }
-  };
-  backup();
-  const backupTimer = opts.backupsDir ? setInterval(backup, 6 * 3600_000) : null;
-  backupTimer?.unref?.();
-  return startBackend(ctx, { autoRefreshPrices: opts.autoRefreshPrices, onClose: () => backupTimer && clearInterval(backupTimer) });
 }
 
 /** Assemble un backend sur une base déjà ouverte et migrée, quel que soit son moteur. */
 export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: boolean; onClose?: () => void }): Backend {
-  // Les appels sont traités un par un : la base est mono-utilisateur par fichier,
+  // Les appels sont traités un par un sur la connexion du tenant,
   // et cela garantit qu'une écriture n'est jamais entrelacée avec une autre.
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -139,4 +156,6 @@ export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: bo
   }
   return backend;
 }
+export type { PgProvider, PgSession } from "./db/driver";
+export { postgresProvider, rawFor, waitForDatabase } from "./db/postgres";
 export { seedDemo } from "./demo";

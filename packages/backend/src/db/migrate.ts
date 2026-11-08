@@ -1,44 +1,30 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { RawDb } from "./driver";
 import { migrations } from "./migrations.generated";
 
-/** Migrations à appliquer sur une base existante ; vide pour une base neuve, qui n'a rien à protéger. */
-export function pendingMigrations(raw: DatabaseSync): string[] {
-  if (!raw.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_hamac_migrations'").get()) return [];
-  const applied = new Set((raw.prepare("SELECT tag FROM _hamac_migrations").all() as Array<{ tag: string }>).map((r) => r.tag));
+async function appliedTags(raw: RawDb): Promise<Set<string>> {
+  return new Set((await raw.all<{ tag: string }>("SELECT tag FROM _hamac_migrations")).map((r) => r.tag));
+}
+
+/** Migrations à appliquer sur un tenant existant ; vide pour un tenant neuf, qui n'a rien à protéger. */
+export async function pendingMigrations(raw: RawDb): Promise<string[]> {
+  if (!(await raw.get<{ t: string | null }>("SELECT to_regclass('_hamac_migrations')::text AS t"))?.t) return [];
+  const applied = await appliedTags(raw);
   return migrations.filter((m) => !applied.has(m.tag)).map((m) => m.tag);
 }
 
-/**
- * Applique, dans l'ordre et en transaction, les migrations embarquées non encore appliquées.
- * Renvoie l'étiquette de la dernière migration (= version du schéma).
- */
-export function migrate(raw: DatabaseSync): string {
-  raw.exec(`CREATE TABLE IF NOT EXISTS _hamac_migrations (
-    tag TEXT PRIMARY KEY,
-    applied_at TEXT NOT NULL
-  )`);
-  const applied = new Set(
-    (raw.prepare("SELECT tag FROM _hamac_migrations").all() as Array<{ tag: string }>).map((r) => r.tag),
-  );
+/** Applique, dans l'ordre et chacune en transaction, les migrations embarquées manquantes. Renvoie la version du schéma. */
+export async function migrate(raw: RawDb): Promise<string> {
+  await raw.exec("CREATE TABLE IF NOT EXISTS _hamac_migrations (tag TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+  const applied = await appliedTags(raw);
   for (const m of migrations) {
     if (applied.has(m.tag)) continue;
-    // Une reconstruction de table supprime l'ancienne : clés étrangères actives, les tables liées perdraient leurs références.
-    // Ce réglage est sans effet dans une transaction, il faut donc le poser avant.
-    const rebuild = m.sql.includes("PRAGMA foreign_keys=OFF");
-    if (rebuild) raw.exec("PRAGMA foreign_keys=OFF");
-    raw.exec("BEGIN IMMEDIATE");
     try {
-      for (const statement of m.sql.split("--> statement-breakpoint")) {
-        if (statement.trim() && !/^\s*PRAGMA foreign_keys/.test(statement)) raw.exec(statement);
-      }
-      if (rebuild && raw.prepare("PRAGMA foreign_key_check").all().length) throw new Error("références cassées");
-      raw.prepare("INSERT INTO _hamac_migrations (tag, applied_at) VALUES (?, ?)").run(m.tag, new Date().toISOString());
-      raw.exec("COMMIT");
+      await raw.transaction(async () => {
+        for (const statement of m.sql.split("--> statement-breakpoint")) if (statement.trim()) await raw.exec(statement);
+        await raw.run("INSERT INTO _hamac_migrations (tag, applied_at) VALUES (?, ?)", [m.tag, new Date().toISOString()]);
+      });
     } catch (err) {
-      raw.exec("ROLLBACK");
       throw new Error(`Échec de la migration ${m.tag} : ${(err as Error).message}`);
-    } finally {
-      if (rebuild) raw.exec("PRAGMA foreign_keys=ON");
     }
   }
   return migrations.at(-1)?.tag ?? "vide";

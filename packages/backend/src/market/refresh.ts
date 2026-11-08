@@ -39,13 +39,13 @@ export function assertPlausible(asset: Pick<Asset, "kind">, provider: PriceProvi
  */
 export async function refreshPrices(ctx: BackendContext, exclusive: Exclusive = (fn) => fn()): Promise<PriceStatus> {
   const { assets, market, last } = await exclusive(async () => {
-    const assets = (await ctx.db.select().from(t.assets).where(eq(t.assets.archived, false)).all()).map(mapAsset);
+    const assets = (await ctx.db.select().from(t.assets).where(eq(t.assets.archived, false))).map(mapAsset);
     const market = await loadMarketState(ctx);
     const rows = await ctx.raw.all<LastPrice & { assetId: string }>('SELECT asset_id AS "assetId", date, price, source FROM prices p WHERE date = (SELECT MAX(date) FROM prices WHERE asset_id = p.asset_id)');
     return { assets, market, last: new Map(rows.map((r) => [r.assetId, r])) };
   });
   const budget = market.twelveDataKey ? new TwelveDataBudget(market.twelveDataKey, market.usage) : null;
-  const env = { twelveDataKey: market.twelveDataKey, budget, web: ctx.mode === "web" };
+  const env = { twelveDataKey: market.twelveDataKey, budget, web: true };
   const hasKey = !!market.twelveDataKey;
   const errors: PriceStatus["errors"] = [];
   const lines: NonNullable<PriceStatus["assets"]> = [];

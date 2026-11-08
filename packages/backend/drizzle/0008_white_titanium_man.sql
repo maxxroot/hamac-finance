@@ -1,1 +1,0 @@
-ALTER TABLE `assets` ADD `class_id` text;

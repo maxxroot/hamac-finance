@@ -720,8 +720,6 @@ function AppInfo({ info }: { info: ReturnType<typeof useSystemInfo> }) {
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
           <dt className="text-fg-muted">Version</dt>
           <dd>{info.data.appVersion}</dd>
-          <dt className="text-fg-muted">Mode</dt>
-          <dd>{info.data.mode === "desktop" ? "Application de bureau" : "Serveur web"}</dd>
           <dt className="text-fg-muted">Base de données</dt>
           <dd>
             <code className="text-xs break-all">{info.data.databasePath}</code>
@@ -730,8 +728,8 @@ function AppInfo({ info }: { info: ReturnType<typeof useSystemInfo> }) {
           <dd>{info.data.backupsDir ? <code className="text-xs break-all">{info.data.backupsDir}</code> : "désactivées"} (une par jour, 30 conservées)</dd>
           <dt className="text-fg-muted">Schéma</dt>
           <dd>{info.data.schemaVersion}</dd>
-          <dt className="text-fg-muted">SQLite</dt>
-          <dd>{info.data.sqliteVersion}</dd>
+          <dt className="text-fg-muted">PostgreSQL</dt>
+          <dd>{info.data.databaseVersion}</dd>
         </dl>
       )}
     </Card>

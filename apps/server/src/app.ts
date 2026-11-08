@@ -3,14 +3,15 @@ import { extname, join, normalize, resolve } from "node:path";
 import { Hono, type Context } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { createBackend, type Backend } from "@hamac/backend";
+import { createBackend, type Backend, type PgProvider } from "@hamac/backend";
 import { UserStore, type User } from "./users";
 
 export type SignupMode = "invite" | "open" | "closed";
 
 export interface ServerConfig {
-  /** Dossier des données : base des comptes + un sous-dossier par utilisateur. */
-  dataDir: string;
+  provider: PgProvider;
+  /** Dossier des sauvegardes quotidiennes, un sous-dossier par tenant ; null pour les désactiver. */
+  dataDir: string | null;
   signup: SignupMode;
   /** Cookie « Secure » : à activer derrière HTTPS (recommandé en production). */
   secureCookies: boolean;
@@ -20,55 +21,62 @@ export interface ServerConfig {
   staticDir: string | null;
   appVersion: string;
   autoRefreshPrices: boolean;
+  /** Perte de la connexion d'administration : sans elle, plus de comptes ni de sessions. */
+  onAdminLost?: () => void;
 }
 
 const COOKIE = "hamac_session";
 const IDLE_MS = 15 * 60_000;
 const MIN_PASSWORD = 10;
 
-/** Un backend (base SQLite) par utilisateur, ouvert à la demande et refermé après inactivité. */
+/** Un backend par tenant, avec sa propre connexion, ouvert à la demande et refermé après inactivité. */
 class BackendPool {
-  private pool = new Map<string, { backend: Backend; lastUsed: number }>();
+  private pool = new Map<string, { backend: Promise<Backend>; lastUsed: number }>();
   private timer = setInterval(() => this.closeIdle(), 60_000);
 
   constructor(private cfg: ServerConfig) {
     this.timer.unref?.();
   }
 
-  get(user: User): Backend {
-    let entry = this.pool.get(user.id);
+  get(user: User): Promise<Backend> {
+    const id = user.tenantId;
+    let entry = this.pool.get(id);
     if (!entry) {
-      const dir = join(this.cfg.dataDir, "users", user.id);
-      mkdirSync(dir, { recursive: true });
-      const backend = createBackend({
-        databasePath: join(dir, "hamac.sqlite"),
-        backupsDir: join(dir, "sauvegardes"),
-        mode: "web",
-        appVersion: this.cfg.appVersion,
-        autoRefreshPrices: this.cfg.autoRefreshPrices,
-        displayPath: "Base personnelle sur le serveur",
-      });
-      entry = { backend, lastUsed: Date.now() };
-      this.pool.set(user.id, entry);
+      const created: { backend: Promise<Backend>; lastUsed: number } = {
+        lastUsed: Date.now(),
+        backend: createBackend({
+          provider: this.cfg.provider,
+          tenantId: id,
+          backupsDir: this.cfg.dataDir ? join(this.cfg.dataDir, "tenants", id, "sauvegardes") : null,
+          appVersion: this.cfg.appVersion,
+          autoRefreshPrices: this.cfg.autoRefreshPrices,
+          displayPath: "Base PostgreSQL de l'instance",
+          onLost: () => this.drop(id, created),
+        }),
+      };
+      created.backend.catch(() => this.drop(id, created));
+      this.pool.set(id, created);
+      entry = created;
     }
     entry.lastUsed = Date.now();
     return entry.backend;
   }
 
+  /** Oublie un backend dont la connexion est perdue : le prochain appel le rouvre. */
+  private drop(id: string, entry: { backend: Promise<Backend> }) {
+    if (this.pool.get(id) !== entry) return;
+    this.pool.delete(id);
+    void entry.backend.then((b) => b.close()).catch(() => undefined);
+  }
+
   private closeIdle() {
     const now = Date.now();
-    for (const [id, e] of this.pool) {
-      if (now - e.lastUsed > IDLE_MS) {
-        e.backend.close();
-        this.pool.delete(id);
-      }
-    }
+    for (const [id, e] of this.pool) if (now - e.lastUsed > IDLE_MS) this.drop(id, e);
   }
 
   close() {
     clearInterval(this.timer);
-    for (const e of this.pool.values()) e.backend.close();
-    this.pool.clear();
+    for (const [id, e] of this.pool) this.drop(id, e);
   }
 }
 
@@ -108,9 +116,9 @@ const MIME: Record<string, string> = {
   ".ico": "image/x-icon",
 };
 
-export function createApp(cfg: ServerConfig) {
-  mkdirSync(cfg.dataDir, { recursive: true });
-  const users = new UserStore(join(cfg.dataDir, "comptes.sqlite"));
+export async function createApp(cfg: ServerConfig) {
+  if (cfg.dataDir) mkdirSync(cfg.dataDir, { recursive: true });
+  const users = await UserStore.open(cfg.provider, cfg.onAdminLost);
   const pool = new BackendPool(cfg);
   const limiter = new RateLimiter(10, 15 * 60_000);
   // Par compte visé : freine une attaque répartie sur plusieurs adresses.
@@ -143,22 +151,22 @@ export function createApp(cfg: ServerConfig) {
       return "local";
     }
   };
-  const currentUser = (c: Context): User | null => {
+  const currentUser = async (c: Context): Promise<User | null> => {
     const token = getCookie(c, COOKIE);
     return token ? users.userForSession(token) : null;
   };
-  const startSession = (c: Context, user: User) => {
-    const { token, expiresAt } = users.createSession(user.id);
+  const startSession = async (c: Context, user: User) => {
+    const { token, expiresAt } = await users.createSession(user.id);
     setCookie(c, COOKIE, token, { httpOnly: true, sameSite: "Strict", secure: cfg.secureCookies, path: "/", expires: expiresAt });
   };
   const unauthorized = (c: Context) => c.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Session expirée : reconnectez-vous." } }, 401);
   // Protection CSRF : en plus du cookie SameSite=Strict, toute écriture exige un en-tête qu'un formulaire tiers ne peut pas envoyer.
   const csrfOk = (c: Context) => c.req.header("x-hamac") === "1";
 
-  app.get("/api/auth/config", (c) => c.json({ signup: cfg.signup, firstUser: users.count() === 0 }));
+  app.get("/api/auth/config", async (c) => c.json({ signup: cfg.signup, firstUser: (await users.count()) === 0 }));
 
-  app.get("/api/auth/me", (c) => {
-    const user = currentUser(c);
+  app.get("/api/auth/me", async (c) => {
+    const user = await currentUser(c);
     return user ? c.json({ email: user.email }) : unauthorized(c);
   });
 
@@ -166,7 +174,7 @@ export function createApp(cfg: ServerConfig) {
     if (!csrfOk(c)) return c.json({ error: "Requête refusée." }, 403);
     if (!limiter.allow(`login:${ip(c)}`)) return c.json({ error: "Trop de tentatives : réessayez dans 15 minutes." }, 429);
     const body = (await c.req.json().catch(() => ({}))) as { email?: string; password?: string };
-    const found = body.email ? users.findByEmail(body.email) : null;
+    const found = body.email ? await users.findByEmail(body.email) : null;
     const accountKey = `login:${(body.email ?? "").trim().toLowerCase()}`;
     if (!accountLimiter.allow(accountKey)) return c.json({ error: "Trop de tentatives : réessayez dans 15 minutes." }, 429);
     // Même réponse et même coût que l'e-mail existe ou non.
@@ -174,7 +182,7 @@ export function createApp(cfg: ServerConfig) {
     if (!found || !ok) return c.json({ error: "E-mail ou mot de passe incorrect." }, 401);
     limiter.reset(`login:${ip(c)}`);
     accountLimiter.reset(accountKey);
-    startSession(c, found);
+    await startSession(c, found);
     return c.json({ email: found.email });
   });
 
@@ -185,32 +193,32 @@ export function createApp(cfg: ServerConfig) {
     const email = (body.email ?? "").trim();
     const password = body.password ?? "";
     // Le tout premier compte (l'administrateur de l'instance) n'a pas besoin d'invitation.
-    const first = users.count() === 0;
+    const first = (await users.count()) === 0;
     if (!first && cfg.signup === "closed") return c.json({ error: "Les inscriptions sont fermées sur cette instance." }, 403);
-    if (!first && cfg.signup === "invite" && !(body.invite && users.inviteIsValid(body.invite))) return c.json({ error: "Code d'invitation invalide ou expiré." }, 403);
+    if (!first && cfg.signup === "invite" && !(body.invite && (await users.inviteIsValid(body.invite)))) return c.json({ error: "Code d'invitation invalide ou expiré." }, 403);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return c.json({ error: "Adresse e-mail invalide." }, 400);
     if (password.length < MIN_PASSWORD) return c.json({ error: `Mot de passe trop court (${MIN_PASSWORD} caractères minimum).` }, 400);
-    if (users.findByEmail(email)) return c.json({ error: "Un compte existe déjà avec cette adresse." }, 409);
-    const user = users.createUser(email, password);
-    if (!first && cfg.signup === "invite") users.useInvite(body.invite!, user.id);
-    startSession(c, user);
+    if (await users.findByEmail(email)) return c.json({ error: "Un compte existe déjà avec cette adresse." }, 409);
+    const user = await users.createUser(email, password);
+    if (!first && cfg.signup === "invite") await users.useInvite(body.invite!, user.id);
+    await startSession(c, user);
     return c.json({ email: user.email });
   });
 
-  app.post("/api/auth/logout", (c) => {
+  app.post("/api/auth/logout", async (c) => {
     if (!csrfOk(c)) return c.json({ error: "Requête refusée." }, 403);
     const token = getCookie(c, COOKIE);
-    if (token) users.deleteSession(token);
+    if (token) await users.deleteSession(token);
     deleteCookie(c, COOKIE, { path: "/" });
     return c.json({ ok: true });
   });
 
   app.post("/api/rpc/:name", async (c) => {
     if (!csrfOk(c)) return c.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Requête refusée." } }, 403);
-    const user = currentUser(c);
+    const user = await currentUser(c);
     if (!user) return unauthorized(c);
     const input = await c.req.json().catch(() => null);
-    const result = await pool.get(user).dispatch(c.req.param("name"), input ?? undefined);
+    const result = await (await pool.get(user)).dispatch(c.req.param("name"), input ?? undefined);
     return c.json(result);
   });
 
@@ -231,16 +239,16 @@ export function createApp(cfg: ServerConfig) {
     });
   }
 
-  const purge = setInterval(() => users.purgeExpired(), 3600_000);
+  const purge = setInterval(() => void users.purgeExpired().catch(() => undefined), 3600_000);
   purge.unref?.();
 
   return {
     app,
     users,
-    close() {
+    async close() {
       clearInterval(purge);
       pool.close();
-      users.close();
+      await users.close();
     },
   };
 }

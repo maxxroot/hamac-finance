@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createBackend, type Backend } from "../index";
+import type { Backend } from "../index";
+import { testBackend } from "../testkit";
 import type { Fetcher } from "./http";
 import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./custom";
 import { euronextHistory, parseEuronextCsv } from "./euronext";
@@ -147,7 +148,7 @@ describe("sources de cours", () => {
       if (/getFullDownloadAjax\/FR0011871128-XPAR/.test(url)) return new Response(`Date;Open;High;Low;Last;Close\n${d}/${m}/${y};1;1;1;42;42.5\n`);
       return new Response("introuvable", { status: 404 });
     }) as Fetcher;
-    backend = createBackend({ databasePath: ":memory:", mode: "desktop", appVersion: "test", backupsDir: null, fetcher: f });
+    backend = await testBackend({ fetcher: f });
     const etf = await call<{ id: string }>(backend, "assets.upsert", { kind: "etf", name: "S&P 500", isin: "FR0011871128", priceSource: "auto" });
     const status = await call<{ updated: number; errors: unknown[]; assets: Array<{ provider: string; tried: Array<{ provider: string }> }> }>(backend, "prices.refresh");
     expect(status.errors).toEqual([]);
@@ -157,7 +158,7 @@ describe("sources de cours", () => {
   });
 
   it("la clé Twelve Data ne sort ni vers l'interface ni dans une sauvegarde", async () => {
-    backend = createBackend({ databasePath: ":memory:", mode: "desktop", appVersion: "test", backupsDir: null, fetcher: fakeFetcher([]) });
+    backend = await testBackend({ fetcher: fakeFetcher([]) });
     const s = await call<{ twelveData: { configured: boolean; hint: string } }>(backend, "market.configure", { twelveDataKey: "cle-secrete-abcd" });
     expect(s.twelveData).toMatchObject({ configured: true, hint: "abcd" });
     expect(JSON.stringify(s)).not.toContain("cle-secrete");
@@ -189,7 +190,7 @@ describe("sources de cours", () => {
       [/justetf/, { latestQuote: { raw: 59.44 }, latestQuoteDate: today, series: [{ date: "2026-10-01", value: { raw: 58 } }, { date: today, value: { raw: 59.44 } }] }],
       [/coingecko.*market_chart/, { prices: [[Date.parse(today), 68000]] }, 429],
     ]);
-    backend = createBackend({ databasePath: ":memory:", mode: "desktop", appVersion: "test", backupsDir: null, fetcher: f });
+    backend = await testBackend({ fetcher: f });
     const etf = await call<{ id: string }>(backend, "assets.upsert", { kind: "etf", name: "S&P 500", isin: "FR0011871128", priceSource: "auto" });
     await call(backend, "assets.upsert", { kind: "crypto", name: "Bitcoin", symbol: "bitcoin", priceSource: "auto" });
     await call(backend, "prices.setManual", { assetId: etf.id, date: today, price: 60 });

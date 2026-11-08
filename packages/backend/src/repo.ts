@@ -1,4 +1,5 @@
 import { desc, sql } from "drizzle-orm";
+import { one } from "./db/driver";
 import type {
   AccountRate,
   Institution,
@@ -26,7 +27,7 @@ import { normalizeParams, Offers, type PlanParams } from "@hamac/core";
 import type { Workspace } from "@hamac/api";
 import { eq } from "drizzle-orm";
 import * as t from "./db/schema";
-import type { Db } from "./db/sqlite";
+import type { Db } from "./db/postgres";
 
 export const toCents = (euros: number) => Math.round(euros * 100);
 export const fromCents = (cents: number) => cents / 100;
@@ -195,7 +196,7 @@ export function mapInstitution(r: typeof t.institutions.$inferSelect): Instituti
 }
 
 export async function loadParams(db: Db): Promise<PlanParams> {
-  const row = await db.select().from(t.settings).where(eq(t.settings.key, PARAMS_KEY)).get();
+  const row = await db.select().from(t.settings).where(eq(t.settings.key, PARAMS_KEY)).limit(1).then(one);
   return normalizeParams(row ? JSON.parse(row.value) : null);
 }
 
@@ -211,28 +212,27 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 export async function loadWorkspace(db: Db): Promise<Workspace> {
   const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows] = await Promise.all([
     loadParams(db),
-    db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
-    db.select().from(t.assets).orderBy(t.assets.name).all(),
-    db.select().from(t.transactions).orderBy(desc(t.transactions.date), desc(t.transactions.createdAt)).all(),
-    db.select().from(t.contributionPlans).orderBy(t.contributionPlans.fromMonth).all(),
-    db.select().from(t.contributionSkips).orderBy(t.contributionSkips.month).all(),
-    db.select().from(t.bondPlans).orderBy(t.bondPlans.targetYear).all(),
-    db.select().from(t.fundRates).orderBy(t.fundRates.year).all(),
-    db.select().from(t.statements).orderBy(desc(t.statements.date)).all(),
-    db.select().from(t.plannedExpenses).orderBy(t.plannedExpenses.year).all(),
+    db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
+    db.select().from(t.assets).orderBy(t.assets.name),
+    db.select().from(t.transactions).orderBy(desc(t.transactions.date), desc(t.transactions.createdAt)),
+    db.select().from(t.contributionPlans).orderBy(t.contributionPlans.fromMonth),
+    db.select().from(t.contributionSkips).orderBy(t.contributionSkips.month),
+    db.select().from(t.bondPlans).orderBy(t.bondPlans.targetYear),
+    db.select().from(t.fundRates).orderBy(t.fundRates.year),
+    db.select().from(t.statements).orderBy(desc(t.statements.date)),
+    db.select().from(t.plannedExpenses).orderBy(t.plannedExpenses.year),
     // Historique allégé : dernier cours de chaque mois pour chaque titre.
     db
       .select()
       .from(t.prices)
       // Crypto : tous les jours, la plus-value d'une vente se calcule sur la valeur du portefeuille à sa date.
-      .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id, substr(date, 1, 7)) OR ${t.prices.assetId} IN (SELECT id FROM assets WHERE kind = 'crypto')`)
-      .all(),
-    db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).get(),
-    db.select().from(t.institutions).orderBy(t.institutions.name).all(),
-    db.select().from(t.accountRates).orderBy(t.accountRates.fromDate).all(),
-    db.select().from(t.properties).orderBy(t.properties.name).all(),
-    db.select().from(t.loans).orderBy(t.loans.name).all(),
-    db.select().from(t.crowdProjects).orderBy(desc(t.crowdProjects.startDate)).all(),
+      .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id, substr(date, 1, 7)) OR ${t.prices.assetId} IN (SELECT id FROM assets WHERE kind = 'crypto')`),
+    db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).limit(1).then(one),
+    db.select().from(t.institutions).orderBy(t.institutions.name),
+    db.select().from(t.accountRates).orderBy(t.accountRates.fromDate),
+    db.select().from(t.properties).orderBy(t.properties.name),
+    db.select().from(t.loans).orderBy(t.loans.name),
+    db.select().from(t.crowdProjects).orderBy(desc(t.crowdProjects.startDate)),
   ]);
   return {
     params,

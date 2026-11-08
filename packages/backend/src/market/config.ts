@@ -1,4 +1,5 @@
 import { PRICE_PROVIDERS, type Asset, type PriceProvider } from "@hamac/core";
+import { one } from "../db/driver";
 import { eq } from "drizzle-orm";
 import type { BackendContext } from "../context";
 import * as t from "../db/schema";
@@ -12,7 +13,7 @@ export const MARKET_SECRETS_KEY = "market.secrets";
 export const MARKET_USAGE_KEY = "market.usage";
 
 export async function readSetting<T>(ctx: BackendContext, key: string): Promise<T | null> {
-  const row = await ctx.db.select().from(t.settings).where(eq(t.settings.key, key)).get();
+  const row = await ctx.db.select().from(t.settings).where(eq(t.settings.key, key)).limit(1).then(one);
   return row ? (JSON.parse(row.value) as T) : null;
 }
 
