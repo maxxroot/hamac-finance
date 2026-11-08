@@ -150,6 +150,8 @@ describe("parcours de l'interface", () => {
     expect(within(row).getByText("En cours")).toBeTruthy();
     await user.click(within(row).getByRole("button", { name: "Modifier" }));
     expect(screen.queryByLabelText("Montant espéré")).toBeNull();
+    await user.selectOptions(fieldOf("Statut"), "rembourse");
+    expect(screen.getByLabelText("Remboursé le")).toBeTruthy();
     await user.selectOptions(fieldOf("Statut"), "defaut");
     expect(screen.getByLabelText("Montant espéré")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Valider" }));

@@ -85,7 +85,7 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
               </Select>
             )}
           </Field>
-          {d.status !== "en_cours" && <Field label="Depuis le">{(id) => <TextInput id={id} type="date" value={d.statusDate ?? ""} onChange={(e) => set("statusDate", e.target.value || null)} />}</Field>}
+          {d.status !== "en_cours" && <Field label={d.status === "rembourse" ? "Remboursé le" : "Depuis le"}>{(id) => <TextInput id={id} type="date" value={d.statusDate ?? ""} onChange={(e) => set("statusDate", e.target.value || null)} />}</Field>}
           <Field label="Capital déjà remboursé" help="Vide : calculé.">{(id) => <MoneyInput id={id} value={d.repaidCapital} onChange={(v) => set("repaidCapital", v)} />}</Field>
         </FormGrid>
         <Field label="Échéance prolongée au" help={initialEnd ? `Facultatif : si la plateforme repousse l'échéance initiale du ${formatDate(initialEnd)}.` : "Facultatif : si la plateforme repousse l'échéance."} error={extensionError}>
