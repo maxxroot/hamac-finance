@@ -11,7 +11,7 @@ import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { BricksImportDialog } from "@/dialogs/BricksImportDialog";
 import { CrowdProjectDialog } from "@/dialogs/CrowdProjectDialog";
 import { DeclareInterestDialog } from "@/dialogs/DeclareInterestDialog";
-import { formatDate } from "@/lib/numbers";
+import { capitalize, formatDate, formatMonth } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
 import { useMutate } from "@/lib/workspace";
 
@@ -143,7 +143,7 @@ export function Crowdlending() {
                     </Td>
                     <Td className="whitespace-nowrap text-fg-muted">{formatDate(c.nextDate)}</Td>
                     <Td className="whitespace-nowrap text-fg-muted">
-                      {formatDate(c.endDate)}
+                      {c.project.extendedTo ? capitalize(formatMonth(c.project.extendedTo.slice(0, 7))) : formatDate(c.endDate)}
                       {c.project.extendedTo && <div className="text-xs text-warning">Prolongée{crowdInitialEndDate(c.project) ? ` (prévue le ${formatDate(crowdInitialEndDate(c.project))})` : ""}</div>}
                     </Td>
                     <Td>{c.overdue ? <Badge tone="accent">Échéance dépassée</Badge> : <Badge tone={TONES[c.status]}>{CROWD_STATUS_LABELS[c.status]}</Badge>}</Td>

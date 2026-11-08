@@ -44,7 +44,7 @@ export interface CrowdProject {
   comment: string;
   /** Identifiant dans un fichier importé. */
   externalId?: string | null;
-  /** Nouvelle échéance quand la plateforme la prolonge ; remplace celle issue de la durée. */
+  /** Nouvelle échéance quand la plateforme la prolonge (saisie au mois, fin de mois) ; remplace celle issue de la durée. */
   extendedTo?: string | null;
 }
 
@@ -72,7 +72,8 @@ export function crowdExtensionError(p: Pick<CrowdProject, "startDate" | "termMon
   if (!p.extendedTo) return null;
   const initial = crowdInitialEndDate(p);
   if (p.extendedTo <= p.startDate) return "La nouvelle échéance doit suivre la date d'investissement.";
-  return initial && p.extendedTo <= initial ? "La nouvelle échéance doit être après l'échéance initiale." : null;
+  // Saisie au mois : il faut un mois plus tardif que celui de l'échéance initiale.
+  return initial && p.extendedTo.slice(0, 7) <= initial.slice(0, 7) ? "La nouvelle échéance doit être après l'échéance initiale." : null;
 }
 
 export function crowdProjectState(project: CrowdProject, asOf: string): CrowdProjectState {

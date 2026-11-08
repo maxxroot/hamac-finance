@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CROWD_REPAYMENT_LABELS, CROWD_REPAYMENTS, CROWD_STATUS_LABELS, CROWD_STATUSES, crowdExtensionError, crowdInitialEndDate, type Account, type CrowdProject, type CrowdRepayment, type CrowdStatus } from "@hamac/core";
+import { CROWD_REPAYMENT_LABELS, CROWD_REPAYMENTS, CROWD_STATUS_LABELS, CROWD_STATUSES, crowdExtensionError, crowdInitialEndDate, dayOfMonth, type Account, type CrowdProject, type CrowdRepayment, type CrowdStatus } from "@hamac/core";
 import type { CrowdProjectInput } from "@hamac/api";
 import { Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
@@ -18,7 +18,12 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
     if (open) setD(project ? { ...project, extendedTo: project.extendedTo ?? null } : empty(platforms[0]?.id ?? ""));
   }, [open, project, platforms]);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
-  const setStatus = (status: CrowdStatus) => setD((x) => ({ ...x, status, statusDate: status === "en_cours" ? null : (x.statusDate ?? todayIso()) }));
+  // Retard et défaut se saisissent au mois (premier jour) ; un remboursement garde sa date exacte.
+  const setStatus = (status: CrowdStatus) =>
+    setD((x) => {
+      const date = x.statusDate ?? todayIso();
+      return { ...x, status, statusDate: status === "en_cours" ? null : status === "rembourse" ? date : `${date.slice(0, 7)}-01` };
+    });
   const extensionError = crowdExtensionError(d);
   const initialEnd = crowdInitialEndDate(d);
   const valid = d.accountId && d.name.trim() && d.amount > 0 && (d.termMonths == null || d.termMonths >= 1) && d.startDate && !extensionError;
@@ -85,11 +90,12 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
               </Select>
             )}
           </Field>
-          {d.status !== "en_cours" && <Field label={d.status === "rembourse" ? "Remboursé le" : "Depuis le"}>{(id) => <TextInput id={id} type="date" value={d.statusDate ?? ""} onChange={(e) => set("statusDate", e.target.value || null)} />}</Field>}
+          {d.status === "rembourse" && <Field label="Remboursé le">{(id) => <TextInput id={id} type="date" value={d.statusDate ?? ""} onChange={(e) => set("statusDate", e.target.value || null)} />}</Field>}
+          {(d.status === "retard" || d.status === "defaut") && <Field label="Depuis">{(id) => <TextInput id={id} type="month" value={d.statusDate?.slice(0, 7) ?? ""} onChange={(e) => set("statusDate", e.target.value ? `${e.target.value}-01` : null)} />}</Field>}
           <Field label="Capital déjà remboursé" help="Vide : calculé.">{(id) => <MoneyInput id={id} value={d.repaidCapital} onChange={(v) => set("repaidCapital", v)} />}</Field>
         </FormGrid>
         <Field label="Échéance prolongée au" help={initialEnd ? `Facultatif : si la plateforme repousse l'échéance initiale du ${formatDate(initialEnd)}.` : "Facultatif : si la plateforme repousse l'échéance."} error={extensionError}>
-          {(id) => <TextInput id={id} type="date" value={d.extendedTo ?? ""} onChange={(e) => set("extendedTo", e.target.value || null)} />}
+          {(id) => <TextInput id={id} type="month" value={d.extendedTo?.slice(0, 7) ?? ""} onChange={(e) => set("extendedTo", e.target.value ? dayOfMonth(e.target.value, 31) : null)} />}
         </Field>
         {d.status === "defaut" && (
           <Field label="Montant espéré" help="Vide : le projet compte pour 0 € tant que vous ne savez pas.">

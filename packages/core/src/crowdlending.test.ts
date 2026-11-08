@@ -47,7 +47,8 @@ describe("crowdlending", () => {
 
   it("une prolongation doit reculer l'échéance", () => {
     expect(crowdExtensionError(p({ extendedTo: "2027-07-15" }))).toBeNull();
-    expect(crowdExtensionError(p({ extendedTo: "2027-01-15" }))).toMatch(/après l'échéance/);
+    expect(crowdExtensionError(p({ extendedTo: "2027-01-31" }))).toMatch(/après l'échéance/);
+    expect(crowdExtensionError(p({ extendedTo: "2027-02-28" }))).toBeNull();
     expect(crowdExtensionError(p({ termMonths: null, extendedTo: "2025-01-01" }))).toMatch(/investissement/);
   });
 

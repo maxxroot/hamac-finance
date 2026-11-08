@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
@@ -154,6 +154,7 @@ describe("parcours de l'interface", () => {
     expect(screen.getByLabelText("Remboursé le")).toBeTruthy();
     await user.selectOptions(fieldOf("Statut"), "defaut");
     expect(screen.getByLabelText("Montant espéré")).toBeTruthy();
+    expect(fieldOf("Depuis").type).toBe("month");
     await user.click(screen.getByRole("button", { name: "Valider" }));
     await waitFor(() => expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText("En défaut")).toBeTruthy());
     expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText(/compté/)).toBeTruthy();
@@ -222,14 +223,14 @@ describe("parcours de l'interface", () => {
     const row = (await screen.findByText("Obligation X")).closest("tr")!;
     await user.click(within(row).getByRole("button", { name: "Modifier" }));
     const field = await screen.findByLabelText("Échéance prolongée au");
-    await user.type(field, "2025-06-01");
+    fireEvent.change(field, { target: { value: "2025-06" } });
     expect((screen.getByRole("button", { name: "Valider" }) as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText(/après l'échéance initiale/)).toBeTruthy();
-    await user.clear(field);
-    await user.type(field, "2031-06-01");
+    fireEvent.change(field, { target: { value: "2031-06" } });
     await user.click(screen.getByRole("button", { name: "Valider" }));
-    await waitFor(async () => expect((await rpc<{ crowdProjects: Array<{ id: string; extendedTo: string }> }>("workspace.load")).crowdProjects.find((x) => x.id === p.id)?.extendedTo).toBe("2031-06-01"));
+    await waitFor(async () => expect((await rpc<{ crowdProjects: Array<{ id: string; extendedTo: string }> }>("workspace.load")).crowdProjects.find((x) => x.id === p.id)?.extendedTo).toBe("2031-06-30"));
     expect(await screen.findByText(/Prolongée \(prévue le/)).toBeTruthy();
+    expect(screen.getByText("Juin 2031")).toBeTruthy();
   });
 
   it("onglet Actifs : l'allocation se règle sur la ligne d'un titre", async () => {
