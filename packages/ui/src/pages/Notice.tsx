@@ -98,7 +98,7 @@ export function Notice() {
           </tbody>
         </Table>
         <p>
-          Un relevé de banque ou de courtier au format CSV peut être importé depuis le Journal (bouton « Importer ») : on indique à quoi correspond chaque colonne et on vérifie l'aperçu avant l'import.
+          Un relevé de banque ou de courtier au format CSV, OFX ou QIF peut être importé depuis le Journal (bouton « Importer ») : on indique à quoi correspond chaque colonne et on vérifie l'aperçu avant l'import.
         </p>
       </Section>
 

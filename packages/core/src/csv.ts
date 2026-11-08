@@ -7,8 +7,7 @@ import type { TxType } from "./domain";
  */
 export function parseCsv(text: string): string[][] {
   const clean = text.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
-  const firstLine = clean.split("\n").find((l) => l.trim()) ?? "";
-  const delimiter = [";", "\t", ","].map((d) => [d, splitLine(firstLine, d).length] as const).sort((a, b) => b[1] - a[1])[0][0];
+  const delimiter = detectDelimiter(clean.split("\n").filter((l) => l.trim()).slice(0, 30));
   const rows: string[][] = [];
   let field = "";
   let row: string[] = [];
@@ -37,8 +36,26 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-function splitLine(line: string, d: string): string[] {
-  return line.split(d);
+/**
+ * Séparateur : celui qui découpe le plus de lignes en un même nombre de colonnes, à égalité « ; » puis tabulation.
+ * Sur les premières lignes, car un relevé peut commencer par un préambule sans séparateur.
+ */
+function detectDelimiter(lines: readonly string[]): string {
+  let best = ";";
+  let bestScore = -1;
+  for (const d of [";", "\t", ","]) {
+    const counts = new Map<number, number>();
+    for (const l of lines) {
+      const n = l.split(d).length;
+      if (n > 1) counts.set(n, (counts.get(n) ?? 0) + 1);
+    }
+    const score = Math.max(0, ...counts.values());
+    if (score > bestScore) {
+      best = d;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 /** « 1 234,56 », « -1234.56 », « 1.234,56 € » → nombre. */

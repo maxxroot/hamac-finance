@@ -51,7 +51,7 @@ export const SystemInfo = z.object({
 });
 export type SystemInfo = z.infer<typeof SystemInfo>;
 
-export const SettingKey = z.enum(["ui.privacyMode", "ui.lastRoute", "ui.onboardingDone"]);
+export const SettingKey = z.enum(["ui.privacyMode", "ui.lastRoute", "ui.onboardingDone", "import.formats"]);
 export type SettingKey = z.infer<typeof SettingKey>;
 
 /** Tout l'espace de travail de l'utilisateur, chargé en une fois (quelques milliers de lignes au plus). */

@@ -1,5 +1,5 @@
 import { CalendarClock, CalendarX2, Download, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { CsvImportDialog } from "@/dialogs/CsvImportDialog";
+import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
 import { SortTh, useSortable } from "@/lib/sort";
 import { downloadText, toCsv } from "@/lib/files";
 import { useMemo, useState } from "react";
@@ -103,7 +103,7 @@ export function Journal() {
         description="Toutes les opérations, y compris les versements programmés déjà prélevés. C'est la seule saisie du quotidien : tout le reste se calcule."
         actions={
           <>
-            <Button variant="ghost" onClick={() => setImporting(true)} title="Importer un relevé CSV de banque ou de courtier">
+            <Button variant="ghost" onClick={() => setImporting(true)} title="Importer un relevé de banque ou de courtier (CSV, OFX, QIF)">
               <FileUp size={16} /> Importer
             </Button>
             <Button
@@ -274,7 +274,7 @@ export function Journal() {
         </tbody>
       </Table>
 
-      <CsvImportDialog open={importing} onClose={() => setImporting(false)} />
+      <StatementImportDialog open={importing} onClose={() => setImporting(false)} />
       <TransactionDialog open={creating || !!editing} transaction={editing} preset={preset} onClose={closeDialog} />
     </>
   );
