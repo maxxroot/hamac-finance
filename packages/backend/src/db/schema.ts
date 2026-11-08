@@ -99,6 +99,7 @@ export const transactions = sqliteTable(
     quantity: real("quantity"),
     feeCents: integer("fee_cents"),
     comment: text("comment").notNull().default(""),
+    externalId: text("external_id"),
     ...timestamps,
   },
   (t) => [
@@ -106,6 +107,7 @@ export const transactions = sqliteTable(
     index("tx_account_idx").on(t.accountId),
     index("tx_asset_idx").on(t.assetId),
     index("tx_counter_idx").on(t.counterAccountId),
+    uniqueIndex("tx_external_uq").on(t.accountId, t.externalId),
   ],
 );
 
@@ -195,16 +197,18 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
   ...timestamps,
 });
 
-export const crowdProjects = sqliteTable("crowd_projects", {
+export const crowdProjects = sqliteTable(
+  "crowd_projects",
+  {
   id: text("id").primaryKey(),
   accountId: text("account_id")
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   amountCents: integer("amount_cents").notNull(),
-  rate: real("rate").notNull(),
+  rate: real("rate"),
   startDate: text("start_date").notNull(),
-  termMonths: integer("term_months").notNull(),
+  termMonths: integer("term_months"),
   repayment: text("repayment").notNull(),
   status: text("status").notNull().default("en_cours"),
   statusDate: text("status_date"),
@@ -212,8 +216,11 @@ export const crowdProjects = sqliteTable("crowd_projects", {
   expectedRecoveryCents: integer("expected_recovery_cents"),
   inAllocation: integer("in_allocation", { mode: "boolean" }),
   comment: text("comment").notNull().default(""),
+  externalId: text("external_id"),
   ...timestamps,
-});
+},
+  (t) => [uniqueIndex("crowd_external_uq").on(t.accountId, t.externalId)],
+);
 
 export const properties = sqliteTable("properties", {
   id: text("id").primaryKey(),

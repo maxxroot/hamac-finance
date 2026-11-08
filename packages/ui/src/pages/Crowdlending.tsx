@@ -8,6 +8,7 @@ import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyEnvelope } from "@/components/TransactionButton";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { BricksImportDialog } from "@/dialogs/BricksImportDialog";
 import { CrowdProjectDialog } from "@/dialogs/CrowdProjectDialog";
 import { DeclareInterestDialog } from "@/dialogs/DeclareInterestDialog";
 import { formatDate } from "@/lib/numbers";
@@ -23,6 +24,7 @@ export function Crowdlending() {
   const del = useMutate("crowdProjects.delete", { success: "Projet supprimé" });
   const [editing, setEditing] = useState<CrowdProject | "new" | null>(null);
   const [declaring, setDeclaring] = useState(false);
+  const [importing, setImporting] = useState(false);
   if (!pf) return null;
   const accounts = pf.state.accounts.filter((a) => a.account.kind === "crowdlending" && !a.account.archived);
   const platforms = accounts.map((a) => a.account);
@@ -41,6 +43,7 @@ export function Crowdlending() {
         actions={
           <div className="flex gap-2">
             <AddAccountButton kind="crowdlending" label="Ajouter un compte" variant="ghost" />
+            {platforms.length > 0 && <Button onClick={() => setImporting(true)}>Importer un fichier Bricks</Button>}
             {platforms.length > 0 && <Button onClick={() => setDeclaring(true)}>Déclarer les intérêts du mois</Button>}
             {platforms.length > 0 && (
               <Button variant="primary" onClick={() => setEditing("new")}>
@@ -124,11 +127,12 @@ export function Crowdlending() {
                     <Td className="pl-5 font-medium">
                       {c.project.name}
                       <div className="text-xs font-normal text-fg-faint">
-                        {c.platform} · {CROWD_REPAYMENT_LABELS[c.project.repayment]}
+                        {c.platform}
+                        {c.project.termMonths != null ? ` · ${CROWD_REPAYMENT_LABELS[c.project.repayment]}` : c.project.comment ? ` · ${c.project.comment}` : ""}
                       </div>
                     </Td>
                     <Td align="right"><Amount value={c.project.amount} /></Td>
-                    <Td align="right">{formatPct(c.project.rate)}</Td>
+                    <Td align="right">{c.project.rate != null ? formatPct(c.project.rate) : "—"}</Td>
                     <Td align="right">
                       <Amount value={c.outstanding} />
                       {c.status === "defaut" && (
@@ -149,6 +153,7 @@ export function Crowdlending() {
         </>
       )}
 
+      {importing && <BricksImportDialog platforms={platforms} onClose={() => setImporting(false)} />}
       {declaring && <DeclareInterestDialog platforms={platforms} withheld={new Map(platforms.map((a) => [a.id, crowdTaxOf(pf.data, a).withheld]))} journal={pf.data.transactions} onClose={() => setDeclaring(false)} />}
       <CrowdProjectDialog open={editing !== null} project={editing === "new" ? null : editing} platforms={platforms} onClose={() => setEditing(null)} />
     </>

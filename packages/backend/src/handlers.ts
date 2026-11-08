@@ -414,6 +414,35 @@ export const handlers: Handlers = {
     return mapCrowdProject((await ctx.db.select().from(t.crowdProjects).where(eq(t.crowdProjects.id, id)).get())!);
   },
 
+  async "crowdProjects.applyImport"({ accountId, transactions, projects }, ctx) {
+    const account = await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, accountId)).get();
+    if (account?.kind !== "crowdlending") throw new RpcError("VALIDATION", "L'import doit viser une plateforme de crowdlending.");
+    const now = nowIso();
+    // Tout ou rien, et sans doublon même si le même import est envoyé deux fois.
+    ctx.raw.exec("BEGIN IMMEDIATE");
+    try {
+      const addTx = ctx.raw.prepare("INSERT OR IGNORE INTO transactions (id, date, type, account_id, amount_cents, comment, external_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+      const setTx = ctx.raw.prepare("UPDATE transactions SET date = ?, type = ?, amount_cents = ?, comment = ?, external_id = ?, updated_at = ? WHERE id = ? AND account_id = ?");
+      const delTx = ctx.raw.prepare("DELETE FROM transactions WHERE id = ? AND account_id = ? AND external_id IS NOT NULL");
+      for (const x of transactions) {
+        if (x.action === "nouveau") addTx.run(newId(), x.date, x.type, accountId, toCents(x.amount), x.comment, x.externalId);
+        else if (x.action === "modifie" && x.id) setTx.run(x.date, x.type, toCents(x.amount), x.comment, x.externalId, now, x.id, accountId);
+        else if (x.action === "retire" && x.id) delTx.run(x.id, accountId);
+      }
+      const addProject = ctx.raw.prepare("INSERT OR IGNORE INTO crowd_projects (id, account_id, name, amount_cents, start_date, repayment, status, status_date, repaid_capital_cents, comment, external_id) VALUES (?, ?, ?, ?, ?, 'in_fine', ?, ?, ?, ?, ?)");
+      const setProject = ctx.raw.prepare("UPDATE crowd_projects SET amount_cents = ?, start_date = ?, status = ?, status_date = ?, repaid_capital_cents = ?, external_id = ?, updated_at = ? WHERE id = ? AND account_id = ?");
+      for (const p of projects) {
+        if (p.action === "nouveau") addProject.run(newId(), accountId, p.name, toCents(p.amount), p.startDate, p.status, p.statusDate, toCents(p.repaidCapital), p.comment, p.externalId);
+        else if (p.id) setProject.run(toCents(p.amount), p.startDate, p.status, p.statusDate, toCents(p.repaidCapital), p.externalId, now, p.id, accountId);
+      }
+      ctx.raw.exec("COMMIT");
+    } catch (e) {
+      ctx.raw.exec("ROLLBACK");
+      throw e;
+    }
+    return { transactions: transactions.length, projects: projects.length };
+  },
+
   async "crowdProjects.delete"({ id }, ctx) {
     await ctx.db.delete(t.crowdProjects).where(eq(t.crowdProjects.id, id));
     return OK;

@@ -10,12 +10,13 @@ import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { LoanDialog } from "@/dialogs/LoanDialog";
 import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
+import { makeXlsx } from "@/lib/xlsx.fixture";
 import { ToastProvider } from "@/lib/toast";
 import { Crowdlending } from "@/pages/Crowdlending";
 import { Parametres } from "@/pages/Parametres";
 
 /** Parcours réels : l'interface parle au vrai backend, sur une base en mémoire. */
-const h = vi.hoisted(() => ({ backend: null as unknown as import("@hamac/backend").Backend, file: { name: "", content: "" } }));
+const h = vi.hoisted(() => ({ backend: null as unknown as import("@hamac/backend").Backend, file: { name: "", content: "" }, binary: { name: "", bytes: new Uint8Array() as Uint8Array } }));
 
 vi.mock("@/lib/transport", () => ({
   isDesktop: true,
@@ -25,7 +26,7 @@ vi.mock("@/lib/transport", () => ({
     return r.data;
   },
 }));
-vi.mock("@/lib/files", () => ({ pickTextFile: async () => h.file, downloadText: () => undefined }));
+vi.mock("@/lib/files", () => ({ pickTextFile: async () => h.file, pickBinaryFile: async () => h.binary, downloadText: () => undefined }));
 
 async function rpc<T = unknown>(name: string, input?: unknown): Promise<T> {
   const r = await h.backend.dispatch(name, input);
@@ -184,6 +185,31 @@ describe("parcours de l'interface", () => {
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(async () => expect((await workspace()).transactions).toMatchObject([{ type: "interets", amount: 42 }]));
     expect((await rpc<{ transactions: Array<{ accountId: string }> }>("workspace.load")).transactions[0]!.accountId).toBe(c.id);
+  });
+
+  it("import Bricks : aperçu, application, puis rien de neuf au second passage", async () => {
+    const user = userEvent.setup();
+    await rpc("accounts.upsert", { kind: "crowdlending", name: "Bricks" });
+    h.binary = { name: "bricks.xlsx", bytes: await makeXlsx([
+      ["id", "date", "type", "statut", "propriété", "type de contrat", "montant (€)", "prix de la brick (€)"],
+      ["d1", "02/01/2026", "Crédit par carte", "Validée", null, null, 1000, null],
+      ["a1", "05/01/2026", "Achat de bricks", "Validée", "Projet Test", "loan", -300, 10],
+      ["r1", "15/03/2026", "Revenus reversés", "Validée", "Projet Test", "loan", 10, null],
+    ]) };
+    const first = show(<Crowdlending />);
+    await user.click(await screen.findByRole("button", { name: "Importer un fichier Bricks" }));
+    await user.click(await screen.findByRole("button", { name: "Choisir le fichier" }));
+    expect(await screen.findByText("Projet Test")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Appliquer 3 changements" }));
+    expect(await screen.findByText("3 changement(s) appliqué(s).")).toBeTruthy();
+    const ws = await rpc<{ transactions: Array<{ type: string; amount: number; externalId: string }>; crowdProjects: Array<{ name: string; amount: number; rate: number | null; termMonths: number | null }> }>("workspace.load");
+    expect(ws.transactions.map((t) => t.type).sort()).toEqual(["interets", "versement"]);
+    expect(ws.crowdProjects).toMatchObject([{ name: "Projet Test", amount: 300, rate: null, termMonths: null }]);
+    first.unmount();
+    show(<Crowdlending />);
+    await user.click(await screen.findByRole("button", { name: "Importer un fichier Bricks" }));
+    await user.click(await screen.findByRole("button", { name: "Choisir le fichier" }));
+    expect(await screen.findByText("Tout est déjà à jour.")).toBeTruthy();
   });
 
   it("onglet Actifs : l'allocation se règle sur la ligne d'un titre", async () => {

@@ -26,10 +26,11 @@ export interface CrowdProject {
   accountId: string;
   name: string;
   amount: number;
-  /** Taux annuel (fraction). */
-  rate: number;
+  /** Taux annuel (fraction) ; null = pas encore renseigné (projet importé). */
+  rate: number | null;
   startDate: string;
-  termMonths: number;
+  /** Durée en mois ; null = pas encore renseignée. */
+  termMonths: number | null;
   repayment: CrowdRepayment;
   status: CrowdStatus;
   /** Date du passage en défaut ou du remboursement : avant, le projet comptait comme en cours. */
@@ -41,13 +42,15 @@ export interface CrowdProject {
   /** Dans ou hors de l'allocation cible ; null = comme la plateforme (hors, par défaut). */
   inAllocation: boolean | null;
   comment: string;
+  /** Identifiant dans un fichier importé. */
+  externalId?: string | null;
 }
 
 export interface CrowdProjectState {
   project: CrowdProject;
   /** Statut à la date demandée. */
   status: CrowdStatus;
-  endDate: string;
+  endDate: string | null;
   repaid: number;
   /** Capital restant dû par l'emprunteur. */
   outstanding: number;
@@ -58,7 +61,7 @@ export interface CrowdProjectState {
   overdue: boolean;
 }
 
-export const crowdEndDate = (p: Pick<CrowdProject, "startDate" | "termMonths">) => addMonths(p.startDate, p.termMonths);
+export const crowdEndDate = (p: Pick<CrowdProject, "startDate" | "termMonths">): string | null => (p.termMonths == null ? null : addMonths(p.startDate, p.termMonths));
 
 export function crowdProjectState(project: CrowdProject, asOf: string): CrowdProjectState {
   const endDate = crowdEndDate(project);
@@ -67,7 +70,7 @@ export function crowdProjectState(project: CrowdProject, asOf: string): CrowdPro
   // En retard : les mensualités ne sont plus comptées comme remboursées à partir de cette date.
   const until = status === "retard" && project.statusDate && project.statusDate < asOf ? project.statusDate : asOf;
   const scheduled = (): number =>
-    project.repayment === "amortissable"
+    project.repayment === "amortissable" && project.rate != null && project.termMonths != null
       ? project.amount - loanState({ id: project.id, kind: "autre", name: "", propertyId: null, principal: project.amount, rate: project.rate, termMonths: project.termMonths, firstPayment, insurance: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false }, until).balance
       : 0;
   const repaid = roundCents(Math.min(project.amount, status === "rembourse" ? project.amount : (project.repaidCapital ?? (status === "defaut" ? 0 : scheduled()))));
@@ -75,10 +78,10 @@ export function crowdProjectState(project: CrowdProject, asOf: string): CrowdPro
   const value = status === "rembourse" ? 0 : status === "defaut" ? roundCents(Math.min(outstanding, project.expectedRecovery ?? 0)) : outstanding;
   let nextDate: string | null = null;
   if (status === "en_cours" || status === "retard") {
-    if (project.repayment === "in_fine") nextDate = endDate > asOf ? endDate : null;
-    else for (let i = 0; i < project.termMonths && !nextDate; i++) if (addMonths(firstPayment, i) > asOf) nextDate = addMonths(firstPayment, i);
+    if (project.repayment === "in_fine") nextDate = endDate && endDate > asOf ? endDate : null;
+    else for (let i = 0; i < (project.termMonths ?? 0) && !nextDate; i++) if (addMonths(firstPayment, i) > asOf) nextDate = addMonths(firstPayment, i);
   }
-  return { project, status, endDate, repaid, outstanding, value, nextDate, overdue: status === "en_cours" && endDate < asOf };
+  return { project, status, endDate, repaid, outstanding, value, nextDate, overdue: status === "en_cours" && endDate != null && endDate < asOf };
 }
 
 export interface CrowdSummary {
@@ -94,5 +97,8 @@ export function crowdSummary(states: readonly CrowdProjectState[]): CrowdSummary
   const live = states.filter((s) => s.status === "en_cours" || s.status === "retard");
   const active = live.reduce((t, s) => t + s.outstanding, 0);
   const atRisk = states.filter((s) => s.status === "retard" || s.status === "defaut").reduce((t, s) => t + s.outstanding, 0);
-  return { active: roundCents(active), atRisk: roundCents(atRisk), averageRate: active > 0 ? live.reduce((t, s) => t + s.outstanding * s.project.rate, 0) / active : null };
+  // Le taux moyen ne porte que sur les projets dont le taux est renseigné.
+  const rated = live.filter((s) => s.project.rate != null);
+  const ratedCapital = rated.reduce((t, s) => t + s.outstanding, 0);
+  return { active: roundCents(active), atRisk: roundCents(atRisk), averageRate: ratedCapital > 0 ? rated.reduce((t, s) => t + s.outstanding * s.project.rate!, 0) / ratedCapital : null };
 }

@@ -245,6 +245,8 @@ export interface Transaction {
   /** Frais inclus dans le montant (achat/vente), en euros. */
   fee: number | null;
   comment: string;
+  /** Identifiant dans un fichier importé : réimporter le même fichier ne crée pas de doublon. */
+  externalId?: string | null;
 }
 
 /** Versement mensuel programmé : à partir du mois `fromMonth` (AAAA-MM), `amount` €/mois. 0 = arrêt. */

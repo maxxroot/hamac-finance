@@ -19,7 +19,7 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
   }, [open, project, platforms]);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
   const setStatus = (status: CrowdStatus) => setD((x) => ({ ...x, status, statusDate: status === "en_cours" ? null : (x.statusDate ?? todayIso()) }));
-  const valid = d.accountId && d.name.trim() && d.amount > 0 && d.termMonths >= 1 && d.startDate;
+  const valid = d.accountId && d.name.trim() && d.amount > 0 && (d.termMonths == null || d.termMonths >= 1) && d.startDate;
 
   return (
     <Modal
@@ -54,8 +54,8 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
         </FormGrid>
         <FormGrid cols={3}>
           <Field label="Montant investi">{(id) => <MoneyInput id={id} value={d.amount} onChange={(v) => set("amount", v ?? 0)} />}</Field>
-          <Field label="Taux annuel">{(id) => <PercentInput id={id} value={d.rate} onChange={(v) => set("rate", v ?? 0)} />}</Field>
-          <Field label="Durée (mois)">{(id) => <NumberInput id={id} decimals={0} grouping={false} value={d.termMonths} onChange={(v) => set("termMonths", v == null ? 0 : Math.round(v))} />}</Field>
+          <Field label="Taux annuel">{(id) => <PercentInput id={id} value={d.rate} onChange={(v) => set("rate", v)} />}</Field>
+          <Field label="Durée (mois)">{(id) => <NumberInput id={id} decimals={0} grouping={false} value={d.termMonths} onChange={(v) => set("termMonths", v == null ? null : Math.round(v))} />}</Field>
         </FormGrid>
         <FormGrid>
           <Field label="Date d'investissement" help="L'argent quitte les espèces de la plateforme à cette date.">{(id) => <TextInput id={id} type="date" value={d.startDate} onChange={(e) => set("startDate", e.target.value)} />}</Field>

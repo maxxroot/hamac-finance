@@ -96,6 +96,7 @@ export function mapTx(r: typeof t.transactions.$inferSelect): Transaction {
     quantity: r.quantity,
     fee: fromCentsOrNull(r.feeCents),
     comment: r.comment,
+    externalId: r.externalId,
   };
 }
 
@@ -152,6 +153,7 @@ export const mapCrowdProject = (r: typeof t.crowdProjects.$inferSelect): CrowdPr
   expectedRecovery: r.expectedRecoveryCents == null ? null : fromCents(r.expectedRecoveryCents),
   inAllocation: r.inAllocation,
   comment: r.comment,
+  externalId: r.externalId,
 });
 
 export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
