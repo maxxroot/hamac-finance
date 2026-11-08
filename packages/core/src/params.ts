@@ -10,7 +10,7 @@ const pctSigned = z.number().min(-1).max(1);
 const eur = z.number().min(0);
 
 /** Parties de l'application que l'on peut masquer. */
-export const MODULES = ["performance", "historique", "livrets", "fondsEuros", "obligations", "actions", "crypto", "etablissements", "impots", "regles"] as const;
+export const MODULES = ["performance", "historique", "livrets", "fondsEuros", "obligations", "actions", "crypto", "immobilier", "etablissements", "impots", "regles"] as const;
 export type ModuleKey = (typeof MODULES)[number];
 export const MODULE_LABELS: Record<ModuleKey, string> = {
   performance: "Performance",
@@ -20,6 +20,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   obligations: "Obligations",
   actions: "Actions & ETF",
   crypto: "Crypto",
+  immobilier: "Immobilier et crédits",
   etablissements: "Établissements",
   impots: "Impôts",
   regles: "Règles et démarches",
@@ -30,7 +31,7 @@ export const AssetClass = z.object({
   id: z.string().min(1),
   label: z.string().trim().min(1, "Donnez un nom à cette classe.").max(40),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  /** Rendement, risque et compte de référence : ceux de cette classe de base. */
+  /** Classe de base sur laquelle sa cible est prise ; la projection lui applique son rendement. */
   behavesLike: z.enum(["garanti", "obligations", "croissance"]),
   target: z.number().min(0).max(1),
 });

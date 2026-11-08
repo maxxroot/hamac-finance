@@ -13,7 +13,9 @@ import type {
   ContributionSkip,
   FundRate,
   LivretType,
+  Loan,
   PlannedExpense,
+  Property,
   PriceSource,
   PricePoint,
   Statement,
@@ -135,6 +137,36 @@ export const mapExpense = (r: typeof t.plannedExpenses.$inferSelect): PlannedExp
   accountId: r.accountId,
 });
 
+export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
+  id: r.id,
+  kind: r.kind as Property["kind"],
+  name: r.name,
+  value: fromCents(r.valueCents),
+  valueDate: r.valueDate,
+  purchasePrice: r.purchasePriceCents == null ? null : fromCents(r.purchasePriceCents),
+  purchaseDate: r.purchaseDate,
+  share: r.share,
+  inAllocation: r.inAllocation,
+  classId: r.classId,
+  comment: r.comment,
+  archived: r.archived,
+});
+
+export const mapLoan = (r: typeof t.loans.$inferSelect): Loan => ({
+  id: r.id,
+  name: r.name,
+  propertyId: r.propertyId,
+  principal: fromCents(r.principalCents),
+  rate: r.rate,
+  termMonths: r.termMonths,
+  firstPayment: r.firstPayment,
+  insurance: fromCents(r.insuranceCents),
+  manualPayment: r.manualPaymentCents == null ? null : fromCents(r.manualPaymentCents),
+  manualBalance: r.manualBalanceCents == null ? null : fromCents(r.manualBalanceCents),
+  manualBalanceDate: r.manualBalanceDate,
+  archived: r.archived,
+});
+
 export const mapChecklist = (r: typeof t.checklistItems.$inferSelect): ChecklistItem => ({ id: r.id, label: r.label, note: r.note, done: r.done, doneAt: r.doneAt, sortOrder: r.sortOrder });
 export function mapInstitution(r: typeof t.institutions.$inferSelect): Institution {
   // Offres validées à la lecture : une donnée ancienne ou incomplète reçoit ses valeurs par défaut.
@@ -157,7 +189,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, institutions, rates] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, institutions, rates, propertyRows, loanRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
     db.select().from(t.assets).orderBy(t.assets.name).all(),
@@ -178,6 +210,8 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     db.select().from(t.checklistItems).orderBy(t.checklistItems.sortOrder, t.checklistItems.createdAt).all(),
     db.select().from(t.institutions).orderBy(t.institutions.name).all(),
     db.select().from(t.accountRates).orderBy(t.accountRates.fromDate).all(),
+    db.select().from(t.properties).orderBy(t.properties.name).all(),
+    db.select().from(t.loans).orderBy(t.loans.name).all(),
   ]);
   return {
     params,
@@ -190,6 +224,8 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     fundRates: fundRates.map(mapFundRate),
     statements: statements.map(mapStatement),
     plannedExpenses: expenses.map(mapExpense),
+    properties: propertyRows.map(mapProperty),
+    loans: loanRows.map(mapLoan),
     prices: prices.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,
     checklist: checklist.map(mapChecklist),

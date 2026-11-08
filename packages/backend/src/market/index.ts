@@ -45,6 +45,7 @@ export function supports(p: PriceProvider, asset: Asset, hasTwelveDataKey: boole
 export function chainFor(asset: Asset, order: readonly ProviderSetting[], hasTwelveDataKey: boolean): { chain: PriceProvider[]; reason: string | null } {
   if (asset.priceSource !== "auto") return { chain: [], reason: "Cours manuel ou calculé" };
   if (asset.kind === "obligation") return { chain: [], reason: "Obligation : valeur calculée" };
+  if (asset.kind === "scpi" && asset.priceProvider !== "url") return { chain: [], reason: "SCPI : prix de part saisi à la main" };
   if (asset.priceProvider) {
     if (supports(asset.priceProvider, asset, hasTwelveDataKey)) return { chain: [asset.priceProvider], reason: null };
     if (asset.priceProvider === "twelvedata" && !hasTwelveDataKey) return { chain: [], reason: "Clé Twelve Data manquante (Paramètres › Cours)" };

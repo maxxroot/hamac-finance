@@ -195,6 +195,38 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
   ...timestamps,
 });
 
+export const properties = sqliteTable("properties", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  valueCents: integer("value_cents").notNull(),
+  valueDate: text("value_date"),
+  purchasePriceCents: integer("purchase_price_cents"),
+  purchaseDate: text("purchase_date"),
+  share: real("share").notNull().default(1),
+  inAllocation: integer("in_allocation", { mode: "boolean" }).notNull().default(false),
+  classId: text("class_id"),
+  comment: text("comment").notNull().default(""),
+  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  ...timestamps,
+});
+
+export const loans = sqliteTable("loans", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  propertyId: text("property_id").references(() => properties.id, { onDelete: "set null" }),
+  principalCents: integer("principal_cents").notNull(),
+  rate: real("rate").notNull(),
+  termMonths: integer("term_months").notNull(),
+  firstPayment: text("first_payment").notNull(),
+  insuranceCents: integer("insurance_cents").notNull().default(0),
+  manualPaymentCents: integer("manual_payment_cents"),
+  manualBalanceCents: integer("manual_balance_cents"),
+  manualBalanceDate: text("manual_balance_date"),
+  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  ...timestamps,
+});
+
 /** Liste des démarches à faire (cases à cocher). */
 export const checklistItems = sqliteTable("checklist_items", {
   id: text("id").primaryKey(),

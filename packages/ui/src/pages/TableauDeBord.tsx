@@ -8,6 +8,7 @@ import { Pct, Stat } from "@/components/Stat";
 import { Badge, Card, CardTitle } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS, INK } from "@/lib/colors";
+import { cn } from "@/lib/cn";
 import { capitalize, formatMonth } from "@/lib/numbers";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
 import { useProjection } from "@/lib/projection";
@@ -64,6 +65,7 @@ export function TableauDeBord() {
   const target = targetAllocation(p, state.age);
   const total = state.performance.find((r) => r.key === "total");
   const todo = alerts.filter((a) => a.level !== "ok");
+  const hasRealEstate = state.netWorth.realEstate !== 0 || state.netWorth.debts !== 0;
 
   const projection = proj && <RetirementCard proj={proj} p={p} />;
   const alertes = (
@@ -120,7 +122,12 @@ export function TableauDeBord() {
         </p>
       </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className={cn("mb-6 grid grid-cols-2 gap-4", hasRealEstate ? "lg:grid-cols-6" : "lg:grid-cols-5")}>
+        {hasRealEstate && (
+          <Stat label="Patrimoine net" sub={<Link to="/immobilier" className="hover:underline">immobilier et crédits compris</Link>}>
+            <Amount value={state.netWorth.net} compact />
+          </Stat>
+        )}
         <Stat
           label="Patrimoine financier"
           className="col-span-2 lg:col-span-1"

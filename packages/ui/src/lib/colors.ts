@@ -6,6 +6,7 @@ export const BUCKET_COLORS: Record<Bucket, string> = {
   garanti: "#1b895f",
   obligations: "#597af7",
   croissance: "#cf7a25",
+  immobilier: "#a8884f",
   speculatif: "#8f63d8",
 };
 

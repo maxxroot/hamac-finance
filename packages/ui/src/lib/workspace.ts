@@ -21,6 +21,8 @@ function normalizeWorkspace(ws: Partial<Workspace>): Workspace {
     fundRates: list("fundRates"),
     statements: list("statements"),
     plannedExpenses: list("plannedExpenses"),
+    properties: list("properties"),
+    loans: list("loans"),
     prices: list("prices"),
     checklist: list("checklist"),
     institutions: list("institutions"),

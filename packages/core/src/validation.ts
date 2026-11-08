@@ -4,11 +4,11 @@ import { TX_LABELS, TX_NEEDS_ASSET, TX_OPTIONAL_ASSET } from "./domain";
 /** Titres qu'on peut détenir dans chaque type de compte. */
 export const ALLOWED_ASSETS: Record<AccountKind, readonly AssetKind[]> = {
   livret: [],
-  assurance_vie: ["etf", "fonds", "obligation"],
+  assurance_vie: ["etf", "fonds", "obligation", "scpi"],
   pea: ["etf", "action", "fonds"],
   pea_pme: ["etf", "action", "fonds"],
-  cto: ["etf", "action", "obligation", "fonds"],
-  per: ["etf", "action", "obligation", "fonds"],
+  cto: ["etf", "action", "obligation", "fonds", "scpi"],
+  per: ["etf", "action", "obligation", "fonds", "scpi"],
   epargne_salariale: ["etf", "fonds"],
   crypto: ["crypto"],
 };

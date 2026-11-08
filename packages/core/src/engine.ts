@@ -25,6 +25,7 @@ import {
 import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
 import { ageInYear, classTargets, type PlanParams } from "./params";
+import { loanState, propertyValue, type Loan, type LoanState, type Property } from "./realestate";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
 import { type Flow, xirr, daysBetween } from "./xirr";
@@ -40,6 +41,8 @@ export interface EngineData {
   statements?: readonly Statement[];
   fundRates?: readonly FundRate[];
   bondPlans?: readonly BondPlan[];
+  properties?: readonly Property[];
+  loans?: readonly Loan[];
   /** Historique des cours (ou au moins le dernier cours de chaque titre). */
   prices: readonly PricePoint[];
   /** Établissements et leurs grilles de frais (facultatif). */
@@ -144,6 +147,8 @@ export interface PortfolioState {
   totals: { value: number; netContrib: number; gain: number; monthly: number; cash: number };
   buckets: Record<Bucket, number>;
   allocation: { invested: number; rows: AllocationRow[] };
+  /** Patrimoine financier + biens immobiliers (part détenue) − capital restant dû des crédits. */
+  netWorth: { financial: number; realEstate: number; debts: number; net: number; monthlyLoans: number; loans: LoanState[] };
   livrets: {
     total: number;
     floor: number;
@@ -411,8 +416,16 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   for (const b of BUCKETS) buckets[b] = roundCents(buckets[b]);
 
   // ——— Allocation de la partie investie ———
-  const invested = allocated.garanti + allocated.obligations + allocated.croissance;
+  // Biens inclus par choix : avec leur classe personnalisée, sinon avec les actions.
   const classValues = new Map<string, number>();
+  const properties = (data.properties ?? []).filter((x) => !x.archived);
+  for (const x of properties) {
+    if (!x.inAllocation) continue;
+    const cls = params.customClasses.find((c) => c.id === x.classId);
+    allocated[cls?.behavesLike ?? "croissance"] += propertyValue(x);
+    if (cls) classValues.set(cls.id, (classValues.get(cls.id) ?? 0) + propertyValue(x));
+  }
+  const invested = allocated.garanti + allocated.obligations + allocated.croissance;
   for (const a of accountStates) {
     if (a.account.archived && a.value === 0) continue;
     for (const pos of a.positions) if (pos.classId && pos.inAllocation) classValues.set(pos.classId, (classValues.get(pos.classId) ?? 0) + pos.value);
@@ -444,6 +457,10 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   };
   totals.gain = roundCents(totals.value - totals.netContrib);
 
+  const realEstate = roundCents(properties.reduce((s, x) => s + propertyValue(x), 0));
+  const loans = (data.loans ?? []).filter((l) => !l.archived).map((l) => loanState(l, asOf));
+  const debts = roundCents(loans.reduce((s, l) => s + l.balance, 0));
+
   const state: PortfolioState = {
     asOf,
     age,
@@ -452,6 +469,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     totals,
     buckets,
     allocation: { invested: roundCents(invested), rows },
+    netWorth: { financial: totals.value, realEstate, debts, net: roundCents(totals.value + realEstate - debts), monthlyLoans: roundCents(loans.reduce((s, l) => s + l.monthly, 0)), loans },
     livrets: {
       total: livretsTotal,
       floor,

@@ -24,7 +24,7 @@ function empty(kind: AssetKind): Draft {
     name: "",
     isin: null,
     symbol: null,
-    priceSource: kind === "obligation" ? "modele" : "auto",
+    priceSource: kind === "obligation" ? "modele" : kind === "scpi" ? "manuel" : "auto",
     priceProvider: null,
     priceUrl: null,
     pricePath: null,
@@ -111,7 +111,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
     setResults(null);
   };
   const isBond = d.kind === "obligation";
-  const sources: PriceSource[] = isBond ? ["modele", "manuel"] : ["auto", "manuel"];
+  const sources: PriceSource[] = isBond ? ["modele", "manuel"] : d.kind === "scpi" ? ["manuel"] : ["auto", "manuel"];
 
   return (
     <Modal
@@ -280,9 +280,9 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
           </Field>
         )}
 
-        <AllocationChoice value={d.inAllocation} defaultLabel={d.kind === "crypto" ? "hors allocation, sauf choix du compte" : "comme son compte"} onChange={(v) => set("inAllocation", v)} />
+        <AllocationChoice value={d.inAllocation} defaultLabel={d.kind === "crypto" || d.kind === "scpi" ? "hors allocation, sauf choix du compte" : "comme son compte"} onChange={(v) => set("inAllocation", v)} />
 
-        {classes.length > 0 && (d.kind !== "crypto" || d.inAllocation === true) && (
+        {classes.length > 0 && ((d.kind !== "crypto" && d.kind !== "scpi") || d.inAllocation === true) && (
           <Field label="Classe d'actifs" help="Par défaut, selon le type du titre. Les classes se créent dans Paramètres › Actifs.">
             {(id) => (
               <Select id={id} value={d.classId ?? ""} onChange={(e) => set("classId", e.target.value || null)}>
@@ -297,7 +297,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
           </Field>
         )}
 
-        {!isBond && d.kind !== "crypto" && (
+        {!isBond && d.kind !== "crypto" && d.kind !== "scpi" && (
           <FormGrid>
             <Field label="Part cible parmi les actions" help="La somme des parts cibles doit faire 100 %.">
               {(id) => <PercentInput id={id} value={d.targetWeight} onChange={(v) => set("targetWeight", v)} />}

@@ -24,8 +24,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents,
-} from "./repo";
+  toCents, mapLoan, mapProperty } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -373,6 +372,58 @@ export const handlers: Handlers = {
 
   async "statements.delete"({ id }, ctx) {
     await ctx.db.delete(t.statements).where(eq(t.statements.id, id));
+    return OK;
+  },
+
+  async "properties.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const row = {
+      kind: input.kind,
+      name: input.name,
+      valueCents: toCents(input.value),
+      valueDate: input.valueDate,
+      purchasePriceCents: input.purchasePrice == null ? null : toCents(input.purchasePrice),
+      purchaseDate: input.purchaseDate,
+      share: input.share,
+      inAllocation: input.inAllocation,
+      classId: input.classId,
+      comment: input.comment,
+      archived: input.archived,
+      updatedAt: nowIso(),
+    };
+    if (input.id) await ctx.db.update(t.properties).set(row).where(eq(t.properties.id, id));
+    else await ctx.db.insert(t.properties).values({ id, ...row });
+    return mapProperty((await ctx.db.select().from(t.properties).where(eq(t.properties.id, id)).get())!);
+  },
+
+  async "properties.delete"({ id }, ctx) {
+    await ctx.db.delete(t.properties).where(eq(t.properties.id, id));
+    return OK;
+  },
+
+  async "loans.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const row = {
+      name: input.name,
+      propertyId: input.propertyId,
+      principalCents: toCents(input.principal),
+      rate: input.rate,
+      termMonths: input.termMonths,
+      firstPayment: input.firstPayment,
+      insuranceCents: toCents(input.insurance),
+      manualPaymentCents: input.manualPayment == null ? null : toCents(input.manualPayment),
+      manualBalanceCents: input.manualBalance == null ? null : toCents(input.manualBalance),
+      manualBalanceDate: input.manualBalanceDate,
+      archived: input.archived,
+      updatedAt: nowIso(),
+    };
+    if (input.id) await ctx.db.update(t.loans).set(row).where(eq(t.loans.id, id));
+    else await ctx.db.insert(t.loans).values({ id, ...row });
+    return mapLoan((await ctx.db.select().from(t.loans).where(eq(t.loans.id, id)).get())!);
+  },
+
+  async "loans.delete"({ id }, ctx) {
+    await ctx.db.delete(t.loans).where(eq(t.loans.id, id));
     return OK;
   },
 

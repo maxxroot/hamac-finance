@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_PROVIDERS, PRICE_SOURCES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -116,6 +116,40 @@ export const PlannedExpenseInput = z.object({
   label: text(120).min(1),
   accountId: id.nullable().default(null),
 });
+export const PropertyInput = z.object({
+  id: id.optional(),
+  kind: z.enum(PROPERTY_KINDS),
+  name: text(120).min(1, "Nom requis"),
+  value: money.min(0),
+  valueDate: isoDate.nullable().default(null),
+  purchasePrice: money.min(0).nullable().default(null),
+  purchaseDate: isoDate.nullable().default(null),
+  share: z.number().gt(0, "Part détenue requise").max(1).default(1),
+  inAllocation: z.boolean().default(false),
+  classId: id.nullable().default(null),
+  comment: text(500).default(""),
+  archived: z.boolean().default(false),
+});
+export type PropertyInput = z.input<typeof PropertyInput>;
+
+export const LoanInput = z
+  .object({
+    id: id.optional(),
+    name: text(120).min(1, "Nom requis"),
+    propertyId: id.nullable().default(null),
+    principal: money.positive("Montant emprunté requis"),
+    rate: z.number().min(0).max(1),
+    termMonths: z.number().int().min(1).max(600),
+    firstPayment: isoDate,
+    insurance: money.min(0).default(0),
+    manualPayment: money.positive().nullable().default(null),
+    manualBalance: money.min(0).nullable().default(null),
+    manualBalanceDate: isoDate.nullable().default(null),
+    archived: z.boolean().default(false),
+  })
+  .refine((l) => (l.manualBalance == null) === (l.manualBalanceDate == null), { path: ["manualBalanceDate"], message: "Indiquez le capital restant dû et sa date." });
+export type LoanInput = z.input<typeof LoanInput>;
+
 export const ChecklistInput = z.object({
   id: id.optional(),
   label: text(300).min(1, "Libellé requis"),

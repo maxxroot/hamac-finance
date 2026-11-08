@@ -10,7 +10,9 @@ import type {
   ContributionPlan,
   ContributionSkip,
   FundRate,
+  Loan,
   PlannedExpense,
+  Property,
   PricePoint,
   Statement,
   Transaction,
@@ -25,7 +27,9 @@ import {
   FundRateInput,
   ManualPriceInput,
   PlanInput,
+  LoanInput,
   PlannedExpenseInput,
+  PropertyInput,
   SkipInput,
   StatementInput,
   TransactionInput,
@@ -62,6 +66,8 @@ export interface Workspace {
   fundRates: FundRate[];
   statements: Statement[];
   plannedExpenses: PlannedExpense[];
+  properties: Property[];
+  loans: Loan[];
   checklist: ChecklistItem[];
   institutions: Institution[];
   accountRates: AccountRate[];
@@ -159,6 +165,10 @@ export const procedures = {
   "statements.delete": { input: byId, output: ok },
   "plannedExpenses.upsert": { input: PlannedExpenseInput, output: entity<PlannedExpense>() },
   "plannedExpenses.delete": { input: byId, output: ok },
+  "properties.upsert": { input: PropertyInput, output: entity<Property>() },
+  "properties.delete": { input: byId, output: ok },
+  "loans.upsert": { input: LoanInput, output: entity<Loan>() },
+  "loans.delete": { input: byId, output: ok },
 
   "prices.setManual": { input: ManualPriceInput, output: ok },
   "checklist.upsert": { input: ChecklistInput, output: entity<ChecklistItem>() },

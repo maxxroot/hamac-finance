@@ -296,7 +296,7 @@ function CustomClasses({ params, age, onChange, issues, save }: { params: PlanPa
   return (
     <Section
       title="Classes d'actifs personnalisées"
-      hint="Or, immobilier papier, petites capitalisations… Chaque classe prend sa part sur la cible de la classe dont elle a le comportement. Rattachez ensuite vos actifs dans le tableau ci-dessous."
+      hint="Métaux précieux, immobilier papier, petites capitalisations… Une classe peut regrouper plusieurs actifs : rattachez-les dans le tableau ci-dessous."
       actions={
         <div className="flex shrink-0 gap-2">
           {save}
@@ -313,8 +313,8 @@ function CustomClasses({ params, age, onChange, issues, save }: { params: PlanPa
           {list.map((c, i) => (
             <div key={c.id} className="grid items-start gap-3 sm:grid-cols-[auto_1.4fr_1.2fr_0.8fr_auto]">
               <input type="color" aria-label={`Couleur de ${c.label || "la classe"}`} value={c.color} onChange={(e) => update(i, { color: e.target.value })} className="mt-6 size-9 cursor-pointer rounded-md border border-line bg-transparent p-1" />
-              <Field label="Nom" error={issues.get(`customClasses.${i}.label`) ?? null}>{(id) => <TextInput id={id} value={c.label} onChange={(e) => update(i, { label: e.target.value })} placeholder="Or" />}</Field>
-              <Field label="Comportement">
+              <Field label="Nom" error={issues.get(`customClasses.${i}.label`) ?? null}>{(id) => <TextInput id={id} value={c.label} onChange={(e) => update(i, { label: e.target.value })} placeholder="Métaux précieux" />}</Field>
+              <Field label="Prend sa part sur" help="Cette cible est retirée de celle-ci. La projection lui applique le même rendement.">
                 {(id) => (
                   <Select id={id} value={c.behavesLike} onChange={(e) => update(i, { behavesLike: e.target.value as AssetClass["behavesLike"] })}>
                     <option value="garanti">{BUCKET_LABELS.garanti}</option>
@@ -541,7 +541,7 @@ function AssetsTab() {
   const dirty = JSON.stringify(classes) !== JSON.stringify(saved);
   const patch = (a: Asset, change: Partial<Asset>) => upsert.mutate({ ...a, ...change });
   const allocValue = (a: Asset) => (a.inAllocation == null ? "" : a.inAllocation ? "in" : "out");
-  const inAllocation = (a: Asset) => a.inAllocation ?? a.kind !== "crypto";
+  const inAllocation = (a: Asset) => a.inAllocation ?? (a.kind !== "crypto" && a.kind !== "scpi");
   return (
     <div className="space-y-5 pb-20">
       <CustomClasses

@@ -39,5 +39,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0009_certain_weapon_omega",
     "sql": "ALTER TABLE `accounts` ADD `in_allocation` integer;--> statement-breakpoint\nALTER TABLE `assets` ADD `in_allocation` integer;"
+  },
+  {
+    "tag": "0010_worried_alice",
+    "sql": "CREATE TABLE `loans` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`name` text NOT NULL,\n\t`property_id` text,\n\t`principal_cents` integer NOT NULL,\n\t`rate` real NOT NULL,\n\t`term_months` integer NOT NULL,\n\t`first_payment` text NOT NULL,\n\t`insurance_cents` integer DEFAULT 0 NOT NULL,\n\t`manual_payment_cents` integer,\n\t`manual_balance_cents` integer,\n\t`manual_balance_date` text,\n\t`archived` integer DEFAULT false NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\tFOREIGN KEY (`property_id`) REFERENCES `properties`(`id`) ON UPDATE no action ON DELETE set null\n);\n--> statement-breakpoint\nCREATE TABLE `properties` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`kind` text NOT NULL,\n\t`name` text NOT NULL,\n\t`value_cents` integer NOT NULL,\n\t`value_date` text,\n\t`purchase_price_cents` integer,\n\t`purchase_date` text,\n\t`share` real DEFAULT 1 NOT NULL,\n\t`in_allocation` integer DEFAULT false NOT NULL,\n\t`class_id` text,\n\t`comment` text DEFAULT '' NOT NULL,\n\t`archived` integer DEFAULT false NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL\n);\n"
   }
 ];
