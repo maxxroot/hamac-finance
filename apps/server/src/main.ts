@@ -15,10 +15,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const signup = (process.env.HAMAC_SIGNUP ?? "invite") as SignupMode;
 if (!["invite", "open", "closed"].includes(signup)) throw new Error("HAMAC_SIGNUP doit valoir invite, open ou closed.");
 
+if (process.env.HAMAC_SECURE !== "1") console.warn("[hamac] Cookies non sécurisés : placez un proxy HTTPS devant le serveur et activez HAMAC_SECURE=1.");
+
 const { app, close } = createApp({
   dataDir: process.env.HAMAC_DATA_DIR ?? join(process.cwd(), "data"),
   signup,
   secureCookies: process.env.HAMAC_SECURE === "1",
+  trustProxy: process.env.HAMAC_TRUST_PROXY === "1",
   staticDir: process.env.HAMAC_UI_DIR ?? join(here, "ui"),
   appVersion: process.env.npm_package_version ?? "0.1.0",
   autoRefreshPrices: process.env.HAMAC_PRICES !== "0",

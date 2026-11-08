@@ -7,8 +7,8 @@ import { createApp, type SignupMode } from "./app";
 let current: ReturnType<typeof createApp> | null = null;
 afterEach(() => current?.close());
 
-function server(signup: SignupMode = "invite") {
-  current = createApp({ dataDir: mkdtempSync(join(tmpdir(), "hamac-srv-")), signup, secureCookies: false, staticDir: null, appVersion: "test", autoRefreshPrices: false });
+function server(signup: SignupMode = "invite", trustProxy = true) {
+  current = createApp({ dataDir: mkdtempSync(join(tmpdir(), "hamac-srv-")), signup, secureCookies: false, trustProxy, staticDir: null, appVersion: "test", autoRefreshPrices: false });
   return current;
 }
 
@@ -43,6 +43,32 @@ describe("serveur web", () => {
     expect((await friend.req("POST", "/api/auth/signup", { email: "ami@exemple.fr", password: "motdepasse-long", invite: code })).status).toBe(200);
     const other = client(s, "3.3.3.3");
     expect((await other.req("POST", "/api/auth/signup", { email: "autre@exemple.fr", password: "motdepasse-long", invite: code })).status).toBe(403);
+  });
+
+  const login = (c: ReturnType<typeof client>, email: string, password = "mauvais") => c.req("POST", "/api/auth/login", { email, password });
+
+  it("sans proxy de confiance, changer X-Forwarded-For ne contourne pas la limite", async () => {
+    const s = server("open", false);
+    let last = 0;
+    for (let i = 0; i < 11; i++) last = (await login(client(s, `9.9.9.${i}`), "inconnu@exemple.fr")).status;
+    expect(last).toBe(429);
+  });
+
+  it("derrière un proxy : seule l'adresse ajoutée par le proxy compte", async () => {
+    const s = server("open", true);
+    let last = 0;
+    for (let i = 0; i < 11; i++) last = (await login(client(s, `${i}.1.1.1, 7.7.7.7`), `a${i}@exemple.fr`)).status;
+    expect(last).toBe(429);
+    expect((await login(client(s, "8.8.8.8"), "b@exemple.fr")).status).toBe(401);
+  });
+
+  it("un même compte visé depuis 20 adresses est bloqué ; une connexion réussie remet à zéro", async () => {
+    const s = server("open", true);
+    expect((await client(s, "1.0.0.1").req("POST", "/api/auth/signup", { email: "cible@exemple.fr", password: "motdepasse-long" })).status).toBeLessThan(300);
+    for (let i = 0; i < 19; i++) await login(client(s, `2.0.0.${i}`), "cible@exemple.fr");
+    expect((await login(client(s, "3.0.0.1"), "cible@exemple.fr", "motdepasse-long")).status).toBe(200);
+    for (let i = 0; i < 20; i++) await login(client(s, `4.0.0.${i}`), "cible@exemple.fr");
+    expect((await login(client(s, "5.0.0.1"), "cible@exemple.fr", "motdepasse-long")).status).toBe(429);
   });
 
   it("chaque utilisateur a sa propre base, totalement isolée", async () => {

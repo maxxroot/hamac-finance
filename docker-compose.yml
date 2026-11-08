@@ -11,6 +11,7 @@ services:
     environment:
       HAMAC_SIGNUP: invite # invite | open | closed
       HAMAC_SECURE: "0" # "1" derrière HTTPS
+      HAMAC_TRUST_PROXY: "0" # "1" derrière un reverse proxy
     volumes:
       - hamac-data:/data
 

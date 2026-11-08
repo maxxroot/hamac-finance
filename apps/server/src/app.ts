@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize, resolve } from "node:path";
 import { Hono, type Context } from "hono";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createBackend, type Backend } from "@hamac/backend";
 import { UserStore, type User } from "./users";
@@ -13,6 +14,8 @@ export interface ServerConfig {
   signup: SignupMode;
   /** Cookie « Secure » : à activer derrière HTTPS (recommandé en production). */
   secureCookies: boolean;
+  /** Derrière un reverse proxy de confiance : l'adresse du client se lit dans X-Forwarded-For. */
+  trustProxy: boolean;
   /** Interface construite (packages/ui/dist) ; absente en test. */
   staticDir: string | null;
   appVersion: string;
@@ -76,8 +79,13 @@ class RateLimiter {
     private max: number,
     private windowMs: number,
   ) {}
+  /** Une connexion réussie remet le compteur à zéro. */
+  reset(key: string): void {
+    this.hits.delete(key);
+  }
   allow(key: string): boolean {
     const now = Date.now();
+    if (this.hits.size > 5000) for (const [k, v] of this.hits) if (v.reset < now) this.hits.delete(k);
     const h = this.hits.get(key);
     if (!h || h.reset < now) {
       this.hits.set(key, { n: 1, reset: now + this.windowMs });
@@ -105,6 +113,10 @@ export function createApp(cfg: ServerConfig) {
   const users = new UserStore(join(cfg.dataDir, "comptes.sqlite"));
   const pool = new BackendPool(cfg);
   const limiter = new RateLimiter(10, 15 * 60_000);
+  // Par compte visé : freine une attaque répartie sur plusieurs adresses.
+  const accountLimiter = new RateLimiter(20, 15 * 60_000);
+  // Même coût que l'e-mail existe ou non : une seule vérification, contre un leurre calculé une fois.
+  const decoyHash = UserStore.hashPassword("leurre");
   const app = new Hono();
 
   // En-têtes de sécurité.
@@ -119,7 +131,18 @@ export function createApp(cfg: ServerConfig) {
     );
   });
 
-  const ip = (c: Context) => c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "local";
+  /** Adresse du client : l'en-tête n'est cru que derrière un proxy de confiance, dont on lit l'entrée ajoutée en dernier. */
+  const ip = (c: Context): string => {
+    if (cfg.trustProxy) {
+      const forwarded = c.req.header("x-forwarded-for")?.split(",").map((h) => h.trim()).filter(Boolean).at(-1) ?? c.req.header("x-real-ip");
+      if (forwarded) return forwarded;
+    }
+    try {
+      return getConnInfo(c).remote.address ?? "local";
+    } catch {
+      return "local";
+    }
+  };
   const currentUser = (c: Context): User | null => {
     const token = getCookie(c, COOKIE);
     return token ? users.userForSession(token) : null;
@@ -144,9 +167,13 @@ export function createApp(cfg: ServerConfig) {
     if (!limiter.allow(`login:${ip(c)}`)) return c.json({ error: "Trop de tentatives : réessayez dans 15 minutes." }, 429);
     const body = (await c.req.json().catch(() => ({}))) as { email?: string; password?: string };
     const found = body.email ? users.findByEmail(body.email) : null;
+    const accountKey = `login:${(body.email ?? "").trim().toLowerCase()}`;
+    if (!accountLimiter.allow(accountKey)) return c.json({ error: "Trop de tentatives : réessayez dans 15 minutes." }, 429);
     // Même réponse et même coût que l'e-mail existe ou non.
-    const ok = found ? UserStore.verifyPassword(body.password ?? "", found.passwordHash) : (UserStore.verifyPassword(body.password ?? "", UserStore.hashPassword("leurre")), false);
+    const ok = UserStore.verifyPassword(body.password ?? "", found?.passwordHash ?? decoyHash);
     if (!found || !ok) return c.json({ error: "E-mail ou mot de passe incorrect." }, 401);
+    limiter.reset(`login:${ip(c)}`);
+    accountLimiter.reset(accountKey);
     startSession(c, found);
     return c.json({ email: found.email });
   });

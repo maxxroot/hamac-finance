@@ -171,6 +171,7 @@ devant le serveur et activez `HAMAC_SECURE=1`.
 | `HAMAC_PORT` | `8080` | Port d'écoute |
 | `HAMAC_SIGNUP` | `invite` | `invite`, `open` ou `closed` |
 | `HAMAC_SECURE` | `0` | `1` derrière HTTPS (cookies sécurisés) |
+| `HAMAC_TRUST_PROXY` | `0` | `1` derrière un reverse proxy (sinon tous les visiteurs partagent la même limite de connexions) |
 | `HAMAC_PRICES` | `1` | `0` pour ne pas actualiser les cours automatiquement |
 
 Sécurité : mots de passe hachés (scrypt), sessions par cookie `HttpOnly` et `SameSite=Strict`, en-tête
