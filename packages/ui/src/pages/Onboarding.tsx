@@ -22,7 +22,7 @@ export function Onboarding() {
           </Link>
         </Step>
         <Step n={2} icon={<Building2 size={18} />} title="Vos établissements" text="Banque, courtier, assurance-vie, plateforme crypto : les comptes qu'ils proposent et leurs frais.">
-          <Link to="/etablissements?nouveau=1" className="text-sm text-accent hover:underline">
+          <Link to="/parametres?onglet=Établissements&nouveau=1" className="text-sm text-accent hover:underline">
             {hasInstitutions ? "Ajouter un autre établissement" : "Ajouter un établissement"}
           </Link>
         </Step>

@@ -2,7 +2,6 @@ import type { ModuleKey } from "@hamac/core";
 import {
   Banknote,
   BookOpen,
-  Building2,
   Bitcoin,
   CalendarClock,
   ChartLine,
@@ -74,12 +73,6 @@ export const NAV: NavGroup[] = [
   {
     label: "Emprunts",
     items: [{ path: "/credits", module: "credits", label: "Crédits", icon: Banknote, sheetTab: "Crédits", step: 5, description: "Crédits en cours, mensualités et capital restant dû." }],
-  },
-  {
-    label: "Organisation",
-    items: [
-      { path: "/etablissements", module: "etablissements", label: "Établissements", icon: Building2, sheetTab: "Choix des plateformes", step: 5, description: "Banques, courtiers, assureurs : offres, frais et comparaison." },
-    ],
   },
   {
     label: "Fiscalité",

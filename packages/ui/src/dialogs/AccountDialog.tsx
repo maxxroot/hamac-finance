@@ -136,7 +136,7 @@ export function AccountDialog({
               idx && offerKey && d.institutionId && !idx.institutionById.get(d.institutionId)?.offers[offerKey]
                 ? "Cet établissement n'a pas d'offre de ce type : les frais par défaut s'appliquent."
                 : !idx?.ws.institutions.length
-                  ? "Ajoutez vos établissements et leurs frais dans la page Établissements."
+                  ? "Ajoutez vos établissements et leurs frais dans Paramètres › Établissements."
                   : undefined
             }
           >

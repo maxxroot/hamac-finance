@@ -100,7 +100,7 @@ function Contract({ s }: { s: AccountState }) {
                   versements <Pct value={offer.entryFee} digits={2} /> · gestion <Pct value={offer.euroFee} digits={2} /> / an
                 </>
               ) : (
-                <span className="text-fg-faint">à renseigner dans Établissements</span>
+                <span className="text-fg-faint">à renseigner dans Paramètres › Établissements</span>
               )}
             </dd>
             <dt className="text-fg-muted">Taux moyen servi</dt>

@@ -15,7 +15,6 @@ import { Livrets } from "@/pages/Livrets";
 import { Obligations } from "@/pages/Obligations";
 import { Performance } from "@/pages/Performance";
 import { Notice } from "@/pages/Notice";
-import { Etablissements } from "@/pages/Etablissements";
 import { Projection } from "@/pages/Projection";
 import { Synthese } from "@/pages/Synthese";
 import { TableauDeBord } from "@/pages/TableauDeBord";
@@ -28,7 +27,6 @@ const PAGES: Record<string, ReactNode> = {
   "/": <TableauDeBord />,
   "/projection": <Projection />,
   "/notice": <Notice />,
-  "/etablissements": <Etablissements />,
   "/parametres": <Parametres />,
   "/journal": <Journal />,
   "/versements": <Versements />,

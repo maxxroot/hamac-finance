@@ -54,7 +54,7 @@ export function Notice() {
               ["Paramètres › Plan", "Premier mois et jour des versements, hypothèses de rendement et d'inflation", "janvier 2027 · le 5 · 2 % · 3 % · 3,5 % · 6 % · 2 %"],
               ["Paramètres › Plan", "Allocation cible : part actions avant la sécurisation et au départ, part obligations (le fonds euros prend le reste)", "30 % · 15 % · 50 %"],
               ["Paramètres › Plan", "Plancher et plafond des livrets, seuil d'alerte, tranche d'imposition", "7 500 € · 15 000 € · 5 % · 11 %"],
-              ["Établissements", "Votre banque, votre courtier, votre assurance-vie : comptes proposés et grille de frais (paliers de courtage, droits de garde, frais sur versements et de gestion)", "jusqu'à 500 € : 1,99 € · au-delà : 0,5 %"],
+              ["Paramètres › Établissements", "Votre banque, votre courtier, votre assurance-vie : comptes proposés et grille de frais (paliers de courtage, droits de garde, frais sur versements et de gestion)", "jusqu'à 500 € : 1,99 € · au-delà : 0,5 %"],
               ["Paramètres › Comptes", "Chaque compte : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale ou plateforme crypto. Son établissement (qui fixe ses frais), sa date d'ouverture (règles des 5 et 8 ans), taux et plafond des livrets, clause bénéficiaire, dans ou hors allocation", "PEA ouvert le 15/03/2021"],
               ["Paramètres › Actifs", "Les ETF, actions, obligations, fonds, SCPI et cryptos détenus : recherche par nom ou ISIN, part cible de chaque ETF (total 100 %), classe d'actifs, dans ou hors allocation", "ETF monde · FR00… · 100 %"],
               ["Journal", "Un « Apport initial » par compte avec l'argent déjà là au départ", "LEP · Apport initial · 5 000 €"],

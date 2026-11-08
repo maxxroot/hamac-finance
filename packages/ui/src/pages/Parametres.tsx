@@ -8,6 +8,7 @@ import { useToast } from "@/lib/toast";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { MarketSources } from "@/components/MarketSources";
+import { Etablissements } from "@/pages/Etablissements";
 import { RowActions } from "@/components/RowActions";
 import {
   ACCOUNT_KIND_LABELS,
@@ -45,7 +46,7 @@ import { usePortfolio } from "@/lib/portfolio";
 import { SortTh, useSortable } from "@/lib/sort";
 import { SETTINGS_ITEM } from "@/nav";
 
-const TABS = ["Plan", "Comptes", "Actifs", "Cours", "Application"] as const;
+const TABS = ["Plan", "Établissements", "Comptes", "Actifs", "Cours", "Application"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Parametres() {
@@ -66,6 +67,7 @@ export function Parametres() {
         ))}
       </div>
       {tab === "Plan" && <PlanTab />}
+      {tab === "Établissements" && <Etablissements />}
       {tab === "Comptes" && <AccountsTab />}
       {tab === "Actifs" && <AssetsTab />}
       {tab === "Cours" && <MarketSources />}

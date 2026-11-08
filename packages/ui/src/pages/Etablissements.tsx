@@ -13,7 +13,7 @@ import {
 import { Field, MoneyInput, PercentInput } from "@/components/form";
 import { Pct } from "@/components/Stat";
 import { Table, Td, Tr } from "@/components/table";
-import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, CardTitle } from "@/components/ui";
 import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { cn } from "@/lib/cn";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
@@ -28,7 +28,7 @@ export function Etablissements() {
   const idx = useWorkspaceIndex();
   const del = useMutate("institutions.delete", { success: "Établissement supprimé" });
   const [editing, setEditing] = useState<Institution | null>(null);
-  // Lien direct : #/etablissements?nouveau=1 ouvre la création.
+  // Lien direct : onglet Établissements avec ?nouveau=1 ouvre la création.
   const [search, setSearch] = useSearchParams();
   const [creating, setCreating] = useState(search.has("nouveau"));
   if (!idx) return null;
@@ -36,15 +36,12 @@ export function Etablissements() {
 
   return (
     <>
-      <PageHeader
-        title="Établissements"
-        description="Banques, courtiers, assureurs et plateformes : leurs offres, leurs frais, et la comparaison. Chaque compte est rattaché à un établissement, dont la grille sert au calcul des frais."
-        actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
-            <Plus size={16} /> Ajouter un établissement
-          </Button>
-        }
-      />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <p className="max-w-3xl text-sm text-fg-muted">Banques, courtiers, assureurs et plateformes : leurs offres, leurs frais, et la comparaison. Chaque compte est rattaché à un établissement, dont la grille sert au calcul des frais.</p>
+        <Button variant="primary" onClick={() => setCreating(true)}>
+          <Plus size={16} /> Ajouter un établissement
+        </Button>
+      </div>
 
       {list.length === 0 ? (
         <Card className="mb-6 py-10 text-center">
@@ -67,7 +64,14 @@ export function Etablissements() {
       <InstitutionDialog open={creating || !!editing} institution={editing} onClose={() => {
           setCreating(false);
           setEditing(null);
-          if (search.has("nouveau")) setSearch({}, { replace: true });
+          if (search.has("nouveau"))
+            setSearch(
+              (p) => {
+                p.delete("nouveau");
+                return p;
+              },
+              { replace: true },
+            );
         }}
       />
     </>

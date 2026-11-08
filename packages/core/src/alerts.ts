@@ -178,11 +178,11 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
     if (a.account.kind === "pea" || a.account.kind === "cto") {
       const offer = inst.offers[a.account.kind];
       const custody = offer ? offer.custodyFixed + offer.custodyRate * a.value : 0;
-      if (custody >= 1) out.push({ id: `garde-${a.account.id}`, level: "info", title: `Tenue de compte : environ ${eur(custody)} par an sur ${a.account.name}`, detail: `Grille de ${inst.name}.`, link: "/etablissements" });
+      if (custody >= 1) out.push({ id: `garde-${a.account.id}`, level: "info", title: `Tenue de compte : environ ${eur(custody)} par an sur ${a.account.name}`, detail: `Grille de ${inst.name}.`, link: "/parametres?onglet=Établissements" });
     }
     const entry = inst.offers.assurance_vie?.entryFee ?? 0;
     if (a.account.kind === "assurance_vie" && entry >= 0.01) {
-      out.push({ id: `entree-${a.account.id}`, level: "info", title: `Frais sur versements de ${Math.round(entry * 1000) / 10} % sur ${a.account.name}`, detail: "Les contrats en ligne sont souvent à 0 % : à comparer dans Établissements.", link: "/etablissements" });
+      out.push({ id: `entree-${a.account.id}`, level: "info", title: `Frais sur versements de ${Math.round(entry * 1000) / 10} % sur ${a.account.name}`, detail: "Les contrats en ligne sont souvent à 0 % : à comparer dans Établissements.", link: "/parametres?onglet=Établissements" });
     }
   }
   const since = addMonths(today, -6);
