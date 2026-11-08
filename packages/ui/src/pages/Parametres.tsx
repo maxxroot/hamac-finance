@@ -11,7 +11,9 @@ import { MarketSources } from "@/components/MarketSources";
 import {
   ACCOUNT_KIND_LABELS,
   ASSET_KIND_LABELS,
+  BUCKET_LABELS,
   PlanParams,
+  classTargets,
   etfTarget,
   formatPct,
   incomeTaxRate,
@@ -21,6 +23,7 @@ import {
   taxRegimeLabel,
   type Account,
   type AllocationRule,
+  type AssetClass,
   type Asset,
 } from "@hamac/core";
 import { Amount } from "@/components/Amount";
@@ -184,6 +187,8 @@ function PlanTab() {
         </p>
       </Section>
 
+      <CustomClasses params={p} age={age} onChange={(customClasses) => setP((x) => (x ? { ...x, customClasses } : x))} issues={issues} />
+
       <CustomAllocations params={p} accounts={idx.ws.accounts} onChange={(customAllocations) => setP((x) => (x ? { ...x, customAllocations } : x))} issues={issues} />
 
       <Section title="Règles des livrets">
@@ -268,6 +273,56 @@ function Section({ title, hint, actions, children }: { title: string; hint?: str
       </div>
       <div className="mt-4">{children}</div>
     </Card>
+  );
+}
+
+const CLASS_COLORS = ["#e0a458", "#7aa2f7", "#9ece6a", "#f7768e", "#bb9af7", "#2ac3de"];
+
+/** Classes d'actifs ajoutées à la demande (or, immobilier papier…), prises sur les cibles de base. */
+function CustomClasses({ params, age, onChange, issues }: { params: PlanParams; age: number; onChange: (c: AssetClass[]) => void; issues: Map<string, string> }) {
+  const list = params.customClasses;
+  const update = (i: number, patch: Partial<AssetClass>) => onChange(list.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const add = () => onChange([...list, { id: crypto.randomUUID(), label: "", color: CLASS_COLORS[list.length % CLASS_COLORS.length]!, behavesLike: "croissance", target: 0.05 }]);
+  const baseLines = classTargets(params, age).filter((c) => c.label == null);
+  return (
+    <Section
+      title="Classes d'actifs personnalisées"
+      hint="Or, immobilier papier, petites capitalisations… Chaque classe prend sa part sur la cible de la classe dont elle a le comportement. Rattachez ensuite vos titres depuis leur fiche."
+      actions={
+        <Button onClick={add}>
+          <Plus size={14} /> Ajouter
+        </Button>
+      }
+    >
+      {list.length === 0 ? (
+        <p className="text-sm text-fg-muted">Aucune classe personnalisée : l'allocation de base s'applique seule.</p>
+      ) : (
+        <div className="space-y-3">
+          {list.map((c, i) => (
+            <div key={c.id} className="grid items-start gap-3 sm:grid-cols-[auto_1.4fr_1.2fr_0.8fr_auto]">
+              <input type="color" aria-label={`Couleur de ${c.label || "la classe"}`} value={c.color} onChange={(e) => update(i, { color: e.target.value })} className="mt-6 size-9 cursor-pointer rounded-md border border-line bg-transparent p-1" />
+              <Field label="Nom" error={issues.get(`customClasses.${i}.label`) ?? null}>{(id) => <TextInput id={id} value={c.label} onChange={(e) => update(i, { label: e.target.value })} placeholder="Or" />}</Field>
+              <Field label="Comportement">
+                {(id) => (
+                  <Select id={id} value={c.behavesLike} onChange={(e) => update(i, { behavesLike: e.target.value as AssetClass["behavesLike"] })}>
+                    <option value="garanti">{BUCKET_LABELS.garanti}</option>
+                    <option value="obligations">{BUCKET_LABELS.obligations}</option>
+                    <option value="croissance">{BUCKET_LABELS.croissance}</option>
+                  </Select>
+                )}
+              </Field>
+              <Field label="Part cible" error={issues.get(`customClasses.${i}.target`) ?? null}>{(id) => <PercentInput id={id} value={c.target} onChange={(v) => update(i, { target: v ?? 0 })} />}</Field>
+              <Button variant="ghost" className="mt-6 h-9 w-9 p-0" aria-label={`Supprimer ${c.label || "la classe"}`} onClick={() => onChange(list.filter((_, j) => j !== i))}>
+                <Trash2 size={15} />
+              </Button>
+            </div>
+          ))}
+          <p className="text-sm text-fg-muted">
+            Il reste cette année : {baseLines.map((b) => `${BUCKET_LABELS[b.bucket].toLowerCase()} ${formatPct(b.target)}`).join(" · ")}.
+          </p>
+        </div>
+      )}
+    </Section>
   );
 }
 

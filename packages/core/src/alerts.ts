@@ -1,7 +1,6 @@
 import { allocationReport } from "./allocations";
 import { proposeContributions } from "./contributions";
 import { addMonths, monthsBetween } from "./dates";
-import { BUCKET_LABELS } from "./domain";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
@@ -46,7 +45,7 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   const off = state.allocation.rows.filter((r) => r.action !== "ok");
   if (state.allocation.invested > 0) {
     if (off.length) {
-      const under = off.filter((r) => r.action === "renforcer").map((r) => BUCKET_LABELS[r.bucket].toLowerCase());
+      const under = off.filter((r) => r.action === "renforcer").map((r) => (r.key === r.bucket ? r.label.toLowerCase() : r.label));
       out.push({
         id: "allocation",
         level: "attention",

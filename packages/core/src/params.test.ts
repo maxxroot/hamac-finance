@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PlanParams, defaultParams, etfTarget, incomeTaxRate, normalizeParams, targetAllocation } from "./params";
+import { PlanParams, classTargets, defaultParams, etfTarget, incomeTaxRate, normalizeParams, targetAllocation } from "./params";
 
 describe("paramètres", () => {
   const p = defaultParams(new Date(2026, 10, 7));
@@ -52,5 +52,19 @@ describe("paramètres", () => {
 
   it("anciens paramètres : plan de retraite par défaut", () => {
     expect(normalizeParams({ profile: { birthYear: 1995 } }, new Date(2026, 10, 7)).profile.goal).toBe("retraite");
+  });
+
+  it("classes personnalisées : prises sur la cible de base, réduites si elle baisse avec l'âge", () => {
+    const or = { id: "or", label: "Or", color: "#e0a458", behavesLike: "croissance" as const, target: 0.2 };
+    const q = { ...p, customClasses: [or] };
+    const young = classTargets(q, 40);
+    expect(young.find((c) => c.key === "or")?.target).toBeCloseTo(0.2);
+    expect(young.find((c) => c.key === "croissance")?.target).toBeCloseTo(0.1);
+    expect(young.reduce((s, c) => s + c.target, 0)).toBeCloseTo(1);
+    const old = classTargets({ ...q, profile: { ...q.profile, securisationAge: 57, retirementAge: 64 } }, 64);
+    expect(old.find((c) => c.key === "or")?.target).toBeCloseTo(0.15);
+    expect(old.find((c) => c.key === "croissance")?.target).toBeCloseTo(0);
+    expect(PlanParams.safeParse({ ...q, customClasses: [{ ...or, target: 0.4 }] }).success).toBe(false);
+    expect(normalizeParams({}, new Date(2026, 10, 7)).customClasses).toEqual([]);
   });
 });

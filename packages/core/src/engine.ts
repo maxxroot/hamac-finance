@@ -3,6 +3,7 @@ import { accruedFraction, heldToMaturityValue, yieldToMaturity } from "./bonds";
 import { addMonths, monthsBetween, yearsBetween } from "./dates";
 import {
   ASSET_BUCKET,
+  BUCKET_LABELS,
   BUCKETS,
   CASH_BUCKET,
   INVESTED_BUCKETS,
@@ -21,7 +22,7 @@ import {
 } from "./domain";
 import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
-import { ageInYear, targetAllocation, type PlanParams } from "./params";
+import { ageInYear, classTargets, type PlanParams } from "./params";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
 import { type Flow, xirr, daysBetween } from "./xirr";
@@ -75,6 +76,8 @@ export interface PositionState {
   feesPaid: number;
   income: number;
   bucket: Bucket;
+  /** Classe personnalisée de ce titre, si elle existe encore. */
+  classId: string | null;
   bond: BondInfo | null;
 }
 
@@ -102,7 +105,13 @@ export interface AccountState {
 }
 
 export interface AllocationRow {
+  /** La classe de base, ou l'identifiant de la classe personnalisée. */
+  key: string;
+  /** Classe de base (celle dont une classe personnalisée a le comportement). */
   bucket: Bucket;
+  label: string;
+  /** Couleur d'une classe personnalisée ; null = couleur de la classe de base. */
+  color: string | null;
   value: number;
   share: number;
   target: number;
@@ -392,16 +401,24 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   for (const b of BUCKETS) buckets[b] = roundCents(buckets[b]);
 
   // ——— Allocation de la partie investie ———
-  const targets = targetAllocation(params, age);
   const invested = INVESTED_BUCKETS.reduce((s, b) => s + buckets[b], 0);
-  const rows: AllocationRow[] = INVESTED_BUCKETS.map((bucket) => {
-    const value = buckets[bucket];
-    const share = invested > 0 ? value / invested : 0;
-    const target = targets[bucket as keyof typeof targets];
-    const drift = share - target;
-    const action = invested <= 0 ? "renforcer" : drift > params.livrets.driftAlert ? "alleger" : drift < -params.livrets.driftAlert ? "renforcer" : "ok";
-    return { bucket, value, share, target, drift, action };
-  });
+  const classValues = new Map<string, number>();
+  for (const a of accountStates) {
+    if (a.account.archived && a.value === 0) continue;
+    for (const pos of a.positions) if (pos.classId) classValues.set(pos.classId, (classValues.get(pos.classId) ?? 0) + pos.value);
+  }
+  const customInBucket = (b: Bucket) => params.customClasses.filter((c) => c.behavesLike === b).reduce((s, c) => s + (classValues.get(c.id) ?? 0), 0);
+  const rows: AllocationRow[] = classTargets(params, age)
+    .map((c): AllocationRow => {
+      const custom = c.label != null;
+      const value = roundCents(custom ? (classValues.get(c.key) ?? 0) : buckets[c.bucket] - customInBucket(c.bucket));
+      const share = invested > 0 ? value / invested : 0;
+      const drift = share - c.target;
+      const action = invested <= 0 ? "renforcer" : drift > params.livrets.driftAlert ? "alleger" : drift < -params.livrets.driftAlert ? "renforcer" : "ok";
+      return { key: c.key, bucket: c.bucket, label: c.label ?? BUCKET_LABELS[c.bucket], color: c.color, value, share, target: c.target, drift, action };
+    })
+    // Une classe de base entièrement remplacée par des classes personnalisées et vide n'a plus lieu d'être affichée.
+    .filter((r) => r.key !== r.bucket || r.target > 0 || r.value !== 0 || !params.customClasses.some((c) => c.behavesLike === r.bucket));
 
   // ——— Livrets ———
   const livretsTotal = roundCents(accountStates.filter((s) => s.account.kind === "livret").reduce((s, a) => s + a.value, 0));
@@ -446,6 +463,8 @@ function roundQty(q: number): string {
 function valuePosition(p: PosAcc, accountId: string, asOf: string, book: PriceBook, params: PlanParams): PositionState {
   const { asset } = p;
   const terms = bondTerms(asset);
+  // La crypto reste hors de la partie investie : pas de classe personnalisée.
+  const cls = asset.kind === "crypto" ? undefined : params.customClasses.find((c) => c.id === asset.classId);
   let price: number | null = null;
   let priceDate: string | null = null;
   let priceUsed: PriceUsed = "cout";
@@ -508,7 +527,8 @@ function valuePosition(p: PosAcc, accountId: string, asOf: string, book: PriceBo
     realizedGain: roundCents(p.realized),
     feesPaid: roundCents(p.fees),
     income: roundCents(p.income),
-    bucket: ASSET_BUCKET[asset.kind],
+    bucket: cls?.behavesLike ?? ASSET_BUCKET[asset.kind],
+    classId: cls?.id ?? null,
     bond,
   };
 }

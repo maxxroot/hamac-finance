@@ -66,6 +66,7 @@ export function mapAsset(r: typeof t.assets.$inferSelect): Asset {
     priceProvider: (r.priceProvider as Asset["priceProvider"]) ?? null,
     priceUrl: r.priceUrl,
     pricePath: r.pricePath,
+    classId: r.classId,
     manualPrice: r.manualPrice,
     manualPriceDate: r.manualPriceDate,
     targetWeight: r.targetWeight,

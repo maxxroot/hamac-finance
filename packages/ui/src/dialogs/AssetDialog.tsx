@@ -5,7 +5,7 @@ import type { AssetInput } from "@hamac/api";
 import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, OAT_MATURITY_DAY, PRICE_PROVIDER_LABELS, maturityFromMonth, type BondKind, type Asset, type AssetKind, type PriceProvider, type PriceSource } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
-import { useMutate } from "@/lib/workspace";
+import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 import { todayIso } from "@/lib/numbers";
 import { call } from "@/lib/transport";
 import { cn } from "@/lib/cn";
@@ -27,6 +27,7 @@ function empty(kind: AssetKind): Draft {
     priceProvider: null,
     priceUrl: null,
     pricePath: null,
+    classId: null,
     manualPrice: null,
     manualPriceDate: null,
     targetWeight: null,
@@ -60,6 +61,7 @@ const SOURCE_LABELS: Record<PriceSource, string> = {
 export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { open: boolean; onClose: () => void; asset?: Asset | null; defaultKind?: AssetKind }) {
   const [d, setD] = useState<Draft>(empty(defaultKind));
   const save = useMutate("assets.upsert", { success: asset ? "Titre mis à jour" : "Titre ajouté" });
+  const classes = useWorkspaceIndex()?.ws.params.customClasses ?? [];
 
   useEffect(() => {
     if (open) setD(asset ? { ...asset } : empty(defaultKind));
@@ -273,6 +275,21 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
         {d.priceSource === "auto" && d.priceProvider === "url" && (
           <Field label="Adresse (JSON)" help="{isin} et {symbol} sont remplacés par ceux du titre. Le cours renvoyé doit être en euros.">
             {(id) => <TextInput id={id} value={d.priceUrl ?? ""} onChange={(e) => set("priceUrl", e.target.value || null)} className="font-mono" placeholder="https://exemple.fr/cours/{isin}" />}
+          </Field>
+        )}
+
+        {d.kind !== "crypto" && classes.length > 0 && (
+          <Field label="Classe d'actifs" help="Par défaut, selon le type du titre. Les classes se créent dans Paramètres › Plan.">
+            {(id) => (
+              <Select id={id} value={d.classId ?? ""} onChange={(e) => set("classId", e.target.value || null)}>
+                <option value="">Par défaut</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+            )}
           </Field>
         )}
 

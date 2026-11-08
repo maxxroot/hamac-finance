@@ -45,6 +45,7 @@ export const AssetInput = z.object({
   priceProvider: z.enum(PRICE_PROVIDERS).nullable().default(null),
   priceUrl: z.string().trim().url("Adresse invalide").max(500).nullable().default(null),
   pricePath: text(200).nullable().default(null),
+  classId: id.nullable().default(null),
   manualPrice: money.min(0).nullable().default(null),
   manualPriceDate: isoDate.nullable().default(null),
   targetWeight: z.number().min(0).max(1).nullable().default(null),

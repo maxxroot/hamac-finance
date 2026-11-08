@@ -9,6 +9,17 @@ const pct = z.number().min(0).max(1);
 const pctSigned = z.number().min(-1).max(1);
 const eur = z.number().min(0);
 
+/** Classe d'actifs ajoutée à la demande : sa cible est prise sur celle de la classe dont elle a le comportement. */
+export const AssetClass = z.object({
+  id: z.string().min(1),
+  label: z.string().trim().min(1, "Donnez un nom à cette classe.").max(40),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  /** Rendement, risque et compte de référence : ceux de cette classe de base. */
+  behavesLike: z.enum(["garanti", "obligations", "croissance"]),
+  target: z.number().min(0).max(1),
+});
+export type AssetClass = z.infer<typeof AssetClass>;
+
 export const PlanParams = z
   .object({
     profile: z.object({
@@ -63,6 +74,8 @@ export const PlanParams = z
     }),
     /** Allocations personnalisées, ajoutées à la demande (voir allocations.ts). */
     customAllocations: z.array(AllocationRule),
+    /** Classes d'actifs personnalisées (or, immobilier papier…), prises sur les cibles de base. */
+    customClasses: z.array(AssetClass),
     alerts: z.object({
       ctoCashThreshold: eur,
       peaCashThreshold: eur,
@@ -81,6 +94,14 @@ export const PlanParams = z
       ctx.addIssue({ code: "custom", path: ["profile", "horizonAge"], message: "L'âge horizon doit dépasser l'âge de départ." });
     }
     const { etfBefore, etfAtRetirement, obligations } = p.allocation;
+    const room = { croissance: etfBefore, obligations, garanti: Math.max(0, 1 - obligations - etfBefore) };
+    for (const base of ["garanti", "obligations", "croissance"] as const) {
+      const members = p.customClasses.map((c, i) => ({ c, i })).filter((x) => x.c.behavesLike === base);
+      const sum = members.reduce((s, x) => s + x.c.target, 0);
+      if (sum > room[base] + 1e-9 && members.length) {
+        ctx.addIssue({ code: "custom", path: ["customClasses", members.at(-1)!.i, "target"], message: `Ces classes dépassent la cible de leur classe de base (${Math.round(room[base] * 1000) / 10} %).` });
+      }
+    }
     for (const i of allocationIssues(p.customAllocations)) {
       ctx.addIssue({ code: "custom", path: ["customAllocations", i.index, i.field], message: i.message });
     }
@@ -128,6 +149,7 @@ export function defaultParams(today = new Date()): PlanParams {
     },
     contributions: { mode: "libre", capacity: 0 },
     customAllocations: [],
+    customClasses: [],
     alerts: {
       ctoCashThreshold: 1000,
       peaCashThreshold: 50,
@@ -199,6 +221,32 @@ export function targetAllocation(p: PlanParams, age: number): TargetAllocation {
   const croissance = etfTarget(p, age);
   const obligations = p.allocation.obligations;
   return { croissance, obligations, garanti: Math.max(0, 1 - obligations - croissance) };
+}
+
+export interface ClassTarget {
+  /** Identifiant de la classe personnalisée, ou la classe de base. */
+  key: string;
+  bucket: keyof TargetAllocation;
+  label: string | null;
+  color: string | null;
+  target: number;
+}
+
+/**
+ * Cibles détaillées : chaque classe personnalisée prend sa part sur sa classe de base, qui garde le reste.
+ * Si la base rétrécit avec l'âge (actions), les classes personnalisées rétrécissent en proportion.
+ */
+export function classTargets(p: PlanParams, age: number): ClassTarget[] {
+  const base = targetAllocation(p, age);
+  return (["garanti", "obligations", "croissance"] as const).flatMap((bucket) => {
+    const members = p.customClasses.filter((c) => c.behavesLike === bucket);
+    const sum = members.reduce((s, c) => s + c.target, 0);
+    const scale = sum > base[bucket] && sum > 0 ? base[bucket] / sum : 1;
+    return [
+      { key: bucket, bucket, label: null, color: null, target: Math.max(0, base[bucket] - sum * scale) },
+      ...members.map((c) => ({ key: c.id, bucket, label: c.label, color: c.color, target: c.target * scale })),
+    ];
+  });
 }
 
 /** Taux d'impôt sur le revenu appliqué aux revenus de placement : barème si plus avantageux, sinon PFU. */

@@ -80,10 +80,10 @@ export function TableauDeBord() {
       {donut && state.totals.value > 0 ? <Chart option={donut} height={200} /> : <p className="py-12 text-center text-sm text-fg-muted">Saisissez vos apports pour voir la répartition.</p>}
       <div className="mt-3 space-y-1.5">
         {state.allocation.rows.map((r) => (
-          <div key={r.bucket} className="flex items-center justify-between gap-3 text-sm">
+          <div key={r.key} className="flex items-center justify-between gap-3 text-sm">
             <span className="flex items-center gap-2 text-fg-muted">
-              <span className="size-2.5 rounded-sm" style={{ background: BUCKET_COLORS[r.bucket] }} />
-              {BUCKET_LABELS[r.bucket]}
+              <span className="size-2.5 rounded-sm" style={{ background: r.color ?? BUCKET_COLORS[r.bucket] }} />
+              {r.label}
             </span>
             <span className="flex items-center gap-3">
               <span className="num text-xs text-fg-faint">

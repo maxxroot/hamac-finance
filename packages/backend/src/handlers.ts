@@ -221,6 +221,7 @@ export const handlers: Handlers = {
       priceProvider: input.priceProvider,
       priceUrl: input.priceUrl,
       pricePath: input.pricePath,
+      classId: input.classId,
       manualPrice: input.manualPrice,
       manualPriceDate: input.manualPriceDate,
       targetWeight: input.targetWeight,

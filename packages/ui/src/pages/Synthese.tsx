@@ -78,11 +78,11 @@ export function Synthese() {
             </thead>
             <tbody>
               {state.allocation.rows.map((r) => (
-                <Tr key={r.bucket}>
+                <Tr key={r.key}>
                   <Td>
                     <span className="inline-flex items-center gap-2">
-                      <span className="size-2.5 rounded-sm" style={{ background: BUCKET_COLORS[r.bucket] }} />
-                      {BUCKET_LABELS[r.bucket]}
+                      <span className="size-2.5 rounded-sm" style={{ background: r.color ?? BUCKET_COLORS[r.bucket] }} />
+                      {r.label}
                     </span>
                   </Td>
                   <Td align="right">

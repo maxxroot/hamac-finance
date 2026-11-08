@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Account, Transaction } from "./domain";
+import type { Account, Asset, Transaction } from "./domain";
 import { computePortfolio, type EngineData } from "./engine";
 import { proposeContributions } from "./contributions";
 import { defaultParams, type PlanParams } from "./params";
@@ -67,5 +67,26 @@ describe("gestion suggérée des versements", () => {
     expect(total(r)).toBe(333);
     expect(amountOf(r, "pea")).toBe(333);
     expect(r.notes.join(" ")).toContain("Aucun compte pour");
+  });
+
+  it("classes personnalisées : ligne propre dans l'allocation, versements vers le compte qui détient le titre", () => {
+    const base = defaultParams(new Date(2026, 10, 7));
+    const params: PlanParams = { ...base, profile: { ...base.profile, birthYear: 1990, retirementAge: 64, securisationAge: 57, startMonth: "2026-11" }, customClasses: [{ id: "or", label: "Or", color: "#e0a458", behavesLike: "croissance", target: 0.1 }] };
+    const accounts = [acc("av", "assurance_vie"), acc("cto", "cto"), acc("pea", "pea"), acc("pea2", "cto")];
+    const asset: Asset = { id: "etc", kind: "etf", name: "ETC Or", isin: null, symbol: null, priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: "or", manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, bondKind: null, archived: false };
+    const buy: Transaction = { id: "b", date: "2026-01-03", type: "achat", accountId: "pea2", assetId: "etc", counterAccountId: null, amount: 1_000, quantity: 10, fee: null, comment: "" };
+    const data: EngineData = { params, accounts, assets: [asset], transactions: [apport("av", 4_000), apport("cto", 4_000), apport("pea", 1_000), apport("pea2", 1_000), buy], plans: [], skips: [], prices: [] };
+    const state = computePortfolio(data, "2026-11-07");
+    const or = state.allocation.rows.find((r) => r.key === "or")!;
+    expect(or).toMatchObject({ bucket: "croissance", label: "Or", value: 1_000 });
+    expect(or.target).toBeCloseTo(0.1);
+    const actions = state.allocation.rows.find((r) => r.key === "croissance")!;
+    expect(actions.target).toBeCloseTo(0.2);
+    expect(state.allocation.rows.reduce((s, r) => s + r.target, 0)).toBeCloseTo(1);
+    expect(state.buckets.croissance).toBe(2_000); // titre classé « Or » + espèces du PEA
+    expect(actions.value).toBe(1_000);
+    const r = proposeContributions(params, state, 1_000);
+    expect(total(r)).toBe(1_000);
+    expect(r.lines.find((l) => l.accountId === "pea2")?.reasons.join(" ")).toContain("Or");
   });
 });

@@ -184,6 +184,8 @@ export interface Asset {
   pricePath: string | null;
   manualPrice: number | null;
   manualPriceDate: string | null;
+  /** Classe d'actifs personnalisée (Paramètres › Plan) ; null = classe par défaut selon le type. */
+  classId: string | null;
   /** Poids cible parmi les actions (somme = 100 %). */
   targetWeight: number | null;
   /** Frais de gestion annuels (TER), déjà déduits du cours. */

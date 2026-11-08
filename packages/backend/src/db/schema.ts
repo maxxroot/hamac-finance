@@ -66,6 +66,7 @@ export const assets = sqliteTable(
     priceProvider: text("price_provider"),
     priceUrl: text("price_url"),
     pricePath: text("price_path"),
+    classId: text("class_id"),
     manualPrice: real("manual_price"),
     manualPriceDate: text("manual_price_date"),
     targetWeight: real("target_weight"),

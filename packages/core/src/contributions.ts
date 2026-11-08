@@ -1,8 +1,8 @@
 import { allocationReport } from "./allocations";
-import { BUCKET_LABELS, LIVRET_LEGAL_CEILINGS, type AccountKind, type Bucket } from "./domain";
+import { LIVRET_LEGAL_CEILINGS, type AccountKind, type Bucket } from "./domain";
 import { splitByTarget, type AccountState, type PortfolioState } from "./engine";
 import { roundCents } from "./money";
-import { targetAllocation, type PlanParams } from "./params";
+import type { PlanParams } from "./params";
 
 /**
  * Gestion suggérée des versements : à partir de la capacité d'épargne mensuelle, propose un montant
@@ -107,24 +107,29 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
 
   // 3. Allocation de base, vers les classes d'actifs en retard sur leur cible.
   if (rest > 0) {
-    const target = targetAllocation(params, state.age);
-    const buckets = (Object.keys(BUCKET_ACCOUNT) as Bucket[]).filter((b) => accounts.some((a) => a.account.kind === BUCKET_ACCOUNT[b]));
-    const totalTarget = buckets.reduce((s, b) => s + target[b as keyof typeof target], 0);
-    if (buckets.length && totalTarget > 0) {
+    const membersOf = (r: PortfolioState["allocation"]["rows"][number]) => {
+      const byKind = accounts.filter((a) => a.account.kind === BUCKET_ACCOUNT[r.bucket]);
+      if (r.key === r.bucket) return byKind;
+      // Classe personnalisée : les comptes qui détiennent déjà ses titres, sinon le compte de sa classe de base.
+      const holders = accounts.filter((a) => a.positions.some((p) => p.classId === r.key));
+      return holders.length ? holders : byKind;
+    };
+    const rows = state.allocation.rows.filter((r) => membersOf(r).length);
+    const totalTarget = rows.reduce((s, r) => s + r.target, 0);
+    if (rows.length && totalTarget > 0) {
       const split = splitByTarget(
         rest,
-        buckets.map((b) => ({ assetId: b, value: state.allocation.rows.find((r) => r.bucket === b)?.value ?? 0, target: target[b as keyof typeof target] / totalTarget })),
+        rows.map((r) => ({ assetId: r.key, value: r.value, target: r.target / totalTarget })),
       );
       let placed = 0;
-      for (const b of buckets) {
-        const amount = split.get(b) ?? 0;
-        const row = state.allocation.rows.find((r) => r.bucket === b);
-        const members = accounts.filter((a) => a.account.kind === BUCKET_ACCOUNT[b]);
-        placed += amount - place(members, amount, `Allocation de base : ${BUCKET_LABELS[b].toLowerCase()} (cible ${pctLabel(target[b as keyof typeof target])}, actuel ${pctLabel(row?.share ?? 0)})`);
+      for (const r of rows) {
+        const amount = split.get(r.key) ?? 0;
+        const name = r.key === r.bucket ? r.label.toLowerCase() : r.label;
+        placed += amount - place(membersOf(r), amount, `Allocation de base : ${name} (cible ${pctLabel(r.target)}, actuel ${pctLabel(r.share)})`);
       }
       rest -= placed;
-      const missing = (Object.keys(BUCKET_ACCOUNT) as Bucket[]).filter((b) => !buckets.includes(b) && target[b as keyof typeof target] > 0);
-      if (missing.length) notes.push(`Aucun compte pour : ${missing.map((b) => BUCKET_LABELS[b].toLowerCase()).join(", ")}. Leur part va aux autres classes.`);
+      const missing = state.allocation.rows.filter((r) => !rows.includes(r) && r.target > 0);
+      if (missing.length) notes.push(`Aucun compte pour : ${missing.map((r) => r.label.toLowerCase()).join(", ")}. Leur part va aux autres classes.`);
     } else if (livrets.length) {
       rest -= rest - place(livrets, rest, "Aucun compte d'investissement : épargne de précaution");
       notes.push("Ouvrez une assurance-vie, un PEA ou un compte-titres pour suivre l'allocation de base.");
