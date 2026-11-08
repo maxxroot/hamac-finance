@@ -1,0 +1,143 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createBackend, type Backend } from "@hamac/backend";
+import { SuggestedContributions } from "@/components/SuggestedContributions";
+import { AllocationDialog } from "@/dialogs/AllocationDialog";
+import { LoanDialog } from "@/dialogs/LoanDialog";
+import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
+import { ToastProvider } from "@/lib/toast";
+import { Parametres } from "@/pages/Parametres";
+
+/** Parcours réels : l'interface parle au vrai backend, sur une base en mémoire. */
+const h = vi.hoisted(() => ({ backend: null as unknown as import("@hamac/backend").Backend, file: { name: "", content: "" } }));
+
+vi.mock("@/lib/transport", () => ({
+  isDesktop: true,
+  call: async (name: string, input?: unknown) => {
+    const r = await h.backend.dispatch(name, input);
+    if (!r.ok) throw new Error(r.error.message);
+    return r.data;
+  },
+}));
+vi.mock("@/lib/files", () => ({ pickTextFile: async () => h.file, downloadText: () => undefined }));
+
+async function rpc<T = unknown>(name: string, input?: unknown): Promise<T> {
+  const r = await h.backend.dispatch(name, input);
+  if (!r.ok) throw new Error(r.error.message);
+  return r.data as T;
+}
+interface Ws {
+  params: Record<string, never> & { profile: { goal: string }; customClasses: unknown[] };
+  transactions: Array<{ type: string; amount: number }>;
+  loans: Array<{ kind: string; name: string; propertyId: string | null; principal: number }>;
+  plans: Array<{ accountId: string; amount: number }>;
+  assets: Array<{ id: string; inAllocation: boolean | null }>;
+}
+const workspace = () => rpc<Ws>("workspace.load");
+
+function show(ui: ReactNode) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <ToastProvider>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+
+beforeEach(() => {
+  h.backend = createBackend({ databasePath: ":memory:", mode: "desktop", appVersion: "test", backupsDir: null }) as Backend;
+});
+afterEach(() => {
+  cleanup();
+  h.backend.close();
+});
+
+const fieldOf = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
+
+describe("parcours de l'interface", () => {
+  it("import d'un relevé : aperçu, import, confirmation, puis doublon au second passage", async () => {
+    const user = userEvent.setup();
+    await rpc("accounts.upsert", { kind: "cto", name: "Compte-titres" });
+    h.file = { name: "releve.ofx", content: "<OFX><STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20261012<TRNAMT>333,00<NAME>VERSEMENT</STMTTRN></OFX>" };
+    const first = show(<StatementImportDialog open onClose={() => undefined} />);
+    await user.click(await screen.findByRole("button", { name: "Choisir un fichier" }));
+    expect(await screen.findByText("Nouveau")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Importer 1 opération" }));
+    expect(await screen.findByText("1 opération(s) importée(s).")).toBeTruthy();
+    expect((await workspace()).transactions).toMatchObject([{ type: "versement", amount: 333 }]);
+    first.unmount();
+
+    show(<StatementImportDialog open onClose={() => undefined} />);
+    await user.click(await screen.findByRole("button", { name: "Choisir un fichier" }));
+    expect(await screen.findByText("Déjà au journal")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Importer 0 opération" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("nouveau crédit à la consommation : pas de bien, enregistré avec son type", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    show(<LoanDialog open loan={null} properties={[]} onClose={onClose} />);
+    expect(screen.getByLabelText("Bien concerné (facultatif)")).toBeTruthy();
+    await user.selectOptions(fieldOf("Type"), "consommation");
+    expect(screen.queryByLabelText("Bien concerné (facultatif)")).toBeNull();
+    await user.type(fieldOf("Nom"), "Voiture");
+    const amount = fieldOf("Montant emprunté");
+    await user.clear(amount);
+    await user.type(amount, "9000");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect((await workspace()).loans).toMatchObject([{ kind: "consommation", name: "Voiture", propertyId: null, principal: 9000 }]);
+  });
+
+  it("allocation personnalisée : part à zéro refusée, ligne valide transmise", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    show(<AllocationDialog open rule={null} rules={[]} accounts={[]} onClose={() => undefined} onSave={onSave} />);
+    const part = fieldOf("Part");
+    await user.clear(part);
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    expect(await screen.findByText(/supérieure à 0/)).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
+    await user.type(part, "25");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ share: 0.25, target: { kind: "type", accountKind: "livret" } });
+  });
+
+  it("gestion suggérée : appliquer programme les montants proposés", async () => {
+    const user = userEvent.setup();
+    await rpc("accounts.upsert", { kind: "cto", name: "Compte-titres" });
+    show(<SuggestedContributions defaultFromMonth="2030-01" />);
+    const capacite = await screen.findByLabelText("Montant que je peux épargner chaque mois");
+    await user.type(capacite, "500");
+    await user.tab();
+    await user.click(await screen.findByRole("button", { name: /Appliquer ces montants/ }));
+    await waitFor(async () => expect((await workspace()).plans).toMatchObject([{ amount: 500 }]));
+  });
+
+  it("paramètres : choisir la gestion de patrimoine puis enregistrer", async () => {
+    const user = userEvent.setup();
+    show(<Parametres />);
+    await user.click(await screen.findByRole("radio", { name: /Gérer mon patrimoine/ }));
+    expect(screen.queryByLabelText("Âge de départ visé")).toBeNull();
+    await user.click(await screen.findByRole("button", { name: /Enregistrer/ }));
+    await waitFor(async () => expect((await workspace()).params.profile.goal).toBe("patrimoine"));
+  });
+
+  it("onglet Actifs : l'allocation se règle sur la ligne d'un titre", async () => {
+    const user = userEvent.setup();
+    const a = await rpc<{ id: string }>("assets.upsert", { kind: "etf", name: "ETF Monde", priceSource: "manuel" });
+    show(<Parametres />);
+    await user.click(await screen.findByRole("button", { name: "Actifs" }));
+    const row = (await screen.findByText("ETF Monde")).closest("tr")!;
+    await user.selectOptions(within(row).getByLabelText("Allocation de ETF Monde"), "out");
+    await waitFor(async () => expect((await workspace()).assets.find((x) => x.id === a.id)?.inAllocation).toBe(false));
+  });
+});
