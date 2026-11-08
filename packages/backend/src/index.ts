@@ -1,7 +1,7 @@
 import { procedures, RpcError, type ProcName, type RpcResult } from "@hamac/api";
-import { dailyBackup } from "./backup";
+import { backupBeforeMigration, dailyBackup } from "./backup";
 import type { BackendContext } from "./context";
-import { migrate } from "./db/migrate";
+import { migrate, pendingMigrations } from "./db/migrate";
 import { openSqlite } from "./db/sqlite";
 import { handlers } from "./handlers";
 import { defaultFetcher, type Fetcher } from "./market";
@@ -30,6 +30,16 @@ export interface Backend {
 
 export function createBackend(opts: BackendOptions): Backend {
   const { raw, db } = openSqlite(opts.databasePath);
+  // Avant toute migration : si la copie échoue, on s'arrête plutôt que de modifier la base sans filet.
+  const pending = opts.backupsDir ? pendingMigrations(raw) : [];
+  if (opts.backupsDir && pending.length) {
+    try {
+      backupBeforeMigration(raw, opts.backupsDir, pending[0]!);
+    } catch (err) {
+      raw.close();
+      throw new Error(`Sauvegarde impossible avant la mise à jour de la base : ${(err as Error).message}`);
+    }
+  }
   const schemaVersion = migrate(raw);
   const ctx: BackendContext = { db, raw, schemaVersion, ...opts, fetcher: opts.fetcher ?? defaultFetcher };
 

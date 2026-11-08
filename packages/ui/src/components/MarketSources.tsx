@@ -110,7 +110,7 @@ export function MarketSources() {
           </p>
         )}
         <p className="mt-3 text-xs text-fg-faint">
-          La clé reste dans cette installation : elle n'est jamais affichée en entier ni incluse dans les exports. Les sauvegardes automatiques, copies locales de la base, la contiennent : ne les partagez pas. L'offre gratuite ne couvre que les titres américains ; les cotations européennes demandent une offre payante.
+          La clé reste dans cette installation : elle n'est jamais affichée en entier, ni incluse dans les exports et les sauvegardes. L'offre gratuite ne couvre que les titres américains ; les cotations européennes demandent une offre payante.
         </p>
       </Card>
 
