@@ -6,8 +6,11 @@ import { type Fetcher, MarketError, type Quote } from "./http";
  */
 const BASE = "https://live.euronext.com/en";
 
-/** Places cotant en euros, par préférence. Amsterdam en dernier : on y trouve aussi des lignes en dollars. */
-const EUR_MARKETS = ["XPAR", "ALXP", "XMLI", "XBRU", "ALXB", "XLIS", "ALXL", "XMSM", "XESM", "ETFP", "MTAA", "XAMS", "ALXA"];
+/**
+ * Places retenues, par préférence. Le fichier d'historique n'indique pas la devise :
+ * Amsterdam est exclue, car on y trouve des lignes en dollars (la source suivante prend le relais).
+ */
+const EUR_MARKETS = ["XPAR", "ALXP", "XMLI", "XBRU", "ALXB", "XLIS", "ALXL", "XMSM", "XESM", "ETFP", "MTAA"];
 
 const marketCache = new Map<string, string>();
 
@@ -30,7 +33,7 @@ async function marketFor(fetcher: Fetcher, isin: string): Promise<string> {
   const mics = new Set(hits.filter((h) => h.isin === isin && h.mic).map((h) => h.mic!));
   if (!mics.size) throw new MarketError("Euronext ne connaît pas cet ISIN.");
   const mic = EUR_MARKETS.find((m) => mics.has(m));
-  if (!mic) throw new MarketError("Ce titre n'est pas coté en euros sur Euronext.");
+  if (!mic) throw new MarketError("Ce titre n'a pas de cotation sûrement en euros sur Euronext.");
   marketCache.set(isin, mic);
   return mic;
 }

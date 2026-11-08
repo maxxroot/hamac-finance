@@ -22,6 +22,13 @@ interface Chart {
   chart?: { result?: Array<{ meta?: { currency?: string; regularMarketPrice?: number; regularMarketTime?: number }; timestamp?: number[]; indicators?: { quote?: Array<{ close?: Array<number | null> }> } }>; error?: { description?: string } };
 }
 
+/** Période à demander à Yahoo pour combler l'écart depuis le dernier cours connu. */
+export function yahooRange(since: string | null, today: string): "5d" | "1y" | "2y" {
+  if (!since) return "2y";
+  const days = (Date.parse(today) - Date.parse(since)) / 86_400_000;
+  return days <= 4 ? "5d" : days <= 360 ? "1y" : "2y";
+}
+
 export async function yahooHistory(fetcher: Fetcher, symbol: string, range: "5d" | "1y" | "2y"): Promise<Quote[]> {
   const s = await getSession(fetcher);
   const j = await getJson<Chart>(fetcher, `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d&crumb=${encodeURIComponent(s.crumb)}`, {

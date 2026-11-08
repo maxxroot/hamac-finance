@@ -6,7 +6,7 @@ import { type Fetcher, MarketError, type Quote } from "./http";
 import { justEtfHistory } from "./justetf";
 import { figiByIsin, figiSearch, ISIN_RE, type Candidate } from "./openfigi";
 import { twelveDataHistory, type TwelveDataBudget } from "./twelvedata";
-import { yahooHistory } from "./yahoo";
+import { yahooHistory, yahooRange } from "./yahoo";
 
 export type { Candidate, Fetcher, Quote };
 export { defaultFetcher } from "./http";
@@ -86,7 +86,7 @@ export async function fetchFrom(fetcher: Fetcher, provider: PriceProvider, asset
       break;
     }
     case "yahoo":
-      quotes = await yahooHistory(fetcher, asset.symbol!, since ? "5d" : "2y");
+      quotes = await yahooHistory(fetcher, asset.symbol!, yahooRange(since, today));
       break;
     case "url":
       quotes = await customQuote(fetcher, asset, today, env.web);

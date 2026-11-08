@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createBackend, type Backend } from "../index";
 import type { Fetcher } from "./http";
 import { assertPublicUrl, readPath, toPrice } from "./custom";
-import { parseEuronextCsv } from "./euronext";
+import { euronextHistory, parseEuronextCsv } from "./euronext";
 import { chainFor, defaultProviderSettings, parseBondTicker, searchAssets } from "./index";
 import { assertPlausible } from "./refresh";
+import { yahooRange } from "./yahoo";
 import { refreshIntervalMinutes, TD_SAFE_LIMIT, TwelveDataBudget, twelveDataSymbol } from "./twelvedata";
 
 /** Faux réseau : répond selon l'URL, enregistre les appels. */
@@ -61,6 +62,18 @@ describe("sources de cours", () => {
   it("lit l'historique CSV d'Euronext", () => {
     const csv = '\ufeff"Historical Data"\nLU1681043599\nDate;Open;High;Low;Last;Close;"Number of Shares"\n06/11/2026;683.48;692.33;683.48;692.33;692.40;1047\n05/11/2026;709.47;711.69;686.46;692.87;;621\n';
     expect(parseEuronextCsv(csv)).toEqual([{ date: "2026-11-05", price: 692.87 }, { date: "2026-11-06", price: 692.4 }]);
+  });
+
+  it("Euronext : une ligne seulement à Amsterdam, possiblement en dollars, n'est pas utilisée", async () => {
+    const f = (async () => new Response(JSON.stringify([{ isin: "IE00B4L5Y983", mic: "XAMS" }]))) as Fetcher;
+    await expect(euronextHistory(f, "IE00B4L5Y983", "2026-01-01", "2026-02-01")).rejects.toThrow(/en euros/);
+  });
+
+  it("Yahoo : la période demandée couvre l'absence", () => {
+    expect(yahooRange(null, "2026-11-08")).toBe("2y");
+    expect(yahooRange("2026-11-05", "2026-11-08")).toBe("5d");
+    expect(yahooRange("2026-09-20", "2026-11-08")).toBe("1y");
+    expect(yahooRange("2024-01-01", "2026-11-08")).toBe("2y");
   });
 
   it("Twelve Data : l'intervalle garde le pire cas sous le quota journalier", () => {
