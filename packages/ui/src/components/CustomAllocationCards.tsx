@@ -27,8 +27,8 @@ function LimitProgress({ r }: { r: AllocationStatus }) {
 }
 
 const editLink = (
-  <Link to="/parametres" className="text-accent hover:underline">
-    Paramètres › Plan
+  <Link to="/parametres?onglet=Répartition" className="text-accent hover:underline">
+    Paramètres › Répartition
   </Link>
 );
 

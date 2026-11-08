@@ -54,7 +54,7 @@ export function SuggestedContributions({ defaultFromMonth }: { defaultFromMonth:
   return (
     <div className="space-y-5">
       <Card>
-        <CardTitle hint={<>répartie selon vos allocations (<Link to="/parametres" className="text-accent hover:underline">Paramètres › Plan</Link>)</>}>Ma capacité d'épargne</CardTitle>
+        <CardTitle hint={<>répartie selon vos allocations (<Link to="/parametres?onglet=Répartition" className="text-accent hover:underline">Paramètres › Répartition</Link>)</>}>Ma capacité d'épargne</CardTitle>
         <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
           <Field label="Montant que je peux épargner chaque mois">{(id) => <MoneyInput id={id} value={capacity} onChange={setCapacity} />}</Field>
           <Button disabled={!capacityChanged || saveParams.isPending} onClick={() => saveCapacity({ ...params.contributions, capacity: capacity ?? 0 }).then(() => toast("success", "Capacité enregistrée"))}>

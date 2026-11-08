@@ -56,7 +56,7 @@ export function AllocationTargets({ params, data, onChange, labelErrors, returnH
                 {r.included > 0 && <p className="mt-1 text-xs text-fg-faint">{r.included} élément{r.included > 1 ? "s" : ""} inclus individuellement</p>}
               </Td>
               <Td className="align-top">
-                <Checkbox checked={r.inAllocation} onChange={(v) => patch(r.key, { inAllocation: v })} label="Dedans" />
+                <Checkbox checked={r.inAllocation} onChange={(v) => patch(r.key, { inAllocation: v })} label="Inclus" />
               </Td>
               <Td align="right" className="align-top">
                 <div className={cn("ml-auto w-28", !r.active && "opacity-40")}>

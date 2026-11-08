@@ -104,7 +104,7 @@ export function Synthese() {
             </tbody>
           </Table>
           <p className="mt-3 text-xs text-fg-faint">
-            Partie investie : <Amount value={state.allocation.invested} compact /> (réglée dans Paramètres › Plan). On rééquilibre en orientant les versements, sans vendre.
+            Partie investie : <Amount value={state.allocation.invested} compact /> (réglée dans Paramètres › Répartition). On rééquilibre en orientant les versements, sans vendre.
           </p>
         </Card>
         <Card className="lg:col-span-2">

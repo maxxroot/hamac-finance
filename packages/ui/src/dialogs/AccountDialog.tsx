@@ -198,7 +198,7 @@ export function AccountDialog({
           </Field>
         )}
 
-        <AllocationChoice value={d.inAllocation} defaultLabel="comme sa classe, dans Paramètres › Plan" onChange={(v) => set("inAllocation", v)} />
+        <AllocationChoice value={d.inAllocation} defaultLabel="comme sa classe, dans Paramètres › Répartition" onChange={(v) => set("inAllocation", v)} />
 
         {account && <Checkbox checked={d.archived} onChange={(v) => set("archived", v)} label="Archivé (masqué des listes, l'historique est conservé)" />}
       </div>

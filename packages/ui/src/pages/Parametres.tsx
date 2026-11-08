@@ -5,7 +5,7 @@ import { Modal } from "@/components/form";
 import { downloadText, pickTextFile } from "@/lib/files";
 import { call } from "@/lib/transport";
 import { useToast } from "@/lib/toast";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { AllocationTargets } from "@/components/AllocationTargets";
 import { MarketSources } from "@/components/MarketSources";
@@ -40,6 +40,7 @@ import { AccountDialog } from "@/dialogs/AccountDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { AssetDialog } from "@/dialogs/AssetDialog";
 import { cn } from "@/lib/cn";
+import { issueTabs, rebaseDraft } from "@/lib/planDraft";
 import { formatDate } from "@/lib/numbers";
 import { useSystemInfo } from "@/lib/queries";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
@@ -47,12 +48,13 @@ import { usePortfolio } from "@/lib/portfolio";
 import { SortTh, useSortable } from "@/lib/sort";
 import { SETTINGS_ITEM } from "@/nav";
 
-const TABS = ["Plan", "Établissements", "Comptes", "Actifs", "Cours", "Application"] as const;
+const TABS = ["Plan", "Répartition", "Établissements", "Comptes", "Actifs", "Cours", "Application"] as const;
 type Tab = (typeof TABS)[number];
 
 export function Parametres() {
   const [search] = useSearchParams();
   const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t === search.get("onglet")) ?? "Plan");
+  const draft = usePlanDraft();
   return (
     <>
       <PageHeader title="Paramètres" description={SETTINGS_ITEM.description} />
@@ -67,12 +69,16 @@ export function Parametres() {
           </button>
         ))}
       </div>
-      {tab === "Plan" && <PlanTab />}
+      <div className="pb-20">
+      {tab === "Plan" && <PlanTab draft={draft} />}
+      {tab === "Répartition" && <RepartitionTab draft={draft} />}
       {tab === "Établissements" && <Etablissements />}
       {tab === "Comptes" && <AccountsTab />}
       {tab === "Actifs" && <AssetsTab />}
       {tab === "Cours" && <MarketSources />}
       {tab === "Application" && <AppTab />}
+      </div>
+      <SaveBar draft={draft} />
     </>
   );
 }
@@ -81,14 +87,19 @@ export function Parametres() {
 
 type Path = [keyof PlanParams, string];
 
-function PlanTab() {
+/** Brouillon commun aux onglets Plan et Répartition : il survit au changement d'onglet. */
+function usePlanDraft() {
   const idx = useWorkspaceIndex();
-  const pf = usePortfolio();
   const save = useMutate("params.update", { success: "Paramètres enregistrés" });
   const [p, setP] = useState<PlanParams | null>(null);
+  const server = idx?.ws.params ?? null;
+  const base = useRef<PlanParams | null>(null);
   useEffect(() => {
-    if (idx && !p) setP(idx.ws.params);
-  }, [idx, p]);
+    if (!server) return;
+    const previous = base.current;
+    base.current = server;
+    setP((draft) => (draft && previous ? rebaseDraft(draft, previous, server) : server));
+  }, [server]);
 
   const issues = useMemo(() => {
     if (!p) return new Map<string, string>();
@@ -101,17 +112,15 @@ function PlanTab() {
     return found;
   }, [p, idx]);
 
-  if (!p || !idx) return null;
-  // Taux moyen des livrets, pondéré par leur solde : repère pour l'hypothèse de rendement.
-  const livrets = pf?.state.accounts.filter((a) => a.account.kind === "livret" && a.value > 0) ?? [];
-  const livretTotal = livrets.reduce((t, a) => t + a.value, 0);
-  const livretRate = livretTotal > 0 ? livrets.reduce((t, a) => t + a.value * (a.account.rate ?? 0), 0) / livretTotal : null;
-  const dirty = JSON.stringify(p) !== JSON.stringify(idx.ws.params);
+  const dirty = !!p && !!server && JSON.stringify(p) !== JSON.stringify(server);
+  return { p, setP, idx, issues, dirty, saving: save.isPending, cancel: () => setP(server), submit: () => p && save.mutate(p, { onSuccess: (saved) => setP(saved as PlanParams) }) };
+}
+
+type PlanDraft = ReturnType<typeof usePlanDraft>;
+
+function planFields(p: PlanParams, setP: PlanDraft["setP"], issues: PlanDraft["issues"]) {
   const set = (path: Path, value: unknown) => setP((x) => (x ? { ...x, [path[0]]: { ...(x[path[0]] as object), [path[1]]: value } } : x));
   const err = (path: Path) => issues.get(path.join(".")) ?? null;
-  const year = new Date().getFullYear();
-  const age = year - p.profile.birthYear;
-  const retraite = p.profile.goal === "retraite";
 
   const pctField = (label: string, path: Path, help?: ReactNode) => (
     <Field label={label} help={help} error={err(path)}>
@@ -129,8 +138,39 @@ function PlanTab() {
     </Field>
   );
 
+  return { set, err, pctField, eurField, intField };
+}
+
+function SaveBar({ draft }: { draft: PlanDraft }) {
+  const { dirty, issues, saving, cancel, submit } = draft;
   return (
-    <div className="space-y-5 pb-20">
+    <div
+      className={cn(
+        "fixed right-8 bottom-6 z-40 flex items-center gap-3 rounded-xl border border-line-strong bg-surface-2 px-4 py-3 shadow-2xl transition-all",
+        dirty ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
+      )}
+    >
+      <span className="text-sm text-fg-muted">{issues.size ? `${issues.size} point(s) à corriger (${issueTabs(issues.keys()).join(", ")})` : "Modifications non enregistrées"}</span>
+      <Button variant="ghost" onClick={cancel}>
+        Annuler
+      </Button>
+      <Button variant="primary" disabled={issues.size > 0 || saving} onClick={submit}>
+        Enregistrer
+      </Button>
+    </div>
+  );
+}
+
+function PlanTab({ draft }: { draft: PlanDraft }) {
+  const { p, setP, idx, issues } = draft;
+  if (!p || !idx) return null;
+  const { set, err, pctField, eurField, intField } = planFields(p, setP, issues);
+  const year = new Date().getFullYear();
+  const age = year - p.profile.birthYear;
+  const retraite = p.profile.goal === "retraite";
+
+  return (
+    <div className="space-y-5">
       <Section title="Usage" hint="Ce que Hamac doit faire pour vous. Vous pouvez changer à tout moment : vos données ne bougent pas.">
         <div className="grid gap-3 sm:grid-cols-2" role="radiogroup">
           {(
@@ -184,43 +224,17 @@ function PlanTab() {
         </FormGrid>
       </Section>
 
-      <Section title="Hypothèses" hint="Le rendement attendu de chaque classe se règle dans « Ma répartition cible ».">
+      <Section title="Hypothèses" hint="Le rendement attendu de chaque classe se règle dans l'onglet Répartition.">
         <FormGrid cols={3}>
           {pctField("Inflation", ["returns", "inflation"])}
           {retraite && pctField("Rendement réel pendant la retraite", ["returns", "realReturnRetirement"], "Rendement après inflation du capital pendant les retraits.")}
         </FormGrid>
       </Section>
 
-      <Section title="Ma répartition cible" hint="Une ligne par classe que vous détenez. Chaque compte ou titre suit sa classe, sauf choix contraire sur sa fiche. Les classes sans rendement renseigné n'entrent pas dans la projection.">
-        <AllocationTargets
-          params={p}
-          data={idx.ws}
-          onChange={setP}
-          labelErrors={new Map(p.customClasses.map((c, i) => [c.id, issues.get(`customClasses.${i}.label`) ?? ""]))}
-          returnHints={livretRate != null ? { precaution: `Moyenne actuelle : ${(livretRate * 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` } : undefined}
-        />
-        {err(["targets", "total"]) && <p className="mt-2 text-sm text-negative">{err(["targets", "total"])}</p>}
-        {retraite && (
-          <div className="mt-4 max-w-xs">{pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse progressive à partir de l'âge de sécurisation, au profit du fonds euros.")}</div>
-        )}
-        {retraite && <p className="mt-2 text-sm text-fg-muted">Actions cette année : <b className="text-fg">{formatPct(etfTarget(p, age))}</b>.</p>}
-        {p.removedTargets.length > 0 && (
-          <div className="mt-4 rounded-lg border border-warning/40 p-3 text-sm text-fg-muted">
-            <p>Ces anciennes cibles posées sur des comptes ont été retirées : {p.removedTargets.map((r) => `${r.label} (${formatPct(r.share)})`).join(", ")}. Reportez-les ci-dessus si besoin.</p>
-            <Button variant="ghost" className="mt-2 h-7 text-xs" onClick={() => setP((x) => (x ? { ...x, removedTargets: [] } : x))}>
-              Compris
-            </Button>
-          </div>
-        )}
-      </Section>
-
-      <CustomAllocations params={p} accounts={idx.ws.accounts} onChange={(customAllocations) => setP((x) => (x ? { ...x, customAllocations } : x))} issues={issues} />
-
       <Section title="Règles des livrets">
         <FormGrid cols={3}>
           {eurField("Plancher (ne jamais descendre sous)", ["livrets", "floor"], "Le matelas de sécurité.")}
           {eurField("Plafond (au-delà, transférer)", ["livrets", "ceiling"], "L'excédent part vers le fonds euros.")}
-          {pctField("Seuil d'alerte de rééquilibrage", ["livrets", "driftAlert"], "Alerte si la part d'une classe d'actifs s'écarte de plus de ce pourcentage de sa cible (ex. 5 % : alerte à 61 % pour une cible de 55 %).")}
         </FormGrid>
       </Section>
 
@@ -267,21 +281,51 @@ function PlanTab() {
           {eurField("Garantie des assureurs (FGAP)", ["alerts", "fgapGuarantee"], "Par personne et par assureur.")}
         </FormGrid>
       </Section>
+    </div>
+  );
+}
 
-      <div
-        className={cn(
-          "fixed right-8 bottom-6 z-40 flex items-center gap-3 rounded-xl border border-line-strong bg-surface-2 px-4 py-3 shadow-2xl transition-all",
-          dirty ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
+function RepartitionTab({ draft }: { draft: PlanDraft }) {
+  const { p, setP, idx, issues } = draft;
+  const pf = usePortfolio();
+  if (!p || !idx) return null;
+  const { err, pctField } = planFields(p, setP, issues);
+  const age = new Date().getFullYear() - p.profile.birthYear;
+  const retraite = p.profile.goal === "retraite";
+  // Taux moyen des livrets, pondéré par leur solde : repère pour l'hypothèse de rendement.
+  const livrets = pf?.state.accounts.filter((a) => a.account.kind === "livret" && a.value > 0) ?? [];
+  const livretTotal = livrets.reduce((t, a) => t + a.value, 0);
+  const livretRate = livretTotal > 0 ? livrets.reduce((t, a) => t + a.value * (a.account.rate ?? 0), 0) / livretTotal : null;
+
+  return (
+    <div className="space-y-5">
+      <Section title="Ma répartition cible" hint="Une ligne par classe que vous détenez. Chaque compte ou titre suit sa classe, sauf choix contraire sur sa fiche. Les classes sans rendement renseigné n'entrent pas dans la projection.">
+        <AllocationTargets
+          params={p}
+          data={idx.ws}
+          onChange={setP}
+          labelErrors={new Map(p.customClasses.map((c, i) => [c.id, issues.get(`customClasses.${i}.label`) ?? ""]))}
+          returnHints={livretRate != null ? { precaution: `Moyenne actuelle : ${(livretRate * 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` } : undefined}
+        />
+        {err(["targets", "total"]) && <p className="mt-2 text-sm text-negative">{err(["targets", "total"])}</p>}
+        <div className="mt-4">
+          <FormGrid cols={3}>
+            {retraite && pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse progressive à partir de l'âge de sécurisation, au profit du fonds euros.")}
+            {pctField("Seuil d'alerte de rééquilibrage", ["livrets", "driftAlert"], "Alerte si la part d'une classe d'actifs s'écarte de plus de ce pourcentage de sa cible (ex. 5 % : alerte à 61 % pour une cible de 55 %).")}
+          </FormGrid>
+        </div>
+        {retraite && <p className="mt-2 text-sm text-fg-muted">Actions cette année : <b className="text-fg">{formatPct(etfTarget(p, age))}</b>.</p>}
+        {p.removedTargets.length > 0 && (
+          <div className="mt-4 rounded-lg border border-warning/40 p-3 text-sm text-fg-muted">
+            <p>Ces anciennes cibles posées sur des comptes ont été retirées : {p.removedTargets.map((r) => `${r.label} (${formatPct(r.share)})`).join(", ")}. Reportez-les ci-dessus si besoin.</p>
+            <Button variant="ghost" className="mt-2 h-7 text-xs" onClick={() => setP((x) => (x ? { ...x, removedTargets: [] } : x))}>
+              Compris
+            </Button>
+          </div>
         )}
-      >
-        <span className="text-sm text-fg-muted">{issues.size ? `${issues.size} point(s) à corriger` : "Modifications non enregistrées"}</span>
-        <Button variant="ghost" onClick={() => setP(idx.ws.params)}>
-          Annuler
-        </Button>
-        <Button variant="primary" disabled={issues.size > 0 || save.isPending} onClick={() => save.mutate(p, { onSuccess: (saved) => setP(saved as PlanParams) })}>
-          Enregistrer
-        </Button>
-      </div>
+      </Section>
+
+      <CustomAllocations params={p} accounts={idx.ws.accounts} onChange={(customAllocations) => setP((x) => (x ? { ...x, customAllocations } : x))} issues={issues} />
     </div>
   );
 }
@@ -301,7 +345,7 @@ function Section({ title, hint, actions, children }: { title: string; hint?: str
   );
 }
 
-/** Allocations personnalisées : lignes ajoutées à la demande (cible du patrimoine et/ou part des versements). */
+/** Allocations personnalisées : lignes ajoutées à la demande (part des versements). */
 function CustomAllocations({
   params,
   accounts,
@@ -325,7 +369,7 @@ function CustomAllocations({
   return (
     <Section
       title="Allocations personnalisées"
-      hint="En plus de l'allocation ci-dessus : une part du patrimoine ou des versements pour un compte ou un type de compte, éventuellement jusqu'à une limite."
+      hint="En plus de l'allocation ci-dessus : une part des versements pour un compte ou un type de compte, éventuellement jusqu'à une limite."
       actions={
         <Button onClick={() => setCreating(true)} className="shrink-0">
           <Plus size={16} /> Ajouter une allocation

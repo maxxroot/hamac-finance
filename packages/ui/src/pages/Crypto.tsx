@@ -41,7 +41,7 @@ export function Crypto() {
     <>
       <PageHeader
         title="Crypto"
-        description="Par défaut hors allocation cible (réglable dans Paramètres › Plan) : compte dans le patrimoine, l'historique et la performance, mais pas dans la répartition ni dans la projection."
+        description="Par défaut hors allocation cible (réglable dans Paramètres › Répartition) : compte dans le patrimoine, l'historique et la performance, mais pas dans la répartition ni dans la projection."
         actions={accounts.length > 0 && <AddTransactionButton accountId={accounts[0].account.id} type="achat" />}
       />
       {accounts.length === 0 && (

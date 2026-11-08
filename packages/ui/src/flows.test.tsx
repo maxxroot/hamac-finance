@@ -237,12 +237,18 @@ describe("parcours de l'interface", () => {
     const user = userEvent.setup();
     await rpc("accounts.upsert", { kind: "livret", livretType: "LEP", name: "LEP" });
     show(<Parametres />);
+    await user.click(await screen.findByRole("button", { name: "Répartition" }));
     const cible = await screen.findByLabelText("Cible de Actions");
     expect(screen.getByLabelText("Cible de Livrets")).toBeTruthy();
     expect((screen.getByLabelText("Cible de Livrets") as HTMLInputElement).disabled).toBe(true);
     await user.clear(cible);
     await user.type(cible, "20");
     await user.tab();
+    expect((await screen.findAllByText(/reste .* à répartir/)).length).toBeGreaterThan(0);
+    // Le brouillon survit au changement d'onglet.
+    await user.click(screen.getByRole("button", { name: "Plan" }));
+    expect(screen.queryByLabelText("Cible de Actions")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Répartition" }));
     expect((await screen.findAllByText(/reste .* à répartir/)).length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Ajouter une classe" }));
     await user.type(await screen.findByLabelText("Nom de la classe"), "Métaux précieux");

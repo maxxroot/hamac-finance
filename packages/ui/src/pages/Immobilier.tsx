@@ -27,7 +27,7 @@ export function Immobilier() {
     <>
       <PageHeader
         title="Immobilier"
-        description="Vos biens et vos SCPI. Par défaut hors allocation cible : réglable dans Paramètres › Plan ou sur chaque bien."
+        description="Vos biens et vos SCPI. Par défaut hors allocation cible : réglable dans Paramètres › Répartition ou sur chaque bien."
         actions={
           <Button variant="primary" onClick={() => setEditing("new")}>
             <Plus size={16} /> Nouveau bien
@@ -74,7 +74,7 @@ export function Immobilier() {
                   <Td align="right"><Amount value={p.value} compact /></Td>
                   <Td align="right">{formatPct(p.share)}</Td>
                   <Td align="right"><Amount value={propertyValue(p)} compact /></Td>
-                  <Td><Badge tone={(p.inAllocation ?? immobilierIn) ? "accent" : "neutral"}>{(p.inAllocation ?? immobilierIn) ? "Dedans" : "Hors"}</Badge></Td>
+                  <Td><Badge tone={(p.inAllocation ?? immobilierIn) ? "accent" : "neutral"}>{(p.inAllocation ?? immobilierIn) ? "Inclus" : "Hors"}</Badge></Td>
                   <Td className="w-20"><RowActions onEdit={() => setEditing(p)} onDelete={() => confirm(`Supprimer « ${p.name} » ?`) && del.mutate({ id: p.id })} /></Td>
                 </Tr>
               ))}
@@ -102,7 +102,7 @@ export function Immobilier() {
                     <Td className="text-fg-muted">{account.name}</Td>
                     <Td align="right"><Amount value={p.value} compact /></Td>
                     <Td align="right"><Amount value={p.gain} signed compact /></Td>
-                    <Td><Badge tone={p.inAllocation ? "accent" : "neutral"}>{p.inAllocation ? "Dedans" : "Hors"}</Badge></Td>
+                    <Td><Badge tone={p.inAllocation ? "accent" : "neutral"}>{p.inAllocation ? "Inclus" : "Hors"}</Badge></Td>
                   </Tr>
                 ))}
               </tbody>

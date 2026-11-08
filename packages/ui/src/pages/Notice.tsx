@@ -51,9 +51,9 @@ export function Notice() {
               ["Paramètres › Plan", "Usage : préparer sa retraite (projection, baisse des actions avec l'âge) ou gérer son patrimoine (allocation fixe, sans projection)", "Préparer ma retraite"],
               ["Paramètres › Plan", "Modules : les pages à garder dans le menu", "Crypto masquée"],
               ["Paramètres › Plan", "Année de naissance et, pour la retraite : âge de départ, âge de sécurisation (début de la baisse des actions), âge horizon (jusqu'où l'argent doit durer)", "1990 · 64 · 57 · 90"],
-              ["Paramètres › Plan", "Premier mois et jour des versements, hypothèses de rendement et d'inflation", "janvier 2027 · le 5 · 2 % · 3 % · 3,5 % · 6 % · 2 %"],
-              ["Paramètres › Plan", "Ma répartition cible : la part visée de chaque classe, et la part actions au départ pour une retraite", "actions 30 % · obligations 50 %"],
-              ["Paramètres › Plan", "Plancher et plafond des livrets, seuil d'alerte, tranche d'imposition", "7 500 € · 15 000 € · 5 % · 11 %"],
+              ["Paramètres › Plan", "Premier mois et jour des versements, inflation", "janvier 2027 · le 5 · 2 %"],
+              ["Paramètres › Plan", "Plancher et plafond des livrets, tranche d'imposition", "7 500 € · 15 000 € · 11 %"],
+              ["Paramètres › Répartition", "Ma répartition cible : la part visée et le rendement attendu de chaque classe, la part actions au départ pour une retraite, le seuil d'alerte de rééquilibrage", "actions 30 % · obligations 50 % · alerte à 5 %"],
               ["Paramètres › Établissements", "Votre banque, votre courtier, votre assurance-vie : comptes proposés et grille de frais (paliers de courtage, droits de garde, frais sur versements et de gestion)", "jusqu'à 500 € : 1,99 € · au-delà : 0,5 %"],
               ["Paramètres › Comptes", "Chaque compte : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale ou plateforme crypto. Son établissement (qui fixe ses frais), sa date d'ouverture (règles des 5 et 8 ans), taux et plafond des livrets, clause bénéficiaire, dans ou hors allocation", "PEA ouvert le 15/03/2021"],
               ["Paramètres › Actifs", "Les ETF, actions, obligations, fonds, SCPI et cryptos détenus : recherche par nom ou ISIN, part cible de chaque ETF (total 100 %), classe d'actifs, dans ou hors allocation", "ETF monde · FR00… · 100 %"],
@@ -123,10 +123,10 @@ export function Notice() {
 
       <Section n={6} title="Allocation : régler sa répartition">
         <ul className="list-disc space-y-1.5 pl-5">
-          <li><b className="text-fg">Ma répartition cible</b> (Paramètres › Plan) : une ligne par classe que vous détenez, avec sa cible et son rendement attendu. Le total doit faire 100 %. Une classe sans rendement renseigné n'entre pas dans la projection (l'immobilier physique n'y entre jamais).</li>
+          <li><b className="text-fg">Ma répartition cible</b> (Paramètres › Répartition) : une ligne par classe que vous détenez, avec sa cible et son rendement attendu. Le total doit faire 100 %. Une classe sans rendement renseigné n'entre pas dans la projection (l'immobilier physique n'y entre jamais).</li>
           <li><b className="text-fg">Dans ou hors allocation</b> : à régler classe par classe. Une exception reste possible sur chaque compte, titre, bien ou projet (par exemple inclure seulement le Livret A). Hors allocation, un élément reste compté dans le patrimoine.</li>
           <li><b className="text-fg">Vos propres classes</b> : « Ajouter une classe » dans le même tableau, par exemple « Métaux précieux », puis choisissez la classe de chaque titre dans Paramètres › Actifs.</li>
-          <li><b className="text-fg">Allocations personnalisées</b> (Paramètres › Plan) : une part des versements vers un compte ou un type de compte, éventuellement jusqu'à une limite. Une fois la limite atteinte, sa part va à la ligne choisie, sinon aux autres au prorata.</li>
+          <li><b className="text-fg">Allocations personnalisées</b> (Paramètres › Répartition) : une part des versements vers un compte ou un type de compte, éventuellement jusqu'à une limite. Une fois la limite atteinte, sa part va à la ligne choisie, sinon aux autres au prorata.</li>
         </ul>
       </Section>
 
