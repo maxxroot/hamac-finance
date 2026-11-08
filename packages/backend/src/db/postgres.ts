@@ -15,10 +15,13 @@ export function postgresProvider(connectionString: string): PgProvider {
       client.on("error", () => onLost?.());
       client.on("end", () => onLost?.());
       await client.connect();
+      // Une connexion n'exécute qu'une requête à la fois : les appels simultanés attendent leur tour.
+      let last: Promise<unknown> = Promise.resolve();
       return {
-        async query<T>(text: string, params: readonly unknown[] = [], arrays = false) {
-          const res = await client.query({ text, values: [...params], ...(arrays ? { rowMode: "array" as const } : {}) });
-          return res.rows as T[];
+        query<T>(text: string, params: readonly unknown[] = [], arrays = false) {
+          const run = last.then(() => client.query({ text, values: [...params], ...(arrays ? { rowMode: "array" as const } : {}) })).then((res) => res.rows as T[]);
+          last = run.catch(() => undefined);
+          return run;
         },
         end: () => client.end(),
       };
