@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loanPayment, loanState, propertyValue, type Loan } from "./realestate";
 
-const loan: Loan = { id: "l", name: "Prêt", propertyId: null, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insurance: 30, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
+const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insurance: 30, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
 
 describe("crédits", () => {
   it("échéance constante, taux zéro compris", () => {

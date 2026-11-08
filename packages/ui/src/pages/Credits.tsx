@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { formatPct, type Loan } from "@hamac/core";
+import { LOAN_KIND_LABELS, formatPct, type Loan } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
 import { Stat, StatGrid } from "@/components/Stat";
@@ -66,7 +66,10 @@ export function Credits() {
               <Tr key={l.loan.id} className="group">
                 <Td className="pl-5 font-medium">
                   {l.loan.name}
-                  {l.loan.propertyId && <div className="text-xs font-normal text-fg-faint">{propertyName.get(l.loan.propertyId)}</div>}
+                  <div className="text-xs font-normal text-fg-faint">
+                    {LOAN_KIND_LABELS[l.loan.kind]}
+                    {l.loan.propertyId ? ` · ${propertyName.get(l.loan.propertyId)}` : ""}
+                  </div>
                 </Td>
                 <Td align="right">{formatPct(l.loan.rate)}</Td>
                 <Td align="right"><Amount value={l.monthly} /></Td>

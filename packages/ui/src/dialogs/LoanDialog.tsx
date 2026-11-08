@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loanState, type Loan, type Property } from "@hamac/core";
+import { LOAN_KIND_LABELS, LOAN_KINDS, loanHasProperty, loanState, type Loan, type LoanKind, type Property } from "@hamac/core";
 import type { LoanInput } from "@hamac/api";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Amount } from "@/components/Amount";
@@ -9,7 +9,7 @@ import { useMutate } from "@/lib/workspace";
 
 type LoanDraft = Required<Omit<LoanInput, "id">> & { id?: string };
 
-const emptyLoan = (): LoanDraft => ({ name: "", propertyId: null, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insurance: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false });
+const emptyLoan = (): LoanDraft => ({ kind: "immobilier", name: "", propertyId: null, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insurance: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false });
 
 export function LoanDialog({ open, loan, properties, onClose }: { open: boolean; loan: Loan | null; properties: readonly Property[]; onClose: () => void }) {
   const [d, setD] = useState<LoanDraft>(emptyLoan());
@@ -38,20 +38,33 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
       }
     >
       <div className="space-y-4">
-        <FormGrid>
-          <Field label="Nom">{(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder="ex. Prêt résidence principale" autoFocus />}</Field>
-          <Field label="Bien financé (facultatif)">
+        <FormGrid cols={loanHasProperty(d.kind) ? 3 : 2}>
+          <Field label="Type">
             {(id) => (
-              <Select id={id} value={d.propertyId ?? ""} onChange={(e) => set("propertyId", e.target.value || null)}>
-                <option value="">Aucun</option>
-                {properties.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+              <Select id={id} value={d.kind} onChange={(e) => set("kind", e.target.value as LoanKind)}>
+                {LOAN_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {LOAN_KIND_LABELS[k]}
                   </option>
                 ))}
               </Select>
             )}
           </Field>
+          <Field label="Nom">{(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={LOAN_KIND_LABELS[d.kind]} autoFocus />}</Field>
+          {loanHasProperty(d.kind) && (
+            <Field label="Bien concerné (facultatif)">
+              {(id) => (
+                <Select id={id} value={d.propertyId ?? ""} onChange={(e) => set("propertyId", e.target.value || null)}>
+                  <option value="">Aucun</option>
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          )}
         </FormGrid>
         <FormGrid cols={3}>
           <Field label="Montant emprunté">{(id) => <MoneyInput id={id} value={d.principal} onChange={(v) => set("principal", v ?? 0)} />}</Field>

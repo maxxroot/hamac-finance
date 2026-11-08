@@ -185,6 +185,15 @@ describe("sauvegarde, import et démarches", () => {
     expect(res.errors.map((e) => e.index)).toEqual([1]);
   });
 
+  it("crédits : immobilier par défaut, seul un crédit immobilier ou travaux se rattache à un bien", async () => {
+    const b = memory();
+    const bien = await call<{ id: string }>(b, "properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
+    const base = { name: "Prêt", principal: 10_000, rate: 0.04, termMonths: 24, firstPayment: "2026-01-05", propertyId: bien.id };
+    expect(await call(b, "loans.upsert", base)).toMatchObject({ kind: "immobilier", propertyId: bien.id });
+    expect(await call(b, "loans.upsert", { ...base, kind: "travaux" })).toMatchObject({ kind: "travaux", propertyId: bien.id });
+    expect(await call(b, "loans.upsert", { ...base, kind: "consommation" })).toMatchObject({ kind: "consommation", propertyId: null });
+  });
+
   it("liste type des démarches, une seule fois", async () => {
     const b = memory();
     await call(b, "checklist.seedDefaults");

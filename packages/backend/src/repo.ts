@@ -154,6 +154,7 @@ export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
 
 export const mapLoan = (r: typeof t.loans.$inferSelect): Loan => ({
   id: r.id,
+  kind: r.kind as Loan["kind"],
   name: r.name,
   propertyId: r.propertyId,
   principal: fromCents(r.principalCents),

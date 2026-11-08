@@ -1,7 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { DEFAULT_CHECKLIST, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { DEFAULT_CHECKLIST, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -404,8 +404,9 @@ export const handlers: Handlers = {
   async "loans.upsert"(input, ctx) {
     const id = input.id ?? newId();
     const row = {
+      kind: input.kind,
       name: input.name,
-      propertyId: input.propertyId,
+      propertyId: loanHasProperty(input.kind) ? input.propertyId : null,
       principalCents: toCents(input.principal),
       rate: input.rate,
       termMonths: input.termMonths,

@@ -30,8 +30,21 @@ export interface Property {
   archived: boolean;
 }
 
+export const LOAN_KINDS = ["immobilier", "travaux", "consommation", "auto", "autre"] as const;
+export type LoanKind = (typeof LOAN_KINDS)[number];
+export const LOAN_KIND_LABELS: Record<LoanKind, string> = {
+  immobilier: "Crédit immobilier",
+  travaux: "Crédit travaux",
+  consommation: "Crédit à la consommation",
+  auto: "Crédit auto",
+  autre: "Autre crédit",
+};
+/** Types de crédit qui peuvent être rattachés à un bien. */
+export const loanHasProperty = (kind: LoanKind) => kind === "immobilier" || kind === "travaux";
+
 export interface Loan {
   id: string;
+  kind: LoanKind;
   name: string;
   propertyId: string | null;
   principal: number;

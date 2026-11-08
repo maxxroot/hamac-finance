@@ -213,6 +213,7 @@ export const properties = sqliteTable("properties", {
 
 export const loans = sqliteTable("loans", {
   id: text("id").primaryKey(),
+  kind: text("kind").notNull().default("immobilier"),
   name: text("name").notNull(),
   propertyId: text("property_id").references(() => properties.id, { onDelete: "set null" }),
   principalCents: integer("principal_cents").notNull(),

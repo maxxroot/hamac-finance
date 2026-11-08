@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, INSTITUTION_KINDS, LIVRET_TYPES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -135,6 +135,7 @@ export type PropertyInput = z.input<typeof PropertyInput>;
 export const LoanInput = z
   .object({
     id: id.optional(),
+    kind: z.enum(LOAN_KINDS).default("immobilier"),
     name: text(120).min(1, "Nom requis"),
     propertyId: id.nullable().default(null),
     principal: money.positive("Montant emprunté requis"),

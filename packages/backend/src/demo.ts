@@ -68,7 +68,8 @@ export async function seedDemo(backend: Backend): Promise<void> {
   }
 
   const appartement = await call("properties.upsert", { kind: "residence_principale", name: "Appartement (fictif)", value: 180_000, valueDate: `${y}-01-15`, purchasePrice: 160_000, purchaseDate: `${y - 3}-02-01` });
-  await call("loans.upsert", { name: "Prêt immobilier (fictif)", propertyId: appartement.id, principal: 140_000, rate: 0.025, termMonths: 240, firstPayment: `${y - 3}-03-05`, insurance: 25 });
+  await call("loans.upsert", { kind: "consommation", name: "Crédit voiture d'occasion (fictif)", principal: 9_000, rate: 0.049, termMonths: 48, firstPayment: `${y - 1}-04-10` });
+  await call("loans.upsert", { kind: "immobilier", name: "Prêt immobilier (fictif)", propertyId: appartement.id, principal: 140_000, rate: 0.025, termMonths: 240, firstPayment: `${y - 3}-03-05`, insurance: 25 });
 
   const sp = await call("assets.upsert", { kind: "etf", name: "ETF PEA S&P 500", isin: "FR0011871128", priceSource: "auto", symbol: "PSP5.PA", targetWeight: 0.6, ter: 0.0015 });
   const em = await call("assets.upsert", { kind: "etf", name: "ETF PEA MSCI Emerging Markets", isin: "FR0013412020", priceSource: "auto", symbol: "PAEEM.PA", targetWeight: 0.15, ter: 0.002 });
