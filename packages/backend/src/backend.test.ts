@@ -139,7 +139,7 @@ describe("jeu de démonstration", () => {
   });
 });
 
-describe("sauvegarde, import et démarches", () => {
+describe("sauvegarde et import", () => {
   async function call<T = unknown>(b: Backend, name: string, input?: unknown): Promise<T> {
     const res = await b.dispatch(name, input);
     if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`);
@@ -192,16 +192,6 @@ describe("sauvegarde, import et démarches", () => {
     expect(await call(b, "loans.upsert", base)).toMatchObject({ kind: "immobilier", propertyId: bien.id });
     expect(await call(b, "loans.upsert", { ...base, kind: "travaux" })).toMatchObject({ kind: "travaux", propertyId: bien.id });
     expect(await call(b, "loans.upsert", { ...base, kind: "consommation" })).toMatchObject({ kind: "consommation", propertyId: null });
-  });
-
-  it("liste type des démarches, une seule fois", async () => {
-    const b = memory();
-    await call(b, "checklist.seedDefaults");
-    const ws = await call<{ checklist: Array<{ id: string; label: string; done: boolean }> }>(b, "workspace.load");
-    expect(ws.checklist.length).toBeGreaterThan(5);
-    const item = await call<{ done: boolean; doneAt: string | null }>(b, "checklist.upsert", { ...ws.checklist[0], done: true });
-    expect(item.doneAt).not.toBeNull();
-    expect((await b.dispatch("checklist.seedDefaults", undefined)).ok).toBe(false);
   });
 });
 

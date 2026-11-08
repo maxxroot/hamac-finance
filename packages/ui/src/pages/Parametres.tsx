@@ -642,7 +642,6 @@ const TABLE_LABELS: Record<string, string> = {
   transactions: "opérations",
   contribution_plans: "versements programmés",
   prices: "cours",
-  checklist_items: "démarches",
 };
 
 function BackupCard() {

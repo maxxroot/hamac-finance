@@ -301,12 +301,3 @@ export interface PlannedExpense {
   label: string;
   accountId: string | null;
 }
-
-export interface ChecklistItem {
-  id: string;
-  label: string;
-  note: string;
-  done: boolean;
-  doneAt: string | null;
-  sortOrder: number;
-}

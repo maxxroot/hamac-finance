@@ -228,17 +228,6 @@ export const loans = sqliteTable("loans", {
   ...timestamps,
 });
 
-/** Liste des démarches à faire (cases à cocher). */
-export const checklistItems = sqliteTable("checklist_items", {
-  id: text("id").primaryKey(),
-  label: text("label").notNull(),
-  note: text("note").notNull().default(""),
-  done: integer("done", { mode: "boolean" }).notNull().default(false),
-  doneAt: text("done_at"),
-  sortOrder: integer("sort_order").notNull().default(0),
-  ...timestamps,
-});
-
 /** Historique des taux d'un compte (livrets) : taux en vigueur à partir d'une date. */
 export const accountRates = sqliteTable(
   "account_rates",

@@ -11,7 +11,6 @@ import {
   History,
   House,
   Landmark,
-  ListChecks,
   NotebookPen,
   PiggyBank,
   Receipt,
@@ -92,7 +91,6 @@ export const NAV: NavGroup[] = [
     label: "Aide",
     items: [
       { path: "/notice", label: "Notice", icon: BookOpen, sheetTab: "Notice", step: 5, description: "Mode d'emploi de Hamac." },
-      { path: "/regles", module: "regles", label: "Règles et démarches", icon: ListChecks, sheetTab: "Règles et démarches", step: 5, description: "Règles du plan et liste des démarches à faire." },
     ],
   },
 ];

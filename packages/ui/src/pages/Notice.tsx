@@ -24,14 +24,17 @@ const L = ({ to, children }: { to: string; children: ReactNode }) => (
 export function Notice() {
   return (
     <div className="max-w-5xl">
-      <PageHeader title="Notice" description="Comment utiliser Hamac. Une vingtaine de saisies par an suffisent." />
+      <PageHeader title="Notice" description="Comment utiliser Hamac." />
 
       <Section n={1} title="Le principe">
         <p>
           On note dans le <L to="/journal">Journal</L> ce qui se passe : argent qui arrive, achats, intérêts, retraits. Tout le reste se calcule : valeurs, plus-values, rendement, impôts, projection, alertes. Les
           versements mensuels automatiques se programment une fois dans <L to="/versements">Versements</L> ; chaque mois écoulé est compté comme versé, sauf s'il est déclaré manqué.
         </p>
-        <p>Vos données restent sur cet ordinateur, dans un fichier sauvegardé automatiquement chaque jour (Paramètres › Application).</p>
+        <p>Vos données restent sur cet ordinateur (ou sur votre serveur, en version web), dans un fichier sauvegardé automatiquement chaque jour (Paramètres › Application).</p>
+        <p>
+          Hamac s'adapte à votre usage. Dans <L to="/parametres">Paramètres › Plan</L>, choisissez de préparer votre retraite ou seulement de gérer votre patrimoine (sans projection, avec une allocation fixe), et masquez les pages dont vous n'avez pas besoin avec les modules : aucun calcul ne change.
+        </p>
       </Section>
 
       <Section n={2} title="Démarrage : ce qu'on règle une seule fois">
@@ -46,15 +49,17 @@ export function Notice() {
           <tbody>
             {[
               ["Paramètres › Plan", "Usage : préparer sa retraite (projection, baisse des actions avec l'âge) ou gérer son patrimoine (allocation fixe, sans projection)", "Préparer ma retraite"],
-              ["Paramètres › Plan", "Année de naissance, âge de départ, âge de sécurisation (début de la baisse des actions), âge horizon (jusqu'où l'argent doit durer)", "1990 · 64 · 57 · 90"],
-              ["Paramètres › Plan", "Premier mois des versements, hypothèses de rendement et d'inflation", "janvier 2027 · 2 % · 3 % · 3,5 % · 6 % · 2 %"],
+              ["Paramètres › Plan", "Modules : les pages à garder dans le menu", "Crypto masquée"],
+              ["Paramètres › Plan", "Année de naissance et, pour la retraite : âge de départ, âge de sécurisation (début de la baisse des actions), âge horizon (jusqu'où l'argent doit durer)", "1990 · 64 · 57 · 90"],
+              ["Paramètres › Plan", "Premier mois et jour des versements, hypothèses de rendement et d'inflation", "janvier 2027 · le 5 · 2 % · 3 % · 3,5 % · 6 % · 2 %"],
               ["Paramètres › Plan", "Allocation cible : part actions avant la sécurisation et au départ, part obligations (le fonds euros prend le reste)", "30 % · 15 % · 50 %"],
               ["Paramètres › Plan", "Plancher et plafond des livrets, seuil d'alerte, tranche d'imposition", "7 500 € · 15 000 € · 5 % · 11 %"],
               ["Établissements", "Votre banque, votre courtier, votre assurance-vie : comptes proposés et grille de frais (paliers de courtage, droits de garde, frais sur versements et de gestion)", "jusqu'à 500 € : 1,99 € · au-delà : 0,5 %"],
-              ["Paramètres › Comptes", "Chaque compte : son établissement (qui fixe ses frais), date d'ouverture (règles des 5 et 8 ans), taux et plafond des livrets, clause bénéficiaire", "PEA ouvert le 15/03/2021"],
-              ["Paramètres › Actifs", "Les ETF, obligations et cryptos détenus : recherche par nom ou ISIN, part cible de chaque ETF (total 100 %), classe personnalisée, dans ou hors allocation", "ETF monde · FR00… · 100 %"],
+              ["Paramètres › Comptes", "Chaque compte : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale ou plateforme crypto. Son établissement (qui fixe ses frais), sa date d'ouverture (règles des 5 et 8 ans), taux et plafond des livrets, clause bénéficiaire, dans ou hors allocation", "PEA ouvert le 15/03/2021"],
+              ["Paramètres › Actifs", "Les ETF, actions, obligations, fonds, SCPI et cryptos détenus : recherche par nom ou ISIN, part cible de chaque ETF (total 100 %), classe d'actifs, dans ou hors allocation", "ETF monde · FR00… · 100 %"],
               ["Journal", "Un « Apport initial » par compte avec l'argent déjà là au départ", "LEP · Apport initial · 5 000 €"],
-              ["Versements", "Le montant de chaque virement automatique, à partir de quel mois", "PEA · dès janvier 2027 · 150 €/mois"],
+              ["Versements", "Le montant de chaque virement automatique, à partir de quel mois, ou votre capacité d'épargne en gestion suggérée", "PEA · dès janvier 2027 · 150 €/mois"],
+              ["Immobilier, Crédits", "Vos biens et vos crédits en cours, pour obtenir le patrimoine net (facultatif)", "Appartement · 180 000 €"],
             ].map(([a, b, c]) => (
               <Tr key={b}>
                 <Td className="whitespace-nowrap text-fg">{a}</Td>
@@ -97,12 +102,46 @@ export function Notice() {
             ))}
           </tbody>
         </Table>
+      </Section>
+
+      <Section n={4} title="Importer un relevé">
         <p>
-          Un relevé de banque ou de courtier au format CSV, OFX ou QIF peut être importé depuis le Journal (bouton « Importer ») : on indique à quoi correspond chaque colonne et on vérifie l'aperçu avant l'import.
+          Depuis le <L to="/journal">Journal</L>, le bouton « Importer » accepte les relevés de banque ou de courtier aux formats CSV, OFX et QIF. Choisissez le compte concerné, vérifiez l'aperçu, puis importez les lignes cochées. En CSV, indiquez à quoi correspond chaque colonne : votre choix est retenu pour les prochains fichiers de même format.
+        </p>
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li><b className="text-fg">Déjà au journal :</b> une opération identique (date, type, montant, titre) est décochée, pour ne pas la compter deux fois.</li>
+          <li><b className="text-fg">Déjà programmé :</b> un versement égal au montant programmé ce mois-là est décoché, car Hamac le compte déjà. Si le montant diffère, il n'est pas repéré : à vérifier.</li>
+          <li><b className="text-fg">Titres non reconnus :</b> associez-les à un titre existant ou créez-les depuis l'aperçu. Les obligations s'ajoutent dans Paramètres › Actifs.</li>
+        </ul>
+      </Section>
+
+      <Section n={5} title="Versements : gestion libre ou suggérée">
+        <p>
+          Dans <L to="/versements">Versements</L>, la <b className="text-fg">gestion libre</b> vous laisse fixer le montant de chaque compte. La <b className="text-fg">gestion suggérée</b> part de votre capacité d'épargne mensuelle et propose un montant par compte, dans cet ordre : vos allocations personnalisées, puis le matelas de précaution s'il est sous le plancher, puis l'allocation de base vers les classes d'actifs en retard sur leur cible. Un bouton applique ces montants à partir du mois choisi ; les mois précédents ne changent pas.
         </p>
       </Section>
 
-      <Section n={4} title="Calendrier des saisies">
+      <Section n={6} title="Allocation : régler sa répartition">
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li><b className="text-fg">Allocation de base</b> (Paramètres › Plan) : part d'actions et d'obligations, le fonds euros prend le reste. On rééquilibre en orientant les versements, sans vendre.</li>
+          <li>
+            <b className="text-fg">Classes personnalisées</b> (Paramètres › Actifs) : par exemple « Métaux précieux » à 5 %, avec plusieurs titres rattachés. « Prend sa part sur » indique la classe de base dont cette cible est retirée (actions à 30 % deviennent 25 %) et dont la projection reprend le rendement.
+          </li>
+          <li><b className="text-fg">Allocations personnalisées</b> (Paramètres › Plan) : une part du patrimoine et/ou des versements pour un compte ou un type de compte, éventuellement jusqu'à une limite. Une fois la limite atteinte, sa part va à la ligne choisie, sinon aux autres au prorata.</li>
+          <li><b className="text-fg">Dans ou hors allocation</b> : à régler sur chaque compte, titre ou bien. Par défaut, livrets, crypto, SCPI et immobilier sont hors allocation. Hors allocation, un élément reste compté dans le patrimoine.</li>
+        </ul>
+      </Section>
+
+      <Section n={7} title="Les cours">
+        <p>
+          Hamac actualise les cours tout seul. Pour chaque titre, il essaie les sources dans l'ordre choisi (Paramètres › Cours) jusqu'à ce que l'une réponde : justETF, Euronext, Twelve Data, puis Yahoo en dernier recours ; CoinGecko pour la crypto. Un cours qui s'écarte de plus de 25 % de celui d'une autre source est écarté (ligne en dollars, par exemple). L'onglet Cours montre quelle source a répondu pour chaque titre.
+        </p>
+        <p>
+          La clé Twelve Data est facultative : son offre gratuite ne couvre que les titres américains. Depuis sa fiche, un titre peut imposer sa source ou une adresse personnalisée. Le prix des SCPI se saisit à la main, et un cours saisi à la main n'est jamais écrasé le même jour.
+        </p>
+      </Section>
+
+      <Section n={8} title="Calendrier des saisies">
         <Table>
           <thead>
             <tr>
@@ -120,7 +159,8 @@ export function Notice() {
               ["Février et août", "Mettre à jour le taux des livrets s'il a changé", "Paramètres › Comptes"],
               ["À chaque coupon", "Noter le coupon reçu", "Journal"],
               ["Quand ça arrive", "Changement de versement mensuel, mois manqué, retrait, versement exceptionnel", "Versements, Journal"],
-              ["Quand c'est prévu", "Grosse dépense future (voiture, travaux)", "Projection"],
+              ["Quand c'est prévu", "Grosse dépense future (voiture, travaux), si vous préparez votre retraite", "Projection"],
+              ["De temps en temps", "Actualiser l'estimation de vos biens et le capital restant dû d'après un relevé", "Immobilier, Crédits"],
               ["Si besoin", "Cours d'un titre non récupéré automatiquement", "Actions & ETF (cliquer sur le cours)"],
             ].map(([a, b, c]) => (
               <Tr key={a + b}>
@@ -133,23 +173,23 @@ export function Notice() {
         </Table>
       </Section>
 
-      <Section n={5} title="Acheter une obligation, pas à pas">
+      <Section n={9} title="Acheter une obligation, pas à pas">
         <ol className="list-decimal space-y-1.5 pl-5">
           <li>Regarder les espèces disponibles : alerte du Tableau de bord ou page <L to="/obligations">Obligations</L>.</li>
-          <li>Acheter chez le courtier une obligation dont l'échéance tombe avant l'âge de départ (OAT ou obligation d'entreprise).</li>
+          <li>Acheter chez le courtier une obligation (OAT ou obligation d'entreprise), dont l'échéance tombe avant l'âge de départ si vous préparez votre retraite.</li>
           <li>
             Ajouter le titre dans Paramètres › Actifs : la recherche par ISIN pré-remplit le coupon et l'échéance.
           </li>
           <li>Saisir l'achat dans le Journal : nominal, prix en % du nominal (ex. 96,40) et frais. Le montant, le rendement à l'échéance et la valeur se calculent seuls.</li>
           <li>Chaque année, noter le coupon reçu. À l'échéance, le nominal revient automatiquement dans les espèces du compte-titres.</li>
-          <li>Avant l'âge de sécurisation, racheter une ligne plus longue ; après, transférer le capital vers le fonds euros.</li>
+          <li>Pour une retraite : avant l'âge de sécurisation, racheter une ligne plus longue ; après, transférer le capital vers le fonds euros. Sinon, racheter ou placer le capital là où l'allocation est en retard.</li>
         </ol>
         <p>
           <b className="text-fg">Le coupon n'est pas le rendement.</b> Une obligation à 3,5 % achetée à 96 % rapporte plus de 3,5 % par an, car l'émetteur rembourse 100 % à l'échéance.
         </p>
       </Section>
 
-      <Section n={6} title="Crypto">
+      <Section n={10} title="Crypto">
         <p>
           La crypto compte dans le patrimoine, l'historique et la performance, mais reste par défaut hors de l'allocation cible, et toujours hors de la projection. Les euros envoyés sur la plateforme sont un « Versement » sur le compte crypto ;
           un achat est un « Achat » du titre (Bitcoin…) avec la quantité reçue ; une vente contre des euros est une « Vente ».
@@ -160,14 +200,45 @@ export function Notice() {
         </p>
       </Section>
 
-      <Section n={7} title="Petit lexique">
+      <Section n={11} title="Autres enveloppes">
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li><b className="text-fg">PEA-PME :</b> un seul par personne, mêmes règles fiscales et même grille de frais que le PEA.</li>
+          <li><b className="text-fg">PER :</b> l'impôt affiché au retrait suppose une sortie en capital et des versements déduits à l'entrée (capital à votre tranche d'imposition, gains au prélèvement forfaitaire).</li>
+          <li><b className="text-fg">Épargne salariale (PEE, PERCO) :</b> prélèvements sociaux seulement sur les gains.</li>
+          <li>Dans la projection, les versements sur un PER ou une épargne salariale suivent le rendement du fonds euros.</li>
+        </ul>
+      </Section>
+
+      <Section n={12} title="Immobilier et SCPI">
+        <p>
+          Dans <L to="/immobilier">Immobilier</L>, chaque bien a une valeur estimée et une part détenue (50 % pour un bien à deux). Il s'ajoute au patrimoine net et reste hors allocation cible, sauf si vous cochez le contraire.
+        </p>
+        <p>
+          Une SCPI se crée comme un actif (type SCPI), puis s'achète dans le Journal sur un compte-titres, une assurance-vie ou un PER ; les loyers se notent en « Dividende ». Elle compte dans le patrimoine financier, reste hors allocation par défaut et n'entre pas dans la projection. L'impôt sur ses revenus n'est pas calculé.
+        </p>
+      </Section>
+
+      <Section n={13} title="Crédits">
+        <p>
+          Dans <L to="/credits">Crédits</L>, indiquez le type (immobilier, travaux, consommation, auto, autre), le montant emprunté, le taux, la durée, la première échéance et l'assurance. Hamac calcule l'échéance, le capital restant dû et la date de fin. Seuls les crédits immobiliers et travaux peuvent être rattachés à un bien.
+        </p>
+        <p>
+          Si la banque indique d'autres chiffres, saisissez l'échéance ou le capital restant dû d'un relevé, avec sa date : le calcul repart de ce montant. Le patrimoine net correspond au patrimoine financier, plus les biens, moins les crédits. Un crédit renouvelable, sans échéancier fixe, se saisit en « autre » et se corrige à la main.
+        </p>
+      </Section>
+
+      <Section n={14} title="Petit lexique">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[180px_1fr]">
           {[
-            ["Enveloppe (compte)", "Le cadre fiscal qui contient les placements : livret, assurance-vie, PEA, compte-titres, plateforme crypto."],
-            ["Classe d'actifs", "Ce que contient une enveloppe : livrets, fonds euros, obligations, actions, crypto. L'allocation cible porte sur fonds euros, obligations et actions."],
+            ["Enveloppe (compte)", "Le cadre fiscal qui contient les placements : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale, plateforme crypto."],
+            ["Classe d'actifs", "Ce que contient une enveloppe : livrets, fonds euros, obligations, actions, immobilier, crypto, ou une classe que vous créez. L'allocation cible porte par défaut sur fonds euros, obligations et actions."],
+            ["Allocation cible", "La répartition visée entre classes d'actifs, à laquelle Hamac compare vos placements."],
             ["Espèces", "Argent arrivé sur un compte mais pas encore investi."],
             ["Versé net", "Tout l'argent mis de sa poche, moins ce qui a été retiré."],
             ["Gain", "Valeur actuelle moins versé net."],
+            ["Patrimoine net", "Patrimoine financier, plus les biens immobiliers (part détenue), moins le capital restant dû des crédits."],
+            ["Capital restant dû", "Ce qu'il reste à rembourser sur un crédit, hors intérêts à venir."],
+            ["SCPI", "Société qui détient de l'immobilier, dont on achète des parts et qui reverse des loyers."],
             ["PRU", "Prix de revient unitaire : prix moyen payé par part, frais compris."],
             ["Rendement annualisé", "Ce que l'argent a rapporté par an, en tenant compte de la date de chaque versement (TRI)."],
             ["Coupon", "Intérêt fixe versé chaque année par une obligation, en % du nominal."],

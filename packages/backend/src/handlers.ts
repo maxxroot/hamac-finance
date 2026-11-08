@@ -1,7 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { DEFAULT_CHECKLIST, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -14,7 +14,6 @@ import {
   mapAccount,
   mapAsset,
   mapBondPlan,
-  mapChecklist,
   mapInstitution,
   mapExpense,
   mapPlan,
@@ -449,29 +448,6 @@ export const handlers: Handlers = {
       .insert(t.prices)
       .values({ assetId, date, price, source: "manuel" })
       .onConflictDoUpdate({ target: [t.prices.assetId, t.prices.date], set: { price, source: "manuel" } });
-    return OK;
-  },
-
-  async "checklist.upsert"(input, ctx) {
-    const id = input.id ?? newId();
-    const existing = input.id ? await ctx.db.select().from(t.checklistItems).where(eq(t.checklistItems.id, id)).get() : undefined;
-    const doneAt = input.done ? (existing?.doneAt ?? nowIso()) : null;
-    const row = { label: input.label, note: input.note, done: input.done, doneAt, sortOrder: input.sortOrder, updatedAt: nowIso() };
-    if (existing) await ctx.db.update(t.checklistItems).set(row).where(eq(t.checklistItems.id, id));
-    else await ctx.db.insert(t.checklistItems).values({ id, ...row });
-    return mapChecklist((await ctx.db.select().from(t.checklistItems).where(eq(t.checklistItems.id, id)).get())!);
-  },
-
-  async "checklist.delete"({ id }, ctx) {
-    await ctx.db.delete(t.checklistItems).where(eq(t.checklistItems.id, id));
-    return OK;
-  },
-
-  async "checklist.seedDefaults"(_input, ctx) {
-    const n = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.checklistItems).get());
-    if (n > 0) throw new RpcError("CONFLICT", "La liste contient déjà des démarches.");
-    let i = 0;
-    for (const item of DEFAULT_CHECKLIST) await ctx.db.insert(t.checklistItems).values({ id: newId(), label: item.label, note: item.note ?? "", sortOrder: i++ });
     return OK;
   },
 

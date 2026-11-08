@@ -2,7 +2,6 @@ import { z } from "zod";
 import { PRICE_PROVIDERS, PlanParams, PlanParamsInput, type PriceProvider } from "@hamac/core";
 import type {
   AccountRate,
-  ChecklistItem,
   Institution,
   Account,
   Asset,
@@ -22,7 +21,6 @@ import {
   AccountRateInput,
   AssetInput,
   BondPlanInput,
-  ChecklistInput,
   InstitutionInput,
   FundRateInput,
   ManualPriceInput,
@@ -68,7 +66,6 @@ export interface Workspace {
   plannedExpenses: PlannedExpense[];
   properties: Property[];
   loans: Loan[];
-  checklist: ChecklistItem[];
   institutions: Institution[];
   accountRates: AccountRate[];
   /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
@@ -171,9 +168,6 @@ export const procedures = {
   "loans.delete": { input: byId, output: ok },
 
   "prices.setManual": { input: ManualPriceInput, output: ok },
-  "checklist.upsert": { input: ChecklistInput, output: entity<ChecklistItem>() },
-  "checklist.delete": { input: byId, output: ok },
-  "checklist.seedDefaults": { input: z.void(), output: ok },
   "institutions.upsert": { input: InstitutionInput, output: entity<Institution>() },
   "institutions.delete": { input: byId, output: ok },
 

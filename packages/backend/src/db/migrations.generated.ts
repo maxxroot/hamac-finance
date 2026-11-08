@@ -47,5 +47,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0011_early_network",
     "sql": "ALTER TABLE `loans` ADD `kind` text DEFAULT 'immobilier' NOT NULL;"
+  },
+  {
+    "tag": "0012_zippy_dark_beast",
+    "sql": "DROP TABLE `checklist_items`;"
   }
 ];

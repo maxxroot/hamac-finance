@@ -1,7 +1,6 @@
 import { desc, sql } from "drizzle-orm";
 import type {
   AccountRate,
-  ChecklistItem,
   Institution,
   InstitutionKind,
   Account,
@@ -168,7 +167,6 @@ export const mapLoan = (r: typeof t.loans.$inferSelect): Loan => ({
   archived: r.archived,
 });
 
-export const mapChecklist = (r: typeof t.checklistItems.$inferSelect): ChecklistItem => ({ id: r.id, label: r.label, note: r.note, done: r.done, doneAt: r.doneAt, sortOrder: r.sortOrder });
 export function mapInstitution(r: typeof t.institutions.$inferSelect): Institution {
   // Offres validées à la lecture : une donnée ancienne ou incomplète reçoit ses valeurs par défaut.
   const parsed = Offers.safeParse(JSON.parse(r.offers));
@@ -190,7 +188,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, checklist, institutions, rates, propertyRows, loanRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name).all(),
     db.select().from(t.assets).orderBy(t.assets.name).all(),
@@ -208,7 +206,6 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
       .where(sql`(${t.prices.assetId}, ${t.prices.date}) IN (SELECT asset_id, MAX(date) FROM prices GROUP BY asset_id, substr(date, 1, 7))`)
       .all(),
     db.select().from(t.settings).where(eq(t.settings.key, PRICE_STATUS_KEY)).get(),
-    db.select().from(t.checklistItems).orderBy(t.checklistItems.sortOrder, t.checklistItems.createdAt).all(),
     db.select().from(t.institutions).orderBy(t.institutions.name).all(),
     db.select().from(t.accountRates).orderBy(t.accountRates.fromDate).all(),
     db.select().from(t.properties).orderBy(t.properties.name).all(),
@@ -229,7 +226,6 @@ export async function loadWorkspace(db: Db): Promise<Workspace> {
     loans: loanRows.map(mapLoan),
     prices: prices.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,
-    checklist: checklist.map(mapChecklist),
     institutions: institutions.map(mapInstitution),
     accountRates: rates.map((r): AccountRate => ({ id: r.id, accountId: r.accountId, fromDate: r.fromDate, rate: r.rate, comment: r.comment })),
   };

@@ -83,7 +83,6 @@ ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend to
   fiscaux, clause bénéficiaire à rédiger…
 - **Établissements** : chaque banque, courtier ou assureur avec ses grilles de frais (courtage par
   paliers, droits de garde, frais sur versements et de gestion), et un comparatif calculé.
-- **Règles du plan** générées depuis vos paramètres et liste de démarches à cocher.
 
 ### Saisir simplement
 

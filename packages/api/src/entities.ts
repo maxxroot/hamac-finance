@@ -151,13 +151,6 @@ export const LoanInput = z
   .refine((l) => (l.manualBalance == null) === (l.manualBalanceDate == null), { path: ["manualBalanceDate"], message: "Indiquez le capital restant dû et sa date." });
 export type LoanInput = z.input<typeof LoanInput>;
 
-export const ChecklistInput = z.object({
-  id: id.optional(),
-  label: text(300).min(1, "Libellé requis"),
-  note: text(300).default(""),
-  done: z.boolean().default(false),
-  sortOrder: z.number().int().default(0),
-});
 export const InstitutionInput = z.object({
   id: id.optional(),
   name: text(80).min(1, "Nom requis"),

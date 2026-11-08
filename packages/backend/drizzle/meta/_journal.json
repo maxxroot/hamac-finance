@@ -85,6 +85,13 @@
       "when": 1794156403171,
       "tag": "0011_early_network",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794156782881,
+      "tag": "0012_zippy_dark_beast",
+      "breakpoints": true
     }
   ]
 }

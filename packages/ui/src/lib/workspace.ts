@@ -24,7 +24,6 @@ function normalizeWorkspace(ws: Partial<Workspace>): Workspace {
     properties: list("properties"),
     loans: list("loans"),
     prices: list("prices"),
-    checklist: list("checklist"),
     institutions: list("institutions"),
     accountRates: list("accountRates"),
     priceStatus: ws.priceStatus ?? null,
