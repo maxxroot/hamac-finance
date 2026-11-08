@@ -1,5 +1,6 @@
 import type { ModuleKey } from "@hamac/core";
 import {
+  Banknote,
   BookOpen,
   Building2,
   Bitcoin,
@@ -67,9 +68,13 @@ export const NAV: NavGroup[] = [
       { path: "/fonds-euros", module: "fondsEuros", label: "Fonds euros", icon: ShieldCheck, sheetTab: "Fonds euros", step: 2, description: "Assurance-vie : valeur, rapprochement et taux servis." },
       { path: "/obligations", module: "obligations", label: "Obligations", icon: Landmark, sheetTab: "OAT", step: 2, description: "Échelle d'OAT et obligations d'entreprise détenues à l'échéance." },
       { path: "/actions", module: "actions", label: "Actions & ETF", icon: ChartLine, sheetTab: "Actions", step: 2, description: "Positions du PEA, PRU, cours et investissement mensuel conseillé." },
-      { path: "/immobilier", module: "immobilier", label: "Immobilier et crédits", icon: House, sheetTab: "Immobilier", step: 5, description: "Biens, SCPI, crédits et patrimoine net." },
+      { path: "/immobilier", module: "immobilier", label: "Immobilier", icon: House, sheetTab: "Immobilier", step: 5, description: "Biens immobiliers et SCPI." },
       { path: "/crypto", module: "crypto", label: "Crypto", icon: Bitcoin, sheetTab: "Crypto", step: 2, description: "Positions crypto et fiscalité des cessions." },
     ],
+  },
+  {
+    label: "Emprunts",
+    items: [{ path: "/credits", module: "credits", label: "Crédits", icon: Banknote, sheetTab: "Crédits", step: 5, description: "Crédits en cours, mensualités et capital restant dû." }],
   },
   {
     label: "Organisation",

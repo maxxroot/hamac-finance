@@ -4,6 +4,7 @@ import { RouteError } from "@/layout/RouteError";
 import { Shell } from "@/layout/Shell";
 import { ALL_ITEMS } from "@/nav";
 import { Actions } from "@/pages/Actions";
+import { Credits } from "@/pages/Credits";
 import { Crypto } from "@/pages/Crypto";
 import { FondsEuros } from "@/pages/FondsEuros";
 import { Historique } from "@/pages/Historique";
@@ -40,6 +41,7 @@ const PAGES: Record<string, ReactNode> = {
   "/actions": <Actions />,
   "/crypto": <Crypto />,
   "/immobilier": <Immobilier />,
+  "/credits": <Credits />,
   "/performance": <Performance />,
   "/impots": <Impots />,
   "/historique": <Historique />,

@@ -8,6 +8,7 @@ import { useToast } from "@/lib/toast";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { MarketSources } from "@/components/MarketSources";
+import { RowActions } from "@/components/RowActions";
 import {
   ACCOUNT_KIND_LABELS,
   ASSET_BUCKET,
@@ -619,19 +620,6 @@ function AssetsTab() {
         </Table>
       </div>
       <AssetDialog open={creating || !!editing} asset={editing} onClose={() => (setCreating(false), setEditing(null))} />
-    </div>
-  );
-}
-
-function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-  return (
-    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
-      <button className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg" onClick={onEdit} aria-label="Modifier">
-        <Pencil size={14} />
-      </button>
-      <button className="rounded p-1.5 text-fg-muted hover:bg-negative/15 hover:text-negative" onClick={onDelete} aria-label="Supprimer" title="Supprimer (ou archiver si utilisé)">
-        <Trash2 size={14} />
-      </button>
     </div>
   );
 }

@@ -10,7 +10,7 @@ const pctSigned = z.number().min(-1).max(1);
 const eur = z.number().min(0);
 
 /** Parties de l'application que l'on peut masquer. */
-export const MODULES = ["performance", "historique", "livrets", "fondsEuros", "obligations", "actions", "crypto", "immobilier", "etablissements", "impots", "regles"] as const;
+export const MODULES = ["performance", "historique", "livrets", "fondsEuros", "obligations", "actions", "crypto", "immobilier", "credits", "etablissements", "impots", "regles"] as const;
 export type ModuleKey = (typeof MODULES)[number];
 export const MODULE_LABELS: Record<ModuleKey, string> = {
   performance: "Performance",
@@ -20,7 +20,8 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   obligations: "Obligations",
   actions: "Actions & ETF",
   crypto: "Crypto",
-  immobilier: "Immobilier et crédits",
+  immobilier: "Immobilier",
+  credits: "Crédits",
   etablissements: "Établissements",
   impots: "Impôts",
   regles: "Règles et démarches",

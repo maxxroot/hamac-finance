@@ -124,7 +124,7 @@ export function TableauDeBord() {
 
       <div className={cn("mb-6 grid grid-cols-2 gap-4", hasRealEstate ? "lg:grid-cols-6" : "lg:grid-cols-5")}>
         {hasRealEstate && (
-          <Stat label="Patrimoine net" sub={<Link to="/immobilier" className="hover:underline">immobilier et crédits compris</Link>}>
+          <Stat label="Patrimoine net" sub="immobilier et crédits compris">
             <Amount value={state.netWorth.net} compact />
           </Stat>
         )}
