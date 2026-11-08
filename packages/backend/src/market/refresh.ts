@@ -41,7 +41,7 @@ export async function refreshPrices(ctx: BackendContext, exclusive: Exclusive = 
   const { assets, market, last } = await exclusive(async () => {
     const assets = (await ctx.db.select().from(t.assets).where(eq(t.assets.archived, false)).all()).map(mapAsset);
     const market = await loadMarketState(ctx);
-    const rows = ctx.raw.prepare("SELECT asset_id AS assetId, date, price, source FROM prices p WHERE date = (SELECT MAX(date) FROM prices WHERE asset_id = p.asset_id)").all() as unknown as Array<LastPrice & { assetId: string }>;
+    const rows = await ctx.raw.all<LastPrice & { assetId: string }>('SELECT asset_id AS "assetId", date, price, source FROM prices p WHERE date = (SELECT MAX(date) FROM prices WHERE asset_id = p.asset_id)');
     return { assets, market, last: new Map(rows.map((r) => [r.assetId, r])) };
   });
   const budget = market.twelveDataKey ? new TwelveDataBudget(market.twelveDataKey, market.usage) : null;
@@ -51,11 +51,9 @@ export async function refreshPrices(ctx: BackendContext, exclusive: Exclusive = 
   const lines: NonNullable<PriceStatus["assets"]> = [];
   let updated = 0;
   const day = today();
-  const upsert = ctx.raw.prepare(
-    `INSERT INTO prices (asset_id, date, price, source) VALUES (?, ?, ?, ?)
-     ON CONFLICT (asset_id, date) DO UPDATE SET price = excluded.price, source = excluded.source WHERE prices.source <> 'manuel'`,
-  );
-  const lastAuto = ctx.raw.prepare("SELECT MAX(date) AS d FROM prices WHERE asset_id = ? AND source <> 'manuel'");
+  const upsert = `INSERT INTO prices (asset_id, date, price, source) VALUES (?, ?, ?, ?)
+     ON CONFLICT (asset_id, date) DO UPDATE SET price = excluded.price, source = excluded.source WHERE prices.source <> 'manuel'`;
+  const lastAuto = "SELECT MAX(date) AS d FROM prices WHERE asset_id = ? AND source <> 'manuel'";
 
   for (const asset of assets) {
     if (asset.priceSource !== "auto") continue;
@@ -68,21 +66,16 @@ export async function refreshPrices(ctx: BackendContext, exclusive: Exclusive = 
     let done = false;
     for (const provider of chain) {
       try {
-        const known = await exclusive(async () => (lastAuto.get(asset.id) as { d: string | null } | undefined)?.d ?? null);
+        const known = await exclusive(async () => (await ctx.raw.get<{ d: string | null }>(lastAuto, [asset.id]))?.d ?? null);
         // On re-télécharge les derniers jours connus (cours de clôture qui a pu changer).
         const since = known ? new Date(Date.parse(known) - 86_400_000 * 3).toISOString().slice(0, 10) : null;
         const quotes = await fetchFrom(ctx.fetcher, provider, asset, since, day, env);
         assertPlausible(asset, provider, quotes, last.get(asset.id));
-        await exclusive(async () => {
-          ctx.raw.exec("BEGIN");
-          try {
-            for (const q of quotes) upsert.run(asset.id, q.date, q.price, provider);
-            ctx.raw.exec("COMMIT");
-          } catch (e) {
-            ctx.raw.exec("ROLLBACK");
-            throw e;
-          }
-        });
+        await exclusive(() =>
+          ctx.raw.transaction(async () => {
+            for (const q of quotes) await ctx.raw.run(upsert, [asset.id, q.date, q.price, provider]);
+          }),
+        );
         if (quotes.length) updated++;
         lines.push({ assetId: asset.id, name: asset.name, provider, lastDate: quotes.at(-1)?.date ?? last.get(asset.id)?.date ?? null, message: null, tried });
         done = true;

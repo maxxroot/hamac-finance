@@ -29,24 +29,24 @@ export interface Backend {
 }
 
 export function createBackend(opts: BackendOptions): Backend {
-  const { raw, db } = openSqlite(opts.databasePath);
+  const { file, raw, db } = openSqlite(opts.databasePath);
   // Avant toute migration : si la copie échoue, on s'arrête plutôt que de modifier la base sans filet.
-  const pending = opts.backupsDir ? pendingMigrations(raw) : [];
+  const pending = opts.backupsDir ? pendingMigrations(file) : [];
   if (opts.backupsDir && pending.length) {
     try {
-      backupBeforeMigration(raw, opts.backupsDir, pending[0]!);
+      backupBeforeMigration(file, opts.backupsDir, pending[0]!);
     } catch (err) {
-      raw.close();
+      file.close();
       throw new Error(`Sauvegarde impossible avant la mise à jour de la base : ${(err as Error).message}`);
     }
   }
-  const schemaVersion = migrate(raw);
+  const schemaVersion = migrate(file);
   const ctx: BackendContext = { db, raw, schemaVersion, ...opts, fetcher: opts.fetcher ?? defaultFetcher };
 
   const backup = () => {
     if (!opts.backupsDir) return;
     try {
-      dailyBackup(raw, opts.backupsDir);
+      dailyBackup(file, opts.backupsDir);
     } catch (err) {
       console.error("[hamac] sauvegarde impossible :", err);
     }
@@ -54,7 +54,11 @@ export function createBackend(opts: BackendOptions): Backend {
   backup();
   const backupTimer = opts.backupsDir ? setInterval(backup, 6 * 3600_000) : null;
   backupTimer?.unref?.();
+  return startBackend(ctx, { autoRefreshPrices: opts.autoRefreshPrices, onClose: () => backupTimer && clearInterval(backupTimer) });
+}
 
+/** Assemble un backend sur une base déjà ouverte et migrée, quel que soit son moteur. */
+export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: boolean; onClose?: () => void }): Backend {
   // Les appels sont traités un par un : la base est mono-utilisateur par fichier,
   // et cela garantit qu'une écriture n'est jamais entrelacée avec une autre.
   let queue: Promise<unknown> = Promise.resolve();
@@ -115,9 +119,9 @@ export function createBackend(opts: BackendOptions): Backend {
     },
     close() {
       closed = true;
-      if (backupTimer) clearInterval(backupTimer);
+      opts.onClose?.();
       if (priceTimer) clearTimeout(priceTimer);
-      raw.close();
+      void ctx.raw.close().catch((err) => console.error("[hamac] fermeture de la base :", err));
     },
   };
 

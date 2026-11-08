@@ -1,4 +1,5 @@
-import type { Db, RawDb } from "./db/sqlite";
+import type { RawDb } from "./db/driver";
+import type { Db } from "./db/sqlite";
 import type { Fetcher } from "./market";
 
 export interface BackendContext {

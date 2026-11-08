@@ -88,15 +88,12 @@ async function marketSettings(ctx: BackendContext): Promise<MarketSettings> {
 
 export const handlers: Handlers = {
   async "system.info"(_input, ctx) {
-    const { sqlite_version } = ctx.raw.prepare("SELECT sqlite_version() AS sqlite_version").get() as {
-      sqlite_version: string;
-    };
     return {
       appVersion: ctx.appVersion,
       mode: ctx.mode,
       databasePath: ctx.displayPath ?? ctx.databasePath,
       schemaVersion: ctx.schemaVersion,
-      sqliteVersion: sqlite_version,
+      sqliteVersion: await ctx.raw.version(),
       backupsDir: ctx.displayPath ? (ctx.backupsDir ? "Sauvegardes quotidiennes sur le serveur" : null) : ctx.backupsDir,
     };
   },
@@ -299,17 +296,12 @@ export const handlers: Handlers = {
   },
 
   async "transactions.createWithAsset"({ asset, transaction }, ctx) {
-    // Une seule transaction SQLite : si l'opération est refusée, le titre n'est pas créé.
-    ctx.raw.exec("BEGIN IMMEDIATE");
-    try {
+    // Une seule transaction : si l'opération est refusée, le titre n'est pas créé.
+    return ctx.raw.transaction(async () => {
       const created = await handlers["assets.upsert"](asset, ctx);
       const tx = await handlers["transactions.upsert"]({ ...transaction, assetId: created.id }, ctx);
-      ctx.raw.exec("COMMIT");
       return { asset: created, transaction: tx };
-    } catch (e) {
-      ctx.raw.exec("ROLLBACK");
-      throw e;
-    }
+    });
   },
 
   async "transactions.delete"({ id }, ctx) {
@@ -422,27 +414,22 @@ export const handlers: Handlers = {
     if (account?.kind !== "crowdlending") throw new RpcError("VALIDATION", "L'import doit viser une plateforme de crowdlending.");
     const now = nowIso();
     // Tout ou rien, et sans doublon même si le même import est envoyé deux fois.
-    ctx.raw.exec("BEGIN IMMEDIATE");
-    try {
-      const addTx = ctx.raw.prepare("INSERT OR IGNORE INTO transactions (id, date, type, account_id, amount_cents, comment, external_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-      const setTx = ctx.raw.prepare("UPDATE transactions SET date = ?, type = ?, amount_cents = ?, comment = ?, external_id = ?, updated_at = ? WHERE id = ? AND account_id = ?");
-      const delTx = ctx.raw.prepare("DELETE FROM transactions WHERE id = ? AND account_id = ? AND external_id IS NOT NULL");
+    await ctx.raw.transaction(async () => {
+      const addTx = "INSERT INTO transactions (id, date, type, account_id, amount_cents, comment, external_id) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING";
+      const setTx = "UPDATE transactions SET date = ?, type = ?, amount_cents = ?, comment = ?, external_id = ?, updated_at = ? WHERE id = ? AND account_id = ?";
+      const delTx = "DELETE FROM transactions WHERE id = ? AND account_id = ? AND external_id IS NOT NULL";
       for (const x of transactions) {
-        if (x.action === "nouveau") addTx.run(newId(), x.date, x.type, accountId, toCents(x.amount), x.comment, x.externalId);
-        else if (x.action === "modifie" && x.id) setTx.run(x.date, x.type, toCents(x.amount), x.comment, x.externalId, now, x.id, accountId);
-        else if (x.action === "retire" && x.id) delTx.run(x.id, accountId);
+        if (x.action === "nouveau") await ctx.raw.run(addTx, [newId(), x.date, x.type, accountId, toCents(x.amount), x.comment, x.externalId]);
+        else if (x.action === "modifie" && x.id) await ctx.raw.run(setTx, [x.date, x.type, toCents(x.amount), x.comment, x.externalId, now, x.id, accountId]);
+        else if (x.action === "retire" && x.id) await ctx.raw.run(delTx, [x.id, accountId]);
       }
-      const addProject = ctx.raw.prepare("INSERT OR IGNORE INTO crowd_projects (id, account_id, name, amount_cents, start_date, repayment, status, status_date, repaid_capital_cents, comment, external_id) VALUES (?, ?, ?, ?, ?, 'in_fine', ?, ?, ?, ?, ?)");
-      const setProject = ctx.raw.prepare("UPDATE crowd_projects SET amount_cents = ?, start_date = ?, status = ?, status_date = ?, repaid_capital_cents = ?, external_id = ?, updated_at = ? WHERE id = ? AND account_id = ?");
+      const addProject = "INSERT INTO crowd_projects (id, account_id, name, amount_cents, start_date, repayment, status, status_date, repaid_capital_cents, comment, external_id) VALUES (?, ?, ?, ?, ?, 'in_fine', ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING";
+      const setProject = "UPDATE crowd_projects SET amount_cents = ?, start_date = ?, status = ?, status_date = ?, repaid_capital_cents = ?, external_id = ?, updated_at = ? WHERE id = ? AND account_id = ?";
       for (const p of projects) {
-        if (p.action === "nouveau") addProject.run(newId(), accountId, p.name, toCents(p.amount), p.startDate, p.status, p.statusDate, toCents(p.repaidCapital), p.comment, p.externalId);
-        else if (p.id) setProject.run(toCents(p.amount), p.startDate, p.status, p.statusDate, toCents(p.repaidCapital), p.externalId, now, p.id, accountId);
+        if (p.action === "nouveau") await ctx.raw.run(addProject, [newId(), accountId, p.name, toCents(p.amount), p.startDate, p.status, p.statusDate, toCents(p.repaidCapital), p.comment, p.externalId]);
+        else if (p.id) await ctx.raw.run(setProject, [toCents(p.amount), p.startDate, p.status, p.statusDate, toCents(p.repaidCapital), p.externalId, now, p.id, accountId]);
       }
-      ctx.raw.exec("COMMIT");
-    } catch (e) {
-      ctx.raw.exec("ROLLBACK");
-      throw e;
-    }
+    });
     return { transactions: transactions.length, projects: projects.length };
   },
 
@@ -555,29 +542,22 @@ export const handlers: Handlers = {
       if (errs.length) errors.push({ index, message: errs.map((e) => e.message).join(" ") });
       return errs.length === 0;
     });
-    // Tout ou rien pour les lignes valides : une transaction SQLite.
-    ctx.raw.exec("BEGIN IMMEDIATE");
-    try {
-      const stmt = ctx.raw.prepare(
-        "INSERT INTO transactions (id, date, type, account_id, asset_id, counter_account_id, amount_cents, quantity, fee_cents, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      );
+    // Tout ou rien pour les lignes valides.
+    await ctx.raw.transaction(async () => {
+      const insert = "INSERT INTO transactions (id, date, type, account_id, asset_id, counter_account_id, amount_cents, quantity, fee_cents, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
       for (const tx of valid) {
-        stmt.run(newId(), tx.date, tx.type, tx.accountId, tx.assetId, tx.counterAccountId, toCents(tx.amount), tx.quantity, tx.fee == null ? null : toCents(tx.fee), tx.comment);
+        await ctx.raw.run(insert, [newId(), tx.date, tx.type, tx.accountId, tx.assetId, tx.counterAccountId, toCents(tx.amount), tx.quantity, tx.fee == null ? null : toCents(tx.fee), tx.comment]);
       }
-      ctx.raw.exec("COMMIT");
-    } catch (e) {
-      ctx.raw.exec("ROLLBACK");
-      throw e;
-    }
+    });
     return { created: valid.length, errors };
   },
 
   async "data.export"(_input, ctx) {
-    return exportDump(ctx);
+    return await exportDump(ctx);
   },
 
   async "data.import"({ dump }, ctx) {
-    return { tables: importDump(ctx, dump) };
+    return { tables: await importDump(ctx, dump) };
   },
 
   async "prices.refresh"(_input, ctx) {
