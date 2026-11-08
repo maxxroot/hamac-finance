@@ -50,6 +50,7 @@ export function mapAccount(r: typeof t.accounts.$inferSelect): Account {
     entryFeeRate: r.entryFeeRate,
     managementFeeRate: r.managementFeeRate,
     monthsToInvest: r.monthsToInvest,
+    inAllocation: r.inAllocation,
     sortOrder: r.sortOrder,
     archived: r.archived,
   };
@@ -67,6 +68,7 @@ export function mapAsset(r: typeof t.assets.$inferSelect): Asset {
     priceUrl: r.priceUrl,
     pricePath: r.pricePath,
     classId: r.classId,
+    inAllocation: r.inAllocation,
     manualPrice: r.manualPrice,
     manualPriceDate: r.manualPriceDate,
     targetWeight: r.targetWeight,

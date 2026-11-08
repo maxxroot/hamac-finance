@@ -64,7 +64,7 @@ export function Synthese() {
 
       <div className="grid gap-5 lg:grid-cols-5">
         <Card className="lg:col-span-3">
-          <CardTitle hint={`Âge ${state.age} ans · alerte au-delà de ${Math.round(pf.data.params.livrets.driftAlert * 100)} % d'écart`}>Allocation de la partie investie (hors livrets et crypto)</CardTitle>
+          <CardTitle hint={`Âge ${state.age} ans · alerte au-delà de ${Math.round(pf.data.params.livrets.driftAlert * 100)} % d'écart`}>Allocation de la partie investie</CardTitle>
           <Table>
             <thead>
               <tr>
@@ -105,7 +105,7 @@ export function Synthese() {
             </tbody>
           </Table>
           <p className="mt-3 text-xs text-fg-faint">
-            Partie investie : <Amount value={state.allocation.invested} compact /> ({INVESTED_BUCKETS.map((b) => BUCKET_LABELS[b].toLowerCase()).join(", ")}). On rééquilibre en orientant les versements, sans vendre.
+            Partie investie : <Amount value={state.allocation.invested} compact /> ({INVESTED_BUCKETS.map((b) => BUCKET_LABELS[b].toLowerCase()).join(", ")} ; livrets et crypto exclus par défaut, modifiable sur chaque compte ou titre). On rééquilibre en orientant les versements, sans vendre.
           </p>
         </Card>
         <Card className="lg:col-span-2">

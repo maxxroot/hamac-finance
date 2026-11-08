@@ -108,7 +108,7 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
   // 3. Allocation de base, vers les classes d'actifs en retard sur leur cible.
   if (rest > 0) {
     const membersOf = (r: PortfolioState["allocation"]["rows"][number]) => {
-      const byKind = accounts.filter((a) => a.account.kind === BUCKET_ACCOUNT[r.bucket]);
+      const byKind = accounts.filter((a) => a.account.kind === BUCKET_ACCOUNT[r.bucket] && a.account.inAllocation !== false);
       if (r.key === r.bucket) return byKind;
       // Classe personnalisée : les comptes qui détiennent déjà ses titres, sinon le compte de sa classe de base.
       const holders = accounts.filter((a) => a.positions.some((p) => p.classId === r.key));

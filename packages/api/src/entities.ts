@@ -24,6 +24,7 @@ export const AccountInput = z.object({
   entryFeeRate: rate.nullable().default(null),
   managementFeeRate: rate.nullable().default(null),
   monthsToInvest: z.number().int().min(1).max(240).nullable().default(null),
+  inAllocation: z.boolean().nullable().default(null),
   sortOrder: z.number().int().default(0),
   archived: z.boolean().default(false),
 });
@@ -46,6 +47,7 @@ export const AssetInput = z.object({
   priceUrl: z.string().trim().url("Adresse invalide").max(500).nullable().default(null),
   pricePath: text(200).nullable().default(null),
   classId: id.nullable().default(null),
+  inAllocation: z.boolean().nullable().default(null),
   manualPrice: money.min(0).nullable().default(null),
   manualPriceDate: isoDate.nullable().default(null),
   targetWeight: z.number().min(0).max(1).nullable().default(null),

@@ -6,7 +6,7 @@ import { defaultParams } from "./params";
 
 const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): Account => ({
   id, kind, livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false,
-  entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, sortOrder: 0, archived: false, ...extra,
+  entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false, ...extra,
 });
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number): Transaction => ({ id: `${date}${type}${accountId}`, date, type, accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" });
 

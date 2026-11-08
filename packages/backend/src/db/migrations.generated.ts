@@ -35,5 +35,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0008_white_titanium_man",
     "sql": "ALTER TABLE `assets` ADD `class_id` text;"
+  },
+  {
+    "tag": "0009_certain_weapon_omega",
+    "sql": "ALTER TABLE `accounts` ADD `in_allocation` integer;--> statement-breakpoint\nALTER TABLE `assets` ADD `in_allocation` integer;"
   }
 ];

@@ -185,7 +185,7 @@ function PlanTab() {
         </FormGrid>
       </Section>
 
-      <Section title="Allocation cible de la partie investie" hint="Hors livrets de précaution et hors crypto.">
+      <Section title="Allocation cible de la partie investie" hint="Par défaut hors livrets et crypto : chaque compte ou titre peut être inclus ou exclu depuis sa fiche.">
         <FormGrid cols={3}>
           {pctField(retraite ? "Part actions avant sécurisation" : "Part actions", ["allocation", "etfBefore"])}
           {retraite && pctField("Part actions à l'âge de départ", ["allocation", "etfAtRetirement"], "Baisse linéaire entre l'âge de sécurisation et l'âge de départ.")}

@@ -4,6 +4,7 @@ import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILING
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
+import { AllocationChoice } from "./AllocationChoice";
 
 type Draft = Required<Omit<AccountInput, "id">> & { id?: string };
 
@@ -22,6 +23,7 @@ function empty(kind: AccountKind): Draft {
     entryFeeRate: null,
     managementFeeRate: null,
     monthsToInvest: kind === "pea" ? 12 : null,
+    inAllocation: null,
     sortOrder: 0,
     archived: false,
   };
@@ -194,6 +196,8 @@ export function AccountDialog({
             {(id) => <NumberInput id={id} value={d.monthsToInvest} decimals={0} onChange={(v) => set("monthsToInvest", v == null ? null : Math.max(1, Math.round(v)))} />}
           </Field>
         )}
+
+        <AllocationChoice value={d.inAllocation} defaultLabel={d.kind === "livret" || d.kind === "crypto" ? "hors allocation" : "dans l'allocation"} onChange={(v) => set("inAllocation", v)} />
 
         {account && <Checkbox checked={d.archived} onChange={(v) => set("archived", v)} label="Archivé (masqué des listes, l'historique est conservé)" />}
       </div>

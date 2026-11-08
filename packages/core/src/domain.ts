@@ -36,7 +36,7 @@ export const LIVRET_LEGAL_CEILINGS: Record<LivretType, number | null> = {
 
 /**
  * Classes d'actifs (ce que contiennent les enveloppes). L'allocation cible porte sur fonds euros,
- * obligations et actions ; livrets (précaution) et crypto restent hors allocation.
+ * obligations et actions ; livrets (précaution) et crypto en sont exclus par défaut, modifiable par élément.
  * Identifiants techniques inchangés, libellés concrets.
  */
 export const BUCKETS = ["precaution", "garanti", "obligations", "croissance", "speculatif"] as const;
@@ -76,6 +76,21 @@ export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
   obligation: "obligations",
   crypto: "speculatif",
 };
+
+/** Les espèces de ce compte comptent-elles dans l'allocation cible ? */
+export function cashInAllocation(account: Pick<Account, "kind" | "inAllocation">): boolean {
+  return account.inAllocation ?? (account.kind !== "livret" && account.kind !== "crypto");
+}
+
+/** Ce titre compte-t-il dans l'allocation cible ? Le choix du titre prime sur celui du compte. */
+export function positionInAllocation(asset: Pick<Asset, "kind" | "inAllocation">, account: Pick<Account, "inAllocation">): boolean {
+  return asset.inAllocation ?? account.inAllocation ?? asset.kind !== "crypto";
+}
+
+/** Ligne de l'allocation cible d'un élément inclus par choix : livrets avec le garanti, crypto avec les actions. */
+export function allocationBucket(b: Bucket): "garanti" | "obligations" | "croissance" {
+  return b === "precaution" || b === "garanti" ? "garanti" : b === "obligations" ? "obligations" : "croissance";
+}
 
 export const BOND_KINDS = ["etat", "entreprise"] as const;
 export type BondKind = (typeof BOND_KINDS)[number];
@@ -165,6 +180,8 @@ export interface Account {
   managementFeeRate: number | null;
   /** PEA : nombre de mois pour investir l'apport de départ (achat conseillé). */
   monthsToInvest: number | null;
+  /** Dans ou hors de l'allocation cible ; null = selon le type (livrets et crypto hors, le reste dedans). */
+  inAllocation: boolean | null;
   sortOrder: number;
   archived: boolean;
 }
@@ -186,6 +203,8 @@ export interface Asset {
   manualPriceDate: string | null;
   /** Classe d'actifs personnalisée (Paramètres › Plan) ; null = classe par défaut selon le type. */
   classId: string | null;
+  /** Dans ou hors de l'allocation cible ; null = comme son compte, sinon selon le type. */
+  inAllocation: boolean | null;
   /** Poids cible parmi les actions (somme = 100 %). */
   targetWeight: number | null;
   /** Frais de gestion annuels (TER), déjà déduits du cours. */

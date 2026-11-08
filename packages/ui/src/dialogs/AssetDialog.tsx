@@ -9,6 +9,7 @@ import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 import { todayIso } from "@/lib/numbers";
 import { call } from "@/lib/transport";
 import { cn } from "@/lib/cn";
+import { AllocationChoice } from "./AllocationChoice";
 
 type Draft = Required<Omit<AssetInput, "id">> & { id?: string };
 
@@ -28,6 +29,7 @@ function empty(kind: AssetKind): Draft {
     priceUrl: null,
     pricePath: null,
     classId: null,
+    inAllocation: null,
     manualPrice: null,
     manualPriceDate: null,
     targetWeight: null,
@@ -278,7 +280,9 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
           </Field>
         )}
 
-        {d.kind !== "crypto" && classes.length > 0 && (
+        <AllocationChoice value={d.inAllocation} defaultLabel={d.kind === "crypto" ? "hors allocation, sauf choix du compte" : "comme son compte"} onChange={(v) => set("inAllocation", v)} />
+
+        {classes.length > 0 && (d.kind !== "crypto" || d.inAllocation === true) && (
           <Field label="Classe d'actifs" help="Par défaut, selon le type du titre. Les classes se créent dans Paramètres › Plan.">
             {(id) => (
               <Select id={id} value={d.classId ?? ""} onChange={(e) => set("classId", e.target.value || null)}>

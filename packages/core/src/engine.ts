@@ -4,9 +4,11 @@ import { addMonths, monthsBetween, yearsBetween } from "./dates";
 import {
   ASSET_BUCKET,
   BUCKET_LABELS,
+  allocationBucket,
+  cashInAllocation,
+  positionInAllocation,
   BUCKETS,
   CASH_BUCKET,
-  INVESTED_BUCKETS,
   type Account,
   type AccountKind,
   type Asset,
@@ -78,6 +80,8 @@ export interface PositionState {
   bucket: Bucket;
   /** Classe personnalisée de ce titre, si elle existe encore. */
   classId: string | null;
+  /** Compte dans l'allocation cible. */
+  inAllocation: boolean;
   bond: BondInfo | null;
 }
 
@@ -349,6 +353,8 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const age = ageInYear(params, +asOf.slice(0, 4));
   const accountStates: AccountState[] = [];
   const buckets = Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<Bucket, number>;
+  // Allocation cible : uniquement les éléments inclus (par défaut ou par choix).
+  const allocated = { garanti: 0, obligations: 0, croissance: 0 };
 
   for (const account of data.accounts) {
     const acc = accs.get(account.id)!;
@@ -358,7 +364,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const positions: PositionState[] = [];
     const maturedBonds: PositionState[] = [];
     for (const p of acc.positions.values()) {
-      const state = valuePosition(p, account.id, asOf, book, params);
+      const state = valuePosition(p, account, asOf, book, params);
       if (p.qty > 1e-12) positions.push(state);
       else if (p.matured) maturedBonds.push(state);
     }
@@ -370,7 +376,11 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const cashBucket = CASH_BUCKET[account.kind];
     byBucket[cashBucket] = cash;
     for (const p of positions) byBucket[p.bucket] = (byBucket[p.bucket] ?? 0) + p.value;
-    if (!account.archived || value !== 0) for (const [b, v] of Object.entries(byBucket)) buckets[b as Bucket] += v ?? 0;
+    if (!account.archived || value !== 0) {
+      for (const [b, v] of Object.entries(byBucket)) buckets[b as Bucket] += v ?? 0;
+      if (cashInAllocation(account)) allocated[allocationBucket(cashBucket)] += cash;
+      for (const p of positions) if (p.inAllocation) allocated[allocationBucket(p.bucket)] += p.value;
+    }
     if (cash < -0.01) warnings.push(`Espèces négatives sur « ${account.name} » (${formatEur(cash)}) : un versement manque probablement dans le journal.`);
 
     const statements = (data.statements ?? []).filter((s) => s.accountId === account.id && s.date <= asOf).sort((a, b) => b.date.localeCompare(a.date));
@@ -401,17 +411,17 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   for (const b of BUCKETS) buckets[b] = roundCents(buckets[b]);
 
   // ——— Allocation de la partie investie ———
-  const invested = INVESTED_BUCKETS.reduce((s, b) => s + buckets[b], 0);
+  const invested = allocated.garanti + allocated.obligations + allocated.croissance;
   const classValues = new Map<string, number>();
   for (const a of accountStates) {
     if (a.account.archived && a.value === 0) continue;
-    for (const pos of a.positions) if (pos.classId) classValues.set(pos.classId, (classValues.get(pos.classId) ?? 0) + pos.value);
+    for (const pos of a.positions) if (pos.classId && pos.inAllocation) classValues.set(pos.classId, (classValues.get(pos.classId) ?? 0) + pos.value);
   }
-  const customInBucket = (b: Bucket) => params.customClasses.filter((c) => c.behavesLike === b).reduce((s, c) => s + (classValues.get(c.id) ?? 0), 0);
+  const customInBucket = (b: keyof typeof allocated) => params.customClasses.filter((c) => c.behavesLike === b).reduce((s, c) => s + (classValues.get(c.id) ?? 0), 0);
   const rows: AllocationRow[] = classTargets(params, age)
     .map((c): AllocationRow => {
       const custom = c.label != null;
-      const value = roundCents(custom ? (classValues.get(c.key) ?? 0) : buckets[c.bucket] - customInBucket(c.bucket));
+      const value = roundCents(custom ? (classValues.get(c.key) ?? 0) : allocated[c.bucket] - customInBucket(c.bucket));
       const share = invested > 0 ? value / invested : 0;
       const drift = share - c.target;
       const action = invested <= 0 ? "renforcer" : drift > params.livrets.driftAlert ? "alleger" : drift < -params.livrets.driftAlert ? "renforcer" : "ok";
@@ -460,11 +470,13 @@ function roundQty(q: number): string {
   return String(Math.round(q * 1e8) / 1e8).replace(".", ",");
 }
 
-function valuePosition(p: PosAcc, accountId: string, asOf: string, book: PriceBook, params: PlanParams): PositionState {
+function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBook, params: PlanParams): PositionState {
+  const accountId = account.id;
   const { asset } = p;
+  const inAllocation = positionInAllocation(asset, account);
   const terms = bondTerms(asset);
-  // La crypto reste hors de la partie investie : pas de classe personnalisée.
-  const cls = asset.kind === "crypto" ? undefined : params.customClasses.find((c) => c.id === asset.classId);
+  // Hors allocation, une classe personnalisée n'a pas d'effet.
+  const cls = inAllocation ? params.customClasses.find((c) => c.id === asset.classId) : undefined;
   let price: number | null = null;
   let priceDate: string | null = null;
   let priceUsed: PriceUsed = "cout";
@@ -527,8 +539,9 @@ function valuePosition(p: PosAcc, accountId: string, asOf: string, book: PriceBo
     realizedGain: roundCents(p.realized),
     feesPaid: roundCents(p.fees),
     income: roundCents(p.income),
-    bucket: cls?.behavesLike ?? ASSET_BUCKET[asset.kind],
+    bucket: asset.kind === "crypto" ? ASSET_BUCKET.crypto : (cls?.behavesLike ?? ASSET_BUCKET[asset.kind]),
     classId: cls?.id ?? null,
+    inAllocation,
     bond,
   };
 }

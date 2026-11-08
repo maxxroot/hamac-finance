@@ -151,7 +151,7 @@ export function Notice() {
 
       <Section n={6} title="Crypto">
         <p>
-          La crypto compte dans le patrimoine, l'historique et la performance, mais reste hors de l'allocation cible et de la projection. Les euros envoyés sur la plateforme sont un « Versement » sur le compte crypto ;
+          La crypto compte dans le patrimoine, l'historique et la performance, mais reste par défaut hors de l'allocation cible, et toujours hors de la projection. Les euros envoyés sur la plateforme sont un « Versement » sur le compte crypto ;
           un achat est un « Achat » du titre (Bitcoin…) avec la quantité reçue ; une vente contre des euros est une « Vente ».
         </p>
         <p>

@@ -64,6 +64,13 @@
       "when": 1794124607233,
       "tag": "0008_white_titanium_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794125238459,
+      "tag": "0009_certain_weapon_omega",
+      "breakpoints": true
     }
   ]
 }
