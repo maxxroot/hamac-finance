@@ -48,5 +48,8 @@ describe("comptes uniques", () => {
     expect(uniqueAccountConflict(list, { kind: "livret", livretType: "AUTRE" })).toBeNull();
     expect(uniqueAccountConflict(list, { kind: "cto", livretType: null })).toBeNull();
     expect(uniqueAccountConflict([{ ...acc("old", "pea"), archived: true }], { kind: "pea", livretType: null })).toBeNull();
+    expect(uniqueAccountConflict([acc("p", "pea_pme")], { kind: "pea_pme", livretType: null })?.id).toBe("p");
+    expect(uniqueAccountConflict([acc("p", "pea")], { kind: "pea_pme", livretType: null })).toBeNull();
+    expect(uniqueAccountConflict([acc("p", "per")], { kind: "per", livretType: null })).toBeNull();
   });
 });

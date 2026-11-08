@@ -6,7 +6,10 @@ export const ALLOWED_ASSETS: Record<AccountKind, readonly AssetKind[]> = {
   livret: [],
   assurance_vie: ["etf", "fonds", "obligation"],
   pea: ["etf", "action", "fonds"],
+  pea_pme: ["etf", "action", "fonds"],
   cto: ["etf", "action", "obligation", "fonds"],
+  per: ["etf", "action", "obligation", "fonds"],
+  epargne_salariale: ["etf", "fonds"],
   crypto: ["crypto"],
 };
 
@@ -15,6 +18,9 @@ export const ALLOWED_TYPES: Record<AccountKind, readonly TxType[]> = {
   livret: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "correction"],
   assurance_vie: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
   pea: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
+  pea_pme: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
+  per: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
+  epargne_salariale: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
   cto: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
   crypto: ["apport_initial", "versement", "retrait", "interets", "achat", "vente", "transfert", "frais", "correction"],
 };
@@ -84,11 +90,12 @@ export function validateTransaction(
  */
 export function uniqueAccountConflict(accounts: readonly Account[], candidate: Pick<Account, "kind" | "livretType"> & { id?: string; archived?: boolean }): Account | null {
   if (candidate.archived) return null;
-  const limited = candidate.kind === "pea" || (candidate.kind === "livret" && candidate.livretType != null && candidate.livretType !== "AUTRE");
+  const single = candidate.kind === "pea" || candidate.kind === "pea_pme";
+  const limited = single || (candidate.kind === "livret" && candidate.livretType != null && candidate.livretType !== "AUTRE");
   if (!limited) return null;
   return (
     accounts.find(
-      (a) => a.id !== candidate.id && !a.archived && a.kind === candidate.kind && (candidate.kind === "pea" || a.livretType === candidate.livretType),
+      (a) => a.id !== candidate.id && !a.archived && a.kind === candidate.kind && (single || a.livretType === candidate.livretType),
     ) ?? null
   );
 }

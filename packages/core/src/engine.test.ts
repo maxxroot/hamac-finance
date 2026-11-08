@@ -236,4 +236,21 @@ describe("historique reconstruit", () => {
     expect(h.at(-1)!.value).toBe(computePortfolio(d, "2027-02-15").totals.value);
     expect(h[1].netContrib - h[0].netContrib).toBe(300);
   });
+
+  it("PER, épargne salariale, PEA-PME : fiscalité au retrait", () => {
+    const p = defaultParams(new Date(2026, 0, 1));
+    const params = { ...p, tax: { ...p.tax, tmi: 0.3 as const } };
+    const value = (id: string, kind: Account["kind"]) => ({ id, kind, livretType: null, name: id, institutionId: null, openedOn: "2015-01-01", depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
+    const tx = (id: string, accountId: string, type: "apport_initial" | "interets", amount: number) => ({ id, date: "2020-01-02", type, accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" }) as const;
+    const accounts = [value("per", "per"), value("pee", "epargne_salariale"), value("pme", "pea_pme")];
+    const d: EngineData = { params, accounts, assets: [], plans: [], skips: [], prices: [], transactions: accounts.flatMap((a) => [tx(`a${a.id}`, a.id, "apport_initial", 1_000), tx(`i${a.id}`, a.id, "interets", 100)]) };
+    const s = computePortfolio(d, "2026-06-01");
+    const rows = withdrawalTaxes(d, s, cryptoTax(d, "2026-06-01"));
+    const tax = (id: string) => rows.find((r) => r.accountId === id)!.tax;
+    expect(tax("per")).toBeCloseTo(1_000 * 0.3 + 100 * (0.128 + 0.186));
+    expect(tax("pee")).toBeCloseTo(100 * 0.186);
+    expect(tax("pme")).toBeCloseTo(100 * 0.186);
+    expect(s.buckets.garanti).toBe(2_200);
+    expect(s.buckets.croissance).toBe(1_100);
+  });
 });

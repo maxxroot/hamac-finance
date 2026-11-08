@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AccountInput } from "@hamac/api";
-import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, uniqueAccountConflict, type Account, type AccountKind, type LivretType } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
@@ -49,8 +49,9 @@ export function AccountDialog({
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
   const idx = useWorkspaceIndex();
-  const offering = idx?.ws.institutions.filter((i) => i.offers[d.kind]) ?? [];
-  const others = idx?.ws.institutions.filter((i) => !i.offers[d.kind]) ?? [];
+  const offerKey = offerKindOf(d.kind);
+  const offering = idx?.ws.institutions.filter((i) => offerKey && i.offers[offerKey]) ?? [];
+  const others = idx?.ws.institutions.filter((i) => !offerKey || !i.offers[offerKey]) ?? [];
 
   const submit = () =>
     save.mutate(d, {
@@ -86,7 +87,7 @@ export function AccountDialog({
                 }}
               >
                 {ACCOUNT_KINDS.map((k) => {
-                  const taken = k === "pea" && !!idx && !!uniqueAccountConflict(idx.ws.accounts, { id: d.id, kind: "pea", livretType: null });
+                  const taken = (k === "pea" || k === "pea_pme") && !!idx && !!uniqueAccountConflict(idx.ws.accounts, { id: d.id, kind: k, livretType: null });
                   return (
                     <option key={k} value={k} disabled={taken}>
                       {ACCOUNT_KIND_LABELS[k]}
@@ -132,7 +133,7 @@ export function AccountDialog({
           <Field
             label="Établissement"
             help={
-              idx && d.institutionId && !idx.institutionById.get(d.institutionId)?.offers[d.kind]
+              idx && offerKey && d.institutionId && !idx.institutionById.get(d.institutionId)?.offers[offerKey]
                 ? "Cet établissement n'a pas d'offre de ce type : les frais par défaut s'appliquent."
                 : !idx?.ws.institutions.length
                   ? "Ajoutez vos établissements et leurs frais dans la page Établissements."
@@ -163,7 +164,7 @@ export function AccountDialog({
               </Select>
             )}
           </Field>
-          <Field label="Date d'ouverture" help={d.kind === "pea" ? "Sert à la règle des 5 ans." : d.kind === "assurance_vie" ? "Sert à la règle des 8 ans." : undefined}>
+          <Field label="Date d'ouverture" help={d.kind === "pea" || d.kind === "pea_pme" ? "Sert à la règle des 5 ans." : d.kind === "assurance_vie" ? "Sert à la règle des 8 ans." : undefined}>
             {(id) => <TextInput id={id} type="date" value={d.openedOn ?? ""} onChange={(e) => set("openedOn", e.target.value || null)} />}
           </Field>
           <Field label="Rôle dans le plan">{(id) => <TextInput id={id} value={d.role} onChange={(e) => set("role", e.target.value)} placeholder="ex. Matelas de sécurité" />}</Field>

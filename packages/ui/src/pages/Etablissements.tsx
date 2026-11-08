@@ -7,9 +7,8 @@ import {
   describeOrderFees,
   formatEur,
   orderFee,
-  type AccountKind,
   type Institution,
-  type PlanParams,
+  type PlanParams, type OfferKind,
 } from "@hamac/core";
 import { Field, MoneyInput, PercentInput } from "@/components/form";
 import { Pct } from "@/components/Stat";
@@ -23,7 +22,7 @@ import { SortTh, useSortable } from "@/lib/sort";
 const yesNoSort = (v: boolean | null | undefined) => (v == null ? null : v ? 1 : 0);
 
 const ORDER_SIZES = [100, 250, 500, 1000, 5000];
-const OFFER_ORDER: AccountKind[] = ["pea", "cto", "assurance_vie", "livret", "crypto"];
+const OFFER_ORDER: OfferKind[] = ["pea", "cto", "assurance_vie", "livret", "crypto"];
 
 export function Etablissements() {
   const idx = useWorkspaceIndex();

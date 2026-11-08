@@ -552,7 +552,9 @@ export const PERF_GROUPS: Array<{ key: string; label: string; kinds: AccountKind
   { key: "livret", label: "Livrets", kinds: ["livret"], assumption: (p) => p.returns.livrets },
   { key: "assurance_vie", label: "Assurance-vie", kinds: ["assurance_vie"], assumption: (p) => p.returns.fondsEuros },
   { key: "cto", label: "Compte-titres", kinds: ["cto"], assumption: (p) => p.returns.obligations },
-  { key: "pea", label: "PEA", kinds: ["pea"], assumption: (p) => p.returns.actions },
+  { key: "pea", label: "PEA", kinds: ["pea", "pea_pme"], assumption: (p) => p.returns.actions },
+  { key: "per", label: "PER", kinds: ["per"], assumption: () => null },
+  { key: "epargne_salariale", label: "Épargne salariale", kinds: ["epargne_salariale"], assumption: () => null },
   { key: "crypto", label: "Crypto", kinds: ["crypto"], assumption: () => null },
 ];
 

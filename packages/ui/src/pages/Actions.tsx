@@ -23,9 +23,9 @@ export function Actions() {
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
   // Le PEA (un seul par personne) puis chaque compte-titres ; un compte-titres sans actions s'affiche en version compacte.
   const active = pf.state.accounts.filter((a) => !a.account.archived);
-  const pea = active.filter((a) => a.account.kind === "pea");
+  const pea = active.filter((a) => a.account.kind === "pea" || a.account.kind === "pea_pme");
   const ctos = active.filter((a) => a.account.kind === "cto");
-  const others = active.filter((a) => a.account.kind === "assurance_vie" && a.positions.some((p) => p.bucket === "croissance"));
+  const others = active.filter((a) => (a.account.kind === "assurance_vie" || a.account.kind === "per" || a.account.kind === "epargne_salariale") && a.positions.some((p) => p.bucket === "croissance"));
   const accounts = [...pea, ...ctos.filter((c) => c.positions.some((p) => p.bucket === "croissance")), ...others];
   const emptyCtos = ctos.filter((c) => !c.positions.some((p) => p.bucket === "croissance"));
   const target = accounts[0] ?? emptyCtos[0];
@@ -37,7 +37,7 @@ export function Actions() {
         actions={
           <>
             <AddAccountButton kind="cto" label="Ajouter un compte-titres" variant="ghost" />
-            {target && <AddTransactionButton accountId={target.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "cto", "assurance_vie"]} />}
+            {target && <AddTransactionButton accountId={target.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} />}
           </>
         }
       />
@@ -67,7 +67,7 @@ export function Actions() {
                 <span className="text-fg-muted">
                   espèces <Amount value={c.cash} compact />
                 </span>
-                <AddTransactionButton accountId={c.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "cto", "assurance_vie"]} label="Acheter des actions ou ETF" variant="secondary" />
+                <AddTransactionButton accountId={c.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} label="Acheter des actions ou ETF" variant="secondary" />
               </div>
             </Card>
           ))}
@@ -97,7 +97,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
     cible: (p) => p.asset.targetWeight,
     ecart: (p) => (p.asset.targetWeight != null ? posShare(p) - p.asset.targetWeight : null),
   });
-  const isPea = s.account.kind === "pea";
+  const isPea = s.account.kind === "pea" || s.account.kind === "pea_pme";
   const five = isPea ? fiscalAnniversary(s.account.openedOn, 5) : null;
   const advised = isPea ? advisedMonthlyPurchase(s.cash, s.account.monthsToInvest, monthsElapsed(params, pf.today)) : 0;
   const targets = pf.idx.activeAssets.filter((a) => a.targetWeight && (a.kind === "etf" || a.kind === "action" || a.kind === "fonds"));
@@ -264,7 +264,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
           </div>
         </Card>
       </div>
-      <Movements accountIds={[s.account.id]} limit={15} type="achat" assetKinds={s.account.kind === "pea" ? undefined : ["etf", "action", "fonds"]} accountKinds={["pea", "cto", "assurance_vie"]} title={s.account.kind === "pea" ? "Mouvements" : "Mouvements (actions, ETF et espèces)"} />
+      <Movements accountIds={[s.account.id]} limit={15} type="achat" assetKinds={isPea ? undefined : ["etf", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} title={s.account.kind === "pea" ? "Mouvements" : "Mouvements (actions, ETF et espèces)"} />
     </section>
   );
 }

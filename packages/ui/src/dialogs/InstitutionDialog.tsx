@@ -8,21 +8,20 @@ import {
   emptyOffer,
   formatEur,
   orderFee,
-  type AccountKind,
   type AvOffer,
   type BrokerOffer,
   type CryptoOffer,
   type Institution,
   type InstitutionKind,
   type Offers,
-  type OrderFeeTier,
+  type OrderFeeTier, type OfferKind,
 } from "@hamac/core";
 import { Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, Textarea, TextInput } from "@/components/form";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
-const OFFER_ORDER: AccountKind[] = ["pea", "cto", "assurance_vie", "livret", "crypto"];
+const OFFER_ORDER: OfferKind[] = ["pea", "cto", "assurance_vie", "livret", "crypto"];
 const EXAMPLES = [100, 500, 1000, 5000];
 
 interface Draft {
@@ -57,7 +56,7 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
       else offers[k] = v;
       return { ...x, offers };
     });
-  const toggle = (k: AccountKind) => {
+  const toggle = (k: OfferKind) => {
     if (d.offers[k]) {
       const users = linked.filter((a) => a.kind === k);
       if (users.length && !confirm(`${users.map((a) => a.name).join(", ")} utilise cette offre : ses frais repasseront sur les frais par défaut. Continuer ?`)) return;

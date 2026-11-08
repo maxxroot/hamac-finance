@@ -134,7 +134,7 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   }
 
   // PEA : espèces en attente.
-  for (const a of active.filter((x) => x.account.kind === "pea" && x.cash >= p.alerts.peaCashThreshold)) {
+  for (const a of active.filter((x) => (x.account.kind === "pea" || x.account.kind === "pea_pme") && x.cash >= p.alerts.peaCashThreshold)) {
     const advised = advisedMonthlyPurchase(a.cash, a.account.monthsToInvest, monthsElapsed(p, today));
     out.push({ id: `pea-${a.account.id}`, level: "info", title: `Acheter environ ${eur(advised)} d'ETF ce mois-ci`, detail: `${eur(a.cash)} en attente sur ${a.account.name}.`, link: "/actions" });
   }
@@ -160,8 +160,8 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   }
 
   // Dates d'ouverture et anniversaires fiscaux.
-  for (const a of active.filter((x) => x.account.kind === "pea" || x.account.kind === "assurance_vie")) {
-    const years = a.account.kind === "pea" ? 5 : 8;
+  for (const a of active.filter((x) => x.account.kind === "pea" || x.account.kind === "pea_pme" || x.account.kind === "assurance_vie")) {
+    const years = a.account.kind === "assurance_vie" ? 8 : 5;
     if (!a.account.openedOn) {
       if (a.value > 0) out.push({ id: `ouverture-${a.account.id}`, level: "info", title: `Date d'ouverture à renseigner : ${a.account.name}`, detail: `Elle conditionne la règle des ${years} ans.`, link: "/parametres" });
       continue;

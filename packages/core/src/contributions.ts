@@ -31,7 +31,7 @@ export interface ContributionProposal {
 }
 
 /** Compte qui reçoit chaque classe d'actifs de l'allocation de base. */
-const BUCKET_ACCOUNT: Partial<Record<Bucket, AccountKind>> = { garanti: "assurance_vie", obligations: "cto", croissance: "pea" };
+const BUCKET_ACCOUNTS: Partial<Record<Bucket, AccountKind[]>> = { garanti: ["assurance_vie"], obligations: ["cto"], croissance: ["pea", "pea_pme"] };
 
 const pctLabel = (v: number) => `${(Math.round(v * 1000) / 10).toLocaleString("fr-FR")} %`;
 const eurLabel = (v: number) => `${Math.round(v).toLocaleString("fr-FR")} €`;
@@ -108,7 +108,7 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
   // 3. Allocation de base, vers les classes d'actifs en retard sur leur cible.
   if (rest > 0) {
     const membersOf = (r: PortfolioState["allocation"]["rows"][number]) => {
-      const byKind = accounts.filter((a) => a.account.kind === BUCKET_ACCOUNT[r.bucket] && a.account.inAllocation !== false);
+      const byKind = accounts.filter((a) => BUCKET_ACCOUNTS[r.bucket]?.includes(a.account.kind) && a.account.inAllocation !== false);
       if (r.key === r.bucket) return byKind;
       // Classe personnalisée : les comptes qui détiennent déjà ses titres, sinon le compte de sa classe de base.
       const holders = accounts.filter((a) => a.positions.some((p) => p.classId === r.key));

@@ -241,10 +241,10 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
     const inst = a?.institutionId ? institutions.get(a.institutionId) : undefined;
     if (!a || !inst || amount <= 0) return 0;
     if (a.kind === "assurance_vie") return amount * (inst.offers.assurance_vie?.entryFee ?? 0);
-    if (a.kind === "pea" || a.kind === "cto") {
-      const offer = inst.offers[a.kind];
+    if (a.kind === "pea" || a.kind === "pea_pme" || a.kind === "cto") {
+      const offer = inst.offers[a.kind === "cto" ? "cto" : "pea"];
       if (!offer) return 0;
-      const courtage = a.kind === "pea" ? 12 * orderFee(offer.orderFees, amount / 12) : orderFee(offer.orderFees, amount);
+      const courtage = a.kind !== "cto" ? 12 * orderFee(offer.orderFees, amount / 12) : orderFee(offer.orderFees, amount);
       return courtage + offer.custodyFixed;
     }
     return 0;
@@ -261,12 +261,15 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
           f.livrets += amount;
           break;
         case "assurance_vie":
+        case "per":
+        case "epargne_salariale":
           f.fondsEuros += amount;
           break;
         case "cto":
           f.obligations += amount;
           break;
         case "pea":
+        case "pea_pme":
           f.actions += amount;
           break;
       }
@@ -288,7 +291,7 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
   const instOf = (a: (typeof data.accounts)[number]) => (a.institutionId ? institutions.get(a.institutionId) : undefined);
   const feeDrag = {
     fondsEuros: weighted(["assurance_vie"], (a) => instOf(a)?.offers.assurance_vie?.euroFee ?? 0),
-    actions: weighted(["pea"], (a) => instOf(a)?.offers.pea?.custodyRate ?? 0),
+    actions: weighted(["pea", "pea_pme"], (a) => instOf(a)?.offers.pea?.custodyRate ?? 0),
     obligations: weighted(["cto"], (a) => instOf(a)?.offers.cto?.custodyRate ?? 0),
   };
   return {

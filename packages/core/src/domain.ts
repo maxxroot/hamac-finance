@@ -7,14 +7,17 @@
  * Opération = un mouvement daté dans un compte (versement, achat, coupon, transfert…).
  */
 
-export const ACCOUNT_KINDS = ["livret", "assurance_vie", "pea", "cto", "crypto"] as const;
+export const ACCOUNT_KINDS = ["livret", "assurance_vie", "pea", "pea_pme", "cto", "per", "epargne_salariale", "crypto"] as const;
 export type AccountKind = (typeof ACCOUNT_KINDS)[number];
 
 export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
   livret: "Livret",
   assurance_vie: "Assurance-vie",
   pea: "PEA",
+  pea_pme: "PEA-PME",
   cto: "Compte-titres",
+  per: "PER (retraite)",
+  epargne_salariale: "Épargne salariale (PEE, PERCO)",
   crypto: "Plateforme crypto",
 };
 
@@ -56,7 +59,10 @@ export const CASH_BUCKET: Record<AccountKind, Bucket> = {
   livret: "precaution",
   assurance_vie: "garanti", // les espèces d'une assurance-vie = le fonds euros
   pea: "croissance",
+  pea_pme: "croissance",
   cto: "obligations",
+  per: "garanti", // comme une assurance-vie : les espèces = le fonds en euros
+  epargne_salariale: "garanti", // fonds monétaire ou en attente d'arbitrage
   crypto: "speculatif",
 };
 

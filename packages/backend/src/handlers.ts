@@ -137,7 +137,7 @@ export const handlers: Handlers = {
     const others = (await ctx.db.select().from(t.accounts).all()).map(mapAccount);
     const blocking = uniqueAccountConflict(others, { id: input.id, kind: input.kind, livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null, archived: input.archived });
     if (blocking) {
-      const what = input.kind === "pea" ? "un seul PEA" : `un seul ${LIVRET_LABELS[input.livretType ?? "AUTRE"]}`;
+      const what = input.kind === "pea" ? "un seul PEA" : input.kind === "pea_pme" ? "un seul PEA-PME" : `un seul ${LIVRET_LABELS[input.livretType ?? "AUTRE"]}`;
       throw new RpcError("CONFLICT", `On ne peut détenir qu'${what} par personne : « ${blocking.name} » existe déjà.`);
     }
     if (input.institutionId && !(await ctx.db.select().from(t.institutions).where(eq(t.institutions.id, input.institutionId)).get())) {

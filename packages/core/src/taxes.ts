@@ -153,7 +153,8 @@ function taxFor(s: AccountState, p: PlanParams, ir: number, asOf: string, crypto
         regime: s.account.openedOn ? `Moins de 8 ans : impôt de ${pct(rate)} sur le gain` : "Date d'ouverture non renseignée : traité comme moins de 8 ans",
       };
     }
-    case "pea": {
+    case "pea":
+    case "pea_pme": {
       if (gain <= 0) return { tax: 0, regime: "Pas de gain" };
       const fiveYears = s.account.openedOn ? addMonths(s.account.openedOn, 60) <= asOf : false;
       if (fiveYears) return { tax: roundCents(gain * p.tax.socialGeneral), regime: `Plus de 5 ans : prélèvements sociaux seulement (${pct(p.tax.socialGeneral)})` };
@@ -167,6 +168,16 @@ function taxFor(s: AccountState, p: PlanParams, ir: number, asOf: string, crypto
       const latent = s.positions.reduce((t, x) => t + x.gain, 0);
       if (latent <= 0) return { tax: 0, regime: "Pas de plus-value latente" };
       return { tax: roundCents(latent * (p.tax.socialGeneral + ir)), regime: `Plus-value latente × (${pct(p.tax.socialGeneral)} + ${pct(ir)})` };
+    }
+    case "per": {
+      // Sortie en capital, versements supposés déduits à l'entrée : capital au barème, gains au prélèvement forfaitaire.
+      const capital = Math.max(0, Math.min(s.value, s.netContrib));
+      const gainTax = Math.max(0, gain) * (p.tax.pfuIncomeTax + p.tax.socialGeneral);
+      return { tax: roundCents(capital * p.tax.tmi + gainTax), regime: `Sortie en capital, versements déduits : capital à ${pct(p.tax.tmi)}, gains à ${pct(p.tax.pfuIncomeTax + p.tax.socialGeneral)}` };
+    }
+    case "epargne_salariale": {
+      if (gain <= 0) return { tax: 0, regime: "Pas de gain" };
+      return { tax: roundCents(gain * p.tax.socialGeneral), regime: `Prélèvements sociaux seulement (${pct(p.tax.socialGeneral)})` };
     }
     case "crypto": {
       const latent = s.positionsValue - crypto.remainingAcquisition;

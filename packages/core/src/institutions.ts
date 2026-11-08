@@ -91,7 +91,15 @@ export interface Institution {
 }
 
 /** Offres proposées par défaut selon le type d'établissement. */
-export const DEFAULT_OFFER_KINDS: Record<InstitutionKind, AccountKind[]> = {
+export type OfferKind = keyof Offers;
+
+/** Grille de frais applicable à un type de compte : le PEA-PME suit celle du PEA ; PER et épargne salariale n'en ont pas. */
+export function offerKindOf(kind: AccountKind): OfferKind | null {
+  if (kind === "pea_pme") return "pea";
+  return kind === "per" || kind === "epargne_salariale" ? null : kind;
+}
+
+export const DEFAULT_OFFER_KINDS: Record<InstitutionKind, OfferKind[]> = {
   banque: ["livret"],
   courtier: ["pea", "cto"],
   assureur: ["assurance_vie"],
@@ -101,7 +109,7 @@ export const DEFAULT_OFFER_KINDS: Record<InstitutionKind, AccountKind[]> = {
 export function emptyBrokerOffer(): BrokerOffer {
   return BrokerOffer.parse({ orderFees: { tiers: [{ upTo: null, fixed: 0, rate: 0 }] } });
 }
-export function emptyOffer(kind: AccountKind): Offers[keyof Offers] {
+export function emptyOffer(kind: OfferKind): Offers[keyof Offers] {
   switch (kind) {
     case "pea":
     case "cto":
@@ -165,8 +173,9 @@ export function tradeFeeFor(
     if (offer) return { order: null, cryptoRate: offer.tradeFee, source: { institution: inst, label: `Grille de ${inst!.name}` } };
     return { order: null, cryptoRate: p.crypto.feeRate, source: { institution: null, label: "Frais par défaut" } };
   }
-  if (account.kind === "pea" || account.kind === "cto") {
-    const offer = inst?.offers[account.kind];
+  if (account.kind === "pea" || account.kind === "pea_pme" || account.kind === "cto") {
+    // Le PEA-PME suit la grille PEA de l'établissement.
+    const offer = inst?.offers[account.kind === "cto" ? "cto" : "pea"];
     if (offer) return { order: offer.orderFees, cryptoRate: null, source: { institution: inst, label: `Grille de ${inst!.name}` } };
   }
   return { order: defaultOrderFees(p), cryptoRate: null, source: { institution: null, label: "Frais par défaut" } };
