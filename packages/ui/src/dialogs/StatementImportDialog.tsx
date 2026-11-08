@@ -322,7 +322,7 @@ export function StatementImportDialog({ open, onClose }: { open: boolean; onClos
                     <Td>{TX_LABELS[p.tx.type]}</Td>
                     <Td className="max-w-40 truncate">{p.assetName ?? ""}</Td>
                     <Td align="right">
-                      <Amount value={p.tx.amount} />
+                      <Amount value={p.signedAmount} signed />
                     </Td>
                     <Td align="right">{formatQty(p.tx.quantity)}</Td>
                     <Td className="max-w-56 truncate text-fg-muted">{p.tx.comment}</Td>

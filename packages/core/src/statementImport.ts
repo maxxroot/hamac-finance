@@ -2,6 +2,7 @@ import { parseAmount, parseDate, guessType } from "./csv";
 import { monthOf, type Schedule } from "./schedule";
 import { TX_NEEDS_ASSET, type Account, type Asset, type Transaction, type TxType } from "./domain";
 import { ALLOWED_TYPES, validateTransaction } from "./validation";
+import { daysBetween } from "./xirr";
 
 /**
  * Import de relevés de banque ou de courtier : CSV, OFX (banque et titres) et QIF sont ramenés
@@ -184,6 +185,8 @@ export interface ImportProposal {
   tx: Omit<Transaction, "id">;
   status: ImportStatus;
   errors: string[];
+  /** Montant du relevé, avec son signe. */
+  signedAmount: number;
   /** Titre cité par la ligne mais inconnu de Hamac. */
   unknownAsset: { key: string; isin: string | null; name: string } | null;
   assetName: string | null;
@@ -201,6 +204,22 @@ export interface BuildImportInput {
   /** Titres inconnus associés à la main : clé de `unknownAsset` → identifiant du titre. */
   assetOverrides?: ReadonlyMap<string, string>;
 }
+
+const OUTFLOW_TYPES: readonly TxType[] = ["retrait", "frais", "achat"];
+const INFLOW_TYPES: readonly TxType[] = ["versement", "interets", "dividende", "vente"];
+
+/**
+ * Un libellé peut contredire le sens de l'argent (« REMBOURSEMENT FRAIS », intérêts débiteurs).
+ * Seul un relevé signé permet de trancher : beaucoup d'exports de courtiers donnent des montants tous positifs.
+ */
+function matchSign(type: TxType, raw: number): TxType {
+  if (raw > 0 && OUTFLOW_TYPES.includes(type)) return type === "frais" ? "correction" : "versement";
+  if (raw < 0 && INFLOW_TYPES.includes(type)) return type === "interets" || type === "dividende" ? "frais" : "retrait";
+  return type;
+}
+
+/** Écart admis entre la date d'un transfert au journal et son passage sur le relevé. */
+const TRANSFER_DAYS = 3;
 
 const dupKey = (t: Pick<Transaction, "date" | "type" | "amount" | "assetId">) => `${t.date}|${t.type}|${Math.round(t.amount * 100)}|${t.assetId ?? ""}`;
 
@@ -222,10 +241,22 @@ export function buildImport(input: BuildImportInput): ImportProposal[] {
   const already = new Map<string, number>();
   for (const t of existing) if (t.accountId === account.id) already.set(dupKey(t), (already.get(dupKey(t)) ?? 0) + 1);
   const programmedUsed = new Set<string>();
+  // Un transfert n'a qu'une ligne au journal : on le cherche des deux côtés, avec son sens.
+  const transfers = existing.filter((t) => t.type === "transfert" && (t.accountId === account.id || t.counterAccountId === account.id));
+  const matchTransfer = (date: string, raw: number): boolean => {
+    const incoming = raw > 0;
+    const i = transfers.findIndex((t) => (incoming ? t.counterAccountId === account.id : t.accountId === account.id) && Math.abs(t.amount - Math.abs(raw)) < 0.005 && Math.abs(daysBetween(t.date, date)) <= TRANSFER_DAYS);
+    if (i < 0) return false;
+    transfers.splice(i, 1);
+    return true;
+  };
+  // Le sens ne se lit que si le relevé contient des débits.
+  const signedFile = lines.some((l) => (l.amount ?? 0) < 0);
 
   return lines.map((l): ImportProposal => {
     const raw = l.amount ?? 0;
     let type: TxType = defaultType === "auto" ? guessType(`${l.typeHint} ${l.label}`, raw) : defaultType;
+    if (defaultType === "auto" && signedFile) type = matchSign(type, raw);
     if (!ALLOWED_TYPES[account.kind].includes(type)) type = raw < 0 ? "retrait" : "versement";
     const isin = l.isin ?? ISIN.exec(l.label.toUpperCase())?.[0] ?? null;
     const unknownKey = isin ?? l.assetName?.trim() ?? null;
@@ -245,8 +276,9 @@ export function buildImport(input: BuildImportInput): ImportProposal[] {
     };
     const unknownAsset = usesAsset && !asset && unknownKey ? { key: unknownKey, isin, name: l.assetName?.trim() || unknownKey } : null;
     const errors = [...(l.date ? [] : ["Date illisible"]), ...(l.amount == null ? ["Montant illisible"] : []), ...validateTransaction(tx, accounts, assetMap).map((e) => e.message)];
-    const base = { tx, errors, unknownAsset, assetName: asset?.name ?? unknownAsset?.name ?? null };
+    const base = { tx, errors, signedAmount: raw, unknownAsset, assetName: asset?.name ?? unknownAsset?.name ?? null };
     if (errors.length) return { ...base, status: "erreur" };
+    if ((type === "versement" || type === "retrait") && matchTransfer(tx.date, raw)) return { ...base, status: "doublon" };
     const key = dupKey(tx);
     const left = already.get(key) ?? 0;
     if (left > 0) {

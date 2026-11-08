@@ -105,6 +105,28 @@ describe("comparaison avec le journal", () => {
     expect(r[0]).toMatchObject({ status: "ok", assetName: "Air Liquide" });
   });
 
+  it("relevé signé : le sens de l'argent l'emporte sur le libellé", () => {
+    const r = run([line({ amount: 30, label: "REMBOURSEMENT FRAIS" }), line({ amount: -4, typeHint: "intérêts" }), line({ amount: -20, label: "CB VENTE PRIVEE" })]);
+    expect(r.map((p) => p.tx.type)).toEqual(["correction", "frais", "retrait"]);
+    expect(r[0]!.tx.amount).toBe(30);
+    expect(r[1]!.signedAmount).toBe(-4);
+  });
+
+  it("relevé non signé : un achat ou des frais en montant positif gardent leur type", () => {
+    const r = run([line({ amount: 300, typeHint: "achat", quantity: 2, isin: "FR0000120073" }), line({ amount: 5, label: "FRAIS DE TENUE" })]);
+    expect(r.map((p) => p.tx.type)).toEqual(["achat", "frais"]);
+  });
+
+  it("transfert déjà au journal : reconnu dans le bon sens, à quelques jours près, une seule fois", () => {
+    const transfert: Transaction = { ...existing, id: "tr", date: "2026-10-05", type: "transfert", accountId: "livret", counterAccountId: "pea", amount: 500 };
+    expect(run([line({ amount: 500, date: "2026-10-07" })], [transfert])[0]!.status).toBe("doublon");
+    expect(run([line({ amount: 500, date: "2026-10-20" })], [transfert])[0]!.status).toBe("ok");
+    expect(run([line({ amount: 500 }), line({ amount: 500 })], [transfert]).map((p) => p.status)).toEqual(["doublon", "ok"]);
+    const sortant: Transaction = { ...transfert, accountId: "pea", counterAccountId: "livret" };
+    expect(run([line({ amount: -500, label: "VIREMENT" })], [sortant])[0]!.status).toBe("doublon");
+    expect(run([line({ amount: 500 })], [sortant])[0]!.status).toBe("ok");
+  });
+
   it("date ou montant illisible : erreur", () => {
     expect(run([line({ date: null })])[0]!.errors).toContain("Date illisible");
     expect(run([line({ amount: null })])[0]!.errors).toContain("Montant illisible");
