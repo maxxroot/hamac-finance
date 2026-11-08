@@ -10,18 +10,19 @@ import {
   orderFee,
   type AvOffer,
   type BrokerOffer,
+  type CrowdOffer,
   type CryptoOffer,
   type Institution,
   type InstitutionKind,
   type Offers,
   type OrderFeeTier, type OfferKind,
 } from "@hamac/core";
-import { Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, Textarea, TextInput } from "@/components/form";
+import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, Textarea, TextInput } from "@/components/form";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
-const OFFER_ORDER: OfferKind[] = ["pea", "cto", "assurance_vie", "livret", "crypto"];
+const OFFER_ORDER: OfferKind[] = ["pea", "cto", "assurance_vie", "livret", "crowdlending", "crypto"];
 const EXAMPLES = [100, 500, 1000, 5000];
 
 interface Draft {
@@ -162,6 +163,11 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
             <p className="text-sm text-fg-muted">Pas de frais. Le taux et le plafond se règlent sur chaque livret (Paramètres › Comptes).</p>
           </Section>
         )}
+        {d.offers.crowdlending && (
+          <Section title="Crowdlending">
+            <CrowdEditor offer={d.offers.crowdlending} forfait={(idx?.ws.params.tax.pfuIncomeTax ?? 0) + (idx?.ws.params.tax.socialGeneral ?? 0)} onChange={(v) => setOffer("crowdlending", v)} />
+          </Section>
+        )}
         {d.offers.crypto && (
           <Section title="Plateforme crypto">
             <CryptoEditor offer={d.offers.crypto} onChange={(v) => setOffer("crypto", v)} />
@@ -295,6 +301,19 @@ function AvEditor({ offer, onChange }: { offer: AvOffer; onChange: (o: AvOffer) 
         <YesNo label="ETF monde disponible" value={offer.etfWorld} onChange={(v) => set("etfWorld", v)} target />
         <YesNo label="Fonds datés" value={offer.datedFunds} onChange={(v) => set("datedFunds", v)} target />
       </FormGrid>
+    </div>
+  );
+}
+
+function CrowdEditor({ offer, forfait, onChange }: { offer: CrowdOffer; forfait: number; onChange: (o: CrowdOffer) => void }) {
+  return (
+    <div className="space-y-3">
+      <Checkbox checked={offer.taxWithheld} onChange={(v) => onChange({ ...offer, taxWithheld: v, taxRate: v ? (offer.taxRate ?? forfait) : null })} label="La plateforme prélève les impôts automatiquement" />
+      {offer.taxWithheld && (
+        <Field label="Taux prélevé" help="Notez alors au Journal les intérêts nets, tels que crédités sur la plateforme.">
+          {(id) => <PercentInput id={id} value={offer.taxRate} onChange={(v) => onChange({ ...offer, taxRate: v })} />}
+        </Field>
+      )}
     </div>
   );
 }

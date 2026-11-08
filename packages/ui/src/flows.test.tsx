@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBackend, type Backend } from "@hamac/backend";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
+import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { LoanDialog } from "@/dialogs/LoanDialog";
 import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
@@ -153,6 +154,23 @@ describe("parcours de l'interface", () => {
     await user.click(screen.getByRole("button", { name: "Valider" }));
     await waitFor(() => expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText("En défaut")).toBeTruthy());
     expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText(/compté/)).toBeTruthy();
+  });
+
+  it("établissement de crowdlending : prélèvement d'impôts et taux, proposé au forfait", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    show(<InstitutionDialog open institution={null} onClose={onClose} />);
+    await user.type(await screen.findByLabelText("Nom"), "Bricks");
+    await user.selectOptions(fieldOf("Type"), "crowdlending");
+    const box = await screen.findByRole("checkbox", { name: "La plateforme prélève les impôts automatiquement" });
+    expect(screen.queryByLabelText("Taux prélevé")).toBeNull();
+    await user.click(box);
+    await waitFor(() => expect(fieldOf("Taux prélevé").value).toMatch(/31,4/));
+    await user.click(screen.getByRole("button", { name: /^(Ajouter|Créer|Enregistrer|Valider)/ }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const ws = await rpc<{ institutions: Array<{ kind: string; offers: { crowdlending?: { taxWithheld: boolean; taxRate: number } } }> }>("workspace.load");
+    expect(ws.institutions[0]).toMatchObject({ kind: "crowdlending", offers: { crowdlending: { taxWithheld: true } } });
+    expect(ws.institutions[0]!.offers.crowdlending!.taxRate).toBeCloseTo(0.314);
   });
 
   it("onglet Actifs : l'allocation se règle sur la ligne d'un titre", async () => {

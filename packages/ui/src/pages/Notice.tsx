@@ -220,10 +220,13 @@ export function Notice() {
 
       <Section n={13} title="Crowdlending">
         <p>
-          Dans <L to="/crowdlending">Crowdlending</L>, créez chaque plateforme (Bricks, par exemple), puis chaque projet : montant, taux, durée, type de remboursement. L'argent déposé sur la plateforme se note en « Versement » au <L to="/journal">Journal</L> ; investir dans un projet le sort des espèces, et le capital remboursé y revient. Les intérêts reçus se notent aussi au Journal.
+          Créez chaque plateforme (Bricks, par exemple) dans Paramètres › Établissements, ajoutez-lui un compte de crowdlending, puis saisissez chaque projet dans <L to="/crowdlending">Crowdlending</L> : montant, taux, durée, type de remboursement. L'argent déposé sur la plateforme se note en « Versement » au <L to="/journal">Journal</L> ; investir dans un projet le sort des espèces, et le capital remboursé y revient. Les intérêts reçus se notent aussi au Journal.
         </p>
         <p>
           Un projet « En cours » dont l'échéance est passée déclenche une alerte : indiquez alors s'il est remboursé, en retard ou en défaut. Un projet en défaut compte pour 0 € dans le patrimoine, jusqu'à ce que vous saisissiez le montant espéré. Le crowdlending reste hors allocation par défaut (dans l'allocation, il compte avec les obligations) et n'entre pas dans la projection. La déduction fiscale des pertes n'est pas calculée.
+        </p>
+        <p>
+          Sur la fiche de la plateforme (Paramètres › Établissements), cochez « La plateforme prélève les impôts automatiquement » et indiquez le taux : notez alors au Journal les intérêts nets, et l'impôt prélevé apparaît dans la page Impôts. Sans cette case, les intérêts sont considérés comme bruts et l'impôt est affiché à payer.
         </p>
       </Section>
 

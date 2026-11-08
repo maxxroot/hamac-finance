@@ -71,7 +71,8 @@ export async function seedDemo(backend: Backend): Promise<void> {
   await call("loans.upsert", { kind: "consommation", name: "Crédit voiture d'occasion (fictif)", principal: 9_000, rate: 0.049, termMonths: 48, firstPayment: `${y - 1}-04-10` });
   await call("loans.upsert", { kind: "immobilier", name: "Prêt immobilier (fictif)", propertyId: appartement.id, principal: 140_000, rate: 0.025, termMonths: 240, firstPayment: `${y - 3}-03-05`, insurance: 25 });
 
-  const pret = await call("accounts.upsert", { kind: "crowdlending", name: "Plateforme E (fictive)", openedOn: `${y - 1}-02-01`, role: "Prêts à des projets immobiliers" });
+  const plateformePret = await call("institutions.upsert", { name: "Plateforme E", kind: "crowdlending", offers: { crowdlending: { taxWithheld: true, taxRate: 0.314 } } });
+  const pret = await call("accounts.upsert", { kind: "crowdlending", name: "Plateforme E (fictive)", institutionId: plateformePret.id, openedOn: `${y - 1}-02-01`, role: "Prêts à des projets immobiliers" });
   await call("transactions.upsert", { date: `${y - 1}-02-01`, type: "versement", accountId: pret.id, amount: 2500, comment: "Dépôt sur la plateforme" });
   await call("transactions.upsert", { date: `${y}-02-15`, type: "interets", accountId: pret.id, amount: 64, comment: "Intérêts reçus" });
   await call("crowdProjects.upsert", { accountId: pret.id, name: "Résidence fictive A", amount: 1000, rate: 0.095, startDate: `${y - 1}-02-15`, termMonths: 24 });

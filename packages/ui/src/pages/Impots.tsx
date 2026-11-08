@@ -18,6 +18,7 @@ export function Impots() {
   const livret = (t: string) => pf.idx.activeAccounts.find((a) => a.livretType === t)?.rate ?? null;
   const yields = netYields(data.params, today, { lep: livret("LEP"), ldds: livret("LDDS") ?? livret("LIVRET_A") });
   const years = yearlyTaxes(data, crypto, today);
+  const hasCrowd = years.some((y) => y.crowdReceived > 0);
   const year = +today.slice(0, 4);
 
   return (
@@ -74,6 +75,8 @@ export function Impots() {
               <Th align="right">Impôt définitif</Th>
               <Th align="right">Régularisation</Th>
               <Th align="right">Crypto (IR + PS)</Th>
+              {hasCrowd && <Th align="right">Crowdlending reçu</Th>}
+              {hasCrowd && <Th align="right">Impôt crowdlending</Th>}
               <Th align="right">Total</Th>
             </tr>
           </thead>
@@ -108,6 +111,21 @@ export function Impots() {
                 <Td align="right">
                   <Amount value={y.cryptoIncomeTax + y.cryptoSocial} />
                 </Td>
+                {hasCrowd && (
+                  <Td align="right">
+                    <Amount value={y.crowdReceived} />
+                  </Td>
+                )}
+                {hasCrowd && (
+                  <Td align="right">
+                    <Amount value={y.crowdWithheld + y.crowdDue} />
+                    {y.crowdDue > 0 && (
+                      <div className="text-xs text-fg-faint">
+                        dont <Amount value={y.crowdDue} /> à payer
+                      </div>
+                    )}
+                  </Td>
+                )}
                 <Td align="right" className="font-medium">
                   <Amount value={y.total} />
                 </Td>

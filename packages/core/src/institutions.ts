@@ -8,12 +8,13 @@ import type { PlanParams } from "./params";
  * déclarées par type de compte. Un compte est rattaché à un établissement : ses frais en découlent.
  */
 
-export const INSTITUTION_KINDS = ["banque", "courtier", "assureur", "crypto"] as const;
+export const INSTITUTION_KINDS = ["banque", "courtier", "assureur", "crowdlending", "crypto"] as const;
 export type InstitutionKind = (typeof INSTITUTION_KINDS)[number];
 export const INSTITUTION_KIND_LABELS: Record<InstitutionKind, string> = {
   banque: "Banque",
   courtier: "Courtier",
   assureur: "Assureur / courtier en assurance-vie",
+  crowdlending: "Plateforme de crowdlending",
   crypto: "Plateforme crypto",
 };
 
@@ -69,6 +70,14 @@ export const CryptoOffer = z.object({
 });
 export type CryptoOffer = z.infer<typeof CryptoOffer>;
 
+export const CrowdOffer = z.object({
+  /** La plateforme prélève elle-même les impôts sur les intérêts. */
+  taxWithheld: z.boolean().default(false),
+  /** Taux qu'elle prélève ; null = prélèvement forfaitaire des paramètres. */
+  taxRate: z.number().min(0).max(0.9).nullable().default(null),
+});
+export type CrowdOffer = z.infer<typeof CrowdOffer>;
+
 export const LivretOffer = z.object({});
 
 export const Offers = z.object({
@@ -76,6 +85,7 @@ export const Offers = z.object({
   cto: BrokerOffer.optional(),
   assurance_vie: AvOffer.optional(),
   crypto: CryptoOffer.optional(),
+  crowdlending: CrowdOffer.optional(),
   livret: LivretOffer.optional(),
 });
 export type Offers = z.infer<typeof Offers>;
@@ -96,13 +106,14 @@ export type OfferKind = keyof Offers;
 /** Grille de frais applicable à un type de compte : le PEA-PME suit celle du PEA ; PER et épargne salariale n'en ont pas. */
 export function offerKindOf(kind: AccountKind): OfferKind | null {
   if (kind === "pea_pme") return "pea";
-  return kind === "per" || kind === "epargne_salariale" || kind === "crowdlending" ? null : kind;
+  return kind === "per" || kind === "epargne_salariale" ? null : kind;
 }
 
 export const DEFAULT_OFFER_KINDS: Record<InstitutionKind, OfferKind[]> = {
   banque: ["livret"],
   courtier: ["pea", "cto"],
   assureur: ["assurance_vie"],
+  crowdlending: ["crowdlending"],
   crypto: ["crypto"],
 };
 
@@ -118,6 +129,8 @@ export function emptyOffer(kind: OfferKind): Offers[keyof Offers] {
       return AvOffer.parse({});
     case "crypto":
       return CryptoOffer.parse({});
+    case "crowdlending":
+      return CrowdOffer.parse({});
     case "livret":
       return {};
   }

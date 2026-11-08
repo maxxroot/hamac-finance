@@ -18,7 +18,7 @@ export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
   cto: "Compte-titres",
   per: "PER (retraite)",
   epargne_salariale: "Épargne salariale (PEE, PERCO)",
-  crowdlending: "Plateforme de crowdlending",
+  crowdlending: "Crowdlending",
   crypto: "Plateforme crypto",
 };
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Account, Asset, ContributionPlan, PricePoint, Transaction } from "./domain";
 import { advisedMonthlyPurchase, computePortfolio, splitByTarget, type EngineData } from "./engine";
 import { embeddedFee } from "./fees";
+import type { Institution } from "./institutions";
 import { defaultParams } from "./params";
 import { buildHistory } from "./history";
 import { cryptoTax, withdrawalTaxes, yearlyTaxes } from "./taxes";
@@ -266,5 +267,25 @@ describe("historique reconstruit", () => {
     // 20 000 € de valeur, 12 000 € d'acquisition : 8 000 € de plus-value latente, à 11 % + 18,6 %.
     expect(rows.reduce((t, r) => t + r.tax, 0)).toBeCloseTo(8_000 * (0.11 + 0.186), 2);
     expect(rows[0]!.tax).toBeCloseTo(rows[1]!.tax, 2);
+  });
+
+  it("crowdlending : impôts prélevés par la plateforme ou restant à payer", () => {
+    const p = defaultParams(new Date(2026, 0, 1));
+    const plateforme = (id: string, institutionId: string | null) => ({ id, kind: "crowdlending", livretType: null, name: id, institutionId, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
+    const etab = (id: string, crowdlending: { taxWithheld: boolean; taxRate: number | null }) => ({ id, name: id, kind: "crowdlending", website: "", score: null, comment: "", offers: { crowdlending } }) as Institution;
+    const interets = (accountId: string, amount: number) => ({ id: accountId, date: "2026-03-01", type: "interets", accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" }) as Transaction;
+    const accounts = [plateforme("preleve", "e30"), plateforme("forfait", "pfu"), plateforme("adeclarer", null)];
+    const d: EngineData = { params: p, accounts, assets: [], plans: [], skips: [], prices: [], institutions: [etab("e30", { taxWithheld: true, taxRate: 0.3 }), etab("pfu", { taxWithheld: true, taxRate: null })], transactions: [interets("preleve", 70), interets("forfait", 68.6), interets("adeclarer", 100)] };
+    const row = yearlyTaxes(d, cryptoTax(d, "2026-06-01"), "2026-06-01").find((y) => y.year === 2026)!;
+    expect(row.crowdReceived).toBeCloseTo(238.6, 2);
+    // 70 € nets à 30 % : 100 € bruts, 30 € prélevés. 68,60 € nets à 31,4 % : 100 € bruts, 31,40 € prélevés.
+    expect(row.crowdWithheld).toBeCloseTo(61.4, 2);
+    expect(row.crowdDue).toBeCloseTo(100 * (0.11 + 0.186), 2);
+    expect(row.couponsNet).toBe(0);
+    expect(row.total).toBeCloseTo(61.4 + 29.6, 2);
+    const s = computePortfolio(d, "2026-06-01");
+    const regime = (id: string) => withdrawalTaxes(d, s, cryptoTax(d, "2026-06-01")).find((r) => r.accountId === id)!.regime;
+    expect(regime("preleve")).toContain("30 %");
+    expect(regime("adeclarer")).toContain("à déclarer");
   });
 });

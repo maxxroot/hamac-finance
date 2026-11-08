@@ -38,7 +38,7 @@ export function Crowdlending() {
         description="Vos prêts, projet par projet. Déposez l'argent sur la plateforme avec un versement au Journal, et notez-y les intérêts reçus."
         actions={
           <div className="flex gap-2">
-            <AddAccountButton kind="crowdlending" label="Ajouter une plateforme" variant="ghost" />
+            <AddAccountButton kind="crowdlending" label="Ajouter un compte" variant="ghost" />
             {platforms.length > 0 && (
               <Button variant="primary" onClick={() => setEditing("new")}>
                 <Plus size={16} /> Nouveau projet
@@ -49,8 +49,8 @@ export function Crowdlending() {
       />
 
       {platforms.length === 0 ? (
-        <EmptyEnvelope kind="crowdlending" label="Ajouter une plateforme">
-          Ajoutez d'abord votre plateforme (Bricks, par exemple), puis vos projets.
+        <EmptyEnvelope kind="crowdlending" label="Ajouter un compte">
+          Créez votre plateforme (Bricks, par exemple) dans Paramètres › Établissements, ajoutez-lui un compte de crowdlending, puis vos projets.
         </EmptyEnvelope>
       ) : (
         <>
