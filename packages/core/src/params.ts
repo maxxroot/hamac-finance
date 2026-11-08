@@ -9,6 +9,22 @@ const pct = z.number().min(0).max(1);
 const pctSigned = z.number().min(-1).max(1);
 const eur = z.number().min(0);
 
+/** Parties de l'application que l'on peut masquer. */
+export const MODULES = ["performance", "historique", "livrets", "fondsEuros", "obligations", "actions", "crypto", "etablissements", "impots", "regles"] as const;
+export type ModuleKey = (typeof MODULES)[number];
+export const MODULE_LABELS: Record<ModuleKey, string> = {
+  performance: "Performance",
+  historique: "Historique",
+  livrets: "Livrets",
+  fondsEuros: "Fonds euros",
+  obligations: "Obligations",
+  actions: "Actions & ETF",
+  crypto: "Crypto",
+  etablissements: "Établissements",
+  impots: "Impôts",
+  regles: "Règles et démarches",
+};
+
 /** Classe d'actifs ajoutée à la demande : sa cible est prise sur celle de la classe dont elle a le comportement. */
 export const AssetClass = z.object({
   id: z.string().min(1),
@@ -67,6 +83,8 @@ export const PlanParams = z
       avAllowanceCouple: eur,
       peaBefore5: pct,
     }),
+    /** Pages affichées dans le menu. Masquer un module ne change aucun calcul. */
+    modules: z.object(Object.fromEntries(MODULES.map((m) => [m, z.boolean()])) as Record<ModuleKey, z.ZodBoolean>),
     /** Versements : gestion libre (montants saisis compte par compte) ou suggérée (depuis la capacité mensuelle). */
     contributions: z.object({
       mode: z.enum(["libre", "suggere"]),
@@ -147,6 +165,7 @@ export function defaultParams(today = new Date()): PlanParams {
       avAllowanceCouple: 9200,
       peaBefore5: 0.128,
     },
+    modules: Object.fromEntries(MODULES.map((m) => [m, true])) as Record<ModuleKey, boolean>,
     contributions: { mode: "libre", capacity: 0 },
     customAllocations: [],
     customClasses: [],

@@ -12,6 +12,8 @@ import {
   ACCOUNT_KIND_LABELS,
   ASSET_KIND_LABELS,
   BUCKET_LABELS,
+  MODULES,
+  MODULE_LABELS,
   PlanParams,
   classTargets,
   etfTarget,
@@ -144,6 +146,14 @@ function PlanTab() {
               </div>
               <p className="mt-1 pl-5.5 text-xs text-fg-muted">{text}</p>
             </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Modules" hint="Les pages affichées dans le menu. Masquer un module ne supprime rien et ne change aucun calcul.">
+        <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-3">
+          {MODULES.map((m) => (
+            <Checkbox key={m} checked={p.modules[m]} onChange={(v) => set(["modules", m], v)} label={MODULE_LABELS[m]} />
           ))}
         </div>
       </Section>

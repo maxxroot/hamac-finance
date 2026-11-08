@@ -35,7 +35,10 @@ function NavEntry({ item }: { item: NavItem }) {
 export function Shell() {
   const privacy = useSetting<boolean>("ui.privacyMode", false);
   const setPrivacy = useSetSetting("ui.privacyMode");
-  const retraite = useWorkspace().data?.params.profile.goal !== "patrimoine";
+  const params = useWorkspace().data?.params;
+  const retraite = params?.profile.goal !== "patrimoine";
+  const visible = (item: NavItem) => (retraite || !item.retirementOnly) && (!item.module || params?.modules[item.module] !== false);
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter(visible) })).filter((g) => g.items.length);
 
   return (
     <div className={cn("flex h-full", privacy.value && "privacy")}>
@@ -45,11 +48,11 @@ export function Shell() {
           <span className="text-lg font-semibold tracking-tight">Hamac</span>
         </div>
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
-          {NAV.map((group) => (
+          {groups.map((group) => (
             <div key={group.label}>
               <div className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-fg-faint">{group.label}</div>
               <div className="space-y-0.5">
-                {group.items.filter((item) => retraite || !item.retirementOnly).map((item) => (
+                {group.items.map((item) => (
                   <NavEntry key={item.path} item={item} />
                 ))}
               </div>

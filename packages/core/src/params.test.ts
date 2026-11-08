@@ -67,4 +67,11 @@ describe("paramètres", () => {
     expect(PlanParams.safeParse({ ...q, customClasses: [{ ...or, target: 0.4 }] }).success).toBe(false);
     expect(normalizeParams({}, new Date(2026, 10, 7)).customClasses).toEqual([]);
   });
+
+  it("modules : tous affichés par défaut, y compris depuis d'anciens paramètres", () => {
+    const n = normalizeParams({ modules: { crypto: false } }, new Date(2026, 10, 7));
+    expect(n.modules.crypto).toBe(false);
+    expect(n.modules.livrets).toBe(true);
+    expect(normalizeParams({}, new Date(2026, 10, 7)).modules.impots).toBe(true);
+  });
 });
