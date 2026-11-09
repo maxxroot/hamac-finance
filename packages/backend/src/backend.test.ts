@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -41,10 +41,10 @@ describe("backend", () => {
     expect(unknown.ok === false && unknown.error.code).toBe("NOT_FOUND");
   });
 
-  it("crée une sauvegarde quotidienne sur disque", async () => {
+  it("n'écrit aucune copie à l'ouverture d'un compte à jour", async () => {
     const dir = mkdtempSync(join(tmpdir(), "hamac-"));
     backend = await testBackend({ backupsDir: join(dir, "sauvegardes") });
-    expect(readdirSync(join(dir, "sauvegardes"))).toHaveLength(1);
+    expect(existsSync(join(dir, "sauvegardes"))).toBe(false);
   });
 });
 

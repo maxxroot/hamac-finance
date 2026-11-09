@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { backupBeforeMigration } from "../backup";
 import { pgliteProvider } from "../testkit";
 import { testBackend } from "../testkit";
 import { enterTenant, positional, rawFor, tenantNames } from "./postgres";
@@ -47,6 +51,20 @@ describe("PostgreSQL", () => {
     const version = await migrate(raw);
     expect(await migrate(raw)).toBe(version);
     expect(await pendingMigrations(raw)).toEqual([]);
+    await provider.close();
+  });
+
+  it("copie avant migration : écrite une fois, jamais remplacée", async () => {
+    const provider = pgliteProvider();
+    const session = await provider.session();
+    await enterTenant(session, crypto.randomUUID());
+    const raw = rawFor(session);
+    await migrate(raw);
+    const dir = mkdtempSync(join(tmpdir(), "hamac-"));
+    const ctx = { raw, schemaVersion: "avant-migration", appVersion: "test" };
+    expect(await backupBeforeMigration(ctx, dir, "0001_test")).toBe(join(dir, "hamac-avant-0001_test.json.gz"));
+    expect(await backupBeforeMigration(ctx, dir, "0001_test")).toBeNull();
+    expect(readdirSync(dir)).toEqual(["hamac-avant-0001_test.json.gz"]);
     await provider.close();
   });
 

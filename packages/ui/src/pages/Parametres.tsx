@@ -697,7 +697,7 @@ function BackupCard() {
               .
             </p>
             <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2">
-              Toutes les données actuelles seront remplacées. La sauvegarde automatique du jour permet de revenir en arrière si besoin.
+              Toutes les données actuelles seront remplacées, sans retour possible. Exportez d'abord une sauvegarde pour pouvoir revenir en arrière.
             </p>
           </div>
         )}
@@ -725,7 +725,7 @@ function AppInfo({ info }: { info: ReturnType<typeof useSystemInfo> }) {
             <code className="text-xs break-all">{info.data.databasePath}</code>
           </dd>
           <dt className="text-fg-muted">Sauvegardes</dt>
-          <dd>{info.data.backupsDir ? <code className="text-xs break-all">{info.data.backupsDir}</code> : "désactivées"} (une par jour, 30 conservées)</dd>
+          <dd>{info.data.backupsDir ?? "désactivées"}</dd>
           <dt className="text-fg-muted">Schéma</dt>
           <dd>{info.data.schemaVersion}</dd>
           <dt className="text-fg-muted">PostgreSQL</dt>

@@ -93,7 +93,7 @@ export const handlers: Handlers = {
       databasePath: ctx.displayPath,
       schemaVersion: ctx.schemaVersion,
       databaseVersion: await ctx.raw.version(),
-      backupsDir: ctx.backupsDir ? "Sauvegardes quotidiennes sur le serveur" : null,
+      backupsDir: ctx.backupsDir ? "Copie sur le serveur avant chaque migration" : null,
     };
   },
 

@@ -21,8 +21,7 @@ ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend to
 
 - **Pensé pour la France** : livrets réglementés, règle des quinzaines, assurance-vie (8 ans, abattement),
   PEA (5 ans), prélèvements sociaux, flat tax ou barème, plus-values crypto (art. 150 VH bis).
-- **Vos données restent chez vous** : une application web que vous hébergez, sauvegardée automatiquement
-  chaque jour. Aucun service tiers.
+- **Vos données restent chez vous** : une application web que vous hébergez. Aucun service tiers.
 - **Pour vous et vos proches** : chaque compte a son espace isolé dans PostgreSQL ; les cours sont communs
   à l'instance et téléchargés une seule fois.
 
@@ -156,8 +155,10 @@ anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe.
 schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de
 l'instance.
 
-Les sauvegardes quotidiennes de chaque compte (30 jours) sont dans le volume `hamac-data`, en JSON compressé.
-Une sauvegarde se restaure dans Paramètres › Application.
+Avant chaque migration de la base, une copie de chaque compte est écrite dans le volume `hamac-data`, en JSON
+compressé. Chaque personne peut exporter et restaurer ses données dans Paramètres › Application. Ce volume est
+sur la même machine que la base : pour vous protéger d'une panne de disque, copiez aussi la base ailleurs
+(par exemple `docker compose exec -T db pg_dump -U hamac hamac > hamac.sql`).
 
 **Reprendre une ancienne base de l'application de bureau** : avec Node.js 22.13 ou plus récent,
 `node apps/server/scripts/export-desktop.mjs` crée `hamac-export-bureau.json`, à restaurer dans

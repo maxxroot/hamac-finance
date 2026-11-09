@@ -10,7 +10,7 @@ export type SignupMode = "invite" | "open" | "closed";
 
 export interface ServerConfig {
   provider: PgProvider;
-  /** Dossier des sauvegardes quotidiennes, un sous-dossier par tenant ; null pour les désactiver. */
+  /** Dossier des copies faites avant une migration, un sous-dossier par tenant ; null pour les désactiver. */
   dataDir: string | null;
   signup: SignupMode;
   /** Cookie « Secure » : à activer derrière HTTPS (recommandé en production). */

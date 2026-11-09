@@ -1,5 +1,5 @@
 import { procedures, RpcError, type ProcName, type RpcResult } from "@hamac/api";
-import { backupBeforeMigration, dailyBackup } from "./backup";
+import { backupBeforeMigration } from "./backup";
 import type { BackendContext } from "./context";
 import type { PgProvider } from "./db/driver";
 import { migrate, pendingMigrations } from "./db/migrate";
@@ -19,7 +19,7 @@ export interface BackendOptions {
   appVersion: string;
   /** Signale la perte de la connexion : l'appelant doit rouvrir ce backend. */
   onLost?: () => void;
-  /** Dossier des sauvegardes quotidiennes ; null pour désactiver (tests, base en mémoire). */
+  /** Dossier des copies faites avant une migration ; null pour désactiver (tests, base en mémoire). */
   backupsDir: string | null;
   /** Actualise les cours au démarrage, puis à un rythme qui respecte les quotas des sources. */
   autoRefreshPrices?: boolean;
@@ -61,18 +61,7 @@ export async function createBackend(opts: BackendOptions): Promise<Backend> {
       isAdmin: opts.isAdmin,
       displayPath: opts.displayPath ?? "Base PostgreSQL de l'instance",
     };
-    const backup = async () => {
-      if (!opts.backupsDir) return;
-      try {
-        await dailyBackup(ctx, opts.backupsDir);
-      } catch (err) {
-        console.error("[hamac] sauvegarde impossible :", err);
-      }
-    };
-    await backup();
-    const backupTimer = opts.backupsDir ? setInterval(() => void backup(), 6 * 3600_000) : null;
-    backupTimer?.unref?.();
-    return startBackend(ctx, { autoRefreshPrices: opts.autoRefreshPrices, onClose: () => backupTimer && clearInterval(backupTimer) });
+    return startBackend(ctx, { autoRefreshPrices: opts.autoRefreshPrices });
   } catch (err) {
     await session.end().catch(() => undefined);
     throw err;
@@ -80,7 +69,7 @@ export async function createBackend(opts: BackendOptions): Promise<Backend> {
 }
 
 /** Assemble un backend sur une base déjà ouverte et migrée, quel que soit son moteur. */
-export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: boolean; onClose?: () => void }): Backend {
+export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: boolean }): Backend {
   // Les appels sont traités un par un sur la connexion du tenant,
   // et cela garantit qu'une écriture n'est jamais entrelacée avec une autre.
   let queue: Promise<unknown> = Promise.resolve();
@@ -141,7 +130,6 @@ export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: bo
     },
     close() {
       closed = true;
-      opts.onClose?.();
       if (priceTimer) clearTimeout(priceTimer);
       void ctx.raw.close().catch((err) => console.error("[hamac] fermeture de la base :", err));
     },

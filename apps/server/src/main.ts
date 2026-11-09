@@ -7,7 +7,7 @@ import { createApp, type SignupMode } from "./app";
 /**
  * Serveur Hamac auto-hébergé.
  *   DATABASE_URL     connexion PostgreSQL (défaut : postgres://hamac:hamac@localhost:5432/hamac)
- *   HAMAC_DATA_DIR   dossier des sauvegardes (défaut : ./data)
+ *   HAMAC_DATA_DIR   dossier des copies faites avant une migration (défaut : ./data)
  *   HAMAC_PORT       port d'écoute (défaut : 8080)
  *   HAMAC_SIGNUP     invite (défaut) | open | closed
  *   HAMAC_SECURE     1 si le serveur est derrière HTTPS (cookies « Secure »)
