@@ -88,6 +88,14 @@ export interface PositionState {
   bond: BondInfo | null;
 }
 
+export interface PositionTotal {
+  assetId: string;
+  realized: number;
+  income: number;
+  /** Frais compris dans le montant des achats et des ventes. */
+  fees: number;
+}
+
 export interface AccountState {
   account: Account;
   cash: number;
@@ -106,6 +114,8 @@ export interface AccountState {
   fees: number;
   corrections: number;
   realizedGain: number;
+  /** Résultats cumulés par titre, y compris les titres entièrement vendus ou remboursés. */
+  positionTotals: PositionTotal[];
   byBucket: Partial<Record<Bucket, number>>;
   /** Crowdlending : état de chaque projet commencé. */
   crowdProjects: CrowdProjectState[];
@@ -442,6 +452,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       fees: roundCents(acc.fees),
       corrections: roundCents(acc.corrections),
       realizedGain: roundCents([...acc.positions.values()].reduce((s, p) => s + p.realized, 0)),
+      positionTotals: [...acc.positions.values()].map((p) => ({ assetId: p.asset.id, realized: roundCents(p.realized), income: roundCents(p.income), fees: roundCents(p.fees) })),
       byBucket,
       crowdProjects,
       lastStatement,
@@ -595,10 +606,25 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
 
 // ——— Performance (TRI) ———
 
-export const PERF_GROUPS: Array<{ key: string; label: string; kinds: AccountKind[]; assumption: (p: PlanParams) => number | null }> = [
+/** Hypothèse du plan pour un compte-titres : dépend de ce qu'il contient, obligations ou actions. */
+const BUCKET_RETURN: Partial<Record<Bucket, keyof PlanParams["returns"]>> = { precaution: "livrets", garanti: "fondsEuros", obligations: "obligations", croissance: "actions" };
+
+function assumptionFromHoldings(p: PlanParams, members: readonly AccountState[]): number {
+  let weight = 0;
+  let sum = 0;
+  for (const x of members.flatMap((m) => m.positions)) {
+    const key = BUCKET_RETURN[x.bucket];
+    if (!key || x.value <= 0) continue;
+    weight += x.value;
+    sum += x.value * p.returns[key];
+  }
+  return weight > 0 ? sum / weight : p.returns.obligations;
+}
+
+export const PERF_GROUPS: Array<{ key: string; label: string; kinds: AccountKind[]; assumption: (p: PlanParams, members: readonly AccountState[]) => number | null }> = [
   { key: "livret", label: "Livrets", kinds: ["livret"], assumption: (p) => p.returns.livrets },
   { key: "assurance_vie", label: "Assurance-vie", kinds: ["assurance_vie"], assumption: (p) => p.returns.fondsEuros },
-  { key: "cto", label: "Compte-titres", kinds: ["cto"], assumption: (p) => p.returns.obligations },
+  { key: "cto", label: "Compte-titres", kinds: ["cto"], assumption: assumptionFromHoldings },
   { key: "pea", label: "PEA", kinds: ["pea", "pea_pme"], assumption: (p) => p.returns.actions },
   { key: "per", label: "PER", kinds: ["per"], assumption: () => null },
   { key: "epargne_salariale", label: "Épargne salariale", kinds: ["epargne_salariale"], assumption: () => null },
@@ -627,7 +653,7 @@ export function contributionFlows(data: EngineData, accountIds: ReadonlySet<stri
   return flows;
 }
 
-function irrOf(flows: Flow[], value: number, asOf: string): { irr: number | null; reason: string | null } {
+export function irrOf(flows: Flow[], value: number, asOf: string): { irr: number | null; reason: string | null } {
   if (value <= 0) return { irr: null, reason: "Valeur nulle" };
   if (!flows.length) return { irr: null, reason: "Aucun versement" };
   const first = flows.reduce((m, f) => (f.date < m ? f.date : m), flows[0].date);
@@ -645,7 +671,7 @@ function computePerformance(data: EngineData, state: PortfolioState, schedule: S
     const value = roundCents(members.reduce((s, m) => s + m.value, 0));
     const netContrib = roundCents(members.reduce((s, m) => s + m.netContrib, 0));
     const { irr, reason } = irrOf(contributionFlows(data, ids, state.asOf, schedule, true), value, state.asOf);
-    rows.push({ key: g.key, label: g.label, value, netContrib, gain: roundCents(value - netContrib), gainPct: netContrib > 0 ? (value - netContrib) / netContrib : 0, irr, irrReason: reason, assumption: g.assumption(data.params) });
+    rows.push({ key: g.key, label: g.label, value, netContrib, gain: roundCents(value - netContrib), gainPct: netContrib > 0 ? (value - netContrib) / netContrib : 0, irr, irrReason: reason, assumption: g.assumption(data.params, members) });
   }
   const all = new Set(state.accounts.map((a) => a.account.id));
   const { irr, reason } = irrOf(contributionFlows(data, all, state.asOf, schedule, false), state.totals.value, state.asOf);

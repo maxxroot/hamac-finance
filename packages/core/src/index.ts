@@ -19,6 +19,7 @@ export * from "./securitiesGains";
 export * from "./taxes";
 export * from "./taxReport";
 export * from "./history";
+export * from "./performance";
 export * from "./projection";
 export * from "./alerts";
 export * from "./csv";

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AccountState, Alert, AllocationRow, HistoryPoint } from "@hamac/core";
 import { accountHistory, assetLines, positionHistory, allocationBars, alertsToReview, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
 
-const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {}, byPosition: {} });
+const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {}, byPosition: {}, detailByAccount: {}, positionResults: {} });
 const history = Array.from({ length: 20 }, (_, i) => point(i + 1));
 const account = (id: string, value: number, netContrib = value, gain = 0) => ({ account: { id, name: id }, value, netContrib, gain }) as unknown as AccountState;
 const allocation = (key: string, share: number, target: number) => ({ key, share, target }) as AllocationRow;

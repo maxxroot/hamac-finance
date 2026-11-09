@@ -2,6 +2,20 @@ import { BUCKETS, type Bucket } from "./domain";
 import { computePortfolio, type EngineData } from "./engine";
 import { addMonth, monthOf, type Month } from "./schedule";
 
+/** Montants cumulés d'un compte à une date : la différence entre deux dates donne ceux de la période. */
+export interface AccountHistoryDetail {
+  interests: number;
+  dividends: number;
+  /** Tous les frais, y compris ceux compris dans le montant des achats et des ventes. */
+  fees: number;
+  /** Frais compris dans les achats et les ventes : ils pèsent déjà sur les plus-values. */
+  embeddedFees: number;
+  realized: number;
+  unrealized: number;
+  /** Valeur des titres sans aucun cours connu à cette date, donc comptés à leur prix de revient. */
+  unpriced: number;
+}
+
 export interface HistoryPoint {
   /** Dernier jour du mois (ou aujourd'hui pour le mois en cours). */
   date: string;
@@ -15,9 +29,12 @@ export interface HistoryPoint {
   contribByAccount: Record<string, number>;
   /** Titres détenus : valeur et prix de revient, par « compte:titre ». */
   byPosition: Record<string, { value: number; cost: number }>;
+  detailByAccount: Record<string, AccountHistoryDetail>;
+  /** Plus-values réalisées et revenus cumulés, par « compte:titre », titres vendus compris. */
+  positionResults: Record<string, { realized: number; income: number }>;
 }
 
-function endOfMonth(m: Month): string {
+export function endOfMonth(m: Month): string {
   const [y, mm] = m.split("-").map(Number);
   const last = new Date(Date.UTC(y, mm, 0)).getUTCDate();
   return `${m}-${String(last).padStart(2, "0")}`;
@@ -48,6 +65,21 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
       byAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.value])),
       contribByAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.netContrib])),
       byPosition: Object.fromEntries(s.accounts.flatMap((a) => a.positions.map((p) => [`${a.account.id}:${p.asset.id}`, { value: p.value, cost: p.cost }]))),
+      detailByAccount: Object.fromEntries(
+        s.accounts.map((a) => [
+          a.account.id,
+          {
+            interests: a.interests,
+            dividends: a.dividends,
+            fees: a.fees,
+            embeddedFees: a.positionTotals.reduce((t, p) => t + p.fees, 0),
+            realized: a.realizedGain,
+            unrealized: a.positions.reduce((t, p) => t + p.gain, 0),
+            unpriced: a.positions.reduce((t, p) => t + (p.priceUsed === "cout" ? p.value : 0), 0),
+          },
+        ]),
+      ),
+      positionResults: Object.fromEntries(s.accounts.flatMap((a) => a.positionTotals.map((p) => [`${a.account.id}:${p.assetId}`, { realized: p.realized, income: p.income }]))),
     });
     month = addMonth(month, 1);
   }
