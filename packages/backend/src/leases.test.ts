@@ -131,3 +131,17 @@ describe("loyers signalés et dépenses", () => {
     expect(after.propertyExpenses).toHaveLength(1);
   });
 });
+
+describe("rappels d'un bail", () => {
+  it("activés par défaut, désactivables, activés pour une sauvegarde sans cette colonne", async () => {
+    backend = await testBackend();
+    const propertyId = await newProperty(backend);
+    const saved = await call<{ id: string; reminders: boolean }>(backend, "leases.upsert", lease(propertyId));
+    expect(saved.reminders).toBe(true);
+    expect(await call(backend, "leases.upsert", { ...lease(propertyId), id: saved.id, reminders: false })).toMatchObject({ reminders: false });
+    const dump = await call<{ tables: { leases: Array<Record<string, unknown>> } }>(backend, "data.export");
+    for (const row of dump.tables.leases) delete row.reminders;
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await ws(backend)).leases).toMatchObject([{ reminders: true }]);
+  });
+});

@@ -226,6 +226,7 @@ export const mapLease = (r: typeof t.leases.$inferSelect): Lease => ({
   noticeMonths: r.noticeMonths,
   actualEnd: r.actualEnd,
   comment: r.comment,
+  reminders: r.reminders,
 });
 
 export const mapLeaseRent = (r: typeof t.leaseRents.$inferSelect): LeaseRent => ({

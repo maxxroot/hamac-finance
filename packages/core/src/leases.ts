@@ -96,6 +96,8 @@ export interface Lease {
   /** Date de départ réelle, si elle diffère de la fin calculée. */
   actualEnd: string | null;
   comment: string;
+  /** Rappeler les échéances de ce bail dans les alertes. */
+  reminders: boolean;
 }
 
 /** Nouveau loyer (révision annuelle…), en vigueur à partir d'un mois. */

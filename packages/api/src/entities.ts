@@ -190,6 +190,7 @@ export const LeaseInput = z
     noticeMonths: z.number().int().min(1).max(24).nullable().default(null),
     actualEnd: isoDate.nullable().default(null),
     comment: text(500).default(""),
+    reminders: z.boolean().default(true),
   })
   .refine((l) => (l.noticeBy == null) === (l.noticeDate == null), { path: ["noticeDate"], message: "Indiquez qui donne congé et à quelle date." });
 export type LeaseInput = z.input<typeof LeaseInput>;

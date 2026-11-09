@@ -308,6 +308,7 @@ export const leases = pgTable(
     noticeMonths: bigint("notice_months", { mode: "number" }),
     actualEnd: text("actual_end"),
     comment: text("comment").notNull().default(""),
+    reminders: boolean("reminders").notNull().default(true),
     ...timestamps,
   },
   (t) => [index("leases_property_idx").on(t.propertyId)],

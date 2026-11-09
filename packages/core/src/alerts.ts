@@ -225,6 +225,7 @@ export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "le
       const due = unpaid.reduce((sum, m) => sum + m.expectedRent + m.expectedCharges, 0);
       out.push({ id: `loyers-impayes-${property.id}`, level: "attention", title: `${property.name} : ${unpaid.length} loyer${unpaid.length > 1 ? "s" : ""} impayé${unpaid.length > 1 ? "s" : ""}`, detail: `${eur(due)} à recevoir.`, link });
     }
+    if (!current.lease.reminders) continue;
     if (current.status === "termine") {
       out.push({ id: `bail-vacant-${property.id}`, level: "info", title: `${property.name} : aucun bail en cours`, link });
       continue;

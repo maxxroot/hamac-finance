@@ -435,7 +435,7 @@ export function Notice() {
           Indiquez aussi son utilisation, son statut (nom propre, indivision, SCI…) et ses frais d'achat. Les <B>frais de notaire</B> sont estimés d'après le prix, la date d'achat et l'état du bien (neuf ou ancien), avec le taux de droits de mutation le plus courant : comparez-les à votre acte et corrigez-les si besoin. Cliquez sur le nom d'un bien pour ouvrir sa fiche : valeur, coût d'achat, gain estimé et crédits rattachés.
         </p>
         <p>
-          <B>Un investissement locatif</B> a en plus son suivi sur cette fiche. Déclarez le bail : son type propose la durée et calcule le dépôt de garantie, tous deux modifiables. Sans congé, le bail se reconduit tout seul. Un congé se note dans le bail, et le tableau de bord rappelle la fin du bail et le dernier jour pour donner congé.
+          <B>Un investissement locatif</B> a en plus son suivi sur cette fiche. Déclarez le bail : son type propose la durée et calcule le dépôt de garantie, tous deux modifiables. Sans congé, le bail se reconduit tout seul. Un congé se note dans le bail. Si la case des rappels est cochée, le tableau de bord prévient deux mois à l'avance de la fin du bail et du dernier jour pour donner congé : 6 mois avant la fin en location vide, 3 mois en meublé.
         </p>
         <p>
           Les loyers se comptent tout seuls chaque mois : signalez seulement un impayé, un mois vide ou un montant différent. Un loyer qui change se note avec « Nouveau loyer », pour ne pas réécrire les mois passés. Les dépenses se notent à part, avec l'option « chaque année » pour la taxe foncière ou l'assurance.

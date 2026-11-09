@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { LEASE_KIND_LABELS, LEASE_KINDS, defaultLeaseMonths, defaultTenantNoticeMonths, leaseDurationNote, leaseEnd, leaseRenews, maxDeposit, validateLease, type Lease, type LeaseKind, type LeaseNoticeBy, type Property } from "@hamac/core";
 import type { LeaseInput } from "@hamac/api";
 import { Amount } from "@/components/Amount";
-import { Field, FormGrid, Modal, MoneyInput, NumberInput, Select, TextInput } from "@/components/form";
+import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, Select, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
 import { formatDate, todayIso } from "@/lib/numbers";
 import { useMutate } from "@/lib/workspace";
 
 type LeaseDraft = Required<Omit<LeaseInput, "id">> & { id?: string };
 
-const emptyLease = (property: Property): LeaseDraft => ({ propertyId: property.id, kind: "vide", tenant: "", startDate: todayIso(), durationMonths: defaultLeaseMonths("vide", property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "" });
+const emptyLease = (property: Property): LeaseDraft => ({ propertyId: property.id, kind: "vide", tenant: "", startDate: todayIso(), durationMonths: defaultLeaseMonths("vide", property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true });
 
 export function LeaseDialog({ open, property, lease, others, onClose }: { open: boolean; property: Property; lease: Lease | null; others: readonly Lease[]; onClose: () => void }) {
   const [d, setD] = useState<LeaseDraft>(() => emptyLease(property));
@@ -93,6 +93,8 @@ export function LeaseDialog({ open, property, lease, others, onClose }: { open: 
             )}
           </Field>
         </FormGrid>
+
+        <Checkbox checked={d.reminders} onChange={(v) => update({ reminders: v })} label="Me rappeler les échéances de ce bail, deux mois à l'avance" />
 
         {lease && (
           <div>

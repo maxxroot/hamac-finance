@@ -499,6 +499,7 @@ export const handlers: Handlers = {
       noticeMonths: input.noticeBy === "locataire" ? input.noticeMonths : null,
       actualEnd: input.actualEnd,
       comment: input.comment,
+      reminders: input.reminders,
       updatedAt: nowIso(),
     };
     if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));

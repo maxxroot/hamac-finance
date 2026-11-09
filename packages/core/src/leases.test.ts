@@ -3,7 +3,7 @@ import { leaseAlerts } from "./alerts";
 import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseState, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
 import type { Property } from "./realestate";
 
-const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "" };
+const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true };
 const meuble: Lease = { ...vide, kind: "meuble", durationMonths: 12, startDate: "2025-03-01" };
 
 describe("règles légales", () => {
@@ -173,6 +173,15 @@ describe("rappels", () => {
 
   it("plus de bail en cours", () => {
     expect(run({ ...meuble, actualEnd: "2025-06-01" }, "2026-01-01")[0].id).toBe("bail-vacant-b");
+  });
+
+  it("rappels décochés : plus aucun rappel de bail, l'impayé reste signalé", () => {
+    const silencieux = { ...vide, reminders: false };
+    expect(run(silencieux, "2026-05-15")).toHaveLength(0);
+    expect(run({ ...silencieux, actualEnd: "2025-06-01" }, "2026-01-01")).toHaveLength(0);
+    const bien2 = { id: "b", kind: "locatif", name: "Studio", archived: false } as Property;
+    const impaye: RentException = { id: "x", leaseId: "l", month: "2026-02", kind: "impaye", amount: null, comment: "" };
+    expect(leaseAlerts({ properties: [bien2], leases: [silencieux], leaseRents: [], rentExceptions: [impaye] }, "2026-05-15").map((a) => a.id)).toEqual(["loyers-impayes-b"]);
   });
 
   it("rien pour un bien qui n'est plus en location ou archivé", () => {
