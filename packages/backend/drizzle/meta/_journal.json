@@ -78,6 +78,13 @@
       "when": 1794234445517,
       "tag": "0010_serious_speed_demon",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794234594329,
+      "tag": "0011_crazy_madripoor",
+      "breakpoints": true
     }
   ]
 }

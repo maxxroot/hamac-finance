@@ -23,7 +23,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapProperty, mapPropertyExpense, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapProperty, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -563,6 +563,9 @@ export const handlers: Handlers = {
       actualEnd: input.actualEnd,
       comment: input.comment,
       reminders: input.reminders,
+      depositReturnedCents: input.depositReturned == null ? null : toCents(input.depositReturned),
+      depositReturnedOn: input.depositReturnedOn,
+      depositReason: input.depositReturned == null ? "" : input.depositReason,
       updatedAt: nowIso(),
     };
     if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));
@@ -621,6 +624,20 @@ export const handlers: Handlers = {
     if (input.id) await ctx.db.update(t.propertyExpenses).set(row).where(eq(t.propertyExpenses.id, id));
     else await ctx.db.insert(t.propertyExpenses).values({ id, ...row });
     return mapPropertyExpense((await ctx.db.select().from(t.propertyExpenses).where(eq(t.propertyExpenses.id, id)).limit(1).then(one))!);
+  },
+
+  async "propertyIncomes.upsert"(input, ctx) {
+    if (!(await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one))) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    const id = input.id ?? newId();
+    const row = { propertyId: input.propertyId, date: input.date, category: input.category, amountCents: toCents(input.amount), label: input.label, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.propertyIncomes).set(row).where(eq(t.propertyIncomes.id, id));
+    else await ctx.db.insert(t.propertyIncomes).values({ id, ...row });
+    return mapPropertyIncome((await ctx.db.select().from(t.propertyIncomes).where(eq(t.propertyIncomes.id, id)).limit(1).then(one))!);
+  },
+
+  async "propertyIncomes.delete"({ id }, ctx) {
+    await ctx.db.delete(t.propertyIncomes).where(eq(t.propertyIncomes.id, id));
+    return OK;
   },
 
   async "propertyExpenses.delete"({ id }, ctx) {

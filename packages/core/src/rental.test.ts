@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Lease, RentException } from "./leases";
 import { NO_PROPERTY_DETAILS, type Loan, type Property } from "./realestate";
-import { expenseDates, propertyImprovements, propertyProfitability, propertyYears, type PropertyExpense, type RentalData } from "./rental";
+import { expenseDates, incomeSigned, propertyImprovements, propertyProfitability, propertyYears, type PropertyExpense, type RentalData } from "./rental";
 
 describe("dates d'une dépense", () => {
   it("ponctuelle : une fois, si la date est passée", () => {
@@ -21,10 +21,10 @@ describe("dates d'une dépense", () => {
 
 describe("résultats par année", () => {
   const property: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 120_000, valueDate: null, purchasePrice: 92_000, purchaseDate: "2024-06-01", newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 8_000, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
-  const lease: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 50, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true };
+  const lease: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 50, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "" };
   const expense: PropertyExpense = { id: "e", propertyId: "b", date: "2025-10-15", category: "taxe_fonciere", amount: 600, label: "", yearly: true, untilYear: null, improvement: false };
   const loan: Loan = { id: "c", kind: "immobilier", name: "Prêt", propertyId: "b", share: 0.5, principal: 50_000, rate: 0, termMonths: 100, firstPayment: "2025-02-05", insuranceMode: "montant", insurance: 10, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null };
-  const data: RentalData = { property, leases: [lease], rents: [], exceptions: [], expenses: [expense], loans: [loan] };
+  const data: RentalData = { incomes: [], property, leases: [lease], rents: [], exceptions: [], expenses: [expense], loans: [loan] };
 
   it("année avant le premier bail : présente, sans rendement ni occupation", () => {
     expect(propertyYears(data, "2026-03-10")[0]).toMatchObject({ year: 2024, rents: 0, remaining: 0, grossYield: null, netYield: null, occupancy: null, partial: false });
@@ -108,9 +108,9 @@ describe("résultats par année", () => {
 
 describe("travaux d'amélioration et vente", () => {
   const property: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Studio", value: 120_000, valueDate: null, purchasePrice: 90_000, purchaseDate: "2025-01-01", newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 10_000, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
-  const lease: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 0, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true };
+  const lease: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 0, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "" };
   const travaux: PropertyExpense = { id: "t", propertyId: "b", date: "2025-06-01", category: "travaux", amount: 20_000, label: "", yearly: false, untilYear: null, improvement: true };
-  const data: RentalData = { property, leases: [lease], rents: [], exceptions: [], expenses: [travaux], loans: [] };
+  const data: RentalData = { incomes: [], property, leases: [lease], rents: [], exceptions: [], expenses: [travaux], loans: [] };
 
   it("total des améliorations jusqu'à une date", () => {
     expect(propertyImprovements([travaux, { ...travaux, id: "x", improvement: false }, { ...travaux, id: "y", propertyId: "autre" }], "b", "2025-12-31")).toBe(20_000);
@@ -127,6 +127,20 @@ describe("travaux d'amélioration et vente", () => {
   it("une amélioration ne compte dans le coût qu'à partir de son année", () => {
     const [y] = propertyYears({ ...data, expenses: [{ ...travaux, date: "2026-06-01" }] }, "2026-12-31");
     expect(y.grossYield).toBeCloseTo(6_000 / 100_000, 6);
+  });
+
+  it("autres recettes et dépôt gardé : dans ce qu'il reste et le rendement après charges, pas le rendement brut", () => {
+    const sansTravaux = { ...data, expenses: [] };
+    const [y] = propertyYears({ ...sansTravaux, leases: [{ ...lease, deposit: 500, depositReturned: 300, depositReturnedOn: "2025-09-01" }], incomes: [{ id: "i", propertyId: "b", date: "2025-03-01", category: "regularisation_recue", amount: 100, label: "" }, { id: "j", propertyId: "b", date: "2025-04-01", category: "regularisation_rendue", amount: 40, label: "" }, { id: "k", propertyId: "x", date: "2025-04-01", category: "autre", amount: 9_999, label: "" }] }, "2025-12-31");
+    // 100 reçus − 40 rendus + 200 retenus sur le dépôt.
+    expect(y).toMatchObject({ otherIncome: 260, remaining: 6_260 });
+    expect(y.grossYield).toBeCloseTo(6_000 / 100_000, 6);
+    expect(y.netYield).toBeCloseTo(6_260 / 100_000, 6);
+  });
+
+  it("le sens d'une recette vient de sa catégorie", () => {
+    expect(incomeSigned({ category: "indemnite", amount: 50 })).toBe(50);
+    expect(incomeSigned({ category: "regularisation_rendue", amount: 50 })).toBe(-50);
   });
 
   it("plus de résultats après la vente", () => {

@@ -15,6 +15,7 @@ export function PropertyYearsCard({ data, today }: { data: RentalData; today: st
           <tr>
             <Th>Année</Th>
             <Th align="right">Loyers et charges reçus</Th>
+            <Th align="right">Autres recettes</Th>
             <Th align="right">Dépenses</Th>
             <Th align="right">Intérêts et assurance</Th>
             <Th align="right">Capital remboursé</Th>
@@ -25,7 +26,7 @@ export function PropertyYearsCard({ data, today }: { data: RentalData; today: st
           </tr>
         </thead>
         <tbody>
-          {years.length === 0 && <EmptyRow cols={9}>Indiquez une date d'achat ou un bail pour voir les résultats.</EmptyRow>}
+          {years.length === 0 && <EmptyRow cols={10}>Indiquez une date d'achat ou un bail pour voir les résultats.</EmptyRow>}
           {years.map((y) => (
             <Tr key={y.year}>
               <Td className="font-medium whitespace-nowrap">
@@ -33,6 +34,7 @@ export function PropertyYearsCard({ data, today }: { data: RentalData; today: st
                 {y.partial && <span title="Année incomplète : rendements ramenés à une année entière"> *</span>}
               </Td>
               <Td align="right"><Amount value={y.rents + y.charges} /></Td>
+              <Td align="right"><Amount value={y.otherIncome} /></Td>
               <Td align="right"><Amount value={y.expenses} /></Td>
               <Td align="right"><Amount value={y.interest + y.insurance} /></Td>
               <Td align="right"><Amount value={y.capital} /></Td>

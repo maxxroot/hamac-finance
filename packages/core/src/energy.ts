@@ -17,6 +17,9 @@ export function dpeExpiry(dpeDate: string): string {
   return tenYears;
 }
 
+/** Logement classé F ou G : pas de hausse de loyer à la révision, au renouvellement ou à la relocation (service-public.gouv.fr, anil.org). */
+export const dpeFreezesRent = (letter: EnergyLetter | null) => letter === "F" || letter === "G";
+
 const RENTAL_BAN: Partial<Record<EnergyLetter, string>> = { G: "2025-01-01", F: "2028-01-01", E: "2034-01-01" };
 const RENTAL_BAN_OVERSEAS: Partial<Record<EnergyLetter, string>> = { G: "2028-01-01", F: "2031-01-01" };
 const OVERSEAS_POSTAL_PREFIXES = ["971", "972", "973", "974", "976"];

@@ -1,9 +1,9 @@
 import { allocationReport } from "./allocations";
 import { proposeContributions } from "./contributions";
 import { addDays, addMonths, monthsBetween } from "./dates";
-import { dpeExpiry, dpeRentalBan } from "./energy";
+import { dpeExpiry, dpeFreezesRent, dpeRentalBan } from "./energy";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
-import { currentLease, leaseState, rentMonths } from "./leases";
+import { currentLease, leaseRevisionDue, leaseState, rentMonths } from "./leases";
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
 import { daysBetween } from "./xirr";
@@ -255,12 +255,17 @@ export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "le
       const due = unpaid.reduce((sum, m) => sum + m.expectedRent + m.expectedCharges, 0);
       out.push({ id: `loyers-impayes-${property.id}`, level: "attention", title: `${property.name} : ${unpaid.length} loyer${unpaid.length > 1 ? "s" : ""} impayé${unpaid.length > 1 ? "s" : ""}`, detail: `${eur(due)} à recevoir.`, link });
     }
+    for (const s of states.filter((x) => x.status === "termine" && x.lease.reminders && x.lease.deposit > 0 && x.lease.depositReturned == null)) {
+      out.push({ id: `bail-depot-${s.lease.id}`, level: "attention", title: `${property.name} : dépôt de garantie à restituer`, detail: "Délai légal : 1 mois après la remise des clés si l'état des lieux de sortie est conforme, 2 mois sinon.", link });
+    }
     if (!current.lease.reminders) continue;
     if (current.status === "termine") {
       out.push({ id: `bail-vacant-${property.id}`, level: "info", title: `${property.name} : aucun bail en cours`, link });
       continue;
     }
     if (current.status === "a_venir") continue;
+    const revision = current.status === "en_cours" && !dpeFreezesRent(property.dpe) ? leaseRevisionDue(current.lease, data.leaseRents ?? [], today) : null;
+    if (revision) out.push({ id: `bail-revision-${current.lease.id}`, level: "info", title: `${property.name} : révision annuelle du loyer au ${frDate(revision)}`, detail: "Si le bail le prévoit, calculez le nouveau loyer avec l'indice de référence des loyers.", link });
     if (soon(current.end)) {
       out.push(
         current.status === "conge"

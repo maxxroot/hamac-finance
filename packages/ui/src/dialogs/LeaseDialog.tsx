@@ -9,7 +9,7 @@ import { useMutate } from "@/lib/workspace";
 
 type LeaseDraft = Required<Omit<LeaseInput, "id">> & { id?: string };
 
-const emptyLease = (property: Property): LeaseDraft => ({ propertyId: property.id, kind: "vide", tenant: "", startDate: todayIso(), durationMonths: defaultLeaseMonths("vide", property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true });
+const emptyLease = (property: Property): LeaseDraft => ({ propertyId: property.id, kind: "vide", tenant: "", startDate: todayIso(), durationMonths: defaultLeaseMonths("vide", property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "" });
 
 export function LeaseDialog({ open, property, lease, others, onClose }: { open: boolean; property: Property; lease: Lease | null; others: readonly Lease[]; onClose: () => void }) {
   const [d, setD] = useState<LeaseDraft>(() => emptyLease(property));
@@ -47,7 +47,7 @@ export function LeaseDialog({ open, property, lease, others, onClose }: { open: 
           <Button variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button variant="primary" disabled={save.isPending || !d.startDate || d.durationMonths < 1 || d.rent <= 0 || error != null} onClick={() => save.mutate(d, { onSuccess: onClose })}>
+          <Button variant="primary" disabled={save.isPending || !d.startDate || d.durationMonths < 1 || d.rent <= 0 || error != null || (d.depositReturned != null && !d.depositReturnedOn)} onClick={() => save.mutate(d, { onSuccess: onClose })}>
             {lease ? "Valider" : "Ajouter"}
           </Button>
         </>
@@ -122,6 +122,15 @@ export function LeaseDialog({ open, property, lease, others, onClose }: { open: 
               )}
               <Field label="Départ réel (facultatif)" help="Si différent de la fin calculée.">{(id) => <TextInput id={id} type="date" value={d.actualEnd ?? ""} onChange={(e) => update({ actualEnd: e.target.value || null })} />}</Field>
             </FormGrid>
+            <div className="mt-4">
+              <FormGrid cols={3}>
+                <Field label="Dépôt rendu" help="Montant restitué à la sortie.">
+                  {(id) => <MoneyInput id={id} value={d.depositReturned} onChange={(v) => setD((x) => ({ ...x, depositReturned: v, depositReturnedOn: v == null ? null : (x.depositReturnedOn ?? todayIso()) }))} />}
+                </Field>
+                {d.depositReturned != null && <Field label="Rendu le">{(id) => <TextInput id={id} type="date" value={d.depositReturnedOn ?? ""} onChange={(e) => setD((x) => ({ ...x, depositReturnedOn: e.target.value || null }))} />}</Field>}
+                {d.depositReturned != null && d.depositReturned < d.deposit && <Field label="Motif de la retenue">{(id) => <TextInput id={id} value={d.depositReason} onChange={(e) => setD((x) => ({ ...x, depositReason: e.target.value }))} />}</Field>}
+              </FormGrid>
+            </div>
           </div>
         )}
 

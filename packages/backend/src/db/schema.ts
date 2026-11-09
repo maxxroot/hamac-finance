@@ -332,6 +332,9 @@ export const leases = pgTable(
     actualEnd: text("actual_end"),
     comment: text("comment").notNull().default(""),
     reminders: boolean("reminders").notNull().default(true),
+    depositReturnedCents: bigint("deposit_returned_cents", { mode: "number" }),
+    depositReturnedOn: text("deposit_returned_on"),
+    depositReason: text("deposit_reason").notNull().default(""),
     ...timestamps,
   },
   (t) => [index("leases_property_idx").on(t.propertyId)],
@@ -366,6 +369,23 @@ export const propertyValues = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex("property_values_property_date_uq").on(t.propertyId, t.date)],
+);
+
+/** Recettes d'un bien hors loyer : régularisations de charges, indemnités. */
+export const propertyIncomes = pgTable(
+  "property_incomes",
+  {
+    id: text("id").primaryKey(),
+    propertyId: text("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    category: text("category").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    label: text("label").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [index("property_incomes_property_idx").on(t.propertyId)],
 );
 
 /** Écarts signalés sur les loyers : sans ligne ici, le loyer prévu du mois est réputé perçu. */

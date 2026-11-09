@@ -98,6 +98,10 @@ export interface Lease {
   comment: string;
   /** Rappeler les échéances de ce bail dans les alertes. */
   reminders: boolean;
+  /** Dépôt rendu au locataire à sa sortie, sa date et le motif d'une retenue ; null tant qu'il n'est pas rendu. */
+  depositReturned: number | null;
+  depositReturnedOn: string | null;
+  depositReason: string;
 }
 
 /** Nouveau loyer (révision annuelle…), en vigueur à partir d'un mois. */
@@ -270,4 +274,24 @@ export function rentMonths(lease: Lease, rents: readonly LeaseRent[], exceptions
     else out.push({ ...base, occupied: fraction, expectedRent, expectedCharges, receivedRent: expectedRent, receivedCharges: expectedCharges, status: "paye" });
   }
   return out;
+}
+
+/** Somme gardée sur le dépôt à la sortie : elle compte comme une recette. */
+export const depositRetained = (lease: Pick<Lease, "deposit" | "depositReturned">) => (lease.depositReturned == null ? 0 : roundCents(Math.max(0, lease.deposit - lease.depositReturned)));
+
+/** Fenêtre autour de la date anniversaire où rappeler la révision du loyer. */
+const RENT_REVISION_ALERT_DAYS = 30;
+
+/** Date anniversaire du bail si une révision de loyer est à faire autour de `today` ; null s'il n'y en a pas, ou si le loyer vient de changer. */
+export function leaseRevisionDue(lease: Pick<Lease, "id" | "kind" | "startDate">, rents: readonly LeaseRent[], today: string): string | null {
+  if (lease.kind !== "vide" && lease.kind !== "meuble") return null;
+  for (let n = 1; ; n++) {
+    const anniversary = addMonths(lease.startDate, 12 * n);
+    const days = daysBetween(today, anniversary);
+    if (days > RENT_REVISION_ALERT_DAYS) return null;
+    if (days >= -RENT_REVISION_ALERT_DAYS) {
+      const revised = rents.some((r) => r.leaseId === lease.id && r.fromMonth >= addMonths(anniversary, -2).slice(0, 7));
+      return revised ? null : anniversary;
+    }
+  }
 }

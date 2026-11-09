@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { LEASE_KIND_LABELS, LEASE_STATUS_LABELS, currentLease, leaseState, type Lease, type LeaseRent, type LeaseState, type Property } from "@hamac/core";
+import { LEASE_KIND_LABELS, LEASE_STATUS_LABELS, currentLease, depositRetained, dpeFreezesRent, leaseState, type Lease, type LeaseRent, type LeaseState, type Property } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine } from "@/components/DetailLine";
 import { RowActions } from "@/components/RowActions";
@@ -51,7 +51,16 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
           {!current.lease.reminders && <DetailLine label="Rappels">Désactivés</DetailLine>}
           <DetailLine label="Loyer hors charges"><Amount value={current.rent} /></DetailLine>
           <DetailLine label="Charges"><Amount value={current.charges} /></DetailLine>
-          <DetailLine label="Dépôt de garantie (à restituer)"><Amount value={current.lease.deposit} /></DetailLine>
+          {current.lease.depositReturned == null ? (
+            <DetailLine label="Dépôt de garantie (à restituer)"><Amount value={current.lease.deposit} /></DetailLine>
+          ) : (
+            <>
+              <DetailLine label={`Dépôt rendu le ${formatDate(current.lease.depositReturnedOn)}`}><Amount value={current.lease.depositReturned} /></DetailLine>
+              {depositRetained(current.lease) > 0 && (
+                <DetailLine label={current.lease.depositReason ? `Retenue : ${current.lease.depositReason}` : "Retenue"}><Amount value={depositRetained(current.lease)} /></DetailLine>
+              )}
+            </>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button className="h-8" onClick={() => setEditing(current.lease)}>
               Modifier ou donner congé
@@ -106,7 +115,7 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
         </div>
       )}
       <LeaseDialog open={editing !== null} property={property} lease={editing === "new" ? null : editing} others={leases.filter((l) => l.id !== editedId)} onClose={() => setEditing(null)} />
-      <LeaseRentDialog state={newRent} onClose={() => setNewRent(null)} />
+      <LeaseRentDialog state={newRent} frozen={dpeFreezesRent(property.dpe)} onClose={() => setNewRent(null)} />
     </Card>
   );
 }

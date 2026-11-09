@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { leaseAlerts } from "./alerts";
-import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseState, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
+import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseRevisionDue, leaseState, depositRetained, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 
-const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true };
+const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "" };
 const meuble: Lease = { ...vide, kind: "meuble", durationMonths: 12, startDate: "2025-03-01" };
 
 describe("règles légales", () => {
@@ -172,7 +172,7 @@ describe("rappels", () => {
   });
 
   it("plus de bail en cours", () => {
-    expect(run({ ...meuble, actualEnd: "2025-06-01" }, "2026-01-01")[0].id).toBe("bail-vacant-b");
+    expect(run({ ...meuble, actualEnd: "2025-06-01" }, "2026-01-01").map((a) => a.id)).toEqual(["bail-depot-l", "bail-vacant-b"]);
   });
 
   it("rappels décochés : plus aucun rappel de bail, l'impayé reste signalé", () => {
@@ -235,5 +235,43 @@ describe("loyers automatiques", () => {
     const bien = { id: "b", kind: "locatif", name: "Studio", archived: false } as Property;
     const alerts = leaseAlerts({ properties: [bien], leases: [bail], leaseRents: [], rentExceptions: [exception("2026-02", "impaye")] }, "2026-03-10");
     expect(alerts.find((a) => a.id === "loyers-impayes-b")).toMatchObject({ level: "attention", title: "Studio : 1 loyer impayé" });
+  });
+});
+
+describe("dépôt à la sortie et révision du loyer", () => {
+  it("retenue : dépôt moins somme rendue, rien tant qu'il n'est pas rendu", () => {
+    expect(depositRetained({ deposit: 800, depositReturned: null })).toBe(0);
+    expect(depositRetained({ deposit: 800, depositReturned: 650 })).toBe(150);
+    expect(depositRetained({ deposit: 800, depositReturned: 900 })).toBe(0);
+  });
+
+  it("révision : 30 jours autour de l'anniversaire, jamais pour un bail sans révision", () => {
+    expect(leaseRevisionDue(vide, [], "2025-12-15")).toBe(null);
+    expect(leaseRevisionDue(vide, [], "2025-12-16")).toBe("2026-01-15");
+    expect(leaseRevisionDue(vide, [], "2026-02-14")).toBe("2026-01-15");
+    expect(leaseRevisionDue(vide, [], "2026-02-15")).toBe(null);
+    expect(leaseRevisionDue(vide, [], "2024-01-20")).toBe(null);
+    expect(leaseRevisionDue({ ...vide, kind: "mobilite" }, [], "2026-01-15")).toBe(null);
+  });
+
+  it("révision : plus de rappel une fois le nouveau loyer saisi", () => {
+    const rents: LeaseRent[] = [{ id: "r", leaseId: "l", fromMonth: "2026-01", rent: 830, charges: 50 }];
+    expect(leaseRevisionDue(vide, rents, "2026-01-20")).toBe(null);
+    expect(leaseRevisionDue(vide, [{ ...rents[0], fromMonth: "2025-01" }], "2026-01-20")).toBe("2026-01-15");
+  });
+
+  const bien = { id: "b", kind: "locatif", name: "Studio", archived: false, dpe: null } as Property;
+  it("alerte de révision, sauf note F ou G", () => {
+    expect(leaseAlerts({ properties: [bien], leases: [vide], leaseRents: [] }, "2026-01-20").some((a) => a.id === "bail-revision-l")).toBe(true);
+    expect(leaseAlerts({ properties: [{ ...bien, dpe: "F" }], leases: [vide], leaseRents: [] }, "2026-01-20").some((a) => a.id === "bail-revision-l")).toBe(false);
+  });
+
+  it("alerte de dépôt à restituer jusqu'à ce qu'il soit noté, sauf rappels décochés ou dépôt nul", () => {
+    const parti = { ...vide, actualEnd: "2025-06-01" };
+    const ids = (l: Lease) => leaseAlerts({ properties: [bien], leases: [l], leaseRents: [] }, "2026-03-01").map((a) => a.id);
+    expect(ids(parti)).toContain("bail-depot-l");
+    expect(ids({ ...parti, depositReturned: 800, depositReturnedOn: "2025-07-01" })).not.toContain("bail-depot-l");
+    expect(ids({ ...parti, reminders: false })).not.toContain("bail-depot-l");
+    expect(ids({ ...parti, deposit: 0 })).not.toContain("bail-depot-l");
   });
 });

@@ -6,7 +6,7 @@ import { todayIso } from "@/lib/numbers";
 import { useMutate } from "@/lib/workspace";
 
 /** Nouveau loyer à partir d'un mois, sans réécrire les mois passés. */
-export function LeaseRentDialog({ state, onClose }: { state: LeaseState | null; onClose: () => void }) {
+export function LeaseRentDialog({ state, frozen, onClose }: { state: LeaseState | null; frozen: boolean; onClose: () => void }) {
   const [fromMonth, setFromMonth] = useState("");
   const [rent, setRent] = useState(0);
   const [charges, setCharges] = useState(0);
@@ -33,6 +33,7 @@ export function LeaseRentDialog({ state, onClose }: { state: LeaseState | null; 
         </>
       }
     >
+      {frozen && <p className="mb-3 text-sm text-warning">Avec une note DPE F ou G, le loyer ne peut pas être augmenté.</p>}
       <FormGrid cols={3}>
         <Field label="À partir de">{(id) => <TextInput id={id} type="month" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} />}</Field>
         <Field label="Loyer hors charges">{(id) => <MoneyInput id={id} value={rent} onChange={(v) => setRent(v ?? 0)} />}</Field>

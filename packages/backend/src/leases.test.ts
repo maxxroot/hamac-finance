@@ -145,3 +145,27 @@ describe("rappels d'un bail", () => {
     expect((await ws(backend)).leases).toMatchObject([{ reminders: true }]);
   });
 });
+
+describe("sortie du locataire et autres recettes", () => {
+  it("dépôt rendu : montant et date vont ensemble, motif effacé sans dépôt rendu", async () => {
+    backend = await testBackend();
+    const propertyId = await newProperty(backend);
+    await expect(call(backend, "leases.upsert", { ...lease(propertyId), depositReturned: 500 })).rejects.toThrow();
+    expect(await call(backend, "leases.upsert", { ...lease(propertyId), depositReturned: 500, depositReturnedOn: "2027-02-01", depositReason: "Ménage" })).toMatchObject({ depositReturned: 500, depositReturnedOn: "2027-02-01", depositReason: "Ménage" });
+  });
+
+  it("recettes : enregistrées, modifiables, dans les sauvegardes, retirées avec le bien", async () => {
+    backend = await testBackend();
+    const propertyId = await newProperty(backend);
+    const data = () => call<{ propertyIncomes: Array<Record<string, unknown>> }>(backend!, "workspace.load");
+    await expect(call(backend, "propertyIncomes.upsert", { propertyId, date: "2025-01-01", category: "indemnite", amount: -5 })).rejects.toThrow();
+    const saved = await call<{ id: string }>(backend, "propertyIncomes.upsert", { propertyId, date: "2025-01-01", category: "indemnite", amount: 300, label: "Dégât des eaux" });
+    await call(backend, "propertyIncomes.upsert", { id: saved.id, propertyId, date: "2025-01-01", category: "indemnite", amount: 350 });
+    expect((await data()).propertyIncomes).toMatchObject([{ amount: 350 }]);
+    const dump = await call(backend, "data.export");
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await data()).propertyIncomes).toHaveLength(1);
+    await call(backend, "properties.delete", { id: propertyId });
+    expect((await data()).propertyIncomes).toEqual([]);
+  });
+});

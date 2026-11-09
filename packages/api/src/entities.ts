@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -224,8 +224,12 @@ export const LeaseInput = z
     actualEnd: isoDate.nullable().default(null),
     comment: text(500).default(""),
     reminders: z.boolean().default(true),
+    depositReturned: money.min(0).nullable().default(null),
+    depositReturnedOn: isoDate.nullable().default(null),
+    depositReason: text(200).default(""),
   })
-  .refine((l) => (l.noticeBy == null) === (l.noticeDate == null), { path: ["noticeDate"], message: "Indiquez qui donne congé et à quelle date." });
+  .refine((l) => (l.noticeBy == null) === (l.noticeDate == null), { path: ["noticeDate"], message: "Indiquez qui donne congé et à quelle date." })
+  .refine((l) => (l.depositReturned == null) === (l.depositReturnedOn == null), { path: ["depositReturnedOn"], message: "Indiquez le montant rendu et sa date." });
 export type LeaseInput = z.input<typeof LeaseInput>;
 
 export const LeaseRentInput = z.object({
@@ -260,6 +264,16 @@ export const PropertyExpenseInput = z.object({
   improvement: z.boolean().default(false),
 });
 export type PropertyExpenseInput = z.input<typeof PropertyExpenseInput>;
+
+export const PropertyIncomeInput = z.object({
+  id: id.optional(),
+  propertyId: id,
+  date: isoDate,
+  category: z.enum(INCOME_CATEGORIES),
+  amount: money.positive("Montant requis"),
+  label: text(120).default(""),
+});
+export type PropertyIncomeInput = z.input<typeof PropertyIncomeInput>;
 
 export const LoanInput = z
   .object({

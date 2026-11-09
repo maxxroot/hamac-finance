@@ -5,6 +5,7 @@ import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, curr
 import { Amount } from "@/components/Amount";
 import { DetailLine as Line } from "@/components/DetailLine";
 import { ExpensesCard } from "@/components/ExpensesCard";
+import { IncomesCard } from "@/components/IncomesCard";
 import { LeaseCard } from "@/components/LeaseCard";
 import { DescriptionCard, EnergyCard, ProfitabilityCard, SaleCard } from "@/components/PropertySheetCards";
 import { PropertyYearsCard } from "@/components/PropertyYearsCard";
@@ -59,7 +60,7 @@ export function Bien() {
   const tabs: Array<[Tab, string]> = [["fiche", "Fiche"], ...(rented ? ([["location", "Location"]] as Array<[Tab, string]>) : []), ["finances", "Finances"]];
   const requested = search.get("onglet");
   const tab = tabs.find(([key]) => key === requested)?.[0] ?? "fiche";
-  const rentalData = { property, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: ws.loans };
+  const rentalData = { property, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: ws.loans };
   const years = rented ? propertyYears(rentalData, pf.today) : [];
   const lease = currentLease(leases.map((l) => leaseState(l, ws.leaseRents, pf.today)));
   const monthlyRent = rented && (lease?.status === "en_cours" || lease?.status === "conge") ? lease.rent : null;
@@ -195,6 +196,7 @@ export function Bien() {
           </Card>
           <ValuesCard property={property} values={ws.propertyValues.filter((v) => v.propertyId === property.id)} />
           <ExpensesCard propertyId={property.id} expenses={ws.propertyExpenses.filter((e) => e.propertyId === property.id)} />
+          {rented && <IncomesCard propertyId={property.id} incomes={ws.propertyIncomes.filter((i) => i.propertyId === property.id)} />}
           {rented && <PropertyYearsCard data={rentalData} today={pf.today} />}
         </div>
       )}
