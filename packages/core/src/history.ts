@@ -11,6 +11,8 @@ export interface HistoryPoint {
   gain: number;
   buckets: Record<Bucket, number>;
   byAccount: Record<string, number>;
+  /** Argent versé net, par compte. */
+  contribByAccount: Record<string, number>;
 }
 
 function endOfMonth(m: Month): string {
@@ -42,6 +44,7 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
       gain: s.totals.gain,
       buckets: Object.fromEntries(BUCKETS.map((b) => [b, s.buckets[b]])) as Record<Bucket, number>,
       byAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.value])),
+      contribByAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.netContrib])),
     });
     month = addMonth(month, 1);
   }

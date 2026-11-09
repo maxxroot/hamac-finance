@@ -1,9 +1,11 @@
 import { ACCOUNT_KIND_LABELS } from "@hamac/core";
+import { Fragment } from "react";
 import { SortTh, useSortable } from "@/lib/sort";
 import type { AccountState, PortfolioState } from "@hamac/core";
+import { AccountEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Notice, Pct } from "@/components/Stat";
-import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
+import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS } from "@/lib/colors";
@@ -102,6 +104,7 @@ export function LivretsStatus() {
 
 /** Tableau des comptes, triable par colonne, avec la plus-value en %. */
 function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: PortfolioState["totals"] }) {
+  const { isOpen, rowProps } = useExpandedRow();
   const pct = (a: { gain: number; netContrib: number }) => (a.netContrib > 0 ? a.gain / a.netContrib : null);
   const { sorted, by } = useSortable(rows, {
     name: (a) => a.account.name,
@@ -142,10 +145,12 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
       <tbody>
         {rows.length === 0 && <EmptyRow cols={8}>Aucun compte.</EmptyRow>}
         {sorted.map((a) => (
-          <Tr key={a.account.id}>
+          <Fragment key={a.account.id}>
+          <Tr {...rowProps(a.account.id)}>
             <Td className="font-medium whitespace-nowrap">
+              <ExpandButton open={isOpen(a.account.id)} label={a.account.name} />
               {a.account.name}
-              {a.account.name !== ACCOUNT_KIND_LABELS[a.account.kind] && <div className="text-xs font-normal text-fg-faint">{ACCOUNT_KIND_LABELS[a.account.kind]}</div>}
+              {a.account.name !== ACCOUNT_KIND_LABELS[a.account.kind] && <div className="ml-[21px] text-xs font-normal text-fg-faint">{ACCOUNT_KIND_LABELS[a.account.kind]}</div>}
             </Td>
             <Td className="max-w-56 truncate text-fg-muted" title={a.account.role}>
               {a.account.role}
@@ -169,6 +174,12 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
               <Pct value={pct(a)} signed />
             </Td>
           </Tr>
+          {isOpen(a.account.id) && (
+            <DetailRow cols={8}>
+              <AccountEvolution accountIds={[a.account.id]} />
+            </DetailRow>
+          )}
+          </Fragment>
         ))}
         <tr className="bg-surface-2/60 font-medium">
           <Td>Total</Td>

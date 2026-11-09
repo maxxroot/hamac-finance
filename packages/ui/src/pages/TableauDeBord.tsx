@@ -1,16 +1,16 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { computeAlerts, formatEur, isRetirementPlan, retirementYear, type Alert, type HistoryPoint, type PlanParams, type PortfolioState } from "@hamac/core";
+import { computeAlerts, isRetirementPlan, retirementYear, type Alert, type HistoryPoint, type PlanParams, type PortfolioState } from "@hamac/core";
 import { AlertList } from "@/components/Alerts";
 import { Amount } from "@/components/Amount";
-import { Chart, axisStyle, type ChartOption } from "@/components/Chart";
+import { EvolutionChart, PeriodSelector } from "@/components/EvolutionChart";
 import { Pct, Stat } from "@/components/Stat";
 import { Badge, Card, CardTitle } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
-import { BUCKET_COLORS, INK } from "@/lib/colors";
+import { BUCKET_COLORS } from "@/lib/colors";
 import { cn } from "@/lib/cn";
-import { allocationBars, alertsToReview, axisFloor, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod, PERIODS, type PeriodKey } from "@/lib/dashboard";
-import { capitalize, formatMonth } from "@/lib/numbers";
+import { allocationBars, alertsToReview, envelopeRows, gainSinceLastMonth, type PeriodKey } from "@/lib/dashboard";
+import { formatMonth } from "@/lib/numbers";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
 import { useProjection } from "@/lib/projection";
 
@@ -114,57 +114,14 @@ export function TableauDeBord() {
   );
 }
 
-const money = (v: number) => formatEur(v, { compact: true });
-
-function legendRow(color: string, label: string, value: string): string {
-  return `<div style="display:flex;justify-content:space-between;gap:20px"><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${color}"></span>${label}</span><b>${value}</b></div>`;
-}
-
-/** Patrimoine et argent versé : l'écart entre les deux courbes, coloré, est le gain ou la perte. */
 function EvolutionCard({ history }: { history: HistoryPoint[] | null }) {
   const [period, setPeriod] = useState<PeriodKey>("1A");
-  const option = useMemo<ChartOption | null>(() => {
-    if (!history || history.length < 2) return null;
-    const points = historyForPeriod(history, period);
-    const { base, band } = gainBand(points);
-    const helper = { type: "line", stack: "gain", silent: true, showSymbol: false, lineStyle: { opacity: 0 }, emphasis: { disabled: true } } as const;
-    return {
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: INK.surface2,
-        borderColor: INK.line,
-        textStyle: { color: INK.fg, fontSize: 12 },
-        axisPointer: { type: "line", lineStyle: { color: INK.faint, width: 1 } },
-        formatter: (params: Array<{ dataIndex: number }>) => {
-          const h = points[params[0]!.dataIndex]!;
-          return `<div style="margin-bottom:4px;color:${INK.muted}">${capitalize(formatMonth(h.month))}</div>${legendRow(INK.accent, "Patrimoine", money(h.value))}${legendRow(INK.muted, "Versé net", money(h.netContrib))}<div style="margin-top:4px">${h.gain >= 0 ? "Gain" : "Perte"} : <b>${money(Math.abs(h.gain))}</b></div>`;
-        },
-      },
-      legend: { data: ["Patrimoine", "Versé net"], top: 0, left: 0, icon: "circle", itemWidth: 8, itemHeight: 8, textStyle: { color: INK.muted } },
-      grid: { left: 8, right: 16, top: 34, bottom: 8, containLabel: true },
-      xAxis: { type: "category", boundaryGap: false, data: points.map((h) => capitalize(formatMonth(h.month))), ...axisStyle, splitLine: { show: false } },
-      yAxis: { type: "value", min: axisFloor(points), ...axisStyle, axisLabel: { color: INK.faint, formatter: (v: number) => `${Math.round(v / 1000)} k€` } },
-      series: [
-        { ...helper, name: "base", areaStyle: { opacity: 0 }, data: base },
-        { ...helper, name: "écart", areaStyle: { color: INK.accent, opacity: 0.14 }, data: band },
-        { name: "Patrimoine", type: "line", showSymbol: false, symbolSize: 8, data: points.map((h) => h.value), lineStyle: { width: 2, color: INK.accent }, itemStyle: { color: INK.accent } },
-        { name: "Versé net", type: "line", showSymbol: false, symbolSize: 8, data: points.map((h) => h.netContrib), lineStyle: { width: 2, type: "dashed", color: INK.muted }, itemStyle: { color: INK.muted } },
-      ],
-    };
-  }, [history, period]);
-
   return (
     <Card className="lg:col-span-3">
       <CardTitle
         hint={
           <span className="flex items-center gap-3">
-            <span className="flex rounded-md bg-surface-2 p-0.5">
-              {PERIODS.map((x) => (
-                <button key={x.key} type="button" aria-pressed={period === x.key} onClick={() => setPeriod(x.key)} className={cn("rounded px-2 py-0.5", period === x.key ? "bg-surface-3 text-fg" : "text-fg-muted hover:text-fg")}>
-                  {x.key}
-                </button>
-              ))}
-            </span>
+            <PeriodSelector value={period} onChange={setPeriod} />
             <Link to="/historique" className="text-accent hover:underline">
               Historique
             </Link>
@@ -173,7 +130,7 @@ function EvolutionCard({ history }: { history: HistoryPoint[] | null }) {
       >
         Évolution
       </CardTitle>
-      {option ? <Chart option={option} height={300} /> : <p className="py-24 text-center text-sm text-fg-muted">L'évolution apparaîtra après un mois d'historique.</p>}
+      {history && history.length >= 2 ? <EvolutionChart points={history} period={period} /> : <p className="py-24 text-center text-sm text-fg-muted">L'évolution apparaîtra après un mois d'historique.</p>}
     </Card>
   );
 }

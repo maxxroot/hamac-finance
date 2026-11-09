@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Asset } from "@hamac/core";
 import { incomeTaxRate } from "@hamac/core";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AccountEvolution, EvolutionToggle } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
@@ -17,6 +18,7 @@ import { usePortfolio } from "@/lib/portfolio";
 export function Crypto() {
   const pf = usePortfolio();
   const [pricing, setPricing] = useState<Asset | null>(null);
+  const [showEvolution, setShowEvolution] = useState(false);
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
   const { state, crypto, data } = pf;
@@ -63,6 +65,16 @@ export function Crypto() {
           <Amount value={fees} />
         </Stat>
       </StatGrid>
+      {accounts.length > 0 && (
+        <div className="mb-5">
+          <EvolutionToggle open={showEvolution} onToggle={() => setShowEvolution(!showEvolution)} />
+          {showEvolution && (
+            <div className="mt-2">
+              <AccountEvolution accountIds={ids} />
+            </div>
+          )}
+        </div>
+      )}
       {missing.length > 0 && (
         <div className="mb-4">
           <Notice tone="warning">⚠ Cours non disponible pour {missing.map((p) => p.asset.name).join(", ")} : la valeur affichée est le prix d'achat. Saisissez le cours à la main.</Notice>

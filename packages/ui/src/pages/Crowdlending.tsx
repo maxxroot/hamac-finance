@@ -1,12 +1,13 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdInitialEndDate, crowdSummary, crowdTaxOf, formatPct, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
+import { AccountEvolution } from "@/components/AccountEvolution";
 import { AddAccountButton } from "@/components/AccountButtons";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
 import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyEnvelope } from "@/components/TransactionButton";
-import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
+import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { BricksImportDialog } from "@/dialogs/BricksImportDialog";
 import { CrowdProjectDialog } from "@/dialogs/CrowdProjectDialog";
@@ -23,6 +24,7 @@ export function Crowdlending() {
   const pf = usePortfolio();
   const del = useMutate("crowdProjects.delete", { success: "Projet supprimé" });
   const [editing, setEditing] = useState<CrowdProject | "new" | null>(null);
+  const { isOpen, rowProps } = useExpandedRow();
   const [declaring, setDeclaring] = useState(false);
   const [importing, setImporting] = useState(false);
   if (!pf) return null;
@@ -93,13 +95,23 @@ export function Crowdlending() {
                   const s = crowdSummary(a.crowdProjects);
                   const { irr, reason } = accountIrr(pf.data, pf.state, a.account.id);
                   return (
-                    <Tr key={a.account.id}>
-                      <Td className="pl-5 font-medium">{a.account.name}</Td>
+                    <Fragment key={a.account.id}>
+                    <Tr {...rowProps(a.account.id)}>
+                      <Td className="pl-5 font-medium">
+                        <ExpandButton open={isOpen(a.account.id)} label={a.account.name} />
+                        {a.account.name}
+                      </Td>
                       <Td align="right"><Amount value={s.active} /></Td>
                       <Td align="right">{s.averageRate != null ? formatPct(s.averageRate) : "—"}</Td>
                       <Td align="right"><Amount value={a.interests} /></Td>
                       <Td align="right" className="pr-5" title={irr == null ? (reason ?? undefined) : "Dépôts, retraits, intérêts et pertes compris, argent non investi inclus"}>{irr != null ? formatPct(irr) : "—"}</Td>
                     </Tr>
+                    {isOpen(a.account.id) && (
+                      <DetailRow cols={5}>
+                        <AccountEvolution accountIds={[a.account.id]} />
+                      </DetailRow>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

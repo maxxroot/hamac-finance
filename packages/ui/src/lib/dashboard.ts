@@ -11,26 +11,40 @@ export const PERIODS = [
 
 export type PeriodKey = (typeof PERIODS)[number]["key"];
 
+export type EvolutionPoint = Pick<HistoryPoint, "month" | "value" | "netContrib" | "gain">;
+
+/** Historique d'un ou plusieurs comptes additionnés, à partir de leur premier mois non vide. */
+export function accountHistory(history: readonly HistoryPoint[], accountIds: readonly string[]): EvolutionPoint[] {
+  const sum = (byId: Record<string, number>) => accountIds.reduce((s, id) => s + (byId[id] ?? 0), 0);
+  const points = history.map((h) => {
+    const value = sum(h.byAccount);
+    const netContrib = sum(h.contribByAccount);
+    return { month: h.month, value, netContrib, gain: value - netContrib };
+  });
+  const first = points.findIndex((p) => p.value !== 0 || p.netContrib !== 0);
+  return first < 0 ? [] : points.slice(first);
+}
+
 /** Derniers points de la période ; un de plus que le nombre de mois, pour disposer du point de départ. */
-export function historyForPeriod(history: readonly HistoryPoint[], period: PeriodKey): HistoryPoint[] {
+export function historyForPeriod<T>(history: readonly T[], period: PeriodKey): T[] {
   const months = PERIODS.find((p) => p.key === period)?.months ?? null;
   return months == null ? [...history] : history.slice(-(months + 1));
 }
 
 /** Gain gagné ou perdu depuis la fin du mois précédent : les versements du mois ne comptent pas. */
-export function gainSinceLastMonth(history: readonly HistoryPoint[]): { gain: number; since: string } | null {
+export function gainSinceLastMonth(history: readonly EvolutionPoint[]): { gain: number; since: string } | null {
   const now = history.at(-1);
   const before = history.at(-2);
   return now && before ? { gain: now.gain - before.gain, since: before.month } : null;
 }
 
 /** Bande entre le patrimoine et l'argent versé : base transparente, puis épaisseur colorée, valable en gain comme en perte. */
-export function gainBand(points: readonly HistoryPoint[]): { base: number[]; band: number[] } {
+export function gainBand(points: readonly EvolutionPoint[]): { base: number[]; band: number[] } {
   return { base: points.map((p) => Math.min(p.value, p.netContrib)), band: points.map((p) => Math.abs(p.value - p.netContrib)) };
 }
 
 /** Bas de l'axe, arrondi vers le bas : sur une courbe, partir de zéro écraserait les variations. */
-export function axisFloor(points: readonly HistoryPoint[]): number {
+export function axisFloor(points: readonly EvolutionPoint[]): number {
   const low = Math.min(...points.flatMap((p) => [p.value, p.netContrib]));
   if (!Number.isFinite(low) || low <= 0) return 0;
   const step = 10 ** Math.floor(Math.log10(low));

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { accountAgeYears, fiscalAnniversary, monthsBetween, type AccountState } from "@hamac/core";
 import { EditAccountButton } from "@/components/AccountButtons";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AccountEvolution, EvolutionToggle } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Field, FormGrid, MoneyInput, NumberInput, PercentInput, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
@@ -41,6 +42,7 @@ export function FondsEuros() {
 }
 
 function Contract({ s }: { s: AccountState }) {
+  const [showEvolution, setShowEvolution] = useState(false);
   const pf = usePortfolio()!;
   const { account } = s;
   const today = pf.today;
@@ -61,7 +63,13 @@ function Contract({ s }: { s: AccountState }) {
           {account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
         </span>
         <EditAccountButton account={account} />
+        <EvolutionToggle open={showEvolution} onToggle={() => setShowEvolution(!showEvolution)} />
       </h2>
+      {showEvolution && (
+        <div className="mb-5">
+          <AccountEvolution accountIds={[account.id]} />
+        </div>
+      )}
       <StatGrid>
         <Stat label="Valeur calculée">
           <Amount value={s.value} compact />

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AccountState, Alert, AllocationRow, HistoryPoint } from "@hamac/core";
-import { allocationBars, alertsToReview, axisFloor, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
+import { accountHistory, allocationBars, alertsToReview, axisFloor, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
 
-const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, buckets: {} as HistoryPoint["buckets"], byAccount: {} });
+const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {} });
 const history = Array.from({ length: 20 }, (_, i) => point(i + 1));
 const account = (id: string, value: number, netContrib = value, gain = 0) => ({ account: { id, name: id }, value, netContrib, gain }) as unknown as AccountState;
 const allocation = (key: string, share: number, target: number) => ({ key, share, target }) as AllocationRow;
@@ -13,6 +13,16 @@ describe("tableau de bord", () => {
     expect(historyForPeriod(history, "1A")).toHaveLength(13);
     expect(historyForPeriod(history, "3A")).toHaveLength(20);
     expect(historyForPeriod(history, "Tout")).toHaveLength(20);
+  });
+
+  it("historique d'un compte : additionne, calcule le gain, ignore les mois d'avant son ouverture", () => {
+    const at = (i: number, a: number, c: number) => ({ ...point(i), byAccount: { lep: a, autre: 999 }, contribByAccount: { lep: c, autre: 1 } });
+    expect(accountHistory([at(1, 0, 0), at(2, 100, 100), at(3, 112, 100)], ["lep"])).toEqual([
+      { month: "2026-02", value: 100, netContrib: 100, gain: 0 },
+      { month: "2026-03", value: 112, netContrib: 100, gain: 12 },
+    ]);
+    expect(accountHistory([at(1, 10, 8)], ["lep", "autre"])[0]).toMatchObject({ value: 1009, netContrib: 9, gain: 1000 });
+    expect(accountHistory([at(1, 10, 8)], ["inconnu"])).toEqual([]);
   });
 
   it("le gain du mois ignore les versements", () => {

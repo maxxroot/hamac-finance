@@ -1,13 +1,14 @@
 import { Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { LIVRET_LABELS, livretInterest, rateAt } from "@hamac/core";
+import { AccountEvolution } from "@/components/AccountEvolution";
 import { EditAccountButton } from "@/components/AccountButtons";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, PercentInput, Select, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
 import { Pct, Stat, StatGrid } from "@/components/Stat";
-import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
+import { EmptyRow, Table, Td, Th, Tr, DetailRow, ExpandButton, stopRowClick, useExpandedRow } from "@/components/table";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { LivretsStatus } from "@/pages/Synthese";
 import { Onboarding } from "@/pages/Onboarding";
@@ -18,6 +19,7 @@ import { useMutate } from "@/lib/workspace";
 import { SortTh, useSortable } from "@/lib/sort";
 
 export function Livrets() {
+  const { isOpen, rowProps } = useExpandedRow();
   const pf = usePortfolio();
   const year = +todayIso().slice(0, 4);
 
@@ -103,9 +105,12 @@ export function Livrets() {
             <tbody>
               {sorted.map(({ s: a, rate, rateFrom, interest }) => {
                 const margin = a.account.depositCeiling != null ? a.account.depositCeiling - a.value : null;
+                const open = isOpen(a.account.id);
                 return (
-                  <Tr key={a.account.id}>
+                  <Fragment key={a.account.id}>
+                  <Tr {...rowProps(a.account.id)}>
                     <Td className="font-medium">
+                      <ExpandButton open={open} label={a.account.name} />
                       {a.account.name}
                       {a.account.livretType && a.account.livretType !== "AUTRE" && a.account.name !== LIVRET_LABELS[a.account.livretType] && <span className="text-fg-muted"> · {LIVRET_LABELS[a.account.livretType]}</span>}
                       {a.account.role && <div className="max-w-56 text-xs font-normal text-fg-faint">{a.account.role}</div>}
@@ -136,10 +141,16 @@ export function Livrets() {
                     <Td align="right">
                       <Amount value={a.interests} />
                     </Td>
-                    <Td className="w-10">
+                    <Td className="w-10" onClick={stopRowClick}>
                       <EditAccountButton account={a.account} />
                     </Td>
                   </Tr>
+                  {open && (
+                    <DetailRow cols={10}>
+                      <AccountEvolution accountIds={[a.account.id]} />
+                    </DetailRow>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>

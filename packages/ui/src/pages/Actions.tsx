@@ -3,6 +3,7 @@ import { useState } from "react";
 import { advisedMonthlyPurchase, describeOrderFees, fiscalAnniversary, monthsElapsed, splitByTarget, tradeFeeFor, type AccountState, type Asset, type PositionState } from "@hamac/core";
 import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AccountEvolution, EvolutionToggle } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
@@ -79,6 +80,7 @@ export function Actions() {
 }
 
 function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void }) {
+  const [showEvolution, setShowEvolution] = useState(false);
   const pf = usePortfolio()!;
   const { params } = pf.data;
   const equities = s.positions.filter((p) => p.bucket === "croissance");
@@ -119,7 +121,13 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
           {s.account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
         </span>
         <EditAccountButton account={s.account} />
+        <EvolutionToggle open={showEvolution} onToggle={() => setShowEvolution(!showEvolution)} />
       </h2>
+      {showEvolution && (
+        <div className="mb-5">
+          <AccountEvolution accountIds={[s.account.id]} />
+        </div>
+      )}
       <StatGrid>
         <Stat label="Valeur totale" sub={<>{(share * 100).toFixed(1).replace(".", ",")} % du patrimoine</>}>
           <Amount value={s.value} compact />
