@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateNotaryFees, loanPayment, loanState, loanYears, propertySummary, propertyTotalCost, propertyValue, type Loan, type Property } from "./realestate";
+import { NO_PROPERTY_DETAILS, estimateNotaryFees, loanPayment, loanState, loanYears, propertySqm, propertySummary, propertyTotalCost, propertyValue, type Loan, type Property } from "./realestate";
 
 const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, share: 1, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
 
@@ -139,7 +139,7 @@ describe("crédits", () => {
 });
 
 describe("biens", () => {
-  const bien: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 300_000, valueDate: null, purchasePrice: 200_000, purchaseDate: "2020-01-01", newBuild: false, notaryFees: 15_000, agencyFees: 5_000, initialWorks: 10_000, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
+  const bien: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 300_000, valueDate: null, purchasePrice: 200_000, purchaseDate: "2020-01-01", newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 15_000, agencyFees: 5_000, initialWorks: 10_000, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
 
   it("frais de notaire estimés pour 200 000 € : droits, émoluments TTC, sécurité immobilière et formalités", () => {
     // Émoluments : 1 995,25 € HT (exemple de service-public), soit 2 394,30 € TTC ; sécurité immobilière 200 € ; formalités 1 000 €.
@@ -153,6 +153,12 @@ describe("biens", () => {
     // 5 000 × 3,87 % × 1,2 = 232,20 € ; droits 315,93 € ; sécurité immobilière 5 € ; formalités 1 000 €.
     expect(estimateNotaryFees(5_000, false, "2026-03-01")).toBe(1_553);
     expect(estimateNotaryFees(0, false, "2026-03-01")).toBe(0);
+  });
+
+  it("repères au m² : achat, valeur et loyer, rien sans surface", () => {
+    expect(propertySqm({ surface: 25, purchasePrice: 100_000, value: 125_000 }, 500)).toEqual({ purchase: 4_000, value: 5_000, rent: 20 });
+    expect(propertySqm({ surface: 25, purchasePrice: null, value: 125_000 }, null)).toEqual({ purchase: null, value: 5_000, rent: null });
+    expect(propertySqm({ surface: null, purchasePrice: 100_000, value: 125_000 }, 500)).toBeNull();
   });
 
   it("coût d'achat complet : prix et tous les frais, inconnu sans prix", () => {

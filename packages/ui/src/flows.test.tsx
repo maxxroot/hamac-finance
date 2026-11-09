@@ -44,7 +44,7 @@ interface Ws {
   params: Record<string, never> & { profile: { goal: string }; customClasses: unknown[] };
   transactions: Array<{ type: string; amount: number }>;
   loans: Array<{ kind: string; name: string; propertyId: string | null; principal: number; share: number }>;
-  properties: Array<{ kind: string; ownership: string; name: string; purchasePrice: number | null; newBuild: boolean; notaryFees: number }>;
+  properties: Array<{ kind?: string; ownership?: string; name?: string; city?: string; surface?: number; dpe?: string; purchasePrice: number | null; newBuild: boolean; notaryFees: number }>;
   plans: Array<{ accountId: string; amount: number }>;
   assets: Array<{ id: string; inAllocation: boolean | null }>;
 }
@@ -210,7 +210,7 @@ describe("parcours de l'interface", () => {
         <Route path="/immobilier/:id" element={<Bien />} />
       </Routes>
     );
-    const first = show(routes, `/immobilier/${bien.id}`);
+    const first = show(routes, `/immobilier/${bien.id}?onglet=finances`);
     expect(await screen.findByRole("heading", { name: "Studio" })).toBeTruthy();
     expect(screen.getByText(/Investissement locatif · SCI familiale/)).toBeTruthy();
     expect(screen.getByText("Coût d'achat complet")).toBeTruthy();
@@ -218,6 +218,30 @@ describe("parcours de l'interface", () => {
     first.unmount();
     show(routes, "/immobilier/inconnu");
     expect(await screen.findByRole("heading", { name: "Bien introuvable" })).toBeTruthy();
+  });
+
+  it("fiche descriptive : complétée sans perdre les données financières, DPE et repères affichés", async () => {
+    const user = userEvent.setup();
+    const bien = await rpc<{ id: string }>("properties.upsert", { kind: "locatif", name: "Studio", value: 120_000, purchasePrice: 100_000, notaryFees: 8000 });
+    await rpc("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 500 });
+    show(
+      <Routes>
+        <Route path="/immobilier/:id" element={<Bien />} />
+      </Routes>,
+      `/immobilier/${bien.id}`,
+    );
+    expect(await screen.findByText("Rentabilité")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Compléter la fiche/ }));
+    await user.type(fieldOf("Ville"), "Ville fictive");
+    const surface = fieldOf("Surface habitable (m²)");
+    await user.clear(surface);
+    await user.type(surface, "25");
+    await user.tab();
+    await user.selectOptions(fieldOf("Note DPE"), "F");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect(await screen.findByText(/Location interdite à partir du|Location interdite depuis le/)).toBeTruthy();
+    expect(screen.getByText("Valeur au m²")).toBeTruthy();
+    expect((await workspace()).properties).toMatchObject([{ city: "Ville fictive", surface: 25, dpe: "F", purchasePrice: 100_000, notaryFees: 8000 }]);
   });
 
   it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {
@@ -246,13 +270,14 @@ describe("parcours de l'interface", () => {
       <Routes>
         <Route path="/immobilier/:id" element={<Bien />} />
       </Routes>,
-      `/immobilier/${bien.id}`,
+      `/immobilier/${bien.id}?onglet=location`,
     );
-    expect(await screen.findByText("Résultats par année")).toBeTruthy();
     const [first] = await screen.findAllByRole("button", { name: /Signaler un écart/ });
     await user.click(first);
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(async () => expect((await rpc<{ rentExceptions: unknown[] }>("workspace.load")).rentExceptions).toMatchObject([{ kind: "impaye" }]));
+    await user.click(screen.getByRole("tab", { name: "Finances" }));
+    expect(await screen.findByText("Résultats par année")).toBeTruthy();
     await user.click(await screen.findByRole("button", { name: /Nouvelle dépense/ }));
     const amount = await screen.findByLabelText("Montant");
     await user.clear(amount);

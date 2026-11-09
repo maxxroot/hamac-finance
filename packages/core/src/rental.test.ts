@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Lease, RentException } from "./leases";
-import type { Loan, Property } from "./realestate";
-import { expenseDates, propertyYears, type PropertyExpense, type RentalData } from "./rental";
+import { NO_PROPERTY_DETAILS, type Loan, type Property } from "./realestate";
+import { expenseDates, propertyProfitability, propertyYears, type PropertyExpense, type RentalData } from "./rental";
 
 describe("dates d'une dépense", () => {
   it("ponctuelle : une fois, si la date est passée", () => {
@@ -20,7 +20,7 @@ describe("dates d'une dépense", () => {
 });
 
 describe("résultats par année", () => {
-  const property: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 120_000, valueDate: null, purchasePrice: 92_000, purchaseDate: "2024-06-01", newBuild: false, notaryFees: 8_000, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
+  const property: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 120_000, valueDate: null, purchasePrice: 92_000, purchaseDate: "2024-06-01", newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 8_000, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
   const lease: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 50, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true };
   const expense: PropertyExpense = { id: "e", propertyId: "b", date: "2025-10-15", category: "taxe_fonciere", amount: 600, label: "", yearly: true, untilYear: null };
   const loan: Loan = { id: "c", kind: "immobilier", name: "Prêt", propertyId: "b", share: 0.5, principal: 50_000, rate: 0, termMonths: 100, firstPayment: "2025-02-05", insuranceMode: "montant", insurance: 10, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
@@ -67,6 +67,24 @@ describe("résultats par année", () => {
   it("bail qui n'a pas encore commencé : ni loyer, ni occupation, même s'il débute ce mois-ci", () => {
     const y = propertyYears({ ...data, leases: [{ ...lease, startDate: "2026-03-20" }], expenses: [], loans: [] }, "2026-03-10").at(-1)!;
     expect(y).toMatchObject({ year: 2026, rents: 0, occupancy: null, grossYield: null });
+  });
+
+  it("rentabilité : dernière année complète, cumuls depuis l'achat", () => {
+    const r = propertyProfitability(propertyYears(data, "2026-03-10"))!;
+    expect(r).toMatchObject({ year: 2025, partial: false, occupancy: 1, totalRents: 3_750, totalCapital: 3_500 });
+    expect(r.grossYield).toBeCloseTo(0.06, 6);
+    expect(r.monthlyRemaining).toBeCloseTo(195 / 12, 2);
+  });
+
+  it("rentabilité : sans année complète, la dernière année louée, ramenée à sa durée", () => {
+    const r = propertyProfitability(propertyYears({ ...data, property: { ...property, purchaseDate: "2026-01-01" }, leases: [{ ...lease, startDate: "2026-01-01" }], expenses: [], loans: [] }, "2026-03-10"))!;
+    expect(r).toMatchObject({ year: 2026, partial: true });
+    // 3 mois à 275 € (loyer et charges, à 50 %), sur 90 jours.
+    expect(r.monthlyRemaining).toBeCloseTo(825 / ((90 / 365) * 12), 2);
+  });
+
+  it("rentabilité : rien tant que le bien n'a jamais été loué", () => {
+    expect(propertyProfitability(propertyYears({ ...data, leases: [] }, "2026-03-10"))).toBeNull();
   });
 
   it("sans prix d'achat : pas de rendement, le reste est calculé", () => {

@@ -1,6 +1,7 @@
 import { allocationReport } from "./allocations";
 import { proposeContributions } from "./contributions";
 import { addDays, addMonths, monthsBetween } from "./dates";
+import { dpeExpiry, dpeRentalBan } from "./energy";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
 import { currentLease, leaseState, rentMonths } from "./leases";
 import { formatEur } from "./money";
@@ -194,6 +195,7 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   }
 
   out.push(...leaseAlerts(data, today));
+  out.push(...energyAlerts(data, today));
 
   // Janvier–mars : intérêts de l'année passée à saisir.
   const month = +today.slice(5, 7);
@@ -206,6 +208,34 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   }
 
   return out.sort((x, y) => RANK[x.level] - RANK[y.level]);
+}
+
+/** Délais avant lesquels on prévient : expiration d'un DPE, interdiction de louer à venir. */
+const DPE_EXPIRY_ALERT_DAYS = 90;
+const RENTAL_BAN_ALERT_DAYS = 730;
+
+/** Alertes sur le DPE, pour les biens dont la case des alertes est cochée. */
+export function energyAlerts(data: Pick<EngineData, "properties">, today: string): Alert[] {
+  const out: Alert[] = [];
+  for (const p of (data.properties ?? []).filter((x) => x.dpeReminders && !x.archived)) {
+    const link = `/immobilier/${p.id}`;
+    const rented = p.kind === "locatif";
+    if (p.dpeDate) {
+      const expiry = dpeExpiry(p.dpeDate);
+      const days = daysBetween(today, expiry);
+      if (days < 0) out.push({ id: `dpe-expire-${p.id}`, level: rented ? "attention" : "info", title: `${p.name} : DPE expiré depuis le ${frDate(expiry)}`, detail: "Un DPE valide est obligatoire pour louer ou vendre.", link });
+      else if (days <= DPE_EXPIRY_ALERT_DAYS) out.push({ id: `dpe-expire-${p.id}`, level: "info", title: `${p.name} : DPE valable jusqu'au ${frDate(expiry)}`, detail: "Prévoyez un nouveau diagnostic.", link });
+    }
+    if (rented && p.dpe) {
+      const ban = dpeRentalBan(p.dpe, p.postalCode);
+      if (ban != null) {
+        const detail = "S'applique à tout nouveau bail et à la reconduction d'un bail en cours.";
+        if (ban <= today) out.push({ id: `dpe-interdit-${p.id}`, level: "attention", title: `${p.name} : note ${p.dpe}, location interdite depuis le ${frDate(ban)}`, detail, link });
+        else if (daysBetween(today, ban) <= RENTAL_BAN_ALERT_DAYS) out.push({ id: `dpe-interdit-${p.id}`, level: "info", title: `${p.name} : note ${p.dpe}, location interdite à partir du ${frDate(ban)}`, detail, link });
+      }
+    }
+  }
+  return out;
 }
 
 /** Délai avant une échéance de bail à partir duquel on la rappelle. */

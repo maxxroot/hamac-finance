@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -166,6 +166,25 @@ export const PropertyInput = z.object({
   agencyFees: money.min(0).default(0),
   initialWorks: money.min(0).default(0),
   otherFees: money.min(0).default(0),
+  propertyType: z.enum(PROPERTY_TYPES).nullable().default(null),
+  address: text(200).default(""),
+  postalCode: text(10).default(""),
+  city: text(120).default(""),
+  surface: z.number().positive("Surface invalide").max(1_000_000).nullable().default(null),
+  rooms: z.number().int().min(0).max(999).nullable().default(null),
+  bedrooms: z.number().int().min(0).max(999).nullable().default(null),
+  floor: z.number().int().min(-10).max(300).nullable().default(null),
+  buildYear: z.number().int().min(1000).max(2200).nullable().default(null),
+  outdoor: text(120).default(""),
+  parking: z.boolean().default(false),
+  cellar: z.boolean().default(false),
+  heating: text(120).default(""),
+  coOwnership: z.boolean().default(false),
+  syndic: text(120).default(""),
+  dpe: z.enum(ENERGY_LETTERS).nullable().default(null),
+  ges: z.enum(ENERGY_LETTERS).nullable().default(null),
+  dpeDate: isoDate.nullable().default(null),
+  dpeReminders: z.boolean().default(true),
   share: z.number().gt(0, "Part détenue requise").max(1).default(1),
   inAllocation: z.boolean().nullable().default(null),
   classId: id.nullable().default(null),

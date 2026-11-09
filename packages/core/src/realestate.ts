@@ -1,4 +1,5 @@
 import { addMonths, monthsBetween } from "./dates";
+import type { EnergyLetter } from "./energy";
 import { roundCents } from "./money";
 
 /** Biens immobiliers et crédits : hors comptes, ils forment avec le patrimoine financier le patrimoine net. */
@@ -23,6 +24,18 @@ export const PROPERTY_OWNERSHIP_LABELS: Record<PropertyOwnership, string> = {
   autre: "Autre statut",
 };
 
+/** Nature du bien, indépendante de son utilisation. */
+export const PROPERTY_TYPES = ["appartement", "maison", "parking", "local", "terrain", "autre"] as const;
+export type PropertyType = (typeof PROPERTY_TYPES)[number];
+export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
+  appartement: "Appartement",
+  maison: "Maison",
+  parking: "Parking ou box",
+  local: "Local",
+  terrain: "Terrain",
+  autre: "Autre",
+};
+
 export interface Property {
   id: string;
   kind: PropertyKind;
@@ -40,6 +53,28 @@ export interface Property {
   agencyFees: number;
   initialWorks: number;
   otherFees: number;
+  // Fiche descriptive, entièrement facultative.
+  propertyType: PropertyType | null;
+  address: string;
+  postalCode: string;
+  city: string;
+  /** Surface habitable, en m². */
+  surface: number | null;
+  rooms: number | null;
+  bedrooms: number | null;
+  floor: number | null;
+  buildYear: number | null;
+  outdoor: string;
+  parking: boolean;
+  cellar: boolean;
+  heating: string;
+  coOwnership: boolean;
+  syndic: string;
+  dpe: EnergyLetter | null;
+  ges: EnergyLetter | null;
+  dpeDate: string | null;
+  /** Alerter avant l'expiration du DPE et si sa note interdit de louer. */
+  dpeReminders: boolean;
   /** Part détenue (fraction) : 0,5 pour un bien à deux. */
   share: number;
   /** Dans ou hors de l'allocation cible ; null = comme la classe Immobilier. */
@@ -48,6 +83,29 @@ export interface Property {
   comment: string;
   archived: boolean;
 }
+
+/** Fiche vide d'un nouveau bien. */
+export const NO_PROPERTY_DETAILS = {
+  propertyType: null,
+  address: "",
+  postalCode: "",
+  city: "",
+  surface: null,
+  rooms: null,
+  bedrooms: null,
+  floor: null,
+  buildYear: null,
+  outdoor: "",
+  parking: false,
+  cellar: false,
+  heating: "",
+  coOwnership: false,
+  syndic: "",
+  dpe: null,
+  ges: null,
+  dpeDate: null,
+  dpeReminders: true,
+} satisfies Partial<Property>;
 
 export const LOAN_KINDS = ["immobilier", "travaux", "consommation", "auto", "autre"] as const;
 export type LoanKind = (typeof LOAN_KINDS)[number];
@@ -237,6 +295,14 @@ export function loanState(loan: Loan, asOf: string): LoanState {
 }
 
 export const propertyValue = (p: Pick<Property, "value" | "share">) => roundCents(p.value * p.share);
+
+/** Repères au m² ; null sans surface connue. */
+export function propertySqm(p: Pick<Property, "surface" | "purchasePrice" | "value">, monthlyRent: number | null): { purchase: number | null; value: number; rent: number | null } | null {
+  if (p.surface == null || p.surface <= 0) return null;
+  const surface = p.surface;
+  const per = (amount: number) => roundCents(amount / surface);
+  return { purchase: p.purchasePrice == null ? null : per(p.purchasePrice), value: per(p.value), rent: monthlyRent == null ? null : per(monthlyRent) };
+}
 
 type PropertyCosts = Pick<Property, "purchasePrice" | "notaryFees" | "agencyFees" | "initialWorks" | "otherFees">;
 

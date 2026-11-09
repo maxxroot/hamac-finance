@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { leaseAlerts } from "./alerts";
 import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseState, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
-import type { Property } from "./realestate";
+import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 
 const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true };
 const meuble: Lease = { ...vide, kind: "meuble", durationMonths: 12, startDate: "2025-03-01" };
@@ -148,7 +148,7 @@ describe("bail à mettre en avant", () => {
 });
 
 describe("rappels", () => {
-  const bien: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Studio", value: 100_000, valueDate: null, purchasePrice: null, purchaseDate: null, newBuild: false, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
+  const bien: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Studio", value: 100_000, valueDate: null, purchasePrice: null, purchaseDate: null, newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
   const run = (lease: Lease, today: string, property = bien) => leaseAlerts({ properties: [property], leases: [lease], leaseRents: [] }, today);
 
   it("date limite pour donner congé : rappelée 60 jours avant, pas au-delà ni après", () => {

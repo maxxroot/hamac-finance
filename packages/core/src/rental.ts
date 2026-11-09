@@ -54,6 +54,8 @@ export interface PropertyYear {
   year: number;
   /** Année incomplète : mise en location en cours d'année, ou année en cours. */
   partial: boolean;
+  /** Durée de la période de location dans l'année, en mois (12 pour une année entière). */
+  rentalMonths: number;
   rents: number;
   charges: number;
   expenses: number;
@@ -113,6 +115,7 @@ export function propertyYears(data: RentalData, asOf: string): PropertyYear[] {
     out.push({
       year,
       partial: rentalDays > 0 && rentalDays < daysInYear,
+      rentalMonths: (rentalDays / daysInYear) * 12,
       rents: roundCents(rents * property.share),
       charges: roundCents(charges * property.share),
       expenses: roundCents(spent * property.share),
@@ -126,4 +129,34 @@ export function propertyYears(data: RentalData, asOf: string): PropertyYear[] {
     });
   }
   return out;
+}
+
+export interface PropertyProfitability {
+  /** Année de référence : la dernière complète, sinon la dernière louée. */
+  year: number;
+  partial: boolean;
+  grossYield: number | null;
+  netYield: number | null;
+  monthlyRemaining: number | null;
+  occupancy: number | null;
+  /** Depuis l'achat, à la part détenue. */
+  totalRents: number;
+  totalCapital: number;
+}
+
+/** Synthèse de la rentabilité ; null tant que le bien n'a jamais été loué. */
+export function propertyProfitability(years: readonly PropertyYear[]): PropertyProfitability | null {
+  const rented = years.filter((y) => y.occupancy != null);
+  const reference = rented.filter((y) => !y.partial).at(-1) ?? rented.at(-1);
+  if (!reference) return null;
+  return {
+    year: reference.year,
+    partial: reference.partial,
+    grossYield: reference.grossYield,
+    netYield: reference.netYield,
+    monthlyRemaining: reference.rentalMonths > 0 ? roundCents(reference.remaining / reference.rentalMonths) : null,
+    occupancy: reference.occupancy,
+    totalRents: roundCents(years.reduce((s, y) => s + y.rents, 0)),
+    totalCapital: roundCents(years.reduce((s, y) => s + y.capital, 0)),
+  };
 }

@@ -72,7 +72,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
   await call("loans.upsert", { kind: "consommation", name: "Crédit voiture d'occasion (fictif)", principal: 9_000, rate: 0.049, termMonths: 48, firstPayment: `${y - 1}-04-10` });
   await call("loans.upsert", { kind: "immobilier", name: "Prêt immobilier (fictif)", propertyId: appartement.id, principal: 140_000, rate: 0.025, termMonths: 240, firstPayment: `${y - 3}-03-05`, insurance: 25 });
 
-  const studio = await call("properties.upsert", { kind: "locatif", name: "Studio en location (fictif)", value: 125_000, valueDate: `${y}-01-15`, purchasePrice: 110_000, purchaseDate: `${y - 4}-05-10`, notaryFees: 8_900, agencyFees: 3_000, initialWorks: 4_000 });
+  const studio = await call("properties.upsert", { kind: "locatif", name: "Studio en location (fictif)", value: 125_000, valueDate: `${y}-01-15`, purchasePrice: 110_000, purchaseDate: `${y - 4}-05-10`, notaryFees: 8_900, agencyFees: 3_000, initialWorks: 4_000, propertyType: "appartement", city: "Ville fictive", surface: 24, rooms: 1, floor: 2, buildYear: 1985, outdoor: "Balcon", cellar: true, heating: "Individuel électrique", coOwnership: true, dpe: "D", ges: "B", dpeDate: `${y - 3}-06-20` });
   await call("loans.upsert", { kind: "immobilier", name: "Prêt du studio (fictif)", propertyId: studio.id, principal: 95_000, rate: 0.021, termMonths: 240, firstPayment: `${y - 4}-07-05`, insurance: 14 });
   const bail = await call("leases.upsert", { propertyId: studio.id, kind: "meuble", startDate: `${y - 3}-09-01`, durationMonths: 12, rent: 560, charges: 45, deposit: 1_120 });
   await call("leaseRents.upsert", { leaseId: bail.id, fromMonth: `${y - 1}-09`, rent: 580, charges: 45 });

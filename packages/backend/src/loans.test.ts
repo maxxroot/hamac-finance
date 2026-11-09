@@ -82,6 +82,20 @@ describe("statut et frais d'un bien", () => {
     expect((await properties(backend)).find((p) => p.name === "SCI")).toMatchObject({ ownership: "sci_familiale", notaryFees: 7_500.5, agencyFees: 3_000, initialWorks: 12_000, otherFees: 450 });
   });
 
+  it("fiche descriptive : vide par défaut, enregistrée, alertes DPE activées sans autre précision", async () => {
+    backend = await testBackend();
+    expect(await call(backend, "properties.upsert", bien)).toMatchObject({ propertyType: null, address: "", surface: null, parking: false, dpe: null, dpeDate: null, dpeReminders: true });
+    const fiche = { propertyType: "appartement", address: "1 rue fictive", postalCode: "00000", city: "Ville fictive", surface: 42.5, rooms: 2, bedrooms: 1, floor: -1, buildYear: 1990, outdoor: "Balcon", parking: true, cellar: true, heating: "Gaz", coOwnership: true, syndic: "Syndic fictif", dpe: "D", ges: "C", dpeDate: "2024-03-15", dpeReminders: false };
+    await call(backend, "properties.upsert", { ...bien, name: "Fiche", ...fiche });
+    expect((await properties(backend)).find((p) => p.name === "Fiche")).toMatchObject(fiche);
+  });
+
+  it("refuse une note DPE inconnue ou une surface nulle", async () => {
+    backend = await testBackend();
+    await expect(call(backend, "properties.upsert", { ...bien, dpe: "H" })).rejects.toThrow();
+    await expect(call(backend, "properties.upsert", { ...bien, surface: 0 })).rejects.toThrow();
+  });
+
   it("refuse un statut inconnu ou des frais négatifs", async () => {
     backend = await testBackend();
     await expect(call(backend, "properties.upsert", { ...bien, ownership: "inconnu" })).rejects.toThrow();

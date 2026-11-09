@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PROPERTY_KIND_LABELS, PROPERTY_KINDS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_OWNERSHIPS, estimateNotaryFees, propertyFees, propertyTotalCost, type Property, type PropertyKind, type PropertyOwnership } from "@hamac/core";
+import { PROPERTY_KIND_LABELS, PROPERTY_KINDS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_OWNERSHIPS, NO_PROPERTY_DETAILS, estimateNotaryFees, propertyFees, propertyTotalCost, type Property, type PropertyKind, type PropertyOwnership } from "@hamac/core";
 import type { PropertyInput } from "@hamac/api";
 import { Amount } from "@/components/Amount";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
@@ -12,7 +12,7 @@ type PropertyDraft = Required<Omit<PropertyInput, "id">> & { id?: string };
 
 const notaryEstimate = (d: PropertyDraft) => estimateNotaryFees(d.purchasePrice ?? 0, d.newBuild, d.purchaseDate);
 
-const emptyProperty = (): PropertyDraft => ({ kind: "residence_principale", ownership: "nom_propre", name: "", value: 0, valueDate: todayIso(), purchasePrice: null, purchaseDate: null, newBuild: false, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false });
+const emptyProperty = (): PropertyDraft => ({ kind: "residence_principale", ownership: "nom_propre", name: "", value: 0, valueDate: todayIso(), purchasePrice: null, purchaseDate: null, newBuild: false, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, ...NO_PROPERTY_DETAILS, share: 1, inAllocation: null, classId: null, comment: "", archived: false });
 
 export function PropertyDialog({ open, property, onClose }: { open: boolean; property: Property | null; onClose: () => void }) {
   const [d, setD] = useState<PropertyDraft>(emptyProperty());
