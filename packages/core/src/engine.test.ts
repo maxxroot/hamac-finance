@@ -321,11 +321,27 @@ describe("historique reconstruit", () => {
   });
 });
 
+describe("patrimoine net dans le temps", () => {
+  it("l'historique suit les estimations et le capital restant dû", () => {
+    const bien: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Studio", value: 110_000, valueDate: "2026-03-15", purchasePrice: 100_000, purchaseDate: "2026-01-10", newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
+    const pret: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: "b", share: 1, principal: 12_000, rate: 0, termMonths: 12, firstPayment: "2026-02-05", insuranceMode: "montant", insurance: 0, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null };
+    const d = data({ properties: [bien], loans: [pret], params: { ...data({}).params, profile: { ...data({}).params.profile, startMonth: "2025-12" } } });
+    const h = buildHistory(d, "2026-04-20");
+    expect(h.map((p) => [p.month, p.realEstate, p.debts, p.netWorth])).toEqual([
+      ["2025-12", 0, 0, 0],
+      ["2026-01", 100_000, 0, 100_000],
+      ["2026-02", 100_000, 11_000, 89_000],
+      ["2026-03", 110_000, 10_000, 100_000],
+      ["2026-04", 110_000, 9_000, 101_000],
+    ]);
+  });
+});
+
 describe("patrimoine net", () => {
   it("compte la part détenue des biens et la part à charge des crédits", () => {
     const bien: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 200_000, valueDate: null, purchasePrice: null, purchaseDate: null, newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
     // Taux zéro : 1 000 € de capital par mois, 5 échéances passées au 1er juin.
-    const pret: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: "b", share: 0.5, principal: 100_000, rate: 0, termMonths: 100, firstPayment: "2026-01-05", insuranceMode: "montant", insurance: 10, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
+    const pret: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: "b", share: 0.5, principal: 100_000, rate: 0, termMonths: 100, firstPayment: "2026-01-05", insuranceMode: "montant", insurance: 10, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null };
     const { netWorth } = computePortfolio(data({ properties: [bien], loans: [pret] }), "2026-06-01");
     expect(netWorth.realEstate).toBe(100_000);
     expect(netWorth.debts).toBe(47_500);

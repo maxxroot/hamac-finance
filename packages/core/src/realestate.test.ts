@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { NO_PROPERTY_DETAILS, estimateNotaryFees, loanPayment, loanState, loanYears, propertySqm, propertySummary, propertyTotalCost, propertyValue, type Loan, type Property } from "./realestate";
+import { NO_PROPERTY_DETAILS, estimateNotaryFees, loanPayment, loanState, loanYears, loanHeldBalanceAt, loanPayoffAt, propertyHeldValueAt, propertySale, propertySqm, propertySummary, propertyTotalCost, propertyValue, type Loan, type Property, type PropertyValue } from "./realestate";
 
-const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, share: 1, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
+const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, share: 1, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null };
 
 describe("crédits", () => {
   it("échéance constante, taux zéro compris", () => {
@@ -153,6 +153,43 @@ describe("biens", () => {
     // 5 000 × 3,87 % × 1,2 = 232,20 € ; droits 315,93 € ; sécurité immobilière 5 € ; formalités 1 000 €.
     expect(estimateNotaryFees(5_000, false, "2026-03-01")).toBe(1_553);
     expect(estimateNotaryFees(0, false, "2026-03-01")).toBe(0);
+  });
+
+  it("la synthèse ajoute les améliorations au coût et réduit le gain", () => {
+    expect(propertySummary(bien, [], 10_000)).toMatchObject({ heldCost: 120_000, gain: 30_000 });
+  });
+
+  it("bilan de la vente à la part détenue", () => {
+    const vendu = { ...bien, saleDate: "2030-01-01", salePrice: 400_000, saleFees: 10_000 };
+    expect(propertySale(vendu, 10_000, 50_000)).toEqual({ price: 200_000, fees: 5_000, cost: 120_000, gain: 75_000, loanPayoff: 50_000, net: 145_000 });
+    expect(propertySale({ ...vendu, purchasePrice: null }, 0, 0)).toMatchObject({ cost: null, gain: null });
+    expect(propertySale(bien, 0, 0)).toBeNull();
+  });
+
+  it("valeur dans le temps : dernière estimation connue, prix d'achat avant la première, rien hors détention", () => {
+    const suivi: Property = { ...bien, value: 300_000, valueDate: "2025-01-01", share: 0.5 };
+    const anciennes: PropertyValue[] = [{ id: "1", propertyId: "b", date: "2022-01-01", value: 240_000 }, { id: "2", propertyId: "x", date: "2021-01-01", value: 1 }];
+    expect(propertyHeldValueAt(suivi, anciennes, "2019-12-31")).toBe(0);
+    expect(propertyHeldValueAt(suivi, anciennes, "2021-06-01")).toBe(100_000);
+    expect(propertyHeldValueAt(suivi, anciennes, "2023-01-01")).toBe(120_000);
+    expect(propertyHeldValueAt(suivi, anciennes, "2026-01-01")).toBe(150_000);
+    expect(propertyHeldValueAt({ ...suivi, saleDate: "2026-06-01" }, anciennes, "2026-06-01")).toBe(0);
+    expect(propertyHeldValueAt({ ...suivi, archived: true }, [], "2026-01-01")).toBe(0);
+    expect(propertyHeldValueAt({ ...bien, valueDate: null }, [], "2026-01-01")).toBe(150_000);
+  });
+
+  it("crédit dans le temps : rien avant la première échéance, part à charge, rien une fois soldé", () => {
+    const pret: Loan = { ...loan, rate: 0, principal: 100_000, termMonths: 100, firstPayment: "2026-01-05", insurance: 0, share: 0.5, propertyId: "b" };
+    expect(loanHeldBalanceAt(pret, "2026-01-04")).toBe(0);
+    expect(loanHeldBalanceAt(pret, "2026-02-10")).toBe(49_000);
+    expect(loanHeldBalanceAt({ ...pret, archived: true, closedOn: "2026-02-01" }, "2026-01-10")).toBe(49_500);
+    expect(loanHeldBalanceAt({ ...pret, archived: true, closedOn: "2026-02-01" }, "2026-02-01")).toBe(0);
+    expect(loanHeldBalanceAt({ ...pret, archived: true }, "2026-01-10")).toBe(0);
+  });
+
+  it("crédit à solder à la vente : seuls ceux du bien, encore actifs ou soldés ce jour-là", () => {
+    const pret: Loan = { ...loan, rate: 0, principal: 100_000, termMonths: 100, firstPayment: "2026-01-05", insurance: 0, share: 0.5, propertyId: "b" };
+    expect(loanPayoffAt([pret, { ...pret, id: "x", propertyId: "autre" }, { ...pret, id: "y", archived: true }, { ...pret, id: "z", archived: true, closedOn: "2026-02-10" }], "b", "2026-02-10")).toBe(98_000);
   });
 
   it("repères au m² : achat, valeur et loyer, rien sans surface", () => {

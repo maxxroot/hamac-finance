@@ -71,6 +71,7 @@ export function Immobilier() {
                     </Link>
                     <div className="text-xs font-normal text-fg-faint">
                       {PROPERTY_KIND_LABELS[p.kind]}
+                      {p.saleDate ? ` · vendu le ${formatDate(p.saleDate)}` : ""}
                       {p.valueDate ? ` · estimé le ${formatDate(p.valueDate)}` : ""}
                     </div>
                   </Td>

@@ -40,6 +40,11 @@ async function setRate(ctx: BackendContext, r: { accountId: string; fromDate: st
   await syncCurrentRate(ctx, r.accountId);
 }
 
+async function keepPastValue(ctx: BackendContext, propertyId: string, date: string, valueCents: number) {
+  const set = { valueCents, updatedAt: nowIso() };
+  await ctx.db.insert(t.propertyValues).values({ id: newId(), propertyId, date, ...set }).onConflictDoUpdate({ target: [t.propertyValues.propertyId, t.propertyValues.date], set });
+}
+
 async function syncCurrentRate(ctx: BackendContext, accountId: string) {
   // Historique sans doublon : un taux identique au précédent n'apporte rien, on le retire.
   const all = await ctx.db.select().from(t.accountRates).where(eq(t.accountRates.accountId, accountId)).orderBy(t.accountRates.fromDate);
@@ -486,6 +491,11 @@ export const handlers: Handlers = {
       archived: input.archived,
       updatedAt: nowIso(),
     };
+    if (input.id) {
+      // Une nouvelle date d'estimation : l'ancienne valeur rejoint l'historique.
+      const before = await ctx.db.select().from(t.properties).where(eq(t.properties.id, id)).limit(1).then(one);
+      if (before?.valueDate && before.valueDate !== input.valueDate) await keepPastValue(ctx, id, before.valueDate, before.valueCents);
+    }
     if (input.id) await ctx.db.update(t.properties).set(row).where(eq(t.properties.id, id));
     else await ctx.db.insert(t.properties).values({ id, ...row });
     return mapProperty((await ctx.db.select().from(t.properties).where(eq(t.properties.id, id)).limit(1).then(one))!);
@@ -493,6 +503,40 @@ export const handlers: Handlers = {
 
   async "properties.delete"({ id }, ctx) {
     await ctx.db.delete(t.properties).where(eq(t.properties.id, id));
+    return OK;
+  },
+
+  async "properties.sell"(input, ctx) {
+    const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.id)).limit(1).then(one);
+    if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    if (property.purchaseDate && input.saleDate < property.purchaseDate) throw new RpcError("VALIDATION", "La vente ne peut pas précéder l'achat.");
+    await ctx.db.update(t.properties).set({ saleDate: input.saleDate, salePriceCents: toCents(input.salePrice), saleFeesCents: toCents(input.saleFees), archived: true, updatedAt: nowIso() }).where(eq(t.properties.id, input.id));
+    if (input.closeLoans) await ctx.db.update(t.loans).set({ archived: true, closedOn: input.saleDate, updatedAt: nowIso() }).where(and(eq(t.loans.propertyId, input.id), eq(t.loans.archived, false)));
+    return OK;
+  },
+
+  async "properties.cancelSale"({ id }, ctx) {
+    const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, id)).limit(1).then(one);
+    if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    if (property.saleDate) await ctx.db.update(t.loans).set({ archived: false, closedOn: null, updatedAt: nowIso() }).where(and(eq(t.loans.propertyId, id), eq(t.loans.closedOn, property.saleDate)));
+    await ctx.db.update(t.properties).set({ saleDate: null, salePriceCents: null, saleFeesCents: 0, archived: false, updatedAt: nowIso() }).where(eq(t.properties.id, id));
+    return OK;
+  },
+
+  async "propertyValues.add"(input, ctx) {
+    const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one);
+    if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    if (property.valueDate != null && input.date < property.valueDate) {
+      await keepPastValue(ctx, input.propertyId, input.date, toCents(input.value));
+      return OK;
+    }
+    if (property.valueDate != null && input.date !== property.valueDate) await keepPastValue(ctx, input.propertyId, property.valueDate, property.valueCents);
+    await ctx.db.update(t.properties).set({ valueCents: toCents(input.value), valueDate: input.date, updatedAt: nowIso() }).where(eq(t.properties.id, input.propertyId));
+    return OK;
+  },
+
+  async "propertyValues.delete"({ id }, ctx) {
+    await ctx.db.delete(t.propertyValues).where(eq(t.propertyValues.id, id));
     return OK;
   },
 
@@ -573,7 +617,7 @@ export const handlers: Handlers = {
     if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
     if (input.yearly && input.untilYear != null && input.untilYear < Number(input.date.slice(0, 4))) throw new RpcError("VALIDATION", "La dernière année précède la date de la dépense.");
     const id = input.id ?? newId();
-    const row = { propertyId: input.propertyId, date: input.date, category: input.category, amountCents: toCents(input.amount), label: input.label, yearly: input.yearly, untilYear: input.yearly ? input.untilYear : null, updatedAt: nowIso() };
+    const row = { propertyId: input.propertyId, date: input.date, category: input.category, amountCents: toCents(input.amount), label: input.label, yearly: input.yearly, untilYear: input.yearly ? input.untilYear : null, improvement: input.category === "travaux" && input.improvement, updatedAt: nowIso() };
     if (input.id) await ctx.db.update(t.propertyExpenses).set(row).where(eq(t.propertyExpenses.id, id));
     else await ctx.db.insert(t.propertyExpenses).values({ id, ...row });
     return mapPropertyExpense((await ctx.db.select().from(t.propertyExpenses).where(eq(t.propertyExpenses.id, id)).limit(1).then(one))!);
@@ -603,6 +647,7 @@ export const handlers: Handlers = {
       manualBalanceCents: input.manualBalance == null ? null : toCents(input.manualBalance),
       manualBalanceDate: input.manualBalanceDate,
       archived: input.archived,
+      ...(input.archived ? {} : { closedOn: null }),
       updatedAt: nowIso(),
     };
     if (input.id) await ctx.db.update(t.loans).set(row).where(eq(t.loans.id, id));

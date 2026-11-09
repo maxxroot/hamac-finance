@@ -114,3 +114,65 @@ describe("statut et frais d'un bien", () => {
     expect((await properties(backend))[0]).toMatchObject({ ownership: "nom_propre", notaryFees: 0 });
   });
 });
+
+describe("vie d'un bien", () => {
+  const bien = { kind: "locatif", name: "Studio", value: 100_000, valueDate: "2024-01-01", purchasePrice: 90_000, purchaseDate: "2023-01-01" };
+  const load = (b: Backend) => call<{ properties: Array<Record<string, unknown>>; loans: Array<Record<string, unknown>>; propertyValues: Array<Record<string, unknown>> }>(b, "workspace.load");
+
+  it("une nouvelle date d'estimation garde l'ancienne ; une correction à la même date non", async () => {
+    backend = await testBackend();
+    const { id } = await call<{ id: string }>(backend, "properties.upsert", bien);
+    await call(backend, "properties.upsert", { ...bien, id, value: 101_000 });
+    expect((await load(backend)).propertyValues).toEqual([]);
+    await call(backend, "properties.upsert", { ...bien, id, value: 110_000, valueDate: "2025-01-01" });
+    const after = await load(backend);
+    expect(after.propertyValues).toMatchObject([{ propertyId: id, date: "2024-01-01", value: 101_000 }]);
+    expect(after.properties[0]).toMatchObject({ value: 110_000, valueDate: "2025-01-01" });
+  });
+
+  it("ajout d'une estimation : la plus récente devient la valeur actuelle, une ancienne rejoint l'historique", async () => {
+    backend = await testBackend();
+    const { id } = await call<{ id: string }>(backend, "properties.upsert", bien);
+    await call(backend, "propertyValues.add", { propertyId: id, date: "2023-06-01", value: 95_000 });
+    await call(backend, "propertyValues.add", { propertyId: id, date: "2026-01-01", value: 120_000 });
+    const after = await load(backend);
+    expect(after.properties[0]).toMatchObject({ value: 120_000, valueDate: "2026-01-01" });
+    expect(after.propertyValues).toMatchObject([{ date: "2023-06-01", value: 95_000 }, { date: "2024-01-01", value: 100_000 }]);
+    await call(backend, "propertyValues.delete", { id: after.propertyValues[0].id });
+    expect((await load(backend)).propertyValues).toHaveLength(1);
+  });
+
+  it("vente : bien archivé, crédits soldés ; annulation : tout revient", async () => {
+    backend = await testBackend();
+    const { id } = await call<{ id: string }>(backend, "properties.upsert", bien);
+    await call(backend, "loans.upsert", { ...base, propertyId: id });
+    await expect(call(backend, "properties.sell", { id, saleDate: "2022-01-01", salePrice: 1 })).rejects.toThrow("précéder");
+    await call(backend, "properties.sell", { id, saleDate: "2026-06-01", salePrice: 150_000, saleFees: 5_000 });
+    let after = await load(backend);
+    expect(after.properties[0]).toMatchObject({ saleDate: "2026-06-01", salePrice: 150_000, saleFees: 5_000, archived: true });
+    expect(after.loans[0]).toMatchObject({ archived: true, closedOn: "2026-06-01" });
+    await call(backend, "properties.cancelSale", { id });
+    after = await load(backend);
+    expect(after.properties[0]).toMatchObject({ saleDate: null, salePrice: null, saleFees: 0, archived: false });
+    expect(after.loans[0]).toMatchObject({ archived: false, closedOn: null });
+  });
+
+  it("vente sans solder les crédits, et modifier le bien vendu garde la vente", async () => {
+    backend = await testBackend();
+    const { id } = await call<{ id: string }>(backend, "properties.upsert", bien);
+    await call(backend, "loans.upsert", { ...base, propertyId: id });
+    await call(backend, "properties.sell", { id, saleDate: "2026-06-01", salePrice: 150_000, closeLoans: false });
+    await call(backend, "properties.upsert", { ...bien, id, name: "Studio vendu", archived: true });
+    const after = await load(backend);
+    expect(after.loans[0]).toMatchObject({ archived: false, closedOn: null });
+    expect(after.properties[0]).toMatchObject({ name: "Studio vendu", saleDate: "2026-06-01" });
+  });
+
+  it("seuls les travaux peuvent être une amélioration", async () => {
+    backend = await testBackend();
+    const { id: propertyId } = await call<{ id: string }>(backend, "properties.upsert", { ...bien, kind: "residence_principale" });
+    const depense = { propertyId, date: "2025-01-01", amount: 1_000, improvement: true };
+    expect(await call(backend, "propertyExpenses.upsert", { ...depense, category: "travaux" })).toMatchObject({ improvement: true });
+    expect(await call(backend, "propertyExpenses.upsert", { ...depense, category: "assurance" })).toMatchObject({ improvement: false });
+  });
+});

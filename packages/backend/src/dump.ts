@@ -24,6 +24,7 @@ const TABLES = [
   "lease_rents",
   "rent_exceptions",
   "property_expenses",
+  "property_values",
   "crowd_projects",
   "loans",
   "account_rates",

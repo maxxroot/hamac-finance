@@ -279,6 +279,9 @@ export const properties = pgTable("properties", {
   ges: text("ges"),
   dpeDate: text("dpe_date"),
   dpeReminders: boolean("dpe_reminders").notNull().default(true),
+  saleDate: text("sale_date"),
+  salePriceCents: bigint("sale_price_cents", { mode: "number" }),
+  saleFeesCents: bigint("sale_fees_cents", { mode: "number" }).notNull().default(0),
   share: doublePrecision("share").notNull().default(1),
   inAllocation: boolean("in_allocation"),
   classId: text("class_id"),
@@ -304,6 +307,7 @@ export const loans = pgTable("loans", {
   manualBalanceCents: bigint("manual_balance_cents", { mode: "number" }),
   manualBalanceDate: text("manual_balance_date"),
   archived: boolean("archived").notNull().default(false),
+  closedOn: text("closed_on"),
   ...timestamps,
 });
 
@@ -349,6 +353,21 @@ export const leaseRents = pgTable(
   (t) => [uniqueIndex("lease_rents_lease_month_uq").on(t.leaseId, t.fromMonth)],
 );
 
+/** Anciennes estimations d'un bien ; la plus récente reste sur le bien lui-même. */
+export const propertyValues = pgTable(
+  "property_values",
+  {
+    id: text("id").primaryKey(),
+    propertyId: text("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    valueCents: bigint("value_cents", { mode: "number" }).notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("property_values_property_date_uq").on(t.propertyId, t.date)],
+);
+
 /** Écarts signalés sur les loyers : sans ligne ici, le loyer prévu du mois est réputé perçu. */
 export const rentExceptions = pgTable(
   "rent_exceptions",
@@ -380,6 +399,7 @@ export const propertyExpenses = pgTable(
     label: text("label").notNull().default(""),
     yearly: boolean("yearly").notNull().default(false),
     untilYear: bigint("until_year", { mode: "number" }),
+    improvement: boolean("improvement").notNull().default(false),
     ...timestamps,
   },
   (t) => [index("property_expenses_property_idx").on(t.propertyId)],

@@ -144,7 +144,7 @@ export function PropertyDialog({ open, property, onClose }: { open: boolean; pro
             )}
           </Field>
         )}
-        {property && <Checkbox checked={d.archived} onChange={(v) => set("archived", v)} label="Archivé (vendu : ne compte plus dans le patrimoine)" />}
+        {property && <Checkbox checked={d.archived} onChange={(v) => set("archived", v)} label="Archivé (ne compte plus dans le patrimoine)" />}
       </div>
     </Modal>
   );

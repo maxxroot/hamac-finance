@@ -32,6 +32,9 @@ export function Historique() {
         { name: "Versé net", type: "line", data: history.map((h) => h.netContrib), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dashed", color: INK.muted }, itemStyle: { color: INK.muted } },
       ],
     };
+    if (history.some((h) => h.realEstate !== 0 || h.debts !== 0)) {
+      (line.series as unknown[]).push({ name: "Patrimoine net (biens et crédits compris)", type: "line", data: history.map((h) => h.netWorth), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: BUCKET_COLORS.immobilier }, itemStyle: { color: BUCKET_COLORS.immobilier } });
+    }
     const used = BUCKETS.filter((b) => history.some((h) => h.buckets[b] !== 0));
     const area: ChartOption = {
       tooltip: { trigger: "axis", backgroundColor: INK.surface2, borderColor: INK.line, textStyle: { color: INK.fg }, valueFormatter: tooltipEur },
@@ -61,12 +64,16 @@ export function Historique() {
       net: (h) => h.netContrib,
       gain: (h) => h.gain,
       gainPct: (h) => (h.netContrib > 0 ? h.gain / h.netContrib : null),
+      biens: (h) => h.realEstate,
+      credits: (h) => h.debts,
+      patrimoineNet: (h) => h.netWorth,
     },
     { key: "mois", dir: "desc" },
   );
 
   if (!idx || !history) return null;
   if (idx.ws.accounts.length === 0) return <Onboarding />;
+  const withRealEstate = history.some((h) => h.realEstate !== 0 || h.debts !== 0);
 
   return (
     <>
@@ -101,6 +108,13 @@ export function Historique() {
               <SortTh {...by("net")} align="right">Versé net</SortTh>
               <SortTh {...by("gain")} align="right">Gain</SortTh>
               <SortTh {...by("gainPct")} align="right">Gain (%)</SortTh>
+              {withRealEstate && (
+                <>
+                  <SortTh {...by("biens")} align="right">Biens</SortTh>
+                  <SortTh {...by("credits")} align="right">Crédits</SortTh>
+                  <SortTh {...by("patrimoineNet")} align="right">Patrimoine net</SortTh>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -124,6 +138,13 @@ export function Historique() {
                 <Td align="right">
                   <Pct value={h.netContrib > 0 ? h.gain / h.netContrib : null} signed />
                 </Td>
+                {withRealEstate && (
+                  <>
+                    <Td align="right"><Amount value={h.realEstate} compact /></Td>
+                    <Td align="right"><Amount value={h.debts} compact /></Td>
+                    <Td align="right" className="font-medium"><Amount value={h.netWorth} compact /></Td>
+                  </>
+                )}
               </Tr>
             ))}
           </tbody>

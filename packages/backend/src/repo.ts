@@ -20,6 +20,7 @@ import type {
   PlannedExpense,
   Property,
   PropertyExpense,
+  PropertyValue,
   RentException,
   PriceSource,
   PricePoint,
@@ -204,6 +205,9 @@ export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
   ges: r.ges as Property["ges"],
   dpeDate: r.dpeDate,
   dpeReminders: r.dpeReminders,
+  saleDate: r.saleDate,
+  salePrice: r.salePriceCents == null ? null : fromCents(r.salePriceCents),
+  saleFees: fromCents(r.saleFeesCents),
   share: r.share,
   inAllocation: r.inAllocation,
   classId: r.classId,
@@ -228,6 +232,7 @@ export const mapLoan = (r: typeof t.loans.$inferSelect): Loan => ({
   manualBalance: r.manualBalanceCents == null ? null : fromCents(r.manualBalanceCents),
   manualBalanceDate: r.manualBalanceDate,
   archived: r.archived,
+  closedOn: r.closedOn,
 });
 
 export const mapLease = (r: typeof t.leases.$inferSelect): Lease => ({
@@ -265,6 +270,8 @@ export const mapRentException = (r: typeof t.rentExceptions.$inferSelect): RentE
   comment: r.comment,
 });
 
+export const mapPropertyValue = (r: typeof t.propertyValues.$inferSelect): PropertyValue => ({ id: r.id, propertyId: r.propertyId, date: r.date, value: fromCents(r.valueCents) });
+
 export const mapPropertyExpense = (r: typeof t.propertyExpenses.$inferSelect): PropertyExpense => ({
   id: r.id,
   propertyId: r.propertyId,
@@ -274,6 +281,7 @@ export const mapPropertyExpense = (r: typeof t.propertyExpenses.$inferSelect): P
   label: r.label,
   yearly: r.yearly,
   untilYear: r.untilYear,
+  improvement: r.improvement,
 });
 
 function parseInstitutionTax(raw: string): InstitutionTax {
@@ -302,7 +310,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows, propertyValueRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
     db.select().from(t.assets).orderBy(t.assets.name),
@@ -330,6 +338,7 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     db.select().from(t.leaseRents).orderBy(t.leaseRents.fromMonth),
     db.select().from(t.rentExceptions).orderBy(t.rentExceptions.month),
     db.select().from(t.propertyExpenses).orderBy(desc(t.propertyExpenses.date)),
+    db.select().from(t.propertyValues).orderBy(t.propertyValues.date),
   ]);
   // Cours communs à l'instance, fusionnés avec ceux propres au tenant.
   const mappedAssets = assets.map(mapAsset);
@@ -353,6 +362,7 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     leaseRents: leaseRentRows.map(mapLeaseRent),
     rentExceptions: rentExceptionRows.map(mapRentException),
     propertyExpenses: expenseRows.map(mapPropertyExpense),
+    propertyValues: propertyValueRows.map(mapPropertyValue),
     loans: loanRows.map(mapLoan),
     crowdProjects: crowdRows.map(mapCrowdProject),
     prices: merged.map((p): PricePoint => ({ ...p })),

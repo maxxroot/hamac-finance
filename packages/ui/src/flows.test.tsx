@@ -44,7 +44,7 @@ interface Ws {
   params: Record<string, never> & { profile: { goal: string }; customClasses: unknown[] };
   transactions: Array<{ type: string; amount: number }>;
   loans: Array<{ kind: string; name: string; propertyId: string | null; principal: number; share: number }>;
-  properties: Array<{ kind?: string; ownership?: string; name?: string; city?: string; surface?: number; dpe?: string; purchasePrice: number | null; newBuild: boolean; notaryFees: number }>;
+  properties: Array<{ archived?: boolean; salePrice?: number; kind?: string; ownership?: string; name?: string; city?: string; surface?: number; dpe?: string; purchasePrice: number | null; newBuild: boolean; notaryFees: number }>;
   plans: Array<{ accountId: string; amount: number }>;
   assets: Array<{ id: string; inAllocation: boolean | null }>;
 }
@@ -242,6 +242,25 @@ describe("parcours de l'interface", () => {
     expect(await screen.findByText(/Location interdite à partir du|Location interdite depuis le/)).toBeTruthy();
     expect(screen.getByText("Valeur au m²")).toBeTruthy();
     expect((await workspace()).properties).toMatchObject([{ city: "Ville fictive", surface: 25, dpe: "F", purchasePrice: 100_000, notaryFees: 8000 }]);
+  });
+
+  it("vente d'un bien : bilan affiché, sortie du patrimoine, annulable", async () => {
+    const user = userEvent.setup();
+    const bien = await rpc<{ id: string }>("properties.upsert", { kind: "residence_principale", name: "Maison", value: 200_000, purchasePrice: 150_000, purchaseDate: "2020-01-01" });
+    show(
+      <Routes>
+        <Route path="/immobilier/:id" element={<Bien />} />
+      </Routes>,
+      `/immobilier/${bien.id}`,
+    );
+    await user.click(await screen.findByRole("button", { name: "Vendre" }));
+    const price = fieldOf("Prix de vente");
+    await user.clear(price);
+    await user.type(price, "210000");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Enregistrer la vente" }));
+    expect(await screen.findByText("Bilan de la vente")).toBeTruthy();
+    expect((await workspace()).properties).toMatchObject([{ archived: true, salePrice: 210_000 }]);
   });
 
   it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {

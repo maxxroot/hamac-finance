@@ -15,6 +15,7 @@ import type {
   Loan,
   PlannedExpense,
   PropertyExpense,
+  PropertyValue,
   RentException,
   Property,
   PricePoint,
@@ -39,6 +40,8 @@ import {
   PlannedExpenseInput,
   PropertyExpenseInput,
   PropertyInput,
+  PropertySaleInput,
+  PropertyValueInput,
   RentExceptionInput,
   SkipInput,
   StatementInput,
@@ -80,6 +83,7 @@ export interface Workspace {
   leaseRents: LeaseRent[];
   rentExceptions: RentException[];
   propertyExpenses: PropertyExpense[];
+  propertyValues: PropertyValue[];
   crowdProjects: CrowdProject[];
   loans: Loan[];
   institutions: Institution[];
@@ -188,6 +192,10 @@ export const procedures = {
   "crowdProjects.applyImport": { input: CrowdImportInput, output: entity<{ transactions: number; projects: number }>() },
   "properties.upsert": { input: PropertyInput, output: entity<Property>() },
   "properties.delete": { input: byId, output: ok },
+  "properties.sell": { input: PropertySaleInput, output: ok },
+  "properties.cancelSale": { input: byId, output: ok },
+  "propertyValues.add": { input: PropertyValueInput, output: ok },
+  "propertyValues.delete": { input: byId, output: ok },
   "leases.upsert": { input: LeaseInput, output: entity<Lease>() },
   "leases.delete": { input: byId, output: ok },
   "leaseRents.upsert": { input: LeaseRentInput, output: entity<LeaseRent>() },

@@ -75,6 +75,11 @@ export interface Property {
   dpeDate: string | null;
   /** Alerter avant l'expiration du DPE et si sa note interdit de louer. */
   dpeReminders: boolean;
+  /** Vente : le bien sort du patrimoine à cette date. */
+  saleDate: string | null;
+  /** Prix et frais de vente du bien entier. */
+  salePrice: number | null;
+  saleFees: number;
   /** Part détenue (fraction) : 0,5 pour un bien à deux. */
   share: number;
   /** Dans ou hors de l'allocation cible ; null = comme la classe Immobilier. */
@@ -105,6 +110,9 @@ export const NO_PROPERTY_DETAILS = {
   ges: null,
   dpeDate: null,
   dpeReminders: true,
+  saleDate: null,
+  salePrice: null,
+  saleFees: 0,
 } satisfies Partial<Property>;
 
 export const LOAN_KINDS = ["immobilier", "travaux", "consommation", "auto", "autre"] as const;
@@ -156,6 +164,8 @@ export interface Loan {
   manualBalance: number | null;
   manualBalanceDate: string | null;
   archived: boolean;
+  /** Date à laquelle le crédit a été soldé, par exemple à la vente du bien. */
+  closedOn: string | null;
 }
 
 /** Échéance constante hors assurance d'un prêt amortissable. */
@@ -326,11 +336,11 @@ export interface PropertySummary {
   netValue: number;
 }
 
-/** Synthèse d'un bien, à partir des crédits en cours (non archivés) déjà calculés. */
-export function propertySummary(property: Property, loanStates: readonly LoanState[]): PropertySummary {
+/** Synthèse d'un bien, à partir des crédits en cours (non archivés) déjà calculés. `improvements` : travaux qui s'ajoutent au coût. */
+export function propertySummary(property: Property, loanStates: readonly LoanState[], improvements = 0): PropertySummary {
   const heldValue = propertyValue(property);
   const totalCost = propertyTotalCost(property);
-  const heldCost = totalCost == null ? null : roundCents(totalCost * property.share);
+  const heldCost = totalCost == null ? null : roundCents((totalCost + improvements) * property.share);
   const loans = loanStates.filter((l) => l.loan.propertyId === property.id);
   const heldDebt = roundCents(loans.reduce((s, l) => s + l.heldBalance, 0));
   return {
@@ -386,4 +396,56 @@ export function estimateNotaryFees(price: number, newBuild: boolean, purchaseDat
     from = upTo;
   }
   return Math.round(price * transferRate + fees * (1 + NOTARY_VAT) + price * LAND_SECURITY_RATE + NOTARY_FORMALITIES);
+}
+
+/** Ancienne estimation d'un bien ; la plus récente reste sur le bien lui-même. */
+export interface PropertyValue {
+  id: string;
+  propertyId: string;
+  date: string;
+  value: number;
+}
+
+/** Valeur de la part détenue à une date : 0 hors de la période de détention, sinon la dernière estimation connue. */
+export function propertyHeldValueAt(p: Property, estimates: readonly PropertyValue[], date: string): number {
+  if (p.purchaseDate != null && date < p.purchaseDate) return 0;
+  if (p.saleDate != null ? date >= p.saleDate : p.archived) return 0;
+  const points = [...estimates.filter((e) => e.propertyId === p.id).map((e) => ({ date: e.date, value: e.value })), ...(p.valueDate != null ? [{ date: p.valueDate, value: p.value }] : [])].sort((a, b) => a.date.localeCompare(b.date));
+  const known = points.filter((x) => x.date <= date).at(-1);
+  const value = known?.value ?? (points.length === 0 ? p.value : (p.purchasePrice ?? points[0].value));
+  return roundCents(value * p.share);
+}
+
+/** Part à charge du capital restant dû à une date : rien avant la première échéance, ni une fois soldé ou archivé sans date. */
+export function loanHeldBalanceAt(loan: Loan, date: string): number {
+  if (loan.closedOn != null ? date >= loan.closedOn : loan.archived) return 0;
+  return date < loan.firstPayment ? 0 : loanState(loan, date).heldBalance;
+}
+
+/** Capital restant à rembourser, pour la part à charge, sur les crédits d'un bien vendu à cette date. */
+export function loanPayoffAt(loans: readonly Loan[], propertyId: string, date: string): number {
+  return roundCents(loans.filter((l) => l.propertyId === propertyId && (!l.archived || l.closedOn === date)).reduce((sum, l) => sum + (date < l.firstPayment ? l.principal * l.share : loanState(l, date).heldBalance), 0));
+}
+
+export interface PropertySale {
+  /** Prix et frais, pour la part détenue. */
+  price: number;
+  fees: number;
+  /** Coût complet de la part détenue, travaux d'amélioration compris ; null sans prix d'achat. */
+  cost: number | null;
+  /** Prix moins frais et coût, avant impôt. */
+  gain: number | null;
+  loanPayoff: number;
+  /** Ce qu'il reste après frais et remboursement du crédit. */
+  net: number;
+}
+
+/** Bilan de la vente ; null si le bien n'est pas vendu. */
+export function propertySale(p: Property, improvements: number, loanPayoff: number): PropertySale | null {
+  if (p.saleDate == null || p.salePrice == null) return null;
+  const price = roundCents(p.salePrice * p.share);
+  const fees = roundCents(p.saleFees * p.share);
+  const totalCost = propertyTotalCost(p);
+  const cost = totalCost == null ? null : roundCents((totalCost + improvements) * p.share);
+  return { price, fees, cost, gain: cost == null ? null : roundCents(price - fees - cost), loanPayoff, net: roundCents(price - fees - loanPayoff) };
 }

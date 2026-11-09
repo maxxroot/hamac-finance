@@ -444,6 +444,9 @@ export function Notice() {
           Les loyers se comptent tout seuls chaque mois : signalez seulement un impayé, un mois vide ou un montant différent. Un loyer qui change se note avec « Nouveau loyer », pour ne pas réécrire les mois passés. Les dépenses se notent à part, avec l'option « chaque année » pour la taxe foncière ou l'assurance.
         </p>
         <p>
+          Les dépenses et travaux se notent sur tout bien, dans l'onglet Finances. Cochez « Améliore le bien » pour un agrandissement ou une rénovation : le montant s'ajoute au coût pour calculer le gain et le rendement. Chaque nouvelle estimation est gardée, et la page Historique montre le patrimoine net dans le temps, biens et crédits compris. Le bouton « Vendre » retire le bien du patrimoine à la date de vente, solde ses crédits et affiche le bilan.
+        </p>
+        <p>
           Les résultats par année sont calculés pour votre part et avant impôt. Ce suivi reste séparé de vos comptes : il ne change pas le patrimoine financier, et un loyer versé sur un livret suivi dans Hamac se note aussi dans le Journal. L'impôt sur les loyers n'est pas calculé, et ces revenus n'entrent pas dans la projection.
         </p>
         <p>

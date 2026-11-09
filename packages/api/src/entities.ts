@@ -193,6 +193,20 @@ export const PropertyInput = z.object({
 });
 export type PropertyInput = z.input<typeof PropertyInput>;
 
+export const PropertySaleInput = z.object({
+  id,
+  saleDate: isoDate,
+  salePrice: money.min(0),
+  saleFees: money.min(0).default(0),
+  closeLoans: z.boolean().default(true),
+});
+
+export const PropertyValueInput = z.object({
+  propertyId: id,
+  date: isoDate,
+  value: money.min(0),
+});
+
 export const LeaseInput = z
   .object({
     id: id.optional(),
@@ -243,6 +257,7 @@ export const PropertyExpenseInput = z.object({
   label: text(120).default(""),
   yearly: z.boolean().default(false),
   untilYear: z.number().int().min(1900).max(2200).nullable().default(null),
+  improvement: z.boolean().default(false),
 });
 export type PropertyExpenseInput = z.input<typeof PropertyExpenseInput>;
 

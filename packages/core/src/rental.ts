@@ -27,6 +27,8 @@ export interface PropertyExpense {
   label: string;
   yearly: boolean;
   untilYear: number | null;
+  /** Travaux qui améliorent le bien : ils s'ajoutent à son coût. */
+  improvement: boolean;
 }
 
 /** Dates où la dépense a été payée, jusqu'à `asOf` inclus. */
@@ -38,6 +40,11 @@ export function expenseDates(expense: Pick<PropertyExpense, "date" | "yearly" | 
     if (date > asOf || (expense.untilYear != null && Number(date.slice(0, 4)) > expense.untilYear)) return out;
     out.push(date);
   }
+}
+
+/** Total des travaux d'amélioration payés jusqu'à `asOf`, pour le bien entier. */
+export function propertyImprovements(expenses: readonly PropertyExpense[], propertyId: string, asOf: string): number {
+  return roundCents(expenses.filter((e) => e.propertyId === propertyId && e.improvement).reduce((sum, e) => sum + expenseDates(e, asOf).length * e.amount, 0));
 }
 
 export interface RentalData {
@@ -73,11 +80,14 @@ export interface PropertyYear {
 }
 
 /** Résultats du bien, de l'année du premier événement (achat, bail, dépense, crédit) à celle de `asOf`. */
-export function propertyYears(data: RentalData, asOf: string): PropertyYear[] {
+export function propertyYears(data: RentalData, today: string): PropertyYear[] {
   const { property } = data;
+  // Un bien vendu n'a plus de résultats après sa vente.
+  const sold = property.saleDate != null && property.saleDate < today;
+  const asOf = sold ? property.saleDate! : today;
   const leases = data.leases.filter((l) => l.propertyId === property.id);
   const months = leases.flatMap((l) => rentMonths(l, data.rents, data.exceptions, asOf));
-  const expenses = data.expenses.filter((e) => e.propertyId === property.id).flatMap((e) => expenseDates(e, asOf).map((date) => ({ date, amount: e.amount })));
+  const expenses = data.expenses.filter((e) => e.propertyId === property.id).flatMap((e) => expenseDates(e, asOf).map((date) => ({ date, amount: e.amount, improvement: e.improvement })));
   const loans = data.loans.filter((l) => l.propertyId === property.id).map((l) => ({ share: l.share, years: loanYears(l, asOf) }));
   const firstLease = leases.filter((l) => l.startDate <= asOf).reduce<string | null>((first, l) => (first == null || l.startDate < first ? l.startDate : first), null);
   const asOfYear = Number(asOf.slice(0, 4));
@@ -90,7 +100,7 @@ export function propertyYears(data: RentalData, asOf: string): PropertyYear[] {
   if (startYears.length === 0) return [];
 
   const cost = propertyTotalCost(property);
-  const lastDay = addDays(addMonths(`${asOf.slice(0, 7)}-01`, 1), -1);
+  const lastDay = sold ? asOf : addDays(addMonths(`${asOf.slice(0, 7)}-01`, 1), -1);
   const out: PropertyYear[] = [];
   for (let year = Math.min(...startYears); year <= asOfYear; year++) {
     const yearStart = `${year}-01-01`;
@@ -104,6 +114,9 @@ export function propertyYears(data: RentalData, asOf: string): PropertyYear[] {
     const rents = ofYear.reduce((s, m) => s + m.receivedRent, 0);
     const charges = ofYear.reduce((s, m) => s + m.receivedCharges, 0);
     const spent = expenses.filter((e) => e.date.startsWith(`${year}-`)).reduce((s, e) => s + e.amount, 0);
+    // Les améliorations s'ajoutent au coût : elles ne pèsent pas aussi sur le rendement de l'année.
+    const running = expenses.filter((e) => e.date.startsWith(`${year}-`) && !e.improvement).reduce((s, e) => s + e.amount, 0);
+    const improved = expenses.filter((e) => e.improvement && e.date <= yearEnd).reduce((s, e) => s + e.amount, 0);
     const occupiedDays = ofYear.reduce((s, m) => s + m.occupied * daysInMonth(m.month), 0);
 
     const loanTotal = (field: "interest" | "insurance" | "capital") => loans.reduce((sum, l) => sum + (l.years.find((y) => y.year === year)?.[field] ?? 0) * l.share, 0);
@@ -111,7 +124,8 @@ export function propertyYears(data: RentalData, asOf: string): PropertyYear[] {
     const insurance = loanTotal("insurance");
     const capital = loanTotal("capital");
 
-    const annualize = cost != null && cost > 0 && rentalDays > 0 ? daysInYear / rentalDays / cost : null;
+    const costToDate = cost == null ? null : cost + improved;
+    const annualize = costToDate != null && costToDate > 0 && rentalDays > 0 ? daysInYear / rentalDays / costToDate : null;
     out.push({
       year,
       partial: rentalDays > 0 && rentalDays < daysInYear,
@@ -124,7 +138,7 @@ export function propertyYears(data: RentalData, asOf: string): PropertyYear[] {
       capital: roundCents(capital),
       remaining: roundCents((rents + charges - spent) * property.share - interest - insurance - capital),
       grossYield: annualize == null ? null : rents * annualize,
-      netYield: annualize == null ? null : (rents + charges - spent) * annualize,
+      netYield: annualize == null ? null : (rents + charges - running) * annualize,
       occupancy: rentalDays > 0 ? Math.min(1, occupiedDays / rentalDays) : null,
     });
   }

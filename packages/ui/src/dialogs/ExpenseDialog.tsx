@@ -8,7 +8,7 @@ import { useMutate } from "@/lib/workspace";
 
 type ExpenseDraft = Required<Omit<PropertyExpenseInput, "id">> & { id?: string };
 
-const emptyExpense = (propertyId: string): ExpenseDraft => ({ propertyId, date: todayIso(), category: "taxe_fonciere", amount: 0, label: "", yearly: false, untilYear: null });
+const emptyExpense = (propertyId: string): ExpenseDraft => ({ propertyId, date: todayIso(), category: "taxe_fonciere", amount: 0, label: "", yearly: false, untilYear: null, improvement: false });
 
 export function ExpenseDialog({ open, propertyId, expense, onClose }: { open: boolean; propertyId: string; expense: PropertyExpense | null; onClose: () => void }) {
   const [d, setD] = useState<ExpenseDraft>(() => emptyExpense(propertyId));
@@ -50,6 +50,7 @@ export function ExpenseDialog({ open, propertyId, expense, onClose }: { open: bo
           <Field label="Date">{(id) => <TextInput id={id} type="date" value={d.date} onChange={(e) => set("date", e.target.value)} />}</Field>
           <Field label="Montant" help="Pour le bien entier.">{(id) => <MoneyInput id={id} value={d.amount} onChange={(v) => set("amount", v ?? 0)} />}</Field>
         </FormGrid>
+        {d.category === "travaux" && <Checkbox checked={d.improvement} onChange={(v) => set("improvement", v)} label="Améliore le bien (agrandissement, rénovation…) : s'ajoute à son coût pour calculer le gain" />}
         <Checkbox checked={d.yearly} onChange={(v) => setD((x) => ({ ...x, yearly: v, untilYear: v ? x.untilYear : null }))} label="Chaque année, à la même date" />
         {d.yearly && (
           <FormGrid>

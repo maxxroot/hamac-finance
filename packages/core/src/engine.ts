@@ -26,7 +26,7 @@ import { ageInYear, classEnabled, classLabel, classTargets, type PlanParams } fr
 import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
 import type { Lease, LeaseRent, RentException } from "./leases";
 import type { PropertyExpense } from "./rental";
-import { loanState, propertyValue, type Loan, type LoanState, type Property } from "./realestate";
+import { loanState, propertyValue, type Loan, type LoanState, type Property, type PropertyValue } from "./realestate";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
 import { type Flow, xirr, daysBetween } from "./xirr";
@@ -49,6 +49,7 @@ export interface EngineData {
   leaseRents?: readonly LeaseRent[];
   rentExceptions?: readonly RentException[];
   propertyExpenses?: readonly PropertyExpense[];
+  propertyValues?: readonly PropertyValue[];
   /** Historique des cours (ou au moins le dernier cours de chaque titre). */
   prices: readonly PricePoint[];
   /** Établissements et leurs grilles de frais (facultatif). */

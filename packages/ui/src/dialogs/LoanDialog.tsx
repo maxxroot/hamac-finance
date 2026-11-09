@@ -20,7 +20,7 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
   const set = <K extends keyof LoanDraft>(k: K, v: LoanDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const balanceIncomplete = (d.manualBalance == null) !== (d.manualBalanceDate == null);
   const valid = d.name.trim() && d.principal > 0 && d.termMonths >= 1 && d.firstPayment && !balanceIncomplete && d.share > 0 && d.share <= 1;
-  const preview = valid ? loanState({ ...d, id: d.id ?? "apercu" }, todayIso()) : null;
+  const preview = valid ? loanState({ ...d, id: d.id ?? "apercu", closedOn: null }, todayIso()) : null;
   return (
     <Modal
       open={open}

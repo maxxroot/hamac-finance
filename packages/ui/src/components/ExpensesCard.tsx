@@ -40,6 +40,11 @@ export function ExpensesCard({ propertyId, expenses }: { propertyId: string; exp
               <Td>
                 <span className="font-medium">{EXPENSE_CATEGORY_LABELS[e.category]}</span>
                 {e.label && <div className="text-xs text-fg-faint">{e.label}</div>}
+                {e.improvement && (
+                  <div className="mt-0.5">
+                    <Badge tone="accent">Amélioration</Badge>
+                  </div>
+                )}
               </Td>
               <Td className="whitespace-nowrap">
                 {formatDate(e.date)}
