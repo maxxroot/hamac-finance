@@ -1,12 +1,14 @@
-import { Plus } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, Plus } from "lucide-react";
+import { Fragment, useState } from "react";
 import { LOAN_KIND_LABELS, type Loan } from "@hamac/core";
 import { Amount } from "@/components/Amount";
+import { LoanYearsChart } from "@/components/LoanYearsChart";
 import { RowActions } from "@/components/RowActions";
 import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { LoanDialog } from "@/dialogs/LoanDialog";
+import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
 import { useMutate } from "@/lib/workspace";
@@ -16,6 +18,7 @@ export function Credits() {
   const pf = usePortfolio();
   const del = useMutate("loans.delete", { success: "Crédit supprimé" });
   const [editing, setEditing] = useState<Loan | "new" | null>(null);
+  const [opened, setOpened] = useState<string | null>(null);
   if (!pf) return null;
   const { netWorth } = pf.state;
   const properties = pf.idx.ws.properties;
@@ -25,7 +28,7 @@ export function Credits() {
     <>
       <PageHeader
         title="Crédits"
-        description="Échéance et capital restant dû sont calculés ; vous pouvez les remplacer par les chiffres d'un relevé."
+        description="Échéance et capital restant dû sont calculés, ou repris d'un relevé. Cliquez sur un crédit pour voir son coût année par année."
         actions={
           <Button variant="primary" onClick={() => setEditing("new")}>
             <Plus size={16} /> Nouveau crédit
@@ -63,14 +66,23 @@ export function Credits() {
           </thead>
           <tbody>
             {netWorth.loans.length === 0 && <EmptyRow cols={8}>Aucun crédit en cours.</EmptyRow>}
-            {netWorth.loans.map((l) => (
-              <Tr key={l.loan.id} className="group">
+            {netWorth.loans.map((l) => {
+              const isOpen = opened === l.loan.id;
+              const toggle = () => setOpened(isOpen ? null : l.loan.id);
+              return (
+              <Fragment key={l.loan.id}>
+              <Tr className="group cursor-pointer" onClick={toggle}>
                 <Td className="pl-5 font-medium">
-                  {l.loan.name}
-                  <div className="text-xs font-normal text-fg-faint">
-                    {LOAN_KIND_LABELS[l.loan.kind]}
-                    {l.loan.propertyId ? ` · ${propertyName.get(l.loan.propertyId)}` : ""}
-                  </div>
+                  <button type="button" aria-expanded={isOpen} onClick={(e) => (e.stopPropagation(), toggle())} className="flex items-start gap-1.5 text-left">
+                    <ChevronRight size={15} className={cn("mt-0.5 shrink-0 text-fg-faint transition-transform", isOpen && "rotate-90")} aria-hidden />
+                    <span>
+                      {l.loan.name}
+                      <span className="block text-xs font-normal text-fg-faint">
+                        {LOAN_KIND_LABELS[l.loan.kind]}
+                        {l.loan.propertyId ? ` · ${propertyName.get(l.loan.propertyId)}` : ""}
+                      </span>
+                    </span>
+                  </button>
                 </Td>
                 <Td align="right">
                   <Pct value={l.loan.rate} digits={2} />
@@ -102,9 +114,18 @@ export function Credits() {
                 </Td>
                 <Td align="right">{l.paymentsLeft}</Td>
                 <Td className="whitespace-nowrap text-fg-muted">{formatDate(l.endDate)}</Td>
-                <Td className="w-20 pr-5"><RowActions onEdit={() => setEditing(l.loan)} onDelete={() => confirm(`Supprimer « ${l.loan.name} » ?`) && del.mutate({ id: l.loan.id })} /></Td>
+                <Td className="w-20 pr-5" onClick={(e) => e.stopPropagation()}><RowActions onEdit={() => setEditing(l.loan)} onDelete={() => confirm(`Supprimer « ${l.loan.name} » ?`) && del.mutate({ id: l.loan.id })} /></Td>
               </Tr>
-            ))}
+              {isOpen && (
+                <tr>
+                  <td colSpan={8} className="border-b border-line/60 bg-surface-2/40 p-3">
+                    <LoanYearsChart loan={l.loan} />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
+              );
+            })}
           </tbody>
         </Table>
       </Card>

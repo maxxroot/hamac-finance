@@ -230,7 +230,7 @@ export function Notice() {
 
       <Section n={14} title="Crédits">
         <p>
-          Dans <L to="/credits">Crédits</L>, indiquez le type (immobilier, travaux, consommation, auto, autre), le montant emprunté, le taux d'intérêt, la durée, la première échéance et l'assurance : un montant fixe par mois, ou un taux annuel appliqué au capital emprunté (prime constante) ou au capital restant dû (prime dégressive), comme indiqué dans votre contrat. Hamac calcule l'échéance, l'assurance, le capital restant dû, le coût total et la date de fin. Seuls les crédits immobiliers et travaux peuvent être rattachés à un bien.
+          Dans <L to="/credits">Crédits</L>, indiquez le type (immobilier, travaux, consommation, auto, autre), le montant emprunté, le taux d'intérêt, la durée, la première échéance et l'assurance : un montant fixe par mois, ou un taux annuel appliqué au capital emprunté (prime constante) ou au capital restant dû (prime dégressive), comme indiqué dans votre contrat. Hamac calcule l'échéance, l'assurance, le capital restant dû, le coût total et la date de fin. Cliquez sur un crédit pour afficher, année par année, le capital remboursé, les intérêts et l'assurance. Seuls les crédits immobiliers et travaux peuvent être rattachés à un bien.
         </p>
         <p>
           Si la banque indique d'autres chiffres, saisissez l'échéance ou le capital restant dû d'un relevé, avec sa date : le calcul repart de ce montant. Le patrimoine net correspond au patrimoine financier, plus les biens, moins les crédits. Un crédit renouvelable, sans échéancier fixe, se saisit en « autre » et se corrige à la main.

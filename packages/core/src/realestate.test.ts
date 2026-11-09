@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loanPayment, loanState, propertyValue, type Loan } from "./realestate";
+import { loanPayment, loanState, loanYears, propertyValue, type Loan } from "./realestate";
 
 const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
 
@@ -63,6 +63,52 @@ describe("crédits", () => {
 
     it("plus d'assurance une fois le prêt remboursé", () => {
       expect(loanState(rate("capital_initial"), "2050-01-01")).toMatchObject({ insurance: 0, monthly: 0 });
+    });
+  });
+
+  describe("coût par année", () => {
+    const sum = (rows: ReturnType<typeof loanYears>, key: "capital" | "interest" | "insurance") => rows.reduce((s, y) => s + y[key], 0);
+
+    it("répartit les échéances par année civile, sans intérêts à taux zéro", () => {
+      const rows = loanYears({ ...loan, principal: 12_000, rate: 0, termMonths: 24, firstPayment: "2024-07-05", insurance: 0 });
+      expect(rows).toEqual([
+        { year: 2024, capital: 3000, interest: 0, insurance: 0, endBalance: 9000 },
+        { year: 2025, capital: 6000, interest: 0, insurance: 0, endBalance: 3000 },
+        { year: 2026, capital: 3000, interest: 0, insurance: 0, endBalance: 0 },
+      ]);
+    });
+
+    it("le capital remboursé et le coût correspondent aux totaux du crédit", () => {
+      const rated = { ...loan, insuranceMode: "capital_restant", insurance: 0, insuranceRate: 0.003 } as Loan;
+      const rows = loanYears(rated);
+      const state = loanState(rated, "2024-01-04");
+      expect(rows).toHaveLength(20);
+      expect(sum(rows, "capital")).toBeCloseTo(200_000, 0);
+      expect(sum(rows, "interest")).toBeCloseTo(state.totalInterest, 0);
+      expect(sum(rows, "insurance")).toBeCloseTo(state.totalInsurance, 0);
+      expect(rows.at(-1)!.endBalance).toBeCloseTo(0, 0);
+    });
+
+    it("les intérêts baissent et le capital monte chaque année", () => {
+      const rows = loanYears(loan);
+      // Première échéance : 200 000 € × 3 % / 12 = 500 € d'intérêts.
+      expect(rows[0]!.interest).toBeLessThan(6000);
+      expect(rows[0]!.interest).toBeGreaterThan(5800);
+      expect(rows.at(-1)!.interest).toBeLessThan(rows[0]!.interest);
+      expect(rows.at(-1)!.capital).toBeGreaterThan(rows[0]!.capital);
+    });
+
+    it("un relevé plus bas qu'attendu compte comme du capital remboursé", () => {
+      const reference = loanYears(loan).find((y) => y.year === 2026)!;
+      const rows = loanYears({ ...loan, manualBalance: 100_000, manualBalanceDate: "2026-06-10" });
+      expect(rows.find((y) => y.year === 2026)!.capital).toBeGreaterThan(reference.capital + 50_000);
+      expect(sum(rows, "capital")).toBeCloseTo(200_000, -1);
+      expect(rows.find((y) => y.year === 2027)!.interest).toBeLessThan(3000);
+    });
+
+    it("le coût total suit le relevé", () => {
+      const rows = loanYears({ ...loan, manualBalance: 100_000, manualBalanceDate: "2026-06-10" });
+      expect(loanState({ ...loan, manualBalance: 100_000, manualBalanceDate: "2026-06-10" }, "2026-06-10").totalInterest).toBeCloseTo(sum(rows, "interest"), 0);
     });
   });
 

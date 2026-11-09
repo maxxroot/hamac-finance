@@ -106,6 +106,61 @@ function insuranceFor(loan: Loan, balance: number): number {
   return ((loan.insuranceMode === "capital_initial" ? loan.principal : balance) * loan.insuranceRate) / 12;
 }
 
+interface LoanStep {
+  date: string;
+  capital: number;
+  interest: number;
+  insurance: number;
+  /** Capital restant dû après l'échéance. */
+  balance: number;
+}
+
+/** Échéancier mois par mois. Un relevé remplace le capital calculé à sa date ; un écart à la baisse compte comme capital remboursé. */
+function loanSteps(loan: Loan, payment: number): LoanStep[] {
+  const r = loan.rate / 12;
+  const anchorIndex = loan.manualBalance != null && loan.manualBalanceDate ? paymentsDue(loan.firstPayment, loan.termMonths, loan.manualBalanceDate) : null;
+  const steps: LoanStep[] = [];
+  let balance = loan.principal;
+  for (let k = 0; k < loan.termMonths; k++) {
+    let earlyRepayment = 0;
+    if (k === anchorIndex) {
+      earlyRepayment = Math.max(0, balance - loan.manualBalance!);
+      balance = loan.manualBalance!;
+    }
+    const interest = balance * r;
+    const insurance = insuranceFor(loan, balance);
+    const capital = Math.min(balance, Math.max(0, payment - interest));
+    balance -= capital;
+    steps.push({ date: addMonths(loan.firstPayment, k), capital: capital + earlyRepayment, interest, insurance, balance });
+  }
+  return steps;
+}
+
+export interface LoanYear {
+  year: number;
+  capital: number;
+  interest: number;
+  insurance: number;
+  /** Capital restant dû après la dernière échéance de l'année. */
+  endBalance: number;
+}
+
+/** Ce que le crédit coûte chaque année civile : capital remboursé, intérêts et assurance. */
+export function loanYears(loan: Loan): LoanYear[] {
+  const payment = loan.manualPayment ?? loanPayment(loan.principal, loan.rate, loan.termMonths);
+  const years = new Map<number, LoanYear>();
+  for (const s of loanSteps(loan, payment)) {
+    const year = Number(s.date.slice(0, 4));
+    const y = years.get(year) ?? { year, capital: 0, interest: 0, insurance: 0, endBalance: 0 };
+    y.capital += s.capital;
+    y.interest += s.interest;
+    y.insurance += s.insurance;
+    y.endBalance = s.balance;
+    years.set(year, y);
+  }
+  return [...years.values()].map((y) => ({ year: y.year, capital: roundCents(y.capital), interest: roundCents(y.interest), insurance: roundCents(y.insurance), endBalance: roundCents(y.endBalance) }));
+}
+
 export interface LoanState {
   loan: Loan;
   /** Échéance hors assurance. */
@@ -120,9 +175,9 @@ export interface LoanState {
   paymentsLeft: number;
   /** Date de la dernière échéance. */
   endDate: string;
-  /** Intérêts sur toute la durée, d'après l'échéance et le capital initial (hors assurance). */
+  /** Intérêts sur toute la durée (hors assurance), d'après l'échéancier. */
   totalInterest: number;
-  /** Assurance sur toute la durée, d'après l'échéancier d'origine. */
+  /** Assurance sur toute la durée, d'après l'échéancier. */
   totalInsurance: number;
   fromManualBalance: boolean;
 }
@@ -138,8 +193,7 @@ export function loanState(loan: Loan, asOf: string): LoanState {
     ? balanceAfter(loan.manualBalance!, r, payment, paymentsDone - paymentsDue(loan.firstPayment, loan.termMonths, loan.manualBalanceDate!))
     : balanceAfter(loan.principal, r, payment, paymentsDone);
   const insurance = paymentsLeft > 0 ? insuranceFor(loan, balance) : 0;
-  let totalInsurance = 0;
-  for (let k = 0; k < loan.termMonths; k++) totalInsurance += insuranceFor(loan, balanceAfter(loan.principal, r, payment, k));
+  const steps = loanSteps(loan, payment);
   return {
     loan,
     payment: roundCents(payment),
@@ -149,8 +203,8 @@ export function loanState(loan: Loan, asOf: string): LoanState {
     paymentsDone,
     paymentsLeft,
     endDate: addMonths(loan.firstPayment, loan.termMonths - 1),
-    totalInterest: roundCents(Math.max(0, payment * loan.termMonths - loan.principal)),
-    totalInsurance: roundCents(totalInsurance),
+    totalInterest: roundCents(steps.reduce((s, x) => s + x.interest, 0)),
+    totalInsurance: roundCents(steps.reduce((s, x) => s + x.insurance, 0)),
     fromManualBalance: anchored,
   };
 }
