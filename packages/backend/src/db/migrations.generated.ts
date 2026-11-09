@@ -11,5 +11,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0002_calm_giant_girl",
     "sql": "ALTER TABLE \"assets\" ADD COLUMN \"next_coupon_date\" text;"
+  },
+  {
+    "tag": "0003_ordinary_trish_tilby",
+    "sql": "ALTER TABLE \"institutions\" ADD COLUMN \"tax\" text DEFAULT '{}' NOT NULL;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"gross_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"withheld_income_tax_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"withheld_social_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"withheld_foreign_cents\" bigint;"
   }
 ];

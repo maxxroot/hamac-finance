@@ -69,6 +69,14 @@ export function validateTransaction(
   }
   if (!needsAsset && tx.quantity != null) errors.push({ field: "quantity", message: "Pas de quantité pour ce type d'opération." });
 
+  const isIncome = tx.type === "dividende" || tx.type === "interets";
+  if (!isIncome && (tx.gross != null || tx.withheldIncomeTax != null || tx.withheldSocial != null || tx.withheldForeign != null)) {
+    errors.push({ field: "gross", message: "Le brut et les retenues ne concernent que les dividendes et les intérêts." });
+  }
+  if (isIncome && tx.gross != null && tx.gross < tx.amount - 0.01) {
+    errors.push({ field: "gross", message: "Le brut ne peut pas être inférieur au montant reçu." });
+  }
+
   if (tx.type === "transfert") {
     if (!tx.counterAccountId) errors.push({ field: "counterAccountId", message: "Choisissez le compte de destination." });
     else if (tx.counterAccountId === tx.accountId) errors.push({ field: "counterAccountId", message: "Le compte de destination doit être différent." });

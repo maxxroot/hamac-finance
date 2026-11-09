@@ -16,6 +16,8 @@ import {
   suggestTradeFee,
   tradeFeeFor,
   formatEur,
+  grossFromNet,
+  NO_INSTITUTION_TAX,
   roundCents,
   validateTransaction,
   type Account,
@@ -50,6 +52,11 @@ interface Draft {
   comment: string;
   /** Titre à créer avec l'opération (achat d'un titre pas encore connu). */
   newAsset: NewAsset | null;
+  /** Dividendes et intérêts : brut et retenues, facultatifs. */
+  gross: number | null;
+  withheldIncomeTax: number | null;
+  withheldSocial: number | null;
+  withheldForeign: number | null;
 }
 
 export interface TxPreset {
@@ -77,11 +84,15 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
     priceBasis: "total",
     comment: "",
     newAsset: null,
+    gross: null,
+    withheldIncomeTax: null,
+    withheldSocial: null,
+    withheldForeign: null,
   };
 }
 
 function fromTx(tx: Transaction): Draft {
-  return { ...tx, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null };
+  return { ...tx, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null };
 }
 
 export function TransactionDialog({
@@ -163,6 +174,7 @@ export function TransactionDialog({
   const assetChoices = account ? idx.activeAssets.filter((a) => ALLOWED_ASSETS[account.kind].includes(a.kind) && (!preset.assetKinds || preset.assetKinds.includes(a.kind))) : [];
   const accountChoices = idx.activeAccounts.filter((a) => !preset.accountKinds || preset.accountKinds.includes(a.kind) || a.id === d.accountId);
   const NEW = "__nouveau__";
+  const taxDetail = (d.type === "dividende" || d.type === "interets") && (account?.kind === "cto" || account?.kind === "crowdlending");
   const payload = {
     id: d.id,
     date: d.date,
@@ -174,6 +186,10 @@ export function TransactionDialog({
     quantity: needsAsset ? d.quantity : null,
     fee: isTrade ? d.fee : null,
     comment: d.comment,
+    gross: taxDetail ? d.gross : null,
+    withheldIncomeTax: taxDetail ? d.withheldIncomeTax : null,
+    withheldSocial: taxDetail ? d.withheldSocial : null,
+    withheldForeign: taxDetail ? d.withheldForeign : null,
   };
   // Un titre en cours de création est validé comme s'il existait déjà.
   const assetMap: Map<string, Asset> =
@@ -386,6 +402,15 @@ export function TransactionDialog({
           </FormGrid>
         )}
 
+        {taxDetail && (
+          <TaxDetailFields
+            draft={d}
+            onChange={(patch) => setD((x) => (x ? { ...x, ...patch } : x))}
+            error={err("gross")}
+            prefill={account?.institutionId && d.amount ? grossFromNet(d.amount, idx.institutionById.get(account.institutionId)?.tax ?? NO_INSTITUTION_TAX) : null}
+          />
+        )}
+
         {allInUnitCost != null && (isBond || (d.fee ?? 0) > 0) && (
           <p className="text-xs text-fg-muted">
             {isBond ? "Coût pour 1 € de nominal" : "Prix unitaire frais compris"} :{" "}
@@ -397,5 +422,34 @@ export function TransactionDialog({
         <button type="submit" hidden />
       </form>
     </Modal>
+  );
+}
+
+/** Détail fiscal d'un dividende ou d'intérêts, repris dans le récapitulatif fiscal. */
+function TaxDetailFields({ draft, onChange, error, prefill }: { draft: Draft; onChange: (patch: Partial<Draft>) => void; error: string | null; prefill: { gross: number; incomeTax: number; social: number } | null }) {
+  const gap = draft.gross != null && draft.amount != null ? roundCents(draft.gross - (draft.withheldIncomeTax ?? 0) - (draft.withheldSocial ?? 0) - (draft.withheldForeign ?? 0) - draft.amount) : 0;
+  return (
+    <div className="rounded-xl border border-line bg-surface-2/40 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">Détail fiscal (facultatif)</h3>
+          <p className="text-xs text-fg-faint">Tel qu'indiqué sur le relevé. Le montant ci-dessus reste le net reçu.</p>
+        </div>
+        {prefill && (
+          <Button type="button" variant="ghost" className="h-7 text-xs" onClick={() => onChange({ gross: prefill.gross, withheldIncomeTax: prefill.incomeTax, withheldSocial: prefill.social, withheldForeign: 0 })}>
+            Calculer d'après l'établissement
+          </Button>
+        )}
+      </div>
+      <FormGrid>
+        <Field label="Revenu brut" error={error}>
+          {(id) => <MoneyInput id={id} value={draft.gross} onChange={(v) => onChange({ gross: v })} />}
+        </Field>
+        <Field label="Acompte d'impôt retenu">{(id) => <MoneyInput id={id} value={draft.withheldIncomeTax} onChange={(v) => onChange({ withheldIncomeTax: v })} />}</Field>
+        <Field label="Prélèvements sociaux retenus">{(id) => <MoneyInput id={id} value={draft.withheldSocial} onChange={(v) => onChange({ withheldSocial: v })} />}</Field>
+        <Field label="Retenue à l'étranger">{(id) => <MoneyInput id={id} value={draft.withheldForeign} onChange={(v) => onChange({ withheldForeign: v })} />}</Field>
+      </FormGrid>
+      {Math.abs(gap) >= 0.02 && <p className="mt-3 text-xs text-warning">Le brut moins les retenues diffère du montant reçu de {formatEur(gap)}.</p>}
+    </div>
   );
 }

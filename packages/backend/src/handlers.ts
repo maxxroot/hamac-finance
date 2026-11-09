@@ -287,6 +287,10 @@ export const handlers: Handlers = {
       quantity: input.quantity,
       feeCents: input.fee == null ? null : toCents(input.fee),
       comment: input.comment,
+      grossCents: input.gross == null ? null : toCents(input.gross),
+      withheldIncomeTaxCents: input.withheldIncomeTax == null ? null : toCents(input.withheldIncomeTax),
+      withheldSocialCents: input.withheldSocial == null ? null : toCents(input.withheldSocial),
+      withheldForeignCents: input.withheldForeign == null ? null : toCents(input.withheldForeign),
       updatedAt: nowIso(),
     };
     if (input.id) {
@@ -523,7 +527,7 @@ export const handlers: Handlers = {
 
   async "institutions.upsert"(input, ctx) {
     const id = input.id ?? newId();
-    const row = { name: input.name, kind: input.kind, website: input.website, score: input.score, comment: input.comment, offers: JSON.stringify(input.offers), updatedAt: nowIso() };
+    const row = { name: input.name, kind: input.kind, website: input.website, score: input.score, comment: input.comment, offers: JSON.stringify(input.offers), tax: JSON.stringify(input.tax), updatedAt: nowIso() };
     if (input.id) {
       const res = await ctx.db.update(t.institutions).set(row).where(eq(t.institutions.id, id)).returning({ id: t.institutions.id });
       if (!res.length) throw new RpcError("NOT_FOUND", "Établissement introuvable.");

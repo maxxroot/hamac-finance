@@ -90,6 +90,25 @@ export const Offers = z.object({
 });
 export type Offers = z.infer<typeof Offers>;
 
+/** Fiscalité d'un établissement, pour le récapitulatif fiscal. */
+export const InstitutionTax = z.object({
+  /** Cochée : Hamac rédige le récapitulatif de cet établissement, ses lignes sont à saisir. Sinon, on attend son IFU. */
+  report: z.boolean().default(false),
+  /** Taux habituellement retenus sur les revenus ; null = inconnu, 0 = rien n'est retenu. */
+  withheldIncomeTax: z.number().min(0).max(0.9).nullable().default(null),
+  withheldSocial: z.number().min(0).max(0.9).nullable().default(null),
+});
+export type InstitutionTax = z.infer<typeof InstitutionTax>;
+
+export const NO_INSTITUTION_TAX: InstitutionTax = { report: false, withheldIncomeTax: null, withheldSocial: null };
+
+/** Brut et retenues d'un revenu d'après les taux de l'établissement ; null si l'un des taux est inconnu. */
+export function grossFromNet(net: number, tax: Pick<InstitutionTax, "withheldIncomeTax" | "withheldSocial">): { gross: number; incomeTax: number; social: number } | null {
+  if (tax.withheldIncomeTax == null || tax.withheldSocial == null) return null;
+  const gross = roundCents(net / (1 - tax.withheldIncomeTax - tax.withheldSocial));
+  return { gross, incomeTax: roundCents(gross * tax.withheldIncomeTax), social: roundCents(gross * tax.withheldSocial) };
+}
+
 export interface Institution {
   id: string;
   name: string;
@@ -98,6 +117,7 @@ export interface Institution {
   score: number | null;
   comment: string;
   offers: Offers;
+  tax: InstitutionTax;
 }
 
 /** Offres proposées par défaut selon le type d'établissement. */

@@ -32,6 +32,8 @@ export const institutions = pgTable("institutions", {
   comment: text("comment").notNull().default(""),
   /** Offres par type de compte (JSON validé par Offers dans @hamac/core). */
   offers: text("offers").notNull().default("{}"),
+  /** Récapitulatif fiscal et retenues habituelles (JSON validé par InstitutionTax dans @hamac/core). */
+  tax: text("tax").notNull().default("{}"),
   ...timestamps,
 });
 
@@ -101,6 +103,11 @@ export const transactions = pgTable(
     feeCents: bigint("fee_cents", { mode: "number" }),
     comment: text("comment").notNull().default(""),
     externalId: text("external_id"),
+    /** Dividendes et intérêts : brut et retenues, facultatifs ; `amount_cents` reste le net crédité. */
+    grossCents: bigint("gross_cents", { mode: "number" }),
+    withheldIncomeTaxCents: bigint("withheld_income_tax_cents", { mode: "number" }),
+    withheldSocialCents: bigint("withheld_social_cents", { mode: "number" }),
+    withheldForeignCents: bigint("withheld_foreign_cents", { mode: "number" }),
     ...timestamps,
   },
   (t) => [

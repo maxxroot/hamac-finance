@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account } from "./domain";
-import { describeOrderFees, embeddedOrderFee, orderFee, suggestTradeFee, type Institution, type OrderFees } from "./institutions";
+import { grossFromNet, describeOrderFees, embeddedOrderFee, orderFee, suggestTradeFee, type Institution, type OrderFees } from "./institutions";
 import { defaultParams } from "./params";
 
 const tiered: OrderFees = {
@@ -37,10 +37,18 @@ describe("frais d'ordre", () => {
   it("utilise la grille de l'établissement du compte, sinon les frais par défaut", () => {
     const p = defaultParams();
     p.broker = { feeRate: 0.005, minFee: 0 };
-    const inst: Institution = { id: "b", name: "Courtier B", kind: "courtier", website: "", score: null, comment: "", offers: { pea: { orderFees: tiered, custodyFixed: 0, custodyRate: 0, etfWorld: null, directBonds: null, programmed: null, reachableSupport: null } } };
+    const inst: Institution = { id: "b", name: "Courtier B", kind: "courtier", website: "", score: null, comment: "", offers: { pea: { orderFees: tiered, custodyFixed: 0, custodyRate: 0, etfWorld: null, directBonds: null, programmed: null, reachableSupport: null } }, tax: { report: false, withheldIncomeTax: null, withheldSocial: null } };
     const account = { id: "pea", kind: "pea", institutionId: "b" } as Account;
     const map = new Map([["b", inst]]);
     expect(suggestTradeFee(account, map, p, "achat", 301.99)).toBe(1.99);
     expect(suggestTradeFee({ ...account, institutionId: null }, map, p, "achat", 1005)).toBe(5);
+  });
+});
+
+describe("retenues d'un établissement", () => {
+  it("retrouve le brut à partir du net, et ne devine pas si un taux manque", () => {
+    expect(grossFromNet(87.2, { withheldIncomeTax: 0.128, withheldSocial: 0 })).toEqual({ gross: 100, incomeTax: 12.8, social: 0 });
+    expect(grossFromNet(100, { withheldIncomeTax: 0, withheldSocial: 0 })).toEqual({ gross: 100, incomeTax: 0, social: 0 });
+    expect(grossFromNet(100, { withheldIncomeTax: null, withheldSocial: 0 })).toBeNull();
   });
 });

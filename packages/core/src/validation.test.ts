@@ -23,6 +23,11 @@ describe("validateTransaction", () => {
     expect(errs).toContain("assetId");
     expect(errs).toContain("quantity");
   });
+  it("brut et retenues : seulement sur un revenu, et jamais un brut sous le net reçu", () => {
+    expect(validateTransaction({ ...base, type: "dividende", gross: 145.77, withheldIncomeTax: 18.66, withheldSocial: 27.11 }, accounts, assets)).toEqual([]);
+    expect(validateTransaction({ ...base, type: "dividende", gross: 90 }, accounts, assets)[0].field).toBe("gross");
+    expect(validateTransaction({ ...base, type: "versement", gross: 120 }, accounts, assets)[0].field).toBe("gross");
+  });
   it("refuse un achat sur un livret", () => {
     expect(validateTransaction({ ...base, accountId: "lep", type: "achat", assetId: "sp500", quantity: 1 }, accounts, assets).length).toBeGreaterThan(0);
   });

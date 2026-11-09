@@ -23,7 +23,7 @@ import type {
   Transaction,
   TxType,
 } from "@hamac/core";
-import { normalizeParams, Offers, type PlanParams } from "@hamac/core";
+import { InstitutionTax, NO_INSTITUTION_TAX, normalizeParams, Offers, type PlanParams } from "@hamac/core";
 import type { Workspace } from "@hamac/api";
 import { eq } from "drizzle-orm";
 import * as t from "./db/schema";
@@ -102,6 +102,10 @@ export function mapTx(r: typeof t.transactions.$inferSelect): Transaction {
     fee: fromCentsOrNull(r.feeCents),
     comment: r.comment,
     externalId: r.externalId,
+    gross: fromCentsOrNull(r.grossCents),
+    withheldIncomeTax: fromCentsOrNull(r.withheldIncomeTaxCents),
+    withheldSocial: fromCentsOrNull(r.withheldSocialCents),
+    withheldForeign: fromCentsOrNull(r.withheldForeignCents),
   };
 }
 
@@ -195,10 +199,15 @@ export const mapLoan = (r: typeof t.loans.$inferSelect): Loan => ({
   archived: r.archived,
 });
 
+function parseInstitutionTax(raw: string): InstitutionTax {
+  const parsed = InstitutionTax.safeParse(JSON.parse(raw));
+  return parsed.success ? parsed.data : NO_INSTITUTION_TAX;
+}
+
 export function mapInstitution(r: typeof t.institutions.$inferSelect): Institution {
   // Offres validées à la lecture : une donnée ancienne ou incomplète reçoit ses valeurs par défaut.
   const parsed = Offers.safeParse(JSON.parse(r.offers));
-  return { id: r.id, name: r.name, kind: r.kind as InstitutionKind, website: r.website, score: r.score, comment: r.comment, offers: parsed.success ? parsed.data : {} };
+  return { id: r.id, name: r.name, kind: r.kind as InstitutionKind, website: r.website, score: r.score, comment: r.comment, offers: parsed.success ? parsed.data : {}, tax: parseInstitutionTax(r.tax) };
 }
 
 export async function loadParams(db: Db): Promise<PlanParams> {

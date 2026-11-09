@@ -7,6 +7,7 @@ import {
   INSTITUTION_KINDS,
   emptyOffer,
   formatEur,
+  NO_INSTITUTION_TAX,
   orderFee,
   type AvOffer,
   type BrokerOffer,
@@ -14,6 +15,7 @@ import {
   type CryptoOffer,
   type Institution,
   type InstitutionKind,
+  type InstitutionTax,
   type Offers,
   type OrderFeeTier, type OfferKind,
 } from "@hamac/core";
@@ -33,12 +35,13 @@ interface Draft {
   score: number | null;
   comment: string;
   offers: Offers;
+  tax: InstitutionTax;
 }
 
 function blank(kind: InstitutionKind = "courtier"): Draft {
   const offers: Offers = {};
   for (const k of DEFAULT_OFFER_KINDS[kind]) (offers as Record<string, unknown>)[k] = emptyOffer(k);
-  return { name: "", kind, website: "", score: null, comment: "", offers };
+  return { name: "", kind, website: "", score: null, comment: "", offers, tax: NO_INSTITUTION_TAX };
 }
 
 export function InstitutionDialog({ open, onClose, institution }: { open: boolean; onClose: () => void; institution?: Institution | null }) {
@@ -93,7 +96,7 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
                 onChange={(e) => {
                   const kind = e.target.value as InstitutionKind;
                   // À la création, le type pré-coche les comptes habituels ; ensuite on ne touche plus aux offres.
-                  setD((x) => (institution ? { ...x, kind } : { ...blank(kind), name: x.name, website: x.website, score: x.score, comment: x.comment }));
+                  setD((x) => (institution ? { ...x, kind } : { ...blank(kind), name: x.name, website: x.website, score: x.score, comment: x.comment, tax: x.tax }));
                 }}
               >
                 {INSTITUTION_KINDS.map((k) => (
@@ -173,6 +176,23 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
             <CryptoEditor offer={d.offers.crypto} onChange={(v) => setOffer("crypto", v)} />
           </Section>
         )}
+
+        <Section title="Fiscalité">
+          <div className="space-y-4">
+            <div>
+              <Checkbox checked={d.tax.report} onChange={(v) => setD({ ...d, tax: { ...d.tax, report: v } })} label="Hamac rédige le récapitulatif fiscal de cet établissement" />
+              <p className="mt-1.5 text-xs text-fg-faint">À cocher si l'établissement ne transmet rien au fisc. Sinon, ses montants sont seulement à contrôler avec son IFU, pour éviter de les déclarer deux fois.</p>
+            </div>
+            <FormGrid>
+              <Field label="Acompte d'impôt retenu sur les revenus" help="Vide si vous ne savez pas, 0 si rien n'est retenu.">
+                {(id) => <PercentInput id={id} value={d.tax.withheldIncomeTax} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldIncomeTax: v } })} />}
+              </Field>
+              <Field label="Prélèvements sociaux retenus" help="Vide si vous ne savez pas, 0 si rien n'est retenu.">
+                {(id) => <PercentInput id={id} value={d.tax.withheldSocial} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldSocial: v } })} />}
+              </Field>
+            </FormGrid>
+          </div>
+        </Section>
 
         <Field label="Commentaire">{(id) => <Textarea id={id} value={d.comment} onChange={(e) => setD({ ...d, comment: e.target.value })} placeholder="Points forts, points faibles, date de la grille tarifaire…" />}</Field>
       </div>

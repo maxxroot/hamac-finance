@@ -242,6 +242,14 @@ export interface Transaction {
   comment: string;
   /** Identifiant dans un fichier importé : réimporter le même fichier ne crée pas de doublon. */
   externalId?: string | null;
+  /** Dividende ou intérêts : revenu brut avant toute retenue ; `amount` reste le net crédité. */
+  gross?: number | null;
+  /** Acompte d'impôt (prélèvement forfaitaire non libératoire) retenu à la source. */
+  withheldIncomeTax?: number | null;
+  /** Prélèvements sociaux retenus à la source. */
+  withheldSocial?: number | null;
+  /** Retenue à la source prélevée à l'étranger. */
+  withheldForeign?: number | null;
 }
 
 /** Versement mensuel programmé : à partir du mois `fromMonth` (AAAA-MM), `amount` €/mois. 0 = arrêt. */

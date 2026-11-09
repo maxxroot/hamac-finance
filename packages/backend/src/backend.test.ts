@@ -258,6 +258,18 @@ describe("établissements", () => {
     expect(ws.accounts[0].institutionId).toBeNull();
   });
 
+  it("conserve la case du récapitulatif fiscal et le détail fiscal d'un dividende", async () => {
+    const b = await memory();
+    const inst = await call<{ id: string; tax: { report: boolean; withheldIncomeTax: number | null } }>(b, "institutions.upsert", { name: "Courtier", kind: "courtier", tax: { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 } });
+    expect(inst.tax).toEqual({ report: true, withheldIncomeTax: 0.128, withheldSocial: 0 });
+    const defaut = await call<{ tax: { report: boolean } }>(b, "institutions.upsert", { name: "Autre", kind: "banque" });
+    expect(defaut.tax.report).toBe(false);
+    const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO", institutionId: inst.id });
+    await call(b, "transactions.upsert", { date: "2025-06-02", type: "dividende", accountId: cto.id, amount: 87.2, gross: 100, withheldIncomeTax: 12.8, withheldSocial: 0, withheldForeign: 0 });
+    const ws = await call<{ transactions: Array<{ gross: number; withheldIncomeTax: number; withheldSocial: number }> }>(b, "workspace.load");
+    expect(ws.transactions[0]).toMatchObject({ gross: 100, withheldIncomeTax: 12.8, withheldSocial: 0 });
+  });
+
   it("refuse une grille invalide", async () => {
     const b = await memory();
     const bad = await b.dispatch("institutions.upsert", { name: "X", kind: "courtier", offers: { pea: { orderFees: { tiers: [] } } } });
