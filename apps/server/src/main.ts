@@ -3,15 +3,22 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { postgresProvider, waitForDatabase } from "@hamac/backend";
 import { createApp, type SignupMode } from "./app";
+import { databaseUrl, intFromEnv } from "./env";
 
 /**
  * Serveur Hamac auto-hébergé.
- *   DATABASE_URL     connexion PostgreSQL (défaut : postgres://hamac:hamac@localhost:5432/hamac)
+ * Tous les réglages sont documentés dans .env.example.
+ *   DATABASE_URL     connexion PostgreSQL (défaut : base locale, mot de passe HAMAC_DB_PASSWORD ou « hamac »)
  *   HAMAC_DATA_DIR   dossier des copies faites avant une migration (défaut : ./data)
  *   HAMAC_PORT       port d'écoute (défaut : 8080)
  *   HAMAC_SIGNUP     invite (défaut) | open | closed
  *   HAMAC_SECURE     1 si le serveur est derrière HTTPS (cookies « Secure »)
  *   HAMAC_UI_DIR     dossier de l'interface construite (défaut : ./ui à côté du serveur)
+ *   HAMAC_PRICES     0 pour ne pas actualiser les cours automatiquement
+ *   HAMAC_TWELVEDATA_KEY          clé Twelve Data (facultative, jamais stockée en base)
+ *   HAMAC_TWELVEDATA_DAILY_LIMIT  requêtes Twelve Data par jour selon l'offre (défaut : 800)
+ *   HAMAC_REFRESH_MINUTES         minutes entre deux actualisations des cours, 10 au minimum (défaut : 30)
+ *   HAMAC_SESSION_DAYS            durée d'une session en jours (défaut : 30)
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const signup = (process.env.HAMAC_SIGNUP ?? "invite") as SignupMode;
@@ -19,7 +26,15 @@ if (!["invite", "open", "closed"].includes(signup)) throw new Error("HAMAC_SIGNU
 
 if (process.env.HAMAC_SECURE !== "1") console.warn("[hamac] Cookies non sécurisés : placez un proxy HTTPS devant le serveur et activez HAMAC_SECURE=1.");
 
-const provider = postgresProvider(process.env.DATABASE_URL ?? "postgres://hamac:hamac@localhost:5432/hamac");
+const market = {
+  twelveDataKey: process.env.HAMAC_TWELVEDATA_KEY?.trim() || null,
+  twelveDataDailyLimit: intFromEnv(process.env, "HAMAC_TWELVEDATA_DAILY_LIMIT", 800, 1),
+  // En dessous, une même source ne serait de toute façon pas réinterrogée.
+  refreshMinutes: intFromEnv(process.env, "HAMAC_REFRESH_MINUTES", 30, 10),
+};
+const sessionDays = intFromEnv(process.env, "HAMAC_SESSION_DAYS", 30, 1);
+
+const provider = postgresProvider(databaseUrl(process.env));
 await waitForDatabase(provider);
 
 const { app, close } = await createApp({
@@ -36,6 +51,8 @@ const { app, close } = await createApp({
   staticDir: process.env.HAMAC_UI_DIR ?? join(here, "ui"),
   appVersion: process.env.npm_package_version ?? "0.1.0",
   autoRefreshPrices: process.env.HAMAC_PRICES !== "0",
+  market,
+  sessionDays,
 });
 
 const port = Number(process.env.HAMAC_PORT ?? 8080);

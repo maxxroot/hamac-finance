@@ -1,13 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Backend } from "../index";
-import { testBackend, testMarket } from "../testkit";
+import { rawFor } from "../db/postgres";
+import { testBackend, testMarket, testProvider } from "../testkit";
+import { SharedMarket } from "./shared";
 import type { Fetcher } from "./http";
 import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./custom";
 import { euronextHistory, parseEuronextCsv } from "./euronext";
 import { chainFor, defaultProviderSettings, instrumentKey, parseBondTicker, searchAssets } from "./index";
 import { assertPlausible } from "./plausible";
 import { yahooRange } from "./yahoo";
-import { refreshIntervalMinutes, TD_SAFE_LIMIT, TwelveDataBudget, twelveDataSymbol } from "./twelvedata";
+import { refreshIntervalMinutes, TD_DAILY_LIMIT, TD_SAFE_LIMIT, TwelveDataBudget, twelveDataSymbol } from "./twelvedata";
 
 /** Faux réseau : répond selon l'URL, enregistre les appels. */
 function fakeFetcher(routes: Array<[RegExp, unknown, number?]>): Fetcher & { calls: string[] } {
@@ -80,6 +82,9 @@ describe("sources de cours", () => {
   it("Twelve Data : l'intervalle garde le pire cas sous le quota journalier", () => {
     expect(refreshIntervalMinutes(0)).toBe(30);
     expect(refreshIntervalMinutes(5)).toBe(30);
+    expect(refreshIntervalMinutes(0, 45)).toBe(45);
+    expect(refreshIntervalMinutes(100)).toBe(190);
+    expect(refreshIntervalMinutes(100, 30, 8000)).toBe(30);
     for (const n of [1, 15, 16, 30, 80, 200, 760]) {
       const passages = Math.floor(1440 / refreshIntervalMinutes(n));
       expect(passages * n).toBeLessThanOrEqual(TD_SAFE_LIMIT);
@@ -91,7 +96,7 @@ describe("sources de cours", () => {
   it("Twelve Data : compteur journalier et limite par minute", async () => {
     let now = Date.parse("2026-11-08T10:00:00Z");
     const waits: number[] = [];
-    const b = new TwelveDataBudget("cle-budget", { day: "2026-11-08", used: TD_SAFE_LIMIT - 9 }, () => now, async (ms) => {
+    const b = new TwelveDataBudget("cle-budget", { day: "2026-11-08", used: TD_SAFE_LIMIT - 9 }, TD_DAILY_LIMIT, () => now, async (ms) => {
       waits.push(ms);
       now += ms;
     });
@@ -157,15 +162,25 @@ describe("sources de cours", () => {
     expect(ws.prices.find((p) => p.assetId === etf.id)).toMatchObject({ price: 42.5, source: "euronext" });
   });
 
-  it("la clé Twelve Data ne sort ni vers l'interface ni dans une sauvegarde", async () => {
-    backend = await testBackend({ fetcher: fakeFetcher([]) });
-    const s = await call<{ twelveData: { configured: boolean; hint: string } }>(backend, "market.configure", { twelveDataKey: "cle-secrete-abcd" });
-    expect(s.twelveData).toMatchObject({ configured: true, hint: "abcd" });
-    expect(JSON.stringify(s)).not.toContain("cle-secrete");
-    const dump = await call(backend, "data.export");
-    expect(JSON.stringify(dump)).not.toContain("cle-secrete");
-    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
-    expect((await call<{ twelveData: { configured: boolean } }>(backend, "market.settings")).twelveData.configured).toBe(true);
+  it("la clé Twelve Data vient du serveur et n'en sort jamais", async () => {
+    const market = await testMarket(fakeFetcher([]), { twelveDataKey: "cle-secrete-abcd", twelveDataDailyLimit: 5000, refreshMinutes: 45 });
+    backend = await testBackend({ market });
+    const s = await call<{ twelveData: Record<string, unknown> }>(backend, "market.settings");
+    expect(s.twelveData).toMatchObject({ configured: true, limit: 5000, intervalMinutes: 45 });
+    expect(s.twelveData).not.toHaveProperty("hint");
+    expect(JSON.stringify(s)).not.toMatch(/cle-secrete|abcd/);
+    expect(JSON.stringify(await call(backend, "data.export"))).not.toContain("cle-secrete");
+    expect((await backend.dispatch("market.configure", { twelveDataKey: "autre-cle-1234" })).ok).toBe(false);
+    const stored = await rawFor(await testProvider().session()).all<{ key: string }>("SELECT key FROM marche.config");
+    expect(stored.map((r) => r.key)).not.toContain("twelveDataKey");
+  });
+
+  it("efface une clé enregistrée en base par une version précédente", async () => {
+    const db = rawFor(await testProvider().session());
+    await testMarket(fakeFetcher([]));
+    await db.run("INSERT INTO marche.config (key, value) VALUES ('twelveDataKey', '\"ancienne-cle\"')");
+    await SharedMarket.open(testProvider(), fakeFetcher([]));
+    expect(await db.get("SELECT key FROM marche.config WHERE key = 'twelveDataKey'")).toBeUndefined();
   });
 
   it("recherche par ISIN : obligation reconnue et pré-remplie", async () => {
@@ -252,14 +267,14 @@ describe("base de cours commune", () => {
     b.close();
   });
 
-  it("seul l'administrateur règle les sources, et lui seul voit la fin de la clé", async () => {
-    const market = await testMarket(fakeFetcher([]));
+  it("seul l'administrateur règle les sources", async () => {
+    const market = await testMarket(fakeFetcher([]), { twelveDataKey: "cle-secrete-abcd" });
     const admin = await testBackend({ market });
     const other = await testBackend({ market, isAdmin: false });
-    await call(admin, "market.configure", { twelveDataKey: "cle-secrete-abcd" });
-    expect((await other.dispatch("market.configure", { twelveDataKey: null })).ok).toBe(false);
-    const seen = await call<{ canEdit: boolean; twelveData: { configured: boolean; hint: string | null } }>(other, "market.settings");
-    expect(seen).toMatchObject({ canEdit: false, twelveData: { configured: true, hint: null } });
+    const order = (await call<{ order: unknown[] }>(admin, "market.settings")).order;
+    await call(admin, "market.configure", { order });
+    expect((await other.dispatch("market.configure", { order })).ok).toBe(false);
+    expect(await call(other, "market.settings")).toMatchObject({ canEdit: false, twelveData: { configured: true } });
     admin.close();
     other.close();
   });

@@ -4,11 +4,18 @@ import { rawFor, tenantNames } from "../db/postgres";
 import { assertPlausible } from "./plausible";
 import { normalizeOrder, twelveDataAssets, type MarketState } from "./config";
 import { chainFor, defaultFetcher, fetchFrom, instrumentKey, type Fetcher, type MarketAsset, type ProviderSetting } from "./index";
-import { refreshIntervalMinutes, TwelveDataBudget, type TwelveDataUsage } from "./twelvedata";
+import { BASE_REFRESH_MINUTES, refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget, type TwelveDataUsage } from "./twelvedata";
 
 const today = () => new Date().toISOString().slice(0, 10);
 /** Un même titre n'est pas réinterrogé avant ce délai, quels que soient les utilisateurs qui le demandent. */
 const COOLDOWN_MS = 10 * 60_000;
+
+/** Réglages de l'instance, lus au démarrage du serveur (fichier .env). */
+export interface MarketConfig {
+  twelveDataKey: string | null;
+  refreshMinutes: number;
+  twelveDataDailyLimit: number;
+}
 
 export interface Instrument {
   key: string;
@@ -39,7 +46,8 @@ const asAsset = (r: Pick<Row, "kind" | "isin" | "symbol" | "priceProvider">): Ma
 /**
  * Base de cours commune à toute l'instance (schéma « marche ») : chaque titre n'est téléchargé
  * qu'une fois, quel que soit le nombre de personnes qui le détiennent. Les tenants n'y ont aucun
- * droit SQL : seul ce service y lit et y écrit, et la clé Twelve Data n'en sort jamais.
+ * droit SQL : seul ce service y lit et y écrit. La clé Twelve Data ne vient que de l'environnement du serveur :
+ * elle n'est ni stockée en base, ni transmise à l'interface.
  */
 export class SharedMarket {
   private inFlight = new Map<string, Promise<boolean>>();
@@ -50,9 +58,10 @@ export class SharedMarket {
     private session: PgSession,
     private db: RawDb,
     private fetcher: Fetcher,
+    private config: MarketConfig,
   ) {}
 
-  static async open(provider: PgProvider, fetcher: Fetcher = defaultFetcher, onLost?: () => void): Promise<SharedMarket> {
+  static async open(provider: PgProvider, fetcher: Fetcher = defaultFetcher, onLost?: () => void, config: Partial<MarketConfig> = {}): Promise<SharedMarket> {
     const session = await provider.session(onLost);
     const db = rawFor(session);
     for (const statement of [
@@ -78,9 +87,11 @@ export class SharedMarket {
         PRIMARY KEY (key, date)
       )`,
       "CREATE TABLE IF NOT EXISTS marche.config (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+      // Une clé saisie autrefois dans l'interface ne doit pas rester en base.
+      "DELETE FROM marche.config WHERE key = 'twelveDataKey'",
     ])
       await db.exec(statement);
-    return new SharedMarket(session, db, fetcher);
+    return new SharedMarket(session, db, fetcher, { twelveDataKey: null, refreshMinutes: BASE_REFRESH_MINUTES, twelveDataDailyLimit: TD_DAILY_LIMIT, ...config });
   }
 
   private async read<T>(key: string): Promise<T | null> {
@@ -93,13 +104,21 @@ export class SharedMarket {
   }
 
   async state(): Promise<MarketState> {
-    const [order, twelveDataKey, usage] = await Promise.all([this.read<ProviderSetting[]>("order"), this.read<string>("twelveDataKey"), this.read<TwelveDataUsage>("usage")]);
-    return { order: normalizeOrder(order), twelveDataKey, usage };
+    const [order, usage] = await Promise.all([this.read<ProviderSetting[]>("order"), this.read<TwelveDataUsage>("usage")]);
+    return { order: normalizeOrder(order), twelveDataKey: this.config.twelveDataKey, usage };
   }
 
-  async configure(input: { order?: ProviderSetting[]; twelveDataKey?: string | null }): Promise<void> {
-    if (input.order) await this.write("order", normalizeOrder(input.order));
-    if (input.twelveDataKey !== undefined) await this.write("twelveDataKey", input.twelveDataKey);
+  async configure(order: ProviderSetting[]): Promise<void> {
+    await this.write("order", normalizeOrder(order));
+  }
+
+  get dailyLimit(): number {
+    return this.config.twelveDataDailyLimit;
+  }
+
+  /** Minutes entre deux actualisations, pour `assets` titres pouvant solliciter Twelve Data. */
+  intervalMinutes(assets: number): number {
+    return refreshIntervalMinutes(assets, this.config.refreshMinutes, this.dailyLimit);
   }
 
   /** Titres connus de l'instance pouvant solliciter Twelve Data : sert à calculer le rythme d'actualisation. */
@@ -127,7 +146,7 @@ export class SharedMarket {
   /** Actualise ces titres. Renvoie les clés qui ont reçu de nouveaux cours. */
   async refresh(assets: readonly MarketAsset[]): Promise<Set<string>> {
     const state = await this.state();
-    const budget = state.twelveDataKey ? new TwelveDataBudget(state.twelveDataKey, state.usage) : null;
+    const budget = state.twelveDataKey ? new TwelveDataBudget(state.twelveDataKey, state.usage, this.dailyLimit) : null;
     const updated = new Set<string>();
     const unique = new Map(assets.flatMap((a) => { const key = instrumentKey(a); return key ? [[key, a] as const] : []; }));
     for (const [key, asset] of unique) {
@@ -201,7 +220,7 @@ export class SharedMarket {
         console.error("[hamac] actualisation des cours :", err);
       }
       if (this.stopped) return;
-      const minutes = refreshIntervalMinutes(await this.twelveDataCount(await this.state()).catch(() => 0));
+      const minutes = this.intervalMinutes(await this.twelveDataCount(await this.state()).catch(() => 0));
       this.timer = setTimeout(() => void tick(), minutes * 60_000);
       this.timer.unref?.();
     };

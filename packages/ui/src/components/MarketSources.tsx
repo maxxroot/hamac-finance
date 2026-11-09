@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
-import { useState } from "react";
 import { PRICE_PROVIDER_LABELS, type PriceProvider } from "@hamac/core";
 import type { MarketSettings, ProcInput } from "@hamac/api";
-import { Checkbox, Field, TextInput } from "./form";
+import { Checkbox } from "./form";
 import { EmptyRow, Table, Td, Th, Tr } from "./table";
 import { Badge, Button, Card, CardTitle } from "./ui";
 import { cn } from "@/lib/cn";
@@ -24,7 +23,7 @@ const DESCRIPTIONS: Partial<Record<PriceProvider, string>> = {
 
 const dateTime = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-/** Paramètres › Cours : ordre des sources, clé Twelve Data et état de chaque titre. */
+/** Paramètres › Cours : ordre des sources, état de Twelve Data et de chaque titre. */
 export function MarketSources() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -36,7 +35,6 @@ export function MarketSources() {
     onSuccess: (s: MarketSettings) => qc.setQueryData(KEY, s),
     onError: (e: Error) => toast("error", e.message),
   });
-  const [key, setKey] = useState("");
 
   if (!data || !idx) return null;
   const status = idx.ws.priceStatus;
@@ -48,7 +46,6 @@ export function MarketSources() {
     configure.mutate({ order });
   };
   const toggle = (i: number, enabled: boolean) => configure.mutate({ order: data.order.map((o, j) => (j === i ? { ...o, enabled } : o)) });
-  const saveKey = () => configure.mutate({ twelveDataKey: key.trim() }, { onSuccess: () => { setKey(""); toast("success", "Clé enregistrée"); } });
 
   return (
     <div className="space-y-5 pb-20">
@@ -81,23 +78,13 @@ export function MarketSources() {
 
       {data.canEdit && (
       <Card>
-        <CardTitle hint={<a href="https://twelvedata.com/pricing" target="_blank" rel="noreferrer" className="text-accent hover:underline">twelvedata.com</a>}>Clé Twelve Data (facultative)</CardTitle>
+        <CardTitle hint={<a href="https://twelvedata.com/pricing" target="_blank" rel="noreferrer" className="text-accent hover:underline">twelvedata.com</a>}>Twelve Data (facultatif)</CardTitle>
         {td.configured ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-fg-muted">
-              Clé enregistrée, se terminant par <span className="num text-fg">{td.hint}</span>.
-            </p>
-            <Button variant="ghost" onClick={() => configure.mutate({ twelveDataKey: null })}>
-              Supprimer la clé
-            </Button>
-          </div>
+          <p className="text-sm text-fg-muted">Clé configurée sur le serveur.</p>
         ) : (
-          <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
-            <Field label="Clé d'API">{(id) => <TextInput id={id} type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} className="font-mono" />}</Field>
-            <Button disabled={key.trim().length < 8 || configure.isPending} onClick={saveKey}>
-              Enregistrer
-            </Button>
-          </div>
+          <p className="text-sm text-fg-muted">
+            Aucune clé configurée. Pour activer cette source, renseignez <code className="text-xs">HAMAC_TWELVEDATA_KEY</code> dans le fichier <code className="text-xs">.env</code> du serveur, puis relancez Hamac.
+          </p>
         )}
         {td.configured && (
           <p className="mt-3 text-sm text-fg-muted">
@@ -113,7 +100,7 @@ export function MarketSources() {
           </p>
         )}
         <p className="mt-3 text-xs text-fg-faint">
-          La clé reste dans cette installation : elle n'est jamais affichée en entier, ni incluse dans les exports et les sauvegardes. L'offre gratuite ne couvre que les titres américains ; les cotations européennes demandent une offre payante.
+          La clé reste sur le serveur : elle n'est jamais envoyée à l'interface, ni enregistrée en base, ni incluse dans les exports. L'offre gratuite ne couvre que les titres américains ; les cotations européennes demandent une offre payante.
         </p>
       </Card>
       )}

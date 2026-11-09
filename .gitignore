@@ -12,6 +12,7 @@ CLAUDE.md
 # Clés et secrets locaux
 .env
 .env.*
+!.env.example
 
 # Relevés personnels déposés à la racine du projet
 /*.csv

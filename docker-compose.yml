@@ -2,12 +2,7 @@
 #   docker compose up -d --build     puis ouvrez http://localhost:8080 et créez le premier compte (administrateur)
 #   docker compose exec hamac node cli.mjs invite     code d'invitation à envoyer
 #
-# Réglages facultatifs dans un fichier .env à côté de ce fichier :
-#   HAMAC_DB_PASSWORD   mot de passe PostgreSQL, lettres et chiffres (la base n'est jamais exposée hors de Docker)
-#   HAMAC_BIND          0.0.0.0 pour ouvrir au réseau ; placez alors un reverse proxy HTTPS devant
-#   HAMAC_SECURE        1 derrière HTTPS
-#   HAMAC_TRUST_PROXY   1 derrière un reverse proxy
-#   HAMAC_SIGNUP        invite, open ou closed
+# Réglages facultatifs : copiez .env.example en .env, à côté de ce fichier. Tout y est expliqué.
 services:
   db:
     image: postgres:17-alpine
@@ -31,12 +26,17 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${HAMAC_BIND:-127.0.0.1}:8080:8080"
+      - "${HAMAC_BIND:-127.0.0.1}:${HAMAC_PORT:-8080}:8080"
     environment:
       DATABASE_URL: postgres://hamac:${HAMAC_DB_PASSWORD:-hamac}@db:5432/hamac
       HAMAC_SIGNUP: ${HAMAC_SIGNUP:-invite}
       HAMAC_SECURE: ${HAMAC_SECURE:-0}
       HAMAC_TRUST_PROXY: ${HAMAC_TRUST_PROXY:-0}
+      HAMAC_PRICES: ${HAMAC_PRICES:-1}
+      HAMAC_TWELVEDATA_KEY: ${HAMAC_TWELVEDATA_KEY:-}
+      HAMAC_TWELVEDATA_DAILY_LIMIT: ${HAMAC_TWELVEDATA_DAILY_LIMIT:-800}
+      HAMAC_REFRESH_MINUTES: ${HAMAC_REFRESH_MINUTES:-30}
+      HAMAC_SESSION_DAYS: ${HAMAC_SESSION_DAYS:-30}
     volumes:
       - hamac-data:/data
 

@@ -135,7 +135,7 @@ export function Notice() {
           Hamac actualise les cours tout seul. Pour chaque titre, il essaie les sources dans l'ordre choisi (Paramètres › Cours) jusqu'à ce que l'une réponde : justETF, Euronext, Twelve Data, puis Yahoo en dernier recours ; CoinGecko pour la crypto. Un cours qui s'écarte de plus de 25 % de celui d'une autre source est écarté (ligne en dollars, par exemple). L'onglet Cours montre quelle source a répondu pour chaque titre.
         </p>
         <p>
-          La clé Twelve Data est facultative : son offre gratuite ne couvre que les titres américains. Depuis sa fiche, un titre peut imposer sa source ou une adresse personnalisée. Le prix des SCPI se saisit à la main, et un cours saisi à la main n'est jamais écrasé le même jour.
+          La clé Twelve Data est facultative et se règle sur le serveur, dans le fichier .env : son offre gratuite ne couvre que les titres américains. Depuis sa fiche, un titre peut imposer sa source ou une adresse personnalisée. Le prix des SCPI se saisit à la main, et un cours saisi à la main n'est jamais écrasé le même jour.
         </p>
       </Section>
 

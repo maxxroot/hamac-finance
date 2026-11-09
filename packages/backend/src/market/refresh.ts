@@ -7,7 +7,7 @@ import { mapAsset, nowIso, PRICE_STATUS_KEY } from "../repo";
 import { writeSetting } from "./config";
 import { chainFor, fetchFrom, instrumentKey, isPersonal } from "./index";
 import { assertPlausible, type LastPrice } from "./plausible";
-import { refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget } from "./twelvedata";
+import { TwelveDataBudget } from "./twelvedata";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -82,14 +82,14 @@ export async function refreshPrices(ctx: BackendContext, exclusive: Exclusive = 
   }
 
   const n = await ctx.market.twelveDataCount(market);
-  const intervalMinutes = refreshIntervalMinutes(n);
+  const intervalMinutes = ctx.market.intervalMinutes(n);
   const status: PriceStatus = {
     at: nowIso(),
     updated,
     errors,
     assets: lines,
     nextAt: new Date(Date.now() + intervalMinutes * 60_000).toISOString(),
-    twelveData: market.twelveDataKey ? { used: new TwelveDataBudget(market.twelveDataKey, market.usage).usage.used, limit: TD_DAILY_LIMIT, assets: n, intervalMinutes } : null,
+    twelveData: market.twelveDataKey ? { used: new TwelveDataBudget(market.twelveDataKey, market.usage, ctx.market.dailyLimit).usage.used, limit: ctx.market.dailyLimit, assets: n, intervalMinutes } : null,
   };
   await exclusive(() => writeSetting(ctx, PRICE_STATUS_KEY, status));
   return status;

@@ -16,7 +16,6 @@ export interface User {
   createdAt: string;
 }
 
-const SESSION_DAYS = 30;
 const SCRYPT = { N: 16384, r: 8, p: 1 } as const;
 
 function sha(s: string): string {
@@ -30,10 +29,11 @@ export class UserStore {
   private constructor(
     private session: PgSession,
     private db: ReturnType<typeof rawFor>,
+    private sessionDays: number,
   ) {}
 
   /** Ouvre la connexion d'administration et crée les tables manquantes. `onLost` signale sa perte. */
-  static async open(provider: PgProvider, onLost?: () => void): Promise<UserStore> {
+  static async open(provider: PgProvider, onLost?: () => void, sessionDays = 30): Promise<UserStore> {
     const session = await provider.session(onLost);
     const db = rawFor(session);
     for (const statement of [
@@ -61,7 +61,7 @@ export class UserStore {
       )`,
     ])
       await db.exec(statement);
-    return new UserStore(session, db);
+    return new UserStore(session, db, sessionDays);
   }
 
   static hashPassword(password: string): string {
@@ -108,7 +108,7 @@ export class UserStore {
   /** Crée une session ; renvoie le jeton en clair (à poser dans le cookie). */
   async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
     const token = randomBytes(32).toString("base64url");
-    const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
+    const expiresAt = new Date(Date.now() + this.sessionDays * 86_400_000);
     await this.db.run("INSERT INTO comptes.sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)", [sha(token), userId, expiresAt.toISOString()]);
     return { token, expiresAt };
   }

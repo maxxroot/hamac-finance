@@ -8,7 +8,6 @@ import { handlers } from "./handlers";
 import { defaultFetcher, type Fetcher } from "./market";
 import { refreshPrices } from "./market/refresh";
 import type { SharedMarket } from "./market/shared";
-import { BASE_REFRESH_MINUTES } from "./market/twelvedata";
 
 export interface BackendOptions {
   provider: PgProvider;
@@ -141,7 +140,7 @@ export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: bo
       const res = await refresh();
       if (closed) return;
       const next = res.ok ? Date.parse((res.data as { nextAt?: string }).nextAt ?? "") : NaN;
-      priceTimer = setTimeout(() => void tick(), Number.isFinite(next) ? Math.max(60_000, next - Date.now()) : BASE_REFRESH_MINUTES * 60_000);
+      priceTimer = setTimeout(() => void tick(), Number.isFinite(next) ? Math.max(60_000, next - Date.now()) : ctx.market.intervalMinutes(0) * 60_000);
       priceTimer.unref?.();
     };
     priceTimer = setTimeout(() => void tick(), 3_000);
@@ -151,5 +150,5 @@ export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: bo
 }
 export type { PgProvider, PgSession } from "./db/driver";
 export { postgresProvider, rawFor, waitForDatabase } from "./db/postgres";
-export { SharedMarket } from "./market/shared";
+export { SharedMarket, type MarketConfig } from "./market/shared";
 export { seedDemo } from "./demo";

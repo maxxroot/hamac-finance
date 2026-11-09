@@ -63,7 +63,7 @@ export function chainFor(asset: MarketAsset, order: readonly ProviderSetting[], 
   if (asset.kind === "scpi" && asset.priceProvider !== "url") return { chain: [], reason: "SCPI : prix de part saisi à la main" };
   if (asset.priceProvider) {
     if (supports(asset.priceProvider, asset, hasTwelveDataKey)) return { chain: [asset.priceProvider], reason: null };
-    if (asset.priceProvider === "twelvedata" && !hasTwelveDataKey) return { chain: [], reason: "Clé Twelve Data manquante (Paramètres › Cours)" };
+    if (asset.priceProvider === "twelvedata" && !hasTwelveDataKey) return { chain: [], reason: "Clé Twelve Data non configurée sur le serveur" };
     if (asset.priceProvider === "url") return { chain: [], reason: "Adresse ou chemin du prix manquant" };
     return { chain: [], reason: `${PRICE_PROVIDER_LABELS[asset.priceProvider]} ne peut pas donner le cours de ce titre (ISIN ou symbole manquant)` };
   }

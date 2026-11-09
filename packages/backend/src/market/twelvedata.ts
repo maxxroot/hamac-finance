@@ -7,18 +7,19 @@ import { type Fetcher, MarketError, type Quote } from "./http";
  */
 export const TD_DAILY_LIMIT = 800;
 /** Marge de 5 % : d'autres appels peuvent exister (site de Twelve Data, autre outil). */
-export const TD_SAFE_LIMIT = 760;
+export const safeLimit = (dailyLimit: number) => Math.max(1, Math.floor((dailyLimit * 95) / 100));
+export const TD_SAFE_LIMIT = safeLimit(TD_DAILY_LIMIT);
 export const TD_PER_MINUTE = 8;
-/** Rafraîchissement le plus fréquent, quel que soit le quota. */
+/** Rythme par défaut ; le quota peut seulement le ralentir. */
 export const BASE_REFRESH_MINUTES = 30;
 
 /**
  * Intervalle entre deux actualisations pour que `assets` titres passant par Twelve Data
  * restent sous le quota journalier : au plus 1440 / intervalle passages × `assets` requêtes.
  */
-export function refreshIntervalMinutes(assets: number): number {
-  if (assets <= 0) return BASE_REFRESH_MINUTES;
-  return Math.max(BASE_REFRESH_MINUTES, Math.min(1440, Math.ceil((1440 * assets) / TD_SAFE_LIMIT)));
+export function refreshIntervalMinutes(assets: number, base = BASE_REFRESH_MINUTES, dailyLimit = TD_DAILY_LIMIT): number {
+  if (assets <= 0) return base;
+  return Math.max(base, Math.min(1440, Math.ceil((1440 * assets) / safeLimit(dailyLimit))));
 }
 
 export interface TwelveDataUsage {
@@ -43,6 +44,7 @@ export class TwelveDataBudget {
   constructor(
     key: string,
     stored: TwelveDataUsage | null,
+    private dailyLimit: number = TD_DAILY_LIMIT,
     private now: () => number = Date.now,
     private sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
   ) {
@@ -72,7 +74,7 @@ export class TwelveDataBudget {
   async acquire(): Promise<void> {
     for (;;) {
       this.roll();
-      if (this.state.used >= TD_SAFE_LIMIT) throw new MarketError("Quota Twelve Data du jour atteint.");
+      if (this.state.used >= safeLimit(this.dailyLimit)) throw new MarketError("Quota Twelve Data du jour atteint.");
       const t = this.now();
       this.state.calls = this.state.calls.filter((c) => t - c < 60_000);
       if (this.state.calls.length < TD_PER_MINUTE) break;
@@ -85,7 +87,7 @@ export class TwelveDataBudget {
   /** Twelve Data a répondu « quota dépassé » : plus aucun appel aujourd'hui. */
   exhaust() {
     this.roll();
-    this.state.used = TD_DAILY_LIMIT;
+    this.state.used = this.dailyLimit;
   }
 }
 

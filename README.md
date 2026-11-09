@@ -139,7 +139,8 @@ docker compose exec hamac node cli.mjs password <e-mail>   # changer un mot de p
 
 Par défaut, Hamac n'écoute que sur la machine qui l'héberge. Pour l'ouvrir à d'autres appareils, placez un
 reverse proxy HTTPS (Caddy, Traefik, nginx) devant le serveur et réglez les variables ci-dessous dans un
-fichier `.env` à côté de `docker-compose.yml`.
+fichier `.env` à côté de `docker-compose.yml` (`cp .env.example .env`, puis `docker compose up -d`). Il est
+facultatif, exclu de git et de l'image Docker.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
@@ -148,7 +149,12 @@ fichier `.env` à côté de `docker-compose.yml`.
 | `HAMAC_TRUST_PROXY` | `0` | `1` derrière un reverse proxy (sinon tous les visiteurs partagent la même limite de connexions) |
 | `HAMAC_SIGNUP` | `invite` | `invite`, `open` ou `closed` |
 | `HAMAC_DB_PASSWORD` | `hamac` | Mot de passe PostgreSQL, lettres et chiffres ; la base n'est jamais exposée hors de Docker |
+| `HAMAC_PORT` | `8080` | Port publié sur la machine |
+| `HAMAC_SESSION_DAYS` | `30` | Durée d'une session avant de devoir se reconnecter |
 | `HAMAC_PRICES` | `1` | `0` pour ne pas actualiser les cours automatiquement |
+| `HAMAC_REFRESH_MINUTES` | `30` | Minutes entre deux actualisations des cours, 10 au minimum ; le quota de Twelve Data peut ralentir ce rythme |
+| `HAMAC_TWELVEDATA_KEY` | vide | Clé [Twelve Data](https://twelvedata.com), facultative. C'est le seul endroit où elle se règle : ni en base, ni dans l'interface |
+| `HAMAC_TWELVEDATA_DAILY_LIMIT` | `800` | Requêtes par jour de votre offre Twelve Data |
 
 Sécurité : mots de passe hachés (scrypt), sessions par cookie `HttpOnly` et `SameSite=Strict`, en-tête
 anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe. Chaque compte a son propre

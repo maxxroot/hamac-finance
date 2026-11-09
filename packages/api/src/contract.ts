@@ -105,9 +105,8 @@ export interface MarketSettings {
   canEdit: boolean;
   order: Array<{ id: PriceProvider; enabled: boolean }>;
   twelveData: {
+    /** La clé elle-même reste sur le serveur (fichier .env). */
     configured: boolean;
-    /** Quatre derniers caractères de la clé. */
-    hint: string | null;
     used: number;
     limit: number;
     /** Titres pouvant passer par Twelve Data à chaque actualisation. */
@@ -192,9 +191,7 @@ export const procedures = {
   "market.settings": { input: z.void(), output: entity<MarketSettings>() },
   "market.configure": {
     input: z.object({
-      order: z.array(z.object({ id: z.enum(PRICE_PROVIDERS), enabled: z.boolean() })).optional(),
-      /** Absent : inchangée ; null : supprimée. */
-      twelveDataKey: z.string().trim().min(8, "Clé trop courte").max(100).nullable().optional(),
+      order: z.array(z.object({ id: z.enum(PRICE_PROVIDERS), enabled: z.boolean() })),
     }),
     output: entity<MarketSettings>(),
   },

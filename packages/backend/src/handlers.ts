@@ -7,7 +7,7 @@ import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
 import { refreshPrices } from "./market/refresh";
-import { refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget } from "./market/twelvedata";
+import { TwelveDataBudget } from "./market/twelvedata";
 import * as t from "./db/schema";
 import {
   loadWorkspace,
@@ -82,7 +82,7 @@ async function marketSettings(ctx: BackendContext): Promise<MarketSettings> {
   return {
     canEdit: ctx.isAdmin,
     order: state.order,
-    twelveData: { configured: !!key, hint: ctx.isAdmin && key ? key.slice(-4) : null, used: key ? new TwelveDataBudget(key, state.usage).usage.used : 0, limit: TD_DAILY_LIMIT, assets: n, intervalMinutes: refreshIntervalMinutes(n) },
+    twelveData: { configured: !!key, used: key ? new TwelveDataBudget(key, state.usage, ctx.market.dailyLimit).usage.used : 0, limit: ctx.market.dailyLimit, assets: n, intervalMinutes: ctx.market.intervalMinutes(n) },
   };
 }
 
@@ -567,9 +567,9 @@ export const handlers: Handlers = {
     return marketSettings(ctx);
   },
 
-  async "market.configure"({ order, twelveDataKey }, ctx) {
+  async "market.configure"({ order }, ctx) {
     if (!ctx.isAdmin) throw new RpcError("UNAUTHORIZED", "Réservé à l'administrateur de l'instance.");
-    await ctx.market.configure({ order, twelveDataKey });
+    await ctx.market.configure(order);
     return marketSettings(ctx);
   },
 

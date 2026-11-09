@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import type { PgProvider, PgSession } from "./db/driver";
-import { createBackend, SharedMarket, type Backend, type BackendOptions } from "./index";
+import { createBackend, SharedMarket, type Backend, type BackendOptions, type MarketConfig } from "./index";
 import type { Fetcher } from "./market";
 
 /**
@@ -48,8 +48,8 @@ export async function testBackend(opts: Partial<BackendOptions> = {}): Promise<B
 }
 
 /** Une base de cours vide. */
-export async function testMarket(fetcher?: Fetcher): Promise<SharedMarket> {
-  const market = await SharedMarket.open(testProvider(), fetcher);
+export async function testMarket(fetcher?: Fetcher, config?: Partial<MarketConfig>): Promise<SharedMarket> {
+  const market = await SharedMarket.open(testProvider(), fetcher, undefined, config);
   await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config CASCADE");
   return market;
 }

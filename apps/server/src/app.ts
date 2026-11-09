@@ -3,7 +3,7 @@ import { extname, join, normalize, resolve } from "node:path";
 import { Hono, type Context } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { createBackend, SharedMarket, type Backend, type PgProvider } from "@hamac/backend";
+import { createBackend, SharedMarket, type Backend, type MarketConfig, type PgProvider } from "@hamac/backend";
 import { UserStore, type User } from "./users";
 
 export type SignupMode = "invite" | "open" | "closed";
@@ -21,6 +21,10 @@ export interface ServerConfig {
   staticDir: string | null;
   appVersion: string;
   autoRefreshPrices: boolean;
+  /** Clé Twelve Data, quota et rythme des cours. */
+  market?: Partial<MarketConfig>;
+  /** Durée d'une session avant de devoir se reconnecter. */
+  sessionDays?: number;
   /** Perte de la connexion d'administration : sans elle, plus de comptes ni de sessions. */
   onAdminLost?: () => void;
 }
@@ -123,8 +127,8 @@ const MIME: Record<string, string> = {
 
 export async function createApp(cfg: ServerConfig) {
   if (cfg.dataDir) mkdirSync(cfg.dataDir, { recursive: true });
-  const users = await UserStore.open(cfg.provider, cfg.onAdminLost);
-  const market = await SharedMarket.open(cfg.provider, undefined, cfg.onAdminLost);
+  const users = await UserStore.open(cfg.provider, cfg.onAdminLost, cfg.sessionDays);
+  const market = await SharedMarket.open(cfg.provider, undefined, cfg.onAdminLost, cfg.market);
   if (cfg.autoRefreshPrices) market.start(() => users.tenantIds());
   const pool = new BackendPool(cfg, market);
   const limiter = new RateLimiter(10, 15 * 60_000);

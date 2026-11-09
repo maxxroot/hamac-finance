@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { postgresProvider } from "@hamac/backend";
+import { databaseUrl } from "./env";
 import { UserStore } from "./users";
 
 /**
@@ -8,7 +9,7 @@ import { UserStore } from "./users";
  *   node cli.mjs users                 liste les comptes
  *   node cli.mjs password <e-mail>     change le mot de passe d'un compte
  */
-const store = await UserStore.open(postgresProvider(process.env.DATABASE_URL ?? "postgres://hamac:hamac@localhost:5432/hamac"));
+const store = await UserStore.open(postgresProvider(databaseUrl(process.env)));
 const [cmd, arg] = process.argv.slice(2);
 
 async function main() {
