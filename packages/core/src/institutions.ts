@@ -109,6 +109,12 @@ export function grossFromNet(net: number, tax: Pick<InstitutionTax, "withheldInc
   return { gross, incomeTax: roundCents(gross * tax.withheldIncomeTax), social: roundCents(gross * tax.withheldSocial) };
 }
 
+/** Impôts d'une plateforme de crowdlending, réglés sur la fiche de l'établissement. */
+export function crowdTaxOf(data: { params: PlanParams; institutions?: readonly Institution[] }, account: Pick<Account, "institutionId">): { withheld: boolean; rate: number } {
+  const offer = data.institutions?.find((i) => i.id === account.institutionId)?.offers.crowdlending;
+  return { withheld: offer?.taxWithheld ?? false, rate: offer?.taxRate ?? data.params.tax.pfuIncomeTax + data.params.tax.socialGeneral };
+}
+
 export interface Institution {
   id: string;
   name: string;

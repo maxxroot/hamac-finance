@@ -17,6 +17,7 @@ export * from "./engine";
 export * from "./fiscalRules";
 export * from "./securitiesGains";
 export * from "./taxes";
+export * from "./taxReport";
 export * from "./history";
 export * from "./projection";
 export * from "./alerts";

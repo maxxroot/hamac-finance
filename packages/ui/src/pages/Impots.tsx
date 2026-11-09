@@ -17,8 +17,9 @@ export function Impots() {
   const rows = withdrawalTaxes(data, state, crypto);
   const livret = (t: string) => pf.idx.activeAccounts.find((a) => a.livretType === t)?.rate ?? null;
   const yields = netYields(data.params, today, { lep: livret("LEP"), ldds: livret("LDDS") ?? livret("LIVRET_A") });
-  const years = yearlyTaxes(data, crypto, today);
+  const years = yearlyTaxes(data, crypto, today, state.disposals);
   const hasCrowd = years.some((y) => y.crowdReceived > 0);
+  const hasGains = years.some((y) => y.securitiesGain > 0);
   const year = +today.slice(0, 4);
 
   return (
@@ -60,7 +61,7 @@ export function Impots() {
       <Section title="3. Impôts de chaque année (pour la déclaration)">
         <p className="mb-3 text-sm text-fg-muted">
           Livrets et PEA : rien à déclarer tant qu'on ne retire pas. Fonds euros : prélèvements sociaux retenus par l'assureur. Coupons et dividendes du compte-titres : prélèvements sociaux et acompte retenus par le courtier,
-          puis régularisation à la déclaration (négatif = remboursement). Crypto : rien n'est retenu à la source, la plus-value se déclare (formulaire 2086).
+          puis régularisation à la déclaration (négatif = remboursement). Crypto : rien n'est retenu à la source, la plus-value se déclare (formulaire 2086). Compte-titres : la plus-value de l'année, après imputation des moins-values reportables.
         </p>
         <Table>
           <thead>
@@ -75,6 +76,8 @@ export function Impots() {
               <Th align="right">Impôt définitif</Th>
               <Th align="right">Régularisation</Th>
               <Th align="right">Crypto (IR + PS)</Th>
+              {hasGains && <Th align="right">Plus-values titres</Th>}
+              {hasGains && <Th align="right">Impôt plus-values</Th>}
               {hasCrowd && <Th align="right">Crowdlending reçu</Th>}
               {hasCrowd && <Th align="right">Impôt crowdlending</Th>}
               <Th align="right">Total</Th>
@@ -111,6 +114,16 @@ export function Impots() {
                 <Td align="right">
                   <Amount value={y.cryptoIncomeTax + y.cryptoSocial} />
                 </Td>
+                {hasGains && (
+                  <Td align="right">
+                    <Amount value={y.securitiesGain} />
+                  </Td>
+                )}
+                {hasGains && (
+                  <Td align="right">
+                    <Amount value={y.securitiesIncomeTax + y.securitiesSocial} />
+                  </Td>
+                )}
                 {hasCrowd && (
                   <Td align="right">
                     <Amount value={y.crowdReceived} />

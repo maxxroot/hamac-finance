@@ -223,7 +223,7 @@ describe("fiscalité", () => {
 
   it("coupons : brut reconstitué, acompte et régularisation", () => {
     const d = data({ accounts: [acc("cto", "cto")], transactions: [tx("2026-05-25", "interets", "cto", 68.6)] });
-    const row = yearlyTaxes(d, cryptoTax(d, "2026-12-31"), "2026-12-31").find((r) => r.year === 2026)!;
+    const row = yearlyTaxes(d, cryptoTax(d, "2026-12-31"), "2026-12-31", []).find((r) => r.year === 2026)!;
     expect(row.couponsGross).toBeCloseTo(68.6 / (1 - 0.186 - 0.128), 2);
     expect(row.regularisation).toBeCloseTo(-row.withholding, 2); // TMI 0 % : l'acompte est remboursé
   });
@@ -306,7 +306,7 @@ describe("historique reconstruit", () => {
     const interets = (accountId: string, amount: number) => ({ id: accountId, date: "2026-03-01", type: "interets", accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" }) as Transaction;
     const accounts = [plateforme("preleve", "e30"), plateforme("forfait", "pfu"), plateforme("adeclarer", null)];
     const d: EngineData = { params: p, accounts, assets: [], plans: [], skips: [], prices: [], institutions: [etab("e30", { taxWithheld: true, taxRate: 0.3 }), etab("pfu", { taxWithheld: true, taxRate: null })], transactions: [interets("preleve", 70), interets("forfait", 68.6), interets("adeclarer", 100)] };
-    const row = yearlyTaxes(d, cryptoTax(d, "2026-06-01"), "2026-06-01").find((y) => y.year === 2026)!;
+    const row = yearlyTaxes(d, cryptoTax(d, "2026-06-01"), "2026-06-01", []).find((y) => y.year === 2026)!;
     expect(row.crowdReceived).toBeCloseTo(238.6, 2);
     // 70 € nets à 30 % : 100 € bruts, 30 € prélevés. 68,60 € nets à 31,4 % : 100 € bruts, 31,40 € prélevés.
     expect(row.crowdWithheld).toBeCloseTo(61.4, 2);

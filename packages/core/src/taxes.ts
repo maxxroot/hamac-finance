@@ -1,9 +1,13 @@
 import { addMonths } from "./dates";
-import type { Account, Asset, Transaction } from "./domain";
-import type { AccountState, EngineData, PortfolioState } from "./engine";
+import type { Asset, Transaction } from "./domain";
+import type { AccountState, Disposal, EngineData, PortfolioState } from "./engine";
+import { socialRateFor } from "./fiscalRules";
 import { roundCents } from "./money";
+import { crowdTaxOf } from "./institutions";
 import { incomeTaxRate, isRetirementPlan, retirementYear, type PlanParams } from "./params";
 import { PriceBook } from "./prices";
+import { securitiesGains } from "./securitiesGains";
+import { resolveIncome, securityDisposals } from "./taxReport";
 
 // ——— Crypto : article 150 VH bis du CGI ———
 
@@ -91,7 +95,6 @@ export function cryptoTax(data: EngineData, asOf: string): CryptoTaxReport {
   }
 
   const ir = incomeTaxRate(params);
-  const ps = params.tax.socialGeneral;
   const yearsSet = [...new Set(sales.map((s) => s.year))].sort();
   const years: CryptoYear[] = yearsSet.map((year) => {
     const ys = sales.filter((s) => s.year === year);
@@ -100,7 +103,7 @@ export function cryptoTax(data: EngineData, asOf: string): CryptoTaxReport {
     const exempt = grossSales <= params.crypto.exemptionThreshold;
     const base = exempt ? 0 : Math.max(0, netGain);
     const incomeTax = roundCents(base * ir);
-    const social = roundCents(base * ps);
+    const social = roundCents(base * socialRateFor(year, "patrimoine", params));
     return { year, grossSales, netGain, exempt, incomeTax, social, total: roundCents(incomeTax + social) };
   });
   return { sales, years, remainingAcquisition: roundCents(pta) };
@@ -232,6 +235,10 @@ export interface YearTaxRow {
   regularisation: number;
   cryptoIncomeTax: number;
   cryptoSocial: number;
+  /** Plus-value de valeurs mobilières restant imposable (compte-titres), et ses impôts. */
+  securitiesGain: number;
+  securitiesIncomeTax: number;
+  securitiesSocial: number;
   /** Crowdlending : intérêts crédités, impôts déjà prélevés par les plateformes, impôts restant à payer. */
   crowdReceived: number;
   crowdWithheld: number;
@@ -239,45 +246,51 @@ export interface YearTaxRow {
   total: number;
 }
 
-/** Impôts d'une plateforme de crowdlending, réglés sur la fiche de l'établissement. */
-export function crowdTaxOf(data: Pick<EngineData, "params" | "institutions">, account: Pick<Account, "institutionId">): { withheld: boolean; rate: number } {
-  const offer = data.institutions?.find((i) => i.id === account.institutionId)?.offers.crowdlending;
-  return { withheld: offer?.taxWithheld ?? false, rate: offer?.taxRate ?? data.params.tax.pfuIncomeTax + data.params.tax.socialGeneral };
-}
-
 /**
  * Intérêts saisis nets (tels que crédités) : on retrouve le brut et les prélèvements.
- * Fonds euros : PS retenus par l'assureur. Coupons et dividendes du compte-titres :
- * PS + acompte de 12,8 % retenus (sauf dispense), puis impôt définitif et régularisation.
+ * Fonds euros : PS retenus par l'assureur. Coupons et dividendes du compte-titres : brut et retenues
+ * selon `resolveIncome`, puis impôt définitif et régularisation. Plus-values : celles du récapitulatif fiscal.
  */
-export function yearlyTaxes(data: EngineData, crypto: CryptoTaxReport, asOf: string): YearTaxRow[] {
+export function yearlyTaxes(data: EngineData, crypto: CryptoTaxReport, asOf: string, disposals: readonly Disposal[]): YearTaxRow[] {
   const p = data.params;
   const ir = incomeTaxRate(p);
   const kind = new Map(data.accounts.map((a) => [a.id, a.kind]));
-  const withholdingRate = p.tax.withholdingDispense ? 0 : p.tax.pfuIncomeTax;
+  const accounts = new Map(data.accounts.map((a) => [a.id, a]));
   const firstYear = Math.min(+p.profile.startMonth.slice(0, 4), ...data.transactions.map((t) => +t.date.slice(0, 4)));
   const lastYear = +asOf.slice(0, 4);
+  const gainsByYear = new Map(securitiesGains(securityDisposals(disposals, data.assets), data.accounts, lastYear).map((r) => [r.year, r]));
   const rows: YearTaxRow[] = [];
   for (let year = firstYear; year <= lastYear; year++) {
     const inYear = data.transactions.filter((t) => t.date.startsWith(`${year}-`) && t.date <= asOf);
     const avInterestNet = inYear.filter((t) => t.type === "interets" && kind.get(t.accountId) === "assurance_vie").reduce((s, t) => s + t.amount, 0);
-    const couponsNet = inYear.filter((t) => (t.type === "interets" || t.type === "dividende") && kind.get(t.accountId) === "cto").reduce((s, t) => s + t.amount, 0);
+    const coupons = inYear.filter((t) => (t.type === "interets" || t.type === "dividende") && kind.get(t.accountId) === "cto");
+    const couponsNet = coupons.reduce((s, t) => s + t.amount, 0);
+    const socialDue = socialRateFor(year, "patrimoine", p);
     // Plateforme qui prélève : le journal contient le net crédité. Sinon, le brut reste à imposer.
     let crowdReceived = 0;
     let crowdWithheld = 0;
     let crowdDue = 0;
-    for (const a of data.accounts.filter((x) => x.kind === "crowdlending")) {
-      const received = inYear.filter((t) => t.type === "interets" && t.accountId === a.id).reduce((s, t) => s + t.amount, 0);
-      const { withheld, rate } = crowdTaxOf(data, a);
-      crowdReceived += received;
-      if (withheld) crowdWithheld += (received * rate) / (1 - rate);
-      else crowdDue += received * (ir + p.tax.socialGeneral);
+    for (const t of inYear.filter((x) => x.type === "interets" && kind.get(x.accountId) === "crowdlending")) {
+      const r = resolveIncome(t, accounts.get(t.accountId)!, data);
+      const withheld = r.incomeTax + r.social + r.foreign;
+      crowdReceived += t.amount;
+      if (withheld > 0) crowdWithheld += withheld;
+      else crowdDue += r.gross * (ir + socialDue);
     }
     const avSocial = (avInterestNet * p.tax.socialAv) / (1 - p.tax.socialAv);
-    const couponsGross = couponsNet / (1 - p.tax.socialGeneral - withholdingRate);
-    const couponsSocial = couponsGross * p.tax.socialGeneral;
-    const withholding = couponsGross * withholdingRate;
+    let couponsGross = 0;
+    let couponsSocial = 0;
+    let withholding = 0;
+    for (const t of coupons) {
+      const r = resolveIncome(t, accounts.get(t.accountId)!, data);
+      couponsGross += r.gross;
+      couponsSocial += r.social > 0 ? r.social : r.gross * socialDue;
+      withholding += r.incomeTax;
+    }
     const couponsIncomeTax = couponsGross * ir;
+    const securitiesGain = gainsByYear.get(year)?.taxableGain ?? 0;
+    const securitiesIncomeTax = roundCents(securitiesGain * ir);
+    const securitiesSocial = roundCents(securitiesGain * socialDue);
     const cy = crypto.years.find((y) => y.year === year);
     const row: YearTaxRow = {
       year,
@@ -291,12 +304,15 @@ export function yearlyTaxes(data: EngineData, crypto: CryptoTaxReport, asOf: str
       regularisation: roundCents(couponsIncomeTax - withholding),
       cryptoIncomeTax: cy?.incomeTax ?? 0,
       cryptoSocial: cy?.social ?? 0,
+      securitiesGain,
+      securitiesIncomeTax,
+      securitiesSocial,
       crowdReceived: roundCents(crowdReceived),
       crowdWithheld: roundCents(crowdWithheld),
       crowdDue: roundCents(crowdDue),
       total: 0,
     };
-    row.total = roundCents(row.avSocial + row.couponsSocial + row.couponsIncomeTax + row.cryptoIncomeTax + row.cryptoSocial + row.crowdWithheld + row.crowdDue);
+    row.total = roundCents(row.avSocial + row.couponsSocial + row.couponsIncomeTax + row.cryptoIncomeTax + row.cryptoSocial + row.securitiesIncomeTax + row.securitiesSocial + row.crowdWithheld + row.crowdDue);
     rows.push(row);
   }
   return rows;
