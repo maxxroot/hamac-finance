@@ -65,7 +65,7 @@ en la fiabilisant.
 - **Assurance-vie** : fonds euros, taux servis, rapprochement avec le relevé de l'assureur, clause
   bénéficiaire, garantie FGAP.
 - **Obligations** (OAT et entreprises) détenues jusqu'à l'échéance : calendrier et prochain coupon, coupon
-  couru, valeur amortie, rendement actuariel, remboursement automatique, échelle prévue et réalisée.
+  couru, valeur amortie, rendement actuariel, remboursement automatique, achats prévus et réalisés.
 - **Actions et ETF** (PEA, PEA-PME, PER, épargne salariale, comptes-titres) : prix de revient, cours
   automatiques, écart à la répartition cible, achat conseillé du mois.
 - **Crypto** : positions, plus-values de chaque cession et impôt de l'année.
@@ -122,11 +122,11 @@ en la fiabilisant.
   </tr>
   <tr>
     <td><img src="docs/captures/projection.png" alt="Projection jusqu'à la retraite avec fourchette et simulateur"></td>
-    <td><img src="docs/captures/obligations.png" alt="Échelle d'obligations : prochain coupon, rendement à l'échéance, plus-value"></td>
+    <td><img src="docs/captures/obligations.png" alt="Obligations : prochain coupon, rendement à l'échéance, plus-value"></td>
   </tr>
   <tr>
     <td align="center">Projection et simulateur « et si »</td>
-    <td align="center">Échelle d'obligations</td>
+    <td align="center">Obligations détenues et achats prévus</td>
   </tr>
   <tr>
     <td><img src="docs/captures/crowdlending.png" alt="Crowdlending : plateformes et suivi projet par projet"></td>

@@ -12,7 +12,7 @@ Hamac reprend la logique d'un Google Sheet de plan d'épargne retraite, en corri
 | **Montant d'un document fiscal** (`tax_statement_amounts`) | Montant lu sur le document d'un établissement, par année et par case. | Sert à comparer le récapitulatif fiscal au document reçu. |
 | **Versement programmé** (`contribution_plans`) | « À partir du mois M, X €/mois sur ce compte. » 0 = arrêt. | Un seul plan par compte et par mois ; le dernier démarré s'applique. |
 | **Mois manqué** (`contribution_skips`) | Montant non versé un mois donné. | Déduit du versement prévu, sans passer sous zéro. |
-| **Ligne prévue d'obligations** (`bond_plans`) | Échelle d'obligations à acheter (échéance visée, nominal). | Devient un achat réel dans le journal. |
+| **Ligne prévue d'obligations** (`bond_plans`) | Obligation à acheter plus tard (échéance visée, nominal). | Devient un achat réel dans le journal. |
 | **Taux servi** (`fund_rates`) | Taux du fonds euros par année. | |
 | **Relevé** (`statements`) | Valeur relevée chez l'établissement, pour le rapprochement. | L'écart se corrige par une opération « Correction ». |
 | **Cours** (`prices`) | Historique des cours par titre et par jour. | |

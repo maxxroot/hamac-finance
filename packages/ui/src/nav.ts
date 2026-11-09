@@ -66,7 +66,7 @@ export const NAV: NavGroup[] = [
       { path: "/enveloppes", label: "Synthèse", icon: ChartPie, sheetTab: "Enveloppe", step: 3, description: "Valeur, versé net et allocation cible de chaque enveloppe." },
       { path: "/livrets", module: "livrets", label: "Livrets", icon: PiggyBank, sheetTab: "Livrets", step: 2, description: "Épargne de précaution : LEP, LDDS, Livret A, plancher et plafond." },
       { path: "/fonds-euros", module: "fondsEuros", label: "Fonds euros", icon: ShieldCheck, sheetTab: "Fonds euros", step: 2, description: "Assurance-vie : valeur, rapprochement et taux servis." },
-      { path: "/obligations", module: "obligations", label: "Obligations", icon: Landmark, sheetTab: "OAT", step: 2, description: "Échelle d'OAT et obligations d'entreprise détenues à l'échéance." },
+      { path: "/obligations", module: "obligations", label: "Obligations", icon: Landmark, sheetTab: "OAT", step: 2, description: "OAT et obligations d'entreprise gardées jusqu'à l'échéance." },
       { path: "/actions", module: "actions", label: "Actions & ETF", icon: ChartLine, sheetTab: "Actions", step: 2, description: "Positions du PEA, PRU, cours et investissement mensuel conseillé." },
       { path: "/immobilier", module: "immobilier", label: "Immobilier", icon: House, sheetTab: "Immobilier", step: 5, description: "Biens immobiliers et SCPI." },
       { path: "/crowdlending", module: "crowdlending", label: "Crowdlending", icon: HandCoins, sheetTab: "Crowdlending", step: 5, description: "Plateformes de prêt et suivi projet par projet." },

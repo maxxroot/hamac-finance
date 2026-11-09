@@ -92,7 +92,7 @@ export interface AccountState {
   account: Account;
   cash: number;
   positions: PositionState[];
-  /** Obligations arrivées à échéance (pour l'échelle). */
+  /** Obligations arrivées à échéance (pour la page Obligations). */
   maturedBonds: PositionState[];
   positionsValue: number;
   value: number;

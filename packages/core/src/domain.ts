@@ -270,7 +270,7 @@ export interface ContributionSkip {
   comment: string;
 }
 
-/** Ligne prévue de l'échelle d'obligations (pas encore achetée). */
+/** Achat d'obligation prévu (pas encore réalisé). */
 export interface BondPlan {
   id: string;
   accountId: string | null;

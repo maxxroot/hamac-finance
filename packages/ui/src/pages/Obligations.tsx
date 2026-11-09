@@ -70,7 +70,7 @@ export function Obligations() {
     <>
       <PageHeader
         title="Obligations"
-        description="Échelle d'obligations à taux fixe gardées jusqu'à l'échéance : valeur, coupons et rendement calculés, aucun cours nécessaire."
+        description="Obligations à taux fixe gardées jusqu'à l'échéance : valeur, coupons et rendement calculés, aucun cours nécessaire."
         actions={cto && <AddTransactionButton accountId={cto.account.id} type="achat" assetKinds={["obligation"]} accountKinds={["cto", "assurance_vie"]} />}
       />
       {!cto && (
@@ -121,7 +121,7 @@ export function Obligations() {
           </tr>
         </thead>
         <tbody>
-          {held.length + matured.length + idx.ws.bondPlans.length === 0 && <EmptyRow cols={11}>Aucune obligation. Prévoyez votre échelle ci-dessous, puis saisissez les achats dans le journal.</EmptyRow>}
+          {held.length + matured.length + idx.ws.bondPlans.length === 0 && <EmptyRow cols={11}>Aucune obligation. Prévoyez vos achats ci-dessous, puis saisissez-les dans le journal.</EmptyRow>}
           {ladder.sorted.map((p) => (
               <Fragment key={`${p.accountId}-${p.asset.id}`}>
               <Tr {...rowProps(`${p.accountId}-${p.asset.id}`)}>
@@ -230,7 +230,7 @@ export function Obligations() {
 
       <div className="mb-6 grid gap-5 @3xl:grid-cols-3">
         <Card className="@3xl:col-span-2">
-          <CardTitle>Prévoir une ligne de l'échelle</CardTitle>
+          <CardTitle>Prévoir un achat</CardTitle>
           <div className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
             <Field label="Libellé">{(id) => <TextInput id={id} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="ex. À choisir : échéance vers 2034" />}</Field>
             <Field label="Échéance visée">{(id) => <NumberInput id={id} decimals={0} grouping={false} value={targetYear} onChange={setTargetYear} />}</Field>
