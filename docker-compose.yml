@@ -8,6 +8,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: hamac
       POSTGRES_PASSWORD: ${HAMAC_DB_PASSWORD:-hamac}
@@ -23,6 +25,14 @@ services:
   hamac:
     build: .
     restart: unless-stopped
+    # Système de fichiers en lecture seule et aucun privilège : seuls /data et /tmp sont modifiables.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       db:
         condition: service_healthy
