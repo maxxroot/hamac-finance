@@ -41,6 +41,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
     website: "",
     score: 8,
     comment: "Exemple de grille par paliers",
+    tax: { report: true, withheldIncomeTax: 0.128, withheldSocial: 0.186 },
     offers: {
       pea: { ...broker, orderFees: { tiers: [{ upTo: 500, fixed: 1.99, rate: 0 }, { upTo: null, fixed: 0, rate: 0.005 }], min: null, max: null } },
       cto: { ...broker, custodyFixed: 12, orderFees: { tiers: [{ upTo: null, fixed: 0, rate: 0.005 }], min: 1, max: null } },

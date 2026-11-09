@@ -112,6 +112,13 @@
   table {
     font-size: 10px;
   }
+  table .text-xs {
+    font-size: 9px;
+  }
+  th,
+  td {
+    padding: 4px 5px !important;
+  }
   th {
     position: static !important;
     white-space: normal !important;

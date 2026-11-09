@@ -26,6 +26,7 @@ import { Field, MoneyInput, Select } from "@/components/form";
 import { Notice } from "@/components/Stat";
 import { Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import { downloadText, toCsv } from "@/lib/files";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -151,9 +152,9 @@ function Status({ status }: { status: TaxStatus }) {
   return <Badge tone={status === "calcule" ? "positive" : status === "a_verifier" ? "accent" : "negative"}>{STATUS_LABELS[status]}</Badge>;
 }
 
-function Block({ title, children }: { title: string; children: ReactNode }) {
+function Block({ title, className, children }: { title: string; className?: string; children: ReactNode }) {
   return (
-    <Card className="mb-6">
+    <Card className={cn("mb-6", className)}>
       <h3 className="mb-4 font-medium">{title}</h3>
       {children}
     </Card>
@@ -360,7 +361,8 @@ function StatementCheck({ sheet, rules, statements }: { sheet: TaxSheet; rules: 
   if (!sheet.institutionId || rows.length === 0) return null;
   const persist = () => save.mutate({ institutionId: sheet.institutionId!, year: rules.incomeYear, amounts: rows.flatMap((r) => (r.official == null ? [] : [{ box: r.rule.box, amount: r.official }])) }, { onSuccess: () => setDraft(new Map()) });
   return (
-    <Block title="Comparer avec le document de l'établissement">
+    // Sur papier, le bloc n'apparaît que s'il compare réellement quelque chose.
+    <Block title="Comparer avec le document de l'établissement" className={rows.some((r) => r.official != null) ? undefined : "no-print"}>
       <p className="mb-3 text-sm text-fg-muted">Recopiez les montants de son document fiscal : l'écart apparaît case par case.</p>
       <Table>
         <thead>

@@ -2,6 +2,8 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { Workspace } from "@hamac/api";
+import { buildTaxReport, computePortfolio, cryptoTax, reportTotalsMismatches } from "@hamac/core";
 import type { Backend } from "./index";
 import { testBackend } from "./testkit";
 
@@ -282,6 +284,26 @@ describe("établissements", () => {
     expect(dump.tables.tax_statement_amounts).toHaveLength(1);
     await call(b, "data.import", { dump, confirm: "REMPLACER" });
     expect((await call<{ taxStatements: unknown[] }>(b, "workspace.load")).taxStatements).toHaveLength(1);
+  });
+
+  it("produit le récapitulatif fiscal à partir de l'espace de travail réel", async () => {
+    const b = await memory();
+    const inst = await call<{ id: string }>(b, "institutions.upsert", { name: "Courtier", kind: "courtier", tax: { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 } });
+    const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO", institutionId: inst.id });
+    const action = await call<{ id: string }>(b, "assets.upsert", { kind: "action", name: "Action fictive", priceSource: "manuel" });
+    await call(b, "transactions.upsert", { date: "2024-03-01", type: "versement", accountId: cto.id, amount: 2000 });
+    await call(b, "transactions.upsert", { date: "2024-03-02", type: "achat", accountId: cto.id, assetId: action.id, amount: 1000, quantity: 10 });
+    await call(b, "transactions.upsert", { date: "2025-04-02", type: "vente", accountId: cto.id, assetId: action.id, amount: 700, quantity: 5 });
+    await call(b, "transactions.upsert", { date: "2025-05-02", type: "dividende", accountId: cto.id, assetId: action.id, amount: 87.2 });
+    const ws = await call<Workspace>(b, "workspace.load");
+    const asOf = "2026-11-09";
+    const report = buildTaxReport(ws, computePortfolio(ws, asOf).disposals, cryptoTax(ws, asOf), 2025);
+    expect(report.sheets).toHaveLength(1);
+    expect(report.sheets[0].mode).toBe("a_saisir");
+    expect(report.lines.find((l) => l.rule.box === "2DC")).toMatchObject({ total: 100, toEnter: 100, status: "calcule" });
+    expect(report.lines.find((l) => l.rule.box === "2CK")).toMatchObject({ total: 12.8 });
+    expect(report.lines.find((l) => l.rule.box === "3VG")).toMatchObject({ total: 200 });
+    expect(reportTotalsMismatches(report)).toEqual([]);
   });
 
   it("refuse une grille invalide", async () => {

@@ -239,7 +239,18 @@ export function Notice() {
         </p>
       </Section>
 
-      <Section n={15} title="Petit lexique">
+      <Section n={15} title="Aide à la déclaration">
+        <p>Fiscalité › Aide à la déclaration indique ce qu'il faut reporter, dans quelle case et d'après quelles opérations. C'est un document d'aide : il ne remplace ni l'IFU de l'établissement ni la notice officielle.</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Sur la fiche d'un établissement (Paramètres › Établissements), cochez « Hamac rédige le récapitulatif fiscal » s'il ne transmet rien au fisc. Ses montants sont alors à saisir. Sans la case, ils sont seulement à contrôler avec son IFU.</li>
+          <li>Pour un dividende ou des intérêts, renseignez au Journal le brut et les retenues lus sur le relevé. À défaut, réglez sur l'établissement les taux qu'il retient.</li>
+          <li>Le récapitulatif complet regroupe tous les comptes et vérifie que la somme des fiches est juste. Les plus-values se compensent entre établissements, et la crypto se calcule sur le portefeuille global.</li>
+          <li>Chaque document indique l'année de validité de ses règles. Une année non vérifiée est signalée : ses numéros de case sont seulement indicatifs.</li>
+          <li>Sur une fiche, recopiez les montants du document de l'établissement pour voir l'écart, case par case.</li>
+        </ul>
+      </Section>
+
+      <Section n={16} title="Petit lexique">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[180px_1fr]">
           {[
             ["Enveloppe (compte)", "Le cadre fiscal qui contient les placements : livret, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale, plateforme de crowdlending, plateforme crypto."],
