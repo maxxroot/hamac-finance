@@ -173,6 +173,23 @@ describe("serveur web", () => {
     expect((await c.req("GET", "/api/auth/me")).json).toEqual({ email: "a@exemple.fr" });
   });
 
+  it("changer son mot de passe vérifie l'ancien et ferme les autres sessions", async () => {
+    const s = await server("open");
+    const here = client(s);
+    await here.req("POST", "/api/auth/signup", { email: "a@exemple.fr", password: "ancien-mot-de-passe" });
+    const phone = client(s, "2.2.2.2");
+    await phone.req("POST", "/api/auth/login", { email: "a@exemple.fr", password: "ancien-mot-de-passe" });
+    expect((await here.req("POST", "/api/auth/password", { current: "faux-mot-de-passe", next: "nouveau-mot-de-passe" })).json).toEqual({ error: "Mot de passe actuel incorrect." });
+    expect((await here.req("POST", "/api/auth/password", { current: "ancien-mot-de-passe", next: "court" })).status).toBe(400);
+    expect((await client(s, "3.3.3.3").req("POST", "/api/auth/password", { current: "ancien-mot-de-passe", next: "nouveau-mot-de-passe" })).status).toBe(401);
+    expect((await here.req("POST", "/api/auth/password", { current: "ancien-mot-de-passe", next: "nouveau-mot-de-passe" }, {})).status).toBe(403);
+    expect((await here.req("POST", "/api/auth/password", { current: "ancien-mot-de-passe", next: "nouveau-mot-de-passe" })).status).toBe(200);
+    expect((await here.req("GET", "/api/auth/me")).status).toBe(200);
+    expect((await phone.req("GET", "/api/auth/me")).status).toBe(401);
+    expect((await client(s, "4.4.4.4").req("POST", "/api/auth/login", { email: "a@exemple.fr", password: "ancien-mot-de-passe" })).status).toBe(401);
+    expect((await client(s, "4.4.4.4").req("POST", "/api/auth/login", { email: "a@exemple.fr", password: "nouveau-mot-de-passe" })).status).toBe(200);
+  });
+
   it("refuse un mot de passe trop court et limite les tentatives", async () => {
     const s = await server("open");
     const c = client(s);

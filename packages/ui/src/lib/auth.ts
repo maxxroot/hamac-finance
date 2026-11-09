@@ -23,4 +23,5 @@ export const auth = {
   login: (email: string, password: string) => post("/api/auth/login", { email, password }),
   signup: (email: string, password: string, invite?: string) => post("/api/auth/signup", { email, password, invite }),
   logout: () => post("/api/auth/logout"),
+  changePassword: (current: string, next: string) => post("/api/auth/password", { current, next }),
 };

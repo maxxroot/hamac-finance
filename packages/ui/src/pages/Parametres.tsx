@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { AllocationTargets } from "@/components/AllocationTargets";
 import { MarketSources } from "@/components/MarketSources";
+import { PasswordCard } from "@/components/PasswordCard";
 import { Etablissements } from "@/pages/Etablissements";
 import { RowActions } from "@/components/RowActions";
 import {
@@ -605,6 +606,7 @@ function AppTab() {
   const info = useSystemInfo();
   return (
     <div className="max-w-3xl space-y-5">
+      <PasswordCard />
       <BackupCard />
       <AppInfo info={info} />
     </div>

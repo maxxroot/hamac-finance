@@ -263,6 +263,23 @@ export async function createApp(cfg: ServerConfig) {
     return c.json({ ok: true });
   });
 
+  // Ferme toutes les sessions du compte, puis en rouvre une pour cet appareil.
+  app.post("/api/auth/password", async (c) => {
+    if (!csrfOk(c)) return c.json({ error: "Requête refusée." }, 403);
+    const user = await currentUser(c);
+    if (!user) return unauthorized(c);
+    if (!limiter.allow(`password:${user.id}`)) return c.json({ error: "Trop de tentatives : réessayez dans 15 minutes." }, 429);
+    const body = (await c.req.json().catch(() => ({}))) as { current?: string; next?: string };
+    const next = body.next ?? "";
+    if (next.length < MIN_PASSWORD) return c.json({ error: `Mot de passe trop court (${MIN_PASSWORD} caractères minimum).` }, 400);
+    const found = await users.findByEmail(user.email);
+    if (!found || !(await users.checkPassword(found, body.current ?? ""))) return c.json({ error: "Mot de passe actuel incorrect." }, 400);
+    await users.setPassword(user.id, next);
+    limiter.reset(`password:${user.id}`);
+    await startSession(c, user);
+    return c.json({ email: user.email });
+  });
+
   app.post("/api/rpc/:name", async (c) => {
     if (!csrfOk(c)) return c.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Requête refusée." } }, 403);
     const user = await currentUser(c);
