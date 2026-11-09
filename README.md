@@ -175,6 +175,7 @@ Paramètres › Application.
 docker compose exec hamac node cli.mjs invite              # code d'invitation à transmettre
 docker compose exec hamac node cli.mjs users               # liste des comptes
 docker compose exec hamac node cli.mjs password <e-mail>   # réinitialiser un mot de passe
+docker compose exec hamac node cli.mjs 2fa-reset <e-mail>  # désactiver la double authentification d'un compte
 ```
 
 Par défaut, Hamac n'écoute que sur la machine qui l'héberge. Hors de cette machine, il refuse les connexions
@@ -202,11 +203,24 @@ Toutes les variables se règlent dans ce fichier `.env`, facultatif, exclu de gi
 | `HAMAC_REFRESH_MINUTES` | `30` | Minutes entre deux actualisations des cours, 10 au minimum ; le quota de Twelve Data peut ralentir ce rythme |
 | `HAMAC_TWELVEDATA_KEY` | vide | Clé [Twelve Data](https://twelvedata.com), facultative. C'est le seul endroit où elle se règle : ni en base, ni dans l'interface |
 | `HAMAC_TWELVEDATA_DAILY_LIMIT` | `800` | Requêtes par jour de votre offre Twelve Data |
+| `HAMAC_2FA_KEY` | vide | Clé de la double authentification (32 octets, `openssl rand -base64 32`). Vide : fichier `2fa.key` créé dans `/data` au premier lancement. À sauvegarder avec la base |
 
 **Sécurité** : mots de passe hachés avec Argon2id, sessions par cookie `HttpOnly`, `SameSite=Strict` et `Secure`
 en HTTPS, HSTS, en-tête anti-CSRF, limitation des tentatives de connexion et de la taille des requêtes, en-têtes
 CSP et anti-iframe, code d'installation à usage unique, conteneurs sans privilèges. Chaque compte a son propre
 schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de l'instance.
+
+**Double authentification** : facultative, à activer dans Paramètres › Application, avec une application de codes
+(TOTP, RFC 6238). Un code déjà accepté ne ressert pas. Le secret de chaque compte est chiffré en AES-256-GCM, les
+10 codes de secours sont à usage unique et seule leur empreinte est stockée. Le QR code est calculé dans le navigateur.
+
+La clé qui protège tout cela est dans `HAMAC_2FA_KEY` ou, par défaut, dans le fichier `2fa.key` du volume `hamac-data`.
+**Sauvegardez-la avec la base, mais à part de celle-ci** (`docker compose cp hamac:/data/2fa.key ./2fa.key`) : sans
+elle, les comptes protégés ne peuvent plus se connecter. Hamac ne plante pas : il l'indique dans ses journaux et à la
+connexion, et les comptes sans double authentification continuent de fonctionner.
+
+Une personne a perdu son téléphone et ses codes de secours, ou la clé est perdue :
+`docker compose exec hamac node cli.mjs 2fa-reset <e-mail>` désactive la protection de ce compte et ferme ses sessions.
 
 Avant chaque migration de la base, une copie de chaque compte est écrite dans le volume `hamac-data`, en JSON
 compressé. Chaque personne peut exporter et restaurer ses données dans Paramètres › Application. Ce volume est

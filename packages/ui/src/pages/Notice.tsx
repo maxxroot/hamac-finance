@@ -43,6 +43,7 @@ export const NOTICE_PLAN: ReadonlyArray<{ part: string; items: ReadonlyArray<[id
       ["cours", "Les cours de bourse"],
       ["impots", "Impôts et déclaration"],
       ["donnees", "Vos données et sauvegardes"],
+      ["securite", "Protéger votre compte"],
       ["lexique", "Les mots à connaître"],
     ],
   },
@@ -509,6 +510,26 @@ export function Notice() {
         <p>
           Pour garder une copie chez vous, utilisez « Exporter une sauvegarde » dans <L to="/parametres?onglet=Application">Paramètres › Application</L>.
         </p>
+      </Fold>
+
+      <Fold id="securite" title="Protéger votre compte">
+        <p>
+          Vos données financières méritent mieux qu'un mot de passe, qui peut être volé ou deviné. La double authentification demande en plus, à chaque connexion, un code à 6 chiffres affiché par une application sur votre téléphone. Elle n'est pas obligatoire, mais Hamac vous la recommandera tant qu'elle n'est pas active.
+        </p>
+        <ol className="list-decimal space-y-1.5 pl-5">
+          <li>
+            <B>Pour l'activer,</B> ouvrez <L to="/parametres?onglet=Application">Paramètres › Application</L>, carte « Double authentification ». Installez une application de codes (Aegis, 2FAS, Google Authenticator, Microsoft Authenticator…), scannez le QR code, puis saisissez le code affiché.
+          </li>
+          <li>
+            <B>Gardez vos codes de secours à l'abri.</B> Ils ne sont affichés qu'une seule fois, et chacun ne sert qu'une fois. Copiez-les ou téléchargez-les, par exemple dans un gestionnaire de mots de passe.
+          </li>
+          <li>
+            <B>Si vous perdez votre téléphone,</B> cliquez sur « Utiliser un code de secours » à la connexion, puis désactivez et réactivez la protection avec votre nouveau téléphone.
+          </li>
+          <li>
+            <B>Si vous n'avez plus aucun code,</B> demandez à la personne qui gère cette instance de désactiver la protection de votre compte.
+          </li>
+        </ol>
       </Fold>
 
       <Fold id="lexique" title="Les mots à connaître">
