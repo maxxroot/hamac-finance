@@ -12,6 +12,7 @@ import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { LeaseDialog } from "@/dialogs/LeaseDialog";
 import { LoanDialog } from "@/dialogs/LoanDialog";
 import { PropertyDialog } from "@/dialogs/PropertyDialog";
+import { PropertySheetDialog } from "@/dialogs/PropertySheetDialog";
 import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
 import { TransactionDialog } from "@/dialogs/TransactionDialog";
 import { makeXlsx } from "@/lib/xlsx.fixture";
@@ -233,7 +234,13 @@ describe("parcours de l'interface", () => {
       </Routes>,
       `/immobilier/${bien.id}`,
     );
-    expect(await screen.findByText("Rentabilité")).toBeTruthy();
+    await user.click(await screen.findByRole("button", { name: "Fiche du bien" }));
+    expect(await screen.findByRole("dialog", { name: "Fiche du bien" })).toBeTruthy();
+    expect(screen.getByText("Rentabilité")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Compléter la fiche/ }));
+    // Échap ne referme que le formulaire : la fiche reste ouverte derrière.
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Fiche du bien" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Compléter la fiche/ }));
     await user.type(fieldOf("Ville"), "Ville fictive");
     const surface = fieldOf("Surface habitable (m²)");
@@ -243,6 +250,7 @@ describe("parcours de l'interface", () => {
     await user.selectOptions(fieldOf("Note DPE"), "F");
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     expect(await screen.findByText(/Location interdite à partir du|Location interdite depuis le/)).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Note DPE : F" })).toBeTruthy();
     expect(screen.getByText("Valeur au m²")).toBeTruthy();
     expect((await workspace()).properties).toMatchObject([{ city: "Ville fictive", surface: 25, dpe: "F", purchasePrice: 100_000, notaryFees: 8000 }]);
   });
@@ -294,6 +302,24 @@ describe("parcours de l'interface", () => {
     show(<Credits />);
     expect(await screen.findByText("Crédits archivés")).toBeTruthy();
     expect(screen.getByText("Ancien prêt")).toBeTruthy();
+  });
+
+  it("adresse : suggestions de la Base Adresse Nationale, qui remplissent les champs", async () => {
+    const user = userEvent.setup();
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ features: [{ properties: { label: "1 Rue Fictive 00000 Ville fictive", name: "1 Rue Fictive", postcode: "00000", city: "Ville fictive", type: "housenumber" } }] })));
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      const bien = await rpc<Property>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
+      show(<PropertySheetDialog open property={bien} onClose={() => undefined} />);
+      expect(fetcher).not.toHaveBeenCalled();
+      await user.type(screen.getByRole("combobox", { name: "Adresse" }), "1 rue fic");
+      await user.click(await screen.findByRole("option", { name: /Rue Fictive/ }));
+      expect((screen.getByRole("combobox", { name: "Adresse" }) as HTMLInputElement).value).toBe("1 Rue Fictive");
+      expect(fieldOf("Code postal").value).toBe("00000");
+      expect(fieldOf("Ville").value).toBe("Ville fictive");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {

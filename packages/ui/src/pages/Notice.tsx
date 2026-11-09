@@ -432,10 +432,10 @@ export function Notice() {
           <B>Un bien immobilier</B> se saisit dans <L to="/immobilier">Immobilier</L>, avec sa valeur estimée et la part que vous détenez (50 % pour un bien à deux). Il s'ajoute au patrimoine net et reste hors répartition, sauf si vous cochez le contraire.
         </p>
         <p>
-          Indiquez aussi son utilisation, son statut (nom propre, indivision, SCI…) et ses frais d'achat. Les <B>frais de notaire</B> sont estimés d'après le prix, la date d'achat et l'état du bien (neuf ou ancien), avec le taux de droits de mutation le plus courant : comparez-les à votre acte et corrigez-les si besoin. Cliquez sur le nom d'un bien pour ouvrir sa fiche, en onglets : description et DPE, location, finances.
+          Indiquez aussi son utilisation, son statut (nom propre, indivision, SCI…) et ses frais d'achat. Les <B>frais de notaire</B> sont estimés d'après le prix, la date d'achat et l'état du bien (neuf ou ancien), avec le taux de droits de mutation le plus courant : comparez-les à votre acte et corrigez-les si besoin. Le bouton « Fiche du bien » ouvre sa présentation complète : caractéristiques, DPE, rentabilité et documents. Cliquez sur son nom pour accéder à son suivi : location et finances.
         </p>
         <p>
-          La fiche se complète quand vous le souhaitez : adresse, surface, caractéristiques et DPE, tout est facultatif. Une case permet d'être alerté avant l'expiration du DPE et, pour un bien en location, si sa note interdit de le louer.
+          La fiche se complète depuis cette fenêtre, quand vous le souhaitez. En tapant l'adresse, votre navigateur interroge la Base Adresse Nationale (service de l'IGN) pour proposer des suggestions : seul ce que vous tapez dans ce champ lui est envoyé. Adresse, surface, caractéristiques et DPE : tout est facultatif. Une case permet d'être alerté avant l'expiration du DPE et, pour un bien en location, si sa note interdit de le louer.
         </p>
         <p>
           <B>Un investissement locatif</B> a en plus son suivi sur cette fiche. Déclarez le bail : son type propose la durée et calcule le dépôt de garantie, tous deux modifiables. Sans congé, le bail se reconduit tout seul. Un congé se note dans le bail. Si la case des rappels est cochée, le tableau de bord prévient deux mois à l'avance de la fin du bail et du dernier jour pour donner congé : 6 mois avant la fin en location vide, 3 mois en meublé.
@@ -447,7 +447,7 @@ export function Notice() {
           Les dépenses et travaux se notent sur tout bien, dans l'onglet Finances. Cochez « Améliore le bien » pour un agrandissement ou une rénovation : le montant s'ajoute au coût pour calculer le gain et le rendement. Chaque nouvelle estimation est gardée, et la page Historique montre le patrimoine net dans le temps, biens et crédits compris. Le bouton « Vendre » retire le bien du patrimoine à la date de vente, solde ses crédits et affiche le bilan.
         </p>
         <p>
-          Sur la fiche, le registre des documents note où se trouve chaque papier et prévient avant une date d'expiration ; Hamac ne stocke pas les fichiers. Le bouton « Imprimer » donne une version à imprimer ou à enregistrer en PDF, et le lien « Quittance » de chaque mois prépare la quittance, ou un reçu pour un paiement partiel.
+          Sur la fiche, le registre des documents note où se trouve chaque papier et prévient avant une date d'expiration ; Hamac ne stocke pas les fichiers. Depuis la fiche, « Imprimer » donne une version à imprimer ou à enregistrer en PDF, et le lien « Quittance » de chaque mois prépare la quittance, ou un reçu pour un paiement partiel.
         </p>
         <p>
           Les résultats par année sont calculés pour votre part et avant impôt. Ce suivi reste séparé de vos comptes : il ne change pas le patrimoine financier, et un loyer versé sur un livret suivi dans Hamac se note aussi dans le Journal. L'impôt sur les loyers n'est pas calculé, et ces revenus n'entrent pas dans la projection.

@@ -7,6 +7,7 @@ import { RowActions } from "@/components/RowActions";
 import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
+import { PropertySheetModal } from "@/components/PropertySheetModal";
 import { PropertyDialog } from "@/dialogs/PropertyDialog";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/numbers";
@@ -18,6 +19,7 @@ export function Immobilier() {
   const pf = usePortfolio();
   const del = useMutate("properties.delete", { success: "Bien supprimé" });
   const [editing, setEditing] = useState<Property | "new" | null>(null);
+  const [sheetId, setSheetId] = useState<string | null>(null);
   if (!pf) return null;
   const properties = pf.idx.ws.properties;
   const immobilierIn = classEnabled(pf.data.params, "immobilier");
@@ -28,7 +30,7 @@ export function Immobilier() {
     <>
       <PageHeader
         title="Immobilier"
-        description="Vos biens et vos SCPI. Cliquez sur le nom d'un bien pour ouvrir sa fiche. Par défaut hors allocation cible : réglable dans Paramètres › Répartition ou sur chaque bien."
+        description="Vos biens et vos SCPI. Le bouton « Fiche du bien » présente chaque bien, son nom ouvre son suivi. Par défaut hors allocation cible : réglable dans Paramètres › Répartition ou sur chaque bien."
         actions={
           <Button variant="primary" onClick={() => setEditing("new")}>
             <Plus size={16} /> Nouveau bien
@@ -59,10 +61,11 @@ export function Immobilier() {
                 <Th align="right">Valeur détenue</Th>
                 <Th>Allocation</Th>
                 <Th />
+                <Th />
               </tr>
             </thead>
             <tbody>
-              {properties.length === 0 && <EmptyRow cols={6}>Aucun bien. Ajoutez votre résidence ou un investissement locatif.</EmptyRow>}
+              {properties.length === 0 && <EmptyRow cols={7}>Aucun bien. Ajoutez votre résidence ou un investissement locatif.</EmptyRow>}
               {properties.map((p) => (
                 <Tr key={p.id} className={cn("group", p.archived && "opacity-50")}>
                   <Td className="font-medium">
@@ -79,6 +82,11 @@ export function Immobilier() {
                   <Td align="right">{formatPct(p.share)}</Td>
                   <Td align="right"><Amount value={propertyValue(p)} compact /></Td>
                   <Td><Badge tone={(p.inAllocation ?? immobilierIn) ? "accent" : "neutral"}>{(p.inAllocation ?? immobilierIn) ? "Inclus" : "Hors"}</Badge></Td>
+                  <Td align="right" className="whitespace-nowrap">
+                    <Button className="h-8" aria-label={`Fiche du bien ${p.name}`} onClick={() => setSheetId(p.id)}>
+                      Fiche du bien
+                    </Button>
+                  </Td>
                   <Td className="w-20"><RowActions onEdit={() => setEditing(p)} onDelete={() => confirm(`Supprimer « ${p.name} » ?`) && del.mutate({ id: p.id })} /></Td>
                 </Tr>
               ))}
@@ -115,6 +123,7 @@ export function Immobilier() {
         )}
       </div>
 
+      <PropertySheetModal property={properties.find((p) => p.id === sheetId) ?? null} onClose={() => setSheetId(null)} />
       <PropertyDialog open={editing !== null} property={editing === "new" ? null : editing} onClose={() => setEditing(null)} />
     </>
   );

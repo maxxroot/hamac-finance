@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ENERGY_LETTERS, PROPERTY_TYPE_LABELS, PROPERTY_TYPES, type EnergyLetter, type Property, type PropertyType } from "@hamac/core";
+import { AddressInput } from "@/components/AddressInput";
 import { Checkbox, Field, FormGrid, Modal, NumberInput, Select, Textarea, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
 import { useMutate } from "@/lib/workspace";
@@ -59,7 +60,9 @@ export function PropertySheetDialog({ open, property, onClose }: { open: boolean
       <div className="space-y-5">
         <Section title="Localisation">
           <div className="space-y-4">
-            <Field label="Adresse">{(id) => <TextInput id={id} value={d.address} onChange={(e) => set("address", e.target.value)} autoFocus />}</Field>
+            <Field label="Adresse" help="Tapez quelques mots : les suggestions viennent de la Base Adresse Nationale. Saisie libre possible.">
+              {(id) => <AddressInput id={id} value={d.address} autoFocus onChange={(v) => set("address", v)} onSelect={(s) => setD((x) => ({ ...x, address: s.address || x.address, postalCode: s.postalCode, city: s.city }))} />}
+            </Field>
             <FormGrid>
               <Field label="Code postal">{(id) => <TextInput id={id} value={d.postalCode} onChange={(e) => set("postalCode", e.target.value)} inputMode="numeric" />}</Field>
               <Field label="Ville">{(id) => <TextInput id={id} value={d.city} onChange={(e) => set("city", e.target.value)} />}</Field>

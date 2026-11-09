@@ -1,5 +1,6 @@
 import { useParams } from "react-router";
 import { PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_TYPE_LABELS, dpeExpiry, formatEur, formatPct, propertyImprovements, propertyProfitability, propertySqm, propertySummary, propertyTotalCost, propertyYears } from "@hamac/core";
+import { EnergyDiagram } from "@/components/EnergyDiagram";
 import { PrintLine, PrintPage, PrintSection } from "@/components/PrintPage";
 import { formatDate, formatNumber } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -40,10 +41,17 @@ export function ImpressionBien() {
         {p.outdoor && <PrintLine label="Extérieur">{p.outdoor}</PrintLine>}
         {p.heating && <PrintLine label="Chauffage">{p.heating}</PrintLine>}
         {(p.parking || p.cellar) && <PrintLine label="Annexes">{[p.parking && "Parking", p.cellar && "Cave"].filter(Boolean).join(", ")}</PrintLine>}
-        {p.dpe && <PrintLine label="Note DPE">{p.dpe}</PrintLine>}
-        {p.ges && <PrintLine label="Note climat (GES)">{p.ges}</PrintLine>}
         {p.dpeDate && <PrintLine label="DPE valable jusqu'au">{formatDate(dpeExpiry(p.dpeDate))}</PrintLine>}
       </PrintSection>
+
+      {(p.dpe || p.ges) && (
+        <PrintSection title="Énergie">
+          <div className="grid grid-cols-2 gap-6 py-1">
+            <EnergyDiagram kind="dpe" value={p.dpe} />
+            <EnergyDiagram kind="ges" value={p.ges} />
+          </div>
+        </PrintSection>
+      )}
 
       <PrintSection title={p.share < 1 ? `Valeur et coût (part détenue : ${formatPct(p.share)})` : "Valeur et coût"}>
         <PrintLine label="Valeur détenue">{eur(s.heldValue)}</PrintLine>

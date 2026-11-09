@@ -59,11 +59,11 @@ function DocumentDialog({ open, propertyId, document: doc, onClose }: { open: bo
 }
 
 /** Registre des documents du bien. */
-export function DocumentsCard({ propertyId, documents }: { propertyId: string; documents: readonly PropertyDocument[] }) {
+export function DocumentsCard({ propertyId, documents, bare }: { propertyId: string; documents: readonly PropertyDocument[]; bare?: boolean }) {
   const [editing, setEditing] = useState<PropertyDocument | "new" | null>(null);
   const del = useMutate("propertyDocuments.delete", { success: "Document supprimé" });
   return (
-    <Card>
+    <Card className={bare ? "rounded-none border-0 bg-transparent p-0" : undefined}>
       <CardTitle
         hint={
           <Button className="h-8" onClick={() => setEditing("new")}>

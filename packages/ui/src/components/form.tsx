@@ -25,9 +25,11 @@ export function Modal({
   footer?: ReactNode;
   width?: string;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    // Fenêtres superposées : Échap ne ferme que celle du dessus.
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && [...document.querySelectorAll('[role="dialog"]')].at(-1) === dialogRef.current && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
@@ -35,6 +37,7 @@ export function Modal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-6 pt-[8vh] backdrop-blur-[2px]" onMouseDown={onClose}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}

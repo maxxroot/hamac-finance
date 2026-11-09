@@ -1,14 +1,14 @@
-import { ArrowLeft, Pencil, Printer } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, currentLease, formatPct, leaseState, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost, propertyYears } from "@hamac/core";
+import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, formatPct, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine as Line } from "@/components/DetailLine";
 import { ExpensesCard } from "@/components/ExpensesCard";
 import { IncomesCard } from "@/components/IncomesCard";
 import { LeaseCard } from "@/components/LeaseCard";
-import { DocumentsCard } from "@/components/DocumentsCard";
-import { DescriptionCard, EnergyCard, ProfitabilityCard, SaleCard } from "@/components/PropertySheetCards";
+import { SaleCard } from "@/components/PropertySheetCards";
+import { PropertySheetModal } from "@/components/PropertySheetModal";
 import { PropertyYearsCard } from "@/components/PropertyYearsCard";
 import { RentsCard } from "@/components/RentsCard";
 import { ValuesCard } from "@/components/ValuesCard";
@@ -16,7 +16,6 @@ import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { PropertyDialog } from "@/dialogs/PropertyDialog";
-import { PropertySheetDialog } from "@/dialogs/PropertySheetDialog";
 import { SaleDialog } from "@/dialogs/SaleDialog";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/numbers";
@@ -29,14 +28,14 @@ const BackLink = () => (
   </Link>
 );
 
-type Tab = "fiche" | "location" | "finances";
+type Tab = "location" | "finances";
 
-/** Fiche d'un bien : sa description, sa location et ses finances. */
+/** Page d'un bien : sa location et ses finances ; sa fiche s'ouvre dans une grande fenêtre. */
 export function Bien() {
   const { id } = useParams();
   const pf = usePortfolio();
   const [editing, setEditing] = useState(false);
-  const [editingSheet, setEditingSheet] = useState(false);
+  const [showSheet, setShowSheet] = useState(false);
   const [selling, setSelling] = useState(false);
   const cancelSale = useMutate("properties.cancelSale", { success: "Vente annulée" });
   const [search, setSearch] = useSearchParams();
@@ -58,13 +57,10 @@ export function Bien() {
   const { ws } = pf.idx;
   const leases = ws.leases.filter((l) => l.propertyId === property.id);
   const rented = property.kind === "locatif";
-  const tabs: Array<[Tab, string]> = [["fiche", "Fiche"], ...(rented ? ([["location", "Location"]] as Array<[Tab, string]>) : []), ["finances", "Finances"]];
+  const tabs: Array<[Tab, string]> = rented ? [["location", "Location"], ["finances", "Finances"]] : [["finances", "Finances"]];
   const requested = search.get("onglet");
-  const tab = tabs.find(([key]) => key === requested)?.[0] ?? "fiche";
+  const tab = tabs.find(([key]) => key === requested)?.[0] ?? tabs[0][0];
   const rentalData = { property, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: ws.loans };
-  const years = rented ? propertyYears(rentalData, pf.today) : [];
-  const lease = currentLease(leases.map((l) => leaseState(l, ws.leaseRents, pf.today)));
-  const monthlyRent = rented && (lease?.status === "en_cours" || lease?.status === "conge") ? lease.rent : null;
 
   return (
     <>
@@ -74,14 +70,14 @@ export function Bien() {
         description={`${PROPERTY_KIND_LABELS[property.kind]} · ${PROPERTY_OWNERSHIP_LABELS[property.ownership]}${shareLabel}`}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="primary" onClick={() => setShowSheet(true)}>
+              Fiche du bien
+            </Button>
             {sale ? (
               <Button onClick={() => confirm("Annuler la vente ? Le bien et ses crédits reviennent dans le patrimoine.") && cancelSale.mutate({ id: property.id })}>Annuler la vente</Button>
             ) : (
               <Button onClick={() => setSelling(true)}>Vendre</Button>
             )}
-            <Link to={`/impression/bien/${property.id}`} target="_blank" rel="noopener" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-sm text-fg-muted hover:text-fg">
-              <Printer size={16} /> Imprimer
-            </Link>
             <Button onClick={() => setEditing(true)}>
               <Pencil size={16} /> Modifier
             </Button>
@@ -113,7 +109,7 @@ export function Bien() {
       </StatGrid>
       )}
 
-      <div className="mb-6 flex gap-1 border-b border-line" role="tablist">
+      {tabs.length > 1 && <div className="mb-6 flex gap-1 border-b border-line" role="tablist">
         {tabs.map(([key, label]) => (
           <button
             key={key}
@@ -125,19 +121,7 @@ export function Bien() {
             {label}
           </button>
         ))}
-      </div>
-
-      {tab === "fiche" && (
-        <div className="grid items-start gap-5 @3xl:grid-cols-2">
-          <DescriptionCard property={property} monthlyRent={monthlyRent} onEdit={() => setEditingSheet(true)} />
-          <div className="space-y-5">
-            {sale && <SaleCard sale={sale} />}
-            <EnergyCard property={property} today={pf.today} />
-            {rented && <ProfitabilityCard years={years} />}
-            <DocumentsCard propertyId={property.id} documents={ws.propertyDocuments.filter((d) => d.propertyId === property.id)} />
-          </div>
-        </div>
-      )}
+      </div>}
 
       {tab === "location" && (
         <div className="grid items-start gap-5 @3xl:grid-cols-2">
@@ -148,6 +132,7 @@ export function Bien() {
 
       {tab === "finances" && (
         <div className="grid items-start gap-5 @3xl:grid-cols-2">
+          {sale && <SaleCard sale={sale} />}
           <Card>
             <CardTitle hint="bien entier">Achat</CardTitle>
             <Line label="Date d'achat">{property.purchaseDate ? formatDate(property.purchaseDate) : "—"}</Line>
@@ -208,7 +193,7 @@ export function Bien() {
 
       <PropertyDialog open={editing} property={property} onClose={() => setEditing(false)} />
       <SaleDialog open={selling} property={property} improvements={improvements} loans={ws.loans} onClose={() => setSelling(false)} />
-      <PropertySheetDialog open={editingSheet} property={property} onClose={() => setEditingSheet(false)} />
+      <PropertySheetModal property={showSheet ? property : null} onClose={() => setShowSheet(false)} />
     </>
   );
 }
