@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, NumberInput, Select, TextInput } from "@/components/form";
 import { todayIso } from "@/lib/numbers";
+import { syncTradeAmounts, type PriceBasis } from "@/lib/tradeAmounts";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 import { NewAssetPanel, newAssetErrors, newAssetFor, toAssetInput, type NewAsset } from "./NewAssetPanel";
 
@@ -42,8 +43,10 @@ interface Draft {
   fee: number | null;
   /** Les frais ont été saisis à la main : on ne les recalcule plus. */
   feeManual: boolean;
-  /** Obligations : prix en % du nominal (aide à la saisie, non stocké). */
-  pricePct: number | null;
+  /** Prix d'une unité hors frais, ou en % du nominal pour une obligation (aide à la saisie, non stocké). */
+  unitPrice: number | null;
+  /** Le prix unitaire ou le total a été saisi : l'autre se calcule. */
+  priceBasis: PriceBasis;
   comment: string;
   /** Titre à créer avec l'opération (achat d'un titre pas encore connu). */
   newAsset: NewAsset | null;
@@ -70,14 +73,15 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
     quantity: null,
     fee: null,
     feeManual: false,
-    pricePct: null,
+    unitPrice: null,
+    priceBasis: "total",
     comment: "",
     newAsset: null,
   };
 }
 
 function fromTx(tx: Transaction): Draft {
-  return { ...tx, feeManual: tx.fee != null, pricePct: null, newAsset: null };
+  return { ...tx, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null };
 }
 
 export function TransactionDialog({
@@ -123,37 +127,36 @@ export function TransactionDialog({
   const isTrade = d?.type === "achat" || d?.type === "vente";
   const params = idx?.ws.params;
 
-  // Frais suggérés selon la grille des paramètres (Journal!G / OAT!I).
+  // Frais suggérés selon la grille des paramètres : sur le prix de l'ordre s'il est saisi, sinon extraits du total.
   const suggestedFee = useMemo(() => {
     if (!d || !params || !account || !isTrade || !idx) return null;
-    if (isBond) {
-      if (d.quantity == null || d.pricePct == null) return null;
-      return suggestOrderFee(account, idx.institutionById, params, (d.quantity * d.pricePct) / 100 + accrued);
+    if (d.priceBasis === "unit") {
+      if (d.quantity == null || d.unitPrice == null) return null;
+      return suggestOrderFee(account, idx.institutionById, params, (d.quantity * d.unitPrice) / (isBond ? 100 : 1) + (isBond ? accrued : 0));
     }
     if (d.amount == null) return null;
     return suggestTradeFee(account, idx.institutionById, params, d.type as "achat" | "vente", d.amount);
   }, [d, params, account, isTrade, isBond, idx, accrued]);
   const feeSource = account && params && idx ? tradeFeeFor(account, idx.institutionById, params).source.label : "";
 
-  // Obligation : montant = nominal × prix (pied de coupon) + coupon couru, ± frais.
+  // Achat ou vente : frais suggérés tant qu'ils ne sont pas saisis à la main, et prix unitaire ↔ total.
   useEffect(() => {
-    if (!d || !isBond || !isTrade || d.quantity == null || d.pricePct == null) return;
-    const fee = d.feeManual ? (d.fee ?? 0) : (suggestedFee ?? 0);
-    const gross = (d.quantity * d.pricePct) / 100 + accrued;
-    const amount = roundCents(d.type === "achat" ? gross + fee : gross - fee);
-    if (amount !== d.amount || (!d.feeManual && fee !== d.fee)) setD({ ...d, amount, fee: d.feeManual ? d.fee : fee });
+    if (!d || !isTrade) return;
+    const fee = d.feeManual ? d.fee : suggestedFee;
+    const { amount, unitPrice } = syncTradeAmounts({ side: d.type as "achat" | "vente", basis: d.priceBasis, quantity: d.quantity, unitPrice: d.unitPrice, amount: d.amount, fee, accrued: isBond ? accrued : 0, per: isBond ? 100 : 1 });
+    if (amount !== d.amount || unitPrice !== d.unitPrice || fee !== d.fee) setD({ ...d, amount, unitPrice, fee });
   }, [d, isBond, isTrade, suggestedFee, accrued]);
 
-  // Autres titres : frais suggérés tant qu'ils n'ont pas été saisis à la main.
+  // Les autres opérations n'ont pas de frais inclus.
   useEffect(() => {
-    if (!d || isBond || d.feeManual) return;
-    const fee = isTrade ? suggestedFee : null;
-    if (fee !== d.fee) setD({ ...d, fee });
-  }, [d, isBond, isTrade, suggestedFee]);
+    if (d && !isTrade && !d.feeManual && d.fee !== null) setD({ ...d, fee: null });
+  }, [d, isTrade]);
 
   if (!idx || !d) return null;
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => (x ? { ...x, [k]: v } : x));
+  const setUnitPrice = (v: number | null) => setD((x) => (x ? { ...x, unitPrice: v, priceBasis: "unit" } : x));
+  const setTotal = (v: number | null) => setD((x) => (x ? { ...x, amount: v, priceBasis: "total" } : x));
   const allowedTypes = account ? ALLOWED_TYPES[account.kind] : [];
   const needsAsset = TX_NEEDS_ASSET.includes(d.type);
   const optionalAsset = TX_OPTIONAL_ASSET.includes(d.type);
@@ -180,7 +183,7 @@ export function TransactionDialog({
     ...(needsAsset && d.newAsset ? newAssetErrors(d.newAsset).map((message) => ({ field: "assetId" as const, message })) : []),
   ];
   const err = (f: string) => (showErrors ? (errors.find((e) => e.field === f)?.message ?? null) : null);
-  const unitPrice = isTrade && d.amount && d.quantity ? d.amount / d.quantity : null;
+  const allInUnitCost = isTrade && d.amount && d.quantity ? d.amount / d.quantity : null;
 
   const submit = (again: boolean) => {
     setShowErrors(true);
@@ -338,8 +341,8 @@ export function TransactionDialog({
             <Field label="Nominal" error={err("quantity")} help="Valeur remboursée à l'échéance.">
               {(id) => <MoneyInput id={id} value={d.quantity} onChange={(v) => set("quantity", v)} />}
             </Field>
-            <Field label="Prix (% du nominal)" help="Ex. 96,40 : acheté sous le pair.">
-              {(id) => <NumberInput id={id} suffix="%" decimals={3} value={d.pricePct} onChange={(v) => set("pricePct", v)} />}
+            <Field label="Prix (% du nominal)" help={d.priceBasis === "total" && d.unitPrice != null ? "Calculé d'après le total." : "Ex. 96,40 : acheté sous le pair."}>
+              {(id) => <NumberInput id={id} suffix="%" decimals={3} value={d.unitPrice} onChange={setUnitPrice} />}
             </Field>
             <Field label="Frais" help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.charAt(0).toLowerCase()}${feeSource.slice(1)}.`}>
               {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
@@ -348,13 +351,28 @@ export function TransactionDialog({
               {() => <div className="num flex h-9 items-center justify-end rounded-lg bg-surface-2 px-3 text-sm text-fg-muted">{formatEur(accrued)}</div>}
             </Field>
             <Field label={d.type === "achat" ? "Total débité" : "Total reçu"} className="sm:col-span-2" error={err("amount")} help="Nominal × prix + coupon couru ± frais.">
-              {(id) => <MoneyInput id={id} value={d.amount} onChange={(v) => set("amount", v)} />}
+              {(id) => <MoneyInput id={id} value={d.amount} onChange={setTotal} />}
+            </Field>
+          </FormGrid>
+        ) : isTrade ? (
+          <FormGrid>
+            <Field label="Quantité" error={err("quantity")}>
+              {(id) => <NumberInput id={id} decimals={8} value={d.quantity} onChange={(v) => set("quantity", v)} />}
+            </Field>
+            <Field label="Prix par unité" help={d.priceBasis === "total" && d.unitPrice != null ? "Calculé d'après le montant total, hors frais." : "Hors frais. Remplissez ce champ ou le montant total."}>
+              {(id) => <MoneyInput id={id} decimals={8} value={d.unitPrice} onChange={setUnitPrice} />}
+            </Field>
+            <Field label="dont frais" error={err("fee")} help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.charAt(0).toLowerCase()}${feeSource.slice(1)}.`}>
+              {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
+            </Field>
+            <Field label={d.type === "achat" ? "Montant total débité" : "Montant net reçu"} error={err("amount")} help={d.priceBasis === "unit" ? (d.type === "achat" ? "Calculé : quantité × prix + frais." : "Calculé : quantité × prix − frais.") : "Remplissez ce champ ou le prix par unité."}>
+              {(id) => <MoneyInput id={id} value={d.amount} onChange={setTotal} />}
             </Field>
           </FormGrid>
         ) : (
           <FormGrid cols={needsAsset ? 3 : 2}>
             <Field
-              label={d.type === "achat" ? "Montant total débité" : d.type === "vente" ? "Montant net reçu" : "Montant"}
+              label="Montant"
               error={err("amount")}
               help={d.type === "correction" ? "Négatif pour baisser la valeur calculée." : undefined}
             >
@@ -365,18 +383,13 @@ export function TransactionDialog({
                 {(id) => <NumberInput id={id} decimals={8} value={d.quantity} onChange={(v) => set("quantity", v)} />}
               </Field>
             )}
-            {isTrade && (
-              <Field label="dont frais" error={err("fee")} help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.charAt(0).toLowerCase()}${feeSource.slice(1)}.`}>
-                {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
-              </Field>
-            )}
           </FormGrid>
         )}
 
-        {unitPrice != null && (
+        {allInUnitCost != null && (isBond || (d.fee ?? 0) > 0) && (
           <p className="text-xs text-fg-muted">
             {isBond ? "Coût pour 1 € de nominal" : "Prix unitaire frais compris"} :{" "}
-            <span className="num text-fg">{isBond ? `${(unitPrice * 100).toFixed(3).replace(".", ",")} %` : formatEur(unitPrice)}</span>
+            <span className="num text-fg">{isBond ? `${(allInUnitCost * 100).toFixed(3).replace(".", ",")} %` : formatEur(allInUnitCost)}</span>
           </p>
         )}
 

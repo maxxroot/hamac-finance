@@ -10,8 +10,10 @@ import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { LoanDialog } from "@/dialogs/LoanDialog";
 import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
+import { TransactionDialog } from "@/dialogs/TransactionDialog";
 import { makeXlsx } from "@/lib/xlsx.fixture";
 import { ToastProvider } from "@/lib/toast";
+import { useWorkspaceIndex } from "@/lib/workspace";
 import { Crowdlending } from "@/pages/Crowdlending";
 import { Parametres } from "@/pages/Parametres";
 
@@ -79,6 +81,48 @@ describe("parcours de l'interface", () => {
     await user.click(await screen.findByRole("button", { name: "Choisir un fichier" }));
     expect(await screen.findByText("Déjà au journal")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Importer 0 opération" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  describe("achat : prix par unité ou montant total", () => {
+    // Dans l'application, la fenêtre s'ouvre une fois les données chargées.
+    const Loaded = ({ children }: { children: ReactNode }) => (useWorkspaceIndex() ? <>{children}</> : null);
+
+    const setup = async () => {
+      const account = await rpc<{ id: string }>("accounts.upsert", { kind: "cto", name: "Compte-titres", role: "" });
+      const asset = await rpc<{ id: string }>("assets.upsert", { kind: "etf", name: "ETF test", priceSource: "manuel" });
+      show(
+        <Loaded>
+          <TransactionDialog open preset={{ type: "achat", accountId: account.id, assetId: asset.id }} onClose={() => undefined} />
+        </Loaded>,
+      );
+      await screen.findByLabelText("Quantité");
+      const user = userEvent.setup();
+      const type = async (label: string, text: string) => {
+        await user.clear(fieldOf(label));
+        await user.type(fieldOf(label), text);
+        await user.tab();
+      };
+      await type("dont frais", "2");
+      await type("Quantité", "10");
+      return type;
+    };
+
+    it("le prix par unité calcule le total, frais compris", async () => {
+      const type = await setup();
+      await type("Prix par unité", "50");
+      await waitFor(() => expect(fieldOf("Montant total débité").value).toBe("502"));
+      await userEvent.setup().click(screen.getByRole("button", { name: "Enregistrer" }));
+      await waitFor(async () => expect((await workspace()).transactions).toMatchObject([{ type: "achat", amount: 502 }]));
+    });
+
+    it("le total calcule le prix par unité, et la quantité le met à jour", async () => {
+      const type = await setup();
+      await type("Montant total débité", "602");
+      await waitFor(() => expect(fieldOf("Prix par unité").value).toBe("60"));
+      await type("Quantité", "20");
+      await waitFor(() => expect(fieldOf("Prix par unité").value).toBe("30"));
+      expect(fieldOf("Montant total débité").value).toBe("602");
+    });
   });
 
   it("nouveau crédit à la consommation : pas de bien, enregistré avec son type", async () => {
