@@ -2,28 +2,31 @@
 
 # Hamac
 
-**Planifier, suivre et piloter son épargne retraite, avec la fiscalité française.**
+**Suivre son patrimoine, préparer sa retraite, avec la fiscalité française.**
 
-Livrets réglementés · assurance-vie · PEA · compte-titres · obligations · crypto
+Livrets · assurance-vie · PEA · PER · compte-titres · obligations · crypto · crowdlending · immobilier · crédits
 
 [![Licence : AGPL v3](https://img.shields.io/badge/licence-AGPL--3.0-blue.svg)](LICENSE)
 ![Application web auto-hébergée](https://img.shields.io/badge/application-web%20auto--h%C3%A9berg%C3%A9e-green)
 ![Statut : en développement](https://img.shields.io/badge/statut-en%20d%C3%A9veloppement-orange)
 
-<img src="docs/captures/dashboard.png" alt="Tableau de bord de Hamac : patrimoine, projection à la retraite, alertes et répartition" width="900">
+<img src="docs/captures/dashboard.png" alt="Tableau de bord de Hamac : patrimoine, évolution, allocation réelle et cible, enveloppes, projection et points à regarder" width="900">
 
 </div>
 
-Hamac est un logiciel libre pour construire et suivre un plan d'épargne retraite sur le long terme. On y
-note ce qui se passe (versements, achats, intérêts, coupons) ; Hamac calcule le reste : valeur de chaque
-enveloppe, plus-values, rendement annualisé, impôts, projection jusqu'au départ et revenu mensuel possible
-ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend toute la logique en la fiabilisant.
+Hamac est un logiciel libre, à héberger soi-même, pour suivre tout son patrimoine et préparer sa retraite
+sur le long terme. On y note ce qui se passe (versements, achats, intérêts, coupons) ; Hamac calcule le reste :
+valeur de chaque enveloppe, plus-values, rendement annualisé, impôts, projection jusqu'au départ et revenu
+mensuel possible ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend toute la logique
+en la fiabilisant.
 
 - **Pensé pour la France** : livrets réglementés, règle des quinzaines, assurance-vie (8 ans, abattement),
-  PEA (5 ans), prélèvements sociaux, flat tax ou barème, plus-values crypto (art. 150 VH bis).
+  PEA (5 ans), prélèvements sociaux, flat tax ou barème, plus-values crypto (art. 150 VH bis), aide à la déclaration.
 - **Vos données restent chez vous** : une application web que vous hébergez. Aucun service tiers.
 - **Pour vous et vos proches** : chaque compte a son espace isolé dans PostgreSQL ; les cours sont communs
-  à l'instance et téléchargés une seule fois.
+  à l'instance, téléchargés une seule fois et tenus à jour même quand personne n'est connecté.
+- **À votre mesure** : préparation de la retraite ou simple gestion de patrimoine, pages masquables, classes
+  d'actifs et répartition cible personnalisables.
 
 > Nom provisoire. Hamac est en développement actif : les fonctionnalités ci-dessous sont en place et
 > testées, mais aucune version n'est encore publiée.
@@ -46,77 +49,112 @@ ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend to
 
 ## Fonctionnalités
 
-### Suivre son patrimoine
+### Voir l'essentiel d'un coup d'œil
 
-- **Journal unique** de toutes les opérations : apports, versements, retraits, achats, ventes, intérêts,
-  coupons, dividendes, transferts entre comptes, frais, corrections.
-- **Versements mensuels programmés** par compte, avec les mois manqués : chaque mois écoulé est compté.
+- **Tableau de bord** : patrimoine net, évolution par période, allocation réelle face à la cible, enveloppes,
+  projection (ou actifs et dettes) et seulement ce qui demande une action.
+- **Évolution de chaque compte et de chaque titre** : valeur totale et montant investi, avec une courbe par
+  titre dans une enveloppe. Un clic sur une ligne suffit pour voir un compte ou un titre seul.
+- **Synthèse** de toutes les enveloppes, **performance** (rendement annualisé par enveloppe) et **historique**
+  reconstruit mois par mois depuis le journal : corriger une opération passée corrige tout l'historique.
+
+### Suivre chaque placement
+
 - **Livrets** (LEP, LDDS, Livret A…) : historique des taux, intérêts de l'année calculés par quinzaines,
   plancher et plafond du plan, plafonds légaux.
 - **Assurance-vie** : fonds euros, taux servis, rapprochement avec le relevé de l'assureur, clause
   bénéficiaire, garantie FGAP.
-- **Obligations** (OAT et entreprises) détenues jusqu'à l'échéance : coupon couru, valeur amortie,
-  rendement actuariel, remboursement automatique à l'échéance, échelle prévue et réalisée.
-- **Actions et ETF** (PEA et comptes-titres) : prix de revient, cours en direct, écart à la répartition
-  cible, achat conseillé du mois.
+- **Obligations** (OAT et entreprises) détenues jusqu'à l'échéance : calendrier et prochain coupon, coupon
+  couru, valeur amortie, rendement actuariel, remboursement automatique, échelle prévue et réalisée.
+- **Actions et ETF** (PEA, PEA-PME, PER, épargne salariale, comptes-titres) : prix de revient, cours
+  automatiques, écart à la répartition cible, achat conseillé du mois.
 - **Crypto** : positions, plus-values de chaque cession et impôt de l'année.
-- **Historique** reconstruit mois par mois depuis le journal : corriger une opération passée corrige
-  tout l'historique.
+- **Crowdlending** : prêts projet par projet, intérêts déclarés par mois et par plateforme, paiements
+  partiels, échéances prolongées, retards et défauts, import du fichier Bricks.
+- **Immobilier et SCPI** : biens et part détenue, pour obtenir le patrimoine net.
+- **Crédits** immobiliers, travaux, consommation ou auto : échéance et capital restant dû calculés ou repris
+  d'un relevé, assurance en montant fixe ou en taux (capital emprunté ou restant dû), coût année par année.
 
 ### Calculer et anticiper
 
-- **Allocation cible** fonds euros / obligations / actions, avec une baisse progressive de la part
-  actions à l'approche de la retraite.
-- **Performance** : rendement annualisé (TRI) par enveloppe, comparé aux hypothèses du plan.
-- **Impôts** : ce que coûterait un retrait aujourd'hui, rendements nets comparés, impôts de chaque année
-  (acompte, régularisation, prélèvements sociaux).
-- **Projection** année par année jusqu'au départ, avec tous les versements programmés, les frais des
+- **Répartition cible** ligne par ligne : classes d'actifs personnalisables, chaque élément inclus ou non,
+  rendement attendu facultatif et baisse progressive de la part d'actions à l'approche de la retraite.
+- **Capacité d'épargne** répartie automatiquement entre les comptes, à appliquer en un clic.
+- **Projection** année par année jusqu'au départ, avec les versements programmés, les frais des
   établissements et les grosses dépenses prévues, puis la phase de retraits jusqu'à l'âge horizon.
 - **Fourchette de résultats** selon les marchés (simulation de Monte-Carlo) et simulateur « et si »
   (versement en plus, âge de départ, rendement, inflation).
+- **Impôts** : ce que coûterait un retrait aujourd'hui, rendements nets comparés, impôts de chaque année
+  (acompte, régularisation, prélèvements sociaux).
+- **Aide à la déclaration** : cases à reporter par année de revenus, fiche par établissement et récapitulatif
+  complet, contrôles de cohérence, comparaison avec le document reçu, export PDF et CSV. Un document d'aide, qui
+  ne remplace ni l'IFU ni la notice officielle.
 
 ### Contrôler
 
 - **Alertes** : livrets hors fourchette, répartition qui s'écarte de sa cible, espèces à investir,
   échéance proche, cours manquants, ordres trop chers, intérêts de l'année à saisir, anniversaires
   fiscaux, clause bénéficiaire à rédiger…
-- **Établissements** : chaque banque, courtier ou assureur avec ses grilles de frais (courtage par
-  paliers, droits de garde, frais sur versements et de gestion), et un comparatif calculé.
+- **Établissements** : chaque banque, courtier, assureur ou plateforme avec ses grilles de frais (courtage
+  par paliers, droits de garde, frais sur versements et de gestion), et un comparatif calculé.
 
 ### Saisir simplement
 
-- Formulaires guidés : frais calculés d'après la grille de l'établissement, titres créés au moment de
-  l'achat, obligations saisies par leur coupon et leur échéance.
+- **Journal unique** de toutes les opérations, et **versements mensuels programmés** par compte, avec les
+  mois manqués.
+- Formulaires guidés : prix par unité ou montant total (l'autre se calcule), frais d'après la grille de
+  l'établissement, titres créés au moment de l'achat, obligations saisies par leur coupon et leur échéance.
 - **Recherche de titres** par nom ou par ISIN (actions, ETF, obligations d'État et d'entreprise, crypto).
-- **Crowdlending** : suivi des prêts projet par projet, plateforme par plateforme.
-- **Import des relevés** de banque ou de courtier en CSV, OFX ou QIF (aperçu avant import, doublons repérés) et export.
+- **Import des relevés** de banque ou de courtier en CSV, OFX ou QIF (aperçu avant import, doublons repérés) et export CSV.
 - **Sauvegarde complète** exportable et restaurable, pour passer d'une instance à une autre.
-- Tableaux triables, mode discret qui masque les montants, interface sombre.
+- Barre latérale réductible, tableaux triables, mode discret qui masque les montants, interface sombre.
 
 ## Captures
 
 <table>
   <tr>
+    <td><img src="docs/captures/evolution.png" alt="Évolution d'une enveloppe : valeur totale, montant investi et une courbe par titre"></td>
+    <td><img src="docs/captures/credits.png" alt="Crédits : taux, assurance, coût total et graphique année par année"></td>
+  </tr>
+  <tr>
+    <td align="center">Évolution d'une enveloppe, titre par titre</td>
+    <td align="center">Crédits : coût année par année</td>
+  </tr>
+  <tr>
     <td><img src="docs/captures/projection.png" alt="Projection jusqu'à la retraite avec fourchette et simulateur"></td>
-    <td><img src="docs/captures/obligations.png" alt="Échelle d'obligations : coupon, rendement à l'échéance, plus-value"></td>
+    <td><img src="docs/captures/obligations.png" alt="Échelle d'obligations : prochain coupon, rendement à l'échéance, plus-value"></td>
   </tr>
   <tr>
     <td align="center">Projection et simulateur « et si »</td>
     <td align="center">Échelle d'obligations</td>
   </tr>
   <tr>
-    <td><img src="docs/captures/etablissements.png" alt="Établissements avec leurs grilles de frais"></td>
-    <td><img src="docs/captures/journal.png" alt="Journal des opérations, triable et filtrable"></td>
+    <td><img src="docs/captures/crowdlending.png" alt="Crowdlending : plateformes et suivi projet par projet"></td>
+    <td><img src="docs/captures/declaration.png" alt="Aide à la déclaration : cases à reporter et contrôles"></td>
   </tr>
   <tr>
+    <td align="center">Crowdlending, projet par projet</td>
+    <td align="center">Aide à la déclaration</td>
+  </tr>
+  <tr>
+    <td><img src="docs/captures/repartition.png" alt="Répartition cible par classe d'actifs, avec rendement attendu"></td>
+    <td><img src="docs/captures/etablissements.png" alt="Établissements avec leurs grilles de frais"></td>
+  </tr>
+  <tr>
+    <td align="center">Répartition cible</td>
     <td align="center">Établissements et frais</td>
+  </tr>
+  <tr>
+    <td><img src="docs/captures/journal.png" alt="Journal des opérations, triable et filtrable"></td>
+    <td><img src="docs/captures/historique.png" alt="Historique du patrimoine reconstruit depuis le journal"></td>
+  </tr>
+  <tr>
     <td align="center">Journal des opérations</td>
+    <td align="center">Historique reconstruit depuis le journal</td>
   </tr>
 </table>
 
-<p align="center"><img src="docs/captures/historique.png" alt="Historique du patrimoine et répartition par classe d'actifs" width="700"><br>Historique reconstruit depuis le journal</p>
-
-Les captures utilisent le jeu de données fictif fourni avec Hamac (`HAMAC_DEMO=1`).
+Les captures utilisent uniquement des données fictives.
 
 ## Installation
 
@@ -130,12 +168,13 @@ docker compose up -d --build
 
 Ouvrez <http://localhost:8080> et créez le premier compte, avec le code d'installation à usage unique affiché
 par `docker compose logs hamac`. Ce compte devient administrateur de l'instance et règle les sources de cours.
-Les suivants s'inscrivent ensuite avec un code d'invitation.
+Les suivants s'inscrivent ensuite avec un code d'invitation. Chacun peut changer son mot de passe dans
+Paramètres › Application.
 
 ```bash
 docker compose exec hamac node cli.mjs invite              # code d'invitation à transmettre
 docker compose exec hamac node cli.mjs users               # liste des comptes
-docker compose exec hamac node cli.mjs password <e-mail>   # changer un mot de passe
+docker compose exec hamac node cli.mjs password <e-mail>   # réinitialiser un mot de passe
 ```
 
 Par défaut, Hamac n'écoute que sur la machine qui l'héberge. Hors de cette machine, il refuse les connexions
@@ -164,9 +203,10 @@ Toutes les variables se règlent dans ce fichier `.env`, facultatif, exclu de gi
 | `HAMAC_TWELVEDATA_KEY` | vide | Clé [Twelve Data](https://twelvedata.com), facultative. C'est le seul endroit où elle se règle : ni en base, ni dans l'interface |
 | `HAMAC_TWELVEDATA_DAILY_LIMIT` | `800` | Requêtes par jour de votre offre Twelve Data |
 
-Sécurité : mots de passe hachés avec Argon2id, sessions par cookie `HttpOnly`, `SameSite=Strict` et `Secure` en HTTPS, HSTS, en-tête anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe. Chaque compte a son propre
-schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de
-l'instance.
+**Sécurité** : mots de passe hachés avec Argon2id, sessions par cookie `HttpOnly`, `SameSite=Strict` et `Secure`
+en HTTPS, HSTS, en-tête anti-CSRF, limitation des tentatives de connexion et de la taille des requêtes, en-têtes
+CSP et anti-iframe, code d'installation à usage unique, conteneurs sans privilèges. Chaque compte a son propre
+schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de l'instance.
 
 Avant chaque migration de la base, une copie de chaque compte est écrite dans le volume `hamac-data`, en JSON
 compressé. Chaque personne peut exporter et restaurer ses données dans Paramètres › Application. Ce volume est
@@ -180,17 +220,21 @@ Paramètres › Application. Le dernier état du bureau reste disponible au tag 
 ## Sources de données et vie privée
 
 Hamac ne collecte rien et n'envoie vos données nulle part. Les seules requêtes vers l'extérieur servent
-à récupérer des cours et à identifier des titres, sans clé d'API par défaut :
+à récupérer des cours et à identifier des titres, sans clé d'API par défaut. Les cours sont actualisés
+toutes les 30 minutes pour toute l'instance ; l'ordre des sources se règle dans Paramètres › Cours.
 
 | Source | Utilisation |
 |---|---|
 | [justETF](https://www.justetf.com) | Cours et historique des ETF, par ISIN |
+| [Euronext](https://live.euronext.com) | Actions et ETF cotés en euros, par ISIN |
+| [Twelve Data](https://twelvedata.com) | Par symbole, avec votre clé ; l'offre gratuite ne couvre que le marché américain |
+| Yahoo Finance | Dernier recours, au mieux : l'accès peut être refusé selon le réseau |
 | [CoinGecko](https://www.coingecko.com) | Cours et historique des cryptos |
 | [OpenFIGI](https://www.openfigi.com) | Recherche et identification des titres (obligations comprises) |
-| Yahoo Finance | Cours des actions, au mieux : l'accès peut être refusé selon le réseau |
 
 Ces requêtes révèlent aux fournisseurs les identifiants des titres que vous suivez, pas leurs montants.
-Les obligations n'ont besoin d'aucun cours (valeur calculée) et tout cours peut être saisi à la main.
+Les obligations n'ont besoin d'aucun cours (valeur calculée). Tout cours peut être saisi à la main, et un titre
+peut imposer sa source ou une adresse personnalisée.
 Les accès non officiels peuvent cesser de fonctionner sans préavis ; respectez les conditions
 d'utilisation de chaque fournisseur.
 
@@ -250,12 +294,13 @@ Les contributions sont bienvenues : signalements, idées, corrections, nouvelles
 
 ## Feuille de route
 
-- Première version publiée, avec installateurs signés et mises à jour automatiques
+- Première version publiée
+- Affichage adapté au téléphone et installation en application (PWA)
+- Alertes par bots Discord, Telegram et Matrix
+- Double authentification, journal des connexions et vérification de l'e-mail, pour une instance ouverte au public
 - Modèles d'établissements pré-remplis (grilles de frais datées, à vérifier)
-- PEA-PME, PER et plans d'épargne salariale
 - Formats d'import CSV prêts à l'emploi pour les principaux courtiers
 - Mémorisation des tris et des filtres
-- Source de cours officielle optionnelle pour les actions (avec clé d'API)
 
 ## Licence
 
