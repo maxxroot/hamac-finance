@@ -13,7 +13,7 @@ export function Stat({ label, children, sub, className, tone }: { label: string;
 }
 
 export function StatGrid({ children }: { children: ReactNode }) {
-  return <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">{children}</div>;
+  return <div className="mb-6 grid grid-cols-2 gap-4 @3xl:grid-cols-4">{children}</div>;
 }
 
 export function Pct({ value, signed = false, digits = 1 }: { value: number | null | undefined; signed?: boolean; digits?: number }) {

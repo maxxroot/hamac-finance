@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AccountState, Alert, AllocationRow, HistoryPoint } from "@hamac/core";
-import { accountHistory, assetLines, positionHistory, allocationBars, alertsToReview, axisFloor, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
+import { accountHistory, assetLines, positionHistory, allocationBars, alertsToReview, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
 
 const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {}, byPosition: {} });
 const history = Array.from({ length: 20 }, (_, i) => point(i + 1));
@@ -78,13 +78,6 @@ describe("tableau de bord", () => {
 
   it("la bande de gain reste positive, y compris en perte", () => {
     expect(gainBand([point(1, 120, 100), point(2, 90, 100)])).toEqual({ base: [100, 90], band: [20, 10] });
-  });
-
-  it("le bas de l'axe laisse une marge et s'arrondit", () => {
-    expect(axisFloor([point(1, 33_000, 27_000)])).toBe(20_000);
-    expect(axisFloor([point(1, 950, 1200)])).toBe(800);
-    expect(axisFloor([point(1, 500, 0)])).toBe(0);
-    expect(axisFloor([])).toBe(0);
   });
 
   it("ne garde que les alertes qui demandent une action", () => {

@@ -82,7 +82,7 @@ function ProjectionPage() {
         actions={<Button onClick={() => setShowTable((v) => !v)}>{showTable ? "Masquer le tableau" : "Voir le tableau"}</Button>}
       />
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 @3xl:grid-cols-4">
         <Result label={`Patrimoine en ${at.year}`} value={at.total} alt={alt?.atRetirement.total} sub={<>soit <Amount value={at.real} compact /> d'aujourd'hui</>} />
         <Result label="Fourchette (8 chances sur 10)" value={null} sub="selon les marchés actions">
           <span className="text-base">
@@ -115,7 +115,7 @@ function ProjectionPage() {
         <Simulator params={p} onChange={setScenario} active={!!scenario} />
       </div>
 
-      <div className="mb-6 grid gap-5 lg:grid-cols-2">
+      <div className="mb-6 grid gap-5 @3xl:grid-cols-2">
         <Expenses />
         <Card>
           <CardTitle hint={`revenu revalorisé de ${Math.round(p.returns.inflation * 1000) / 10} % par an`}>Après le départ : le capital investi pendant les retraits</CardTitle>

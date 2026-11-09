@@ -85,7 +85,7 @@ function Contract({ s }: { s: AccountState }) {
         </Stat>
       </StatGrid>
 
-      <div className="mb-5 grid gap-5 lg:grid-cols-3">
+      <div className="mb-5 grid gap-5 @3xl:grid-cols-3">
         <Card>
           <CardTitle>Contrat</CardTitle>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">

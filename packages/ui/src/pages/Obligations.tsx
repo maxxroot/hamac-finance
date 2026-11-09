@@ -228,8 +228,8 @@ export function Obligations() {
         </tbody>
       </Table>
 
-      <div className="mb-6 grid gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="mb-6 grid gap-5 @3xl:grid-cols-3">
+        <Card className="@3xl:col-span-2">
           <CardTitle>Prévoir une ligne de l'échelle</CardTitle>
           <div className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
             <Field label="Libellé">{(id) => <TextInput id={id} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="ex. À choisir : échéance vers 2034" />}</Field>

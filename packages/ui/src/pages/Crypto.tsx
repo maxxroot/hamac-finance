@@ -83,7 +83,7 @@ export function Crypto() {
 
       <CryptoPositions positions={positions} onPrice={setPricing} />
 
-      <div className="mb-6 grid gap-5 lg:grid-cols-3">
+      <div className="mb-6 grid gap-5 @3xl:grid-cols-3">
         <Card>
           <CardTitle>Si tout était vendu aujourd'hui</CardTitle>
           <div className="space-y-1.5 text-sm">

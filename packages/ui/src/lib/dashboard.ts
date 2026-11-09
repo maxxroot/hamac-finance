@@ -96,14 +96,6 @@ export function gainBand(points: readonly EvolutionPoint[]): { base: number[]; b
   return { base: points.map((p) => Math.min(p.value, p.netContrib)), band: points.map((p) => Math.abs(p.value - p.netContrib)) };
 }
 
-/** Bas de l'axe, arrondi vers le bas : sur une courbe, partir de zéro écraserait les variations. */
-export function axisFloor(points: readonly EvolutionPoint[]): number {
-  const low = Math.min(...points.flatMap((p) => [p.value, p.netContrib]));
-  if (!Number.isFinite(low) || low <= 0) return 0;
-  const step = 10 ** Math.floor(Math.log10(low));
-  return Math.floor((low * 0.9) / step) * step;
-}
-
 /** Seulement ce qui demande une action, les plus graves d'abord (ordre donné par le moteur). */
 export function alertsToReview(alerts: readonly Alert[]): Alert[] {
   return alerts.filter((a) => a.level !== "ok");

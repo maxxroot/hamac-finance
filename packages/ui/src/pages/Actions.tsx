@@ -223,7 +223,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
         </tbody>
       </Table>
 
-      <div className="mb-5 grid gap-5 lg:grid-cols-3">
+      <div className="mb-5 grid gap-5 @3xl:grid-cols-3">
         {isPea && (
           <Card>
             <CardTitle hint={`sur ${s.account.monthsToInvest ?? 1} mois`}>Achat conseillé ce mois-ci</CardTitle>

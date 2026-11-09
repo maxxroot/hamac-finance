@@ -51,7 +51,7 @@ export function TableauDeBord() {
         </p>
       </header>
 
-      <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-6">
+      <div className="mb-5 grid grid-cols-2 gap-4 @3xl:grid-cols-6">
         <Stat
           label={hasRealEstate ? "Patrimoine net" : "Patrimoine financier"}
           className="col-span-2"
@@ -100,15 +100,17 @@ export function TableauDeBord() {
         </Stat>
       </div>
 
-      <div className="mb-5 grid gap-5 lg:grid-cols-5">
+      <div className="mb-5 grid gap-5 @3xl:grid-cols-5">
         <EvolutionCard history={history} />
         <AllocationCard allocation={state.allocation} />
       </div>
 
-      <div className={cn("grid gap-5", middle ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+      <div className={cn("grid gap-5 @3xl:grid-cols-2", middle && "@5xl:grid-cols-3")}>
         <EnvelopesCard accounts={state.accounts} />
         {middle}
-        <ReviewCard alerts={alerts} />
+        <div className={cn(middle && "@3xl:col-span-2 @5xl:col-span-1")}>
+          <ReviewCard alerts={alerts} />
+        </div>
       </div>
     </>
   );
@@ -117,7 +119,7 @@ export function TableauDeBord() {
 function EvolutionCard({ history }: { history: HistoryPoint[] | null }) {
   const [period, setPeriod] = useState<PeriodKey>("1A");
   return (
-    <Card className="lg:col-span-3">
+    <Card className="@3xl:col-span-3">
       <CardTitle
         hint={
           <span className="flex items-center gap-3">
@@ -139,7 +141,7 @@ function EvolutionCard({ history }: { history: HistoryPoint[] | null }) {
 function AllocationCard({ allocation }: { allocation: PortfolioState["allocation"] }) {
   const bars = allocationBars(allocation.rows);
   return (
-    <Card className="flex flex-col lg:col-span-2">
+    <Card className="flex flex-col @3xl:col-span-2">
       <CardTitle hint="barre : réel · trait : cible">Allocation</CardTitle>
       {bars.length === 0 ? (
         <p className="py-16 text-center text-sm text-fg-muted">

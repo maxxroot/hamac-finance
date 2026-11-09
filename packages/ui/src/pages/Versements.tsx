@@ -64,13 +64,13 @@ export function Versements() {
         ))}
       </div>
 
-      <div className="mb-6 grid gap-5 lg:grid-cols-3">
+      <div className="mb-6 grid gap-5 @3xl:grid-cols-3">
         {mode === "suggere" ? (
-          <div className="lg:col-span-2">
+          <div className="@3xl:col-span-2">
             <SuggestedContributions defaultFromMonth={firstOpenMonth} />
           </div>
         ) : (
-          <Card className="lg:col-span-2">
+          <Card className="@3xl:col-span-2">
             <CardTitle hint={`Prélevés le ${params.profile.contributionDay} de chaque mois, à partir de ${formatMonth(params.profile.startMonth)} (Paramètres › Plan)`}>Programmation</CardTitle>
             <PlanForm accounts={idx.activeAccounts} defaultMonth={current < params.profile.startMonth ? params.profile.startMonth : current} />
             <div className="mt-5 space-y-3">

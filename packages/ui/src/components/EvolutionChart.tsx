@@ -3,7 +3,7 @@ import { formatEur } from "@hamac/core";
 import { Chart, axisStyle, type ChartOption } from "./Chart";
 import { INK } from "@/lib/colors";
 import { cn } from "@/lib/cn";
-import { axisFloor, gainBand, historyForPeriod, PERIODS, type AssetLine, type EvolutionPoint, type PeriodKey } from "@/lib/dashboard";
+import { gainBand, historyForPeriod, PERIODS, type AssetLine, type EvolutionPoint, type PeriodKey } from "@/lib/dashboard";
 import { capitalize, formatMonth } from "@/lib/numbers";
 
 const money = (v: number) => formatEur(v, { compact: true });
@@ -64,8 +64,8 @@ export function EvolutionChart({ points, period, lines = [], height = 300 }: { p
       legend: { data: [TOTAL, INVESTED, ...lines.map((l) => l.name)], top: 0, left: 0, icon: "circle", itemWidth: 8, itemHeight: 8, textStyle: { color: INK.muted } },
       grid: { left: 8, right: 16, top: lines.length > 2 ? 58 : 34, bottom: 8, containLabel: true },
       xAxis: { type: "category", boundaryGap: false, data: shown.map((h) => capitalize(formatMonth(h.month))), ...axisStyle, splitLine: { show: false } },
-      // Avec les titres, l'axe part de zéro : ils valent chacun bien moins que le total.
-      yAxis: { type: "value", min: lines.length ? 0 : axisFloor(shown), ...axisStyle, axisLabel: { color: INK.faint, formatter: (v: number) => (inThousands ? `${Math.round(v / 1000)} k€` : money(v)) } },
+      // Seul, le total n'a pas besoin de partir de zéro, ce qui écraserait ses variations. Avec les titres, si : ils valent bien moins.
+      yAxis: { type: "value", ...(lines.length ? { min: 0 } : { scale: true }), ...axisStyle, axisLabel: { color: INK.faint, formatter: (v: number) => (inThousands ? `${Math.round(v / 1000)} k€` : money(v)) } },
       series: [
         { ...helper, name: "base", areaStyle: { opacity: 0 }, data: base },
         { ...helper, name: "écart", areaStyle: { color: INK.accent, opacity: 0.14 }, data: band },

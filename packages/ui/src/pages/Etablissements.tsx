@@ -49,7 +49,7 @@ export function Etablissements() {
           <p className="mt-1 text-sm text-fg-faint">Vous pouvez aussi ajouter des offres que vous étudiez, pour les comparer avant d'ouvrir un compte.</p>
         </Card>
       ) : (
-        <div className="mb-8 grid gap-4 lg:grid-cols-2">
+        <div className="mb-8 grid gap-4 @3xl:grid-cols-2">
           {list.map((inst) => (
             <InstitutionCard key={inst.id} inst={inst} onEdit={() => setEditing(inst)} onDelete={() => confirm(`Supprimer « ${inst.name} » ? Les comptes rattachés repasseront sur les frais par défaut.`) && del.mutate({ id: inst.id })} />
           ))}
