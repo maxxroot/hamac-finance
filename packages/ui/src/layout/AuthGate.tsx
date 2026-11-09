@@ -1,36 +1,45 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Field, TextInput } from "@/components/form";
 import { Button, Card } from "@/components/ui";
-import { auth } from "@/lib/auth";
+import { AccountContext, type Account } from "@/lib/account";
+import { auth, AuthError, type Me } from "@/lib/auth";
 import { cn } from "@/lib/cn";
+import { cleanAppCode, cleanRecoveryCode, loginCodeReady } from "@/lib/twoFactor";
 
 /** Affiche la connexion tant qu'aucune session n'est ouverte. */
 export function AuthGate({ children }: { children: (email: string | null) => ReactNode }) {
-  const [state, setState] = useState<{ loading: boolean; email: string | null }>({ loading: true, email: null });
+  const [state, setState] = useState<{ loading: boolean; me: Me | null; justLoggedIn: boolean }>({ loading: true, me: null, justLoggedIn: false });
   const qc = useQueryClient();
 
   useEffect(() => {
-    void auth.me().then((email) => setState({ loading: false, email }));
-    const onUnauthorized = () => setState({ loading: false, email: null });
+    void auth.me().then((me) => setState({ loading: false, me, justLoggedIn: false }));
+    const onUnauthorized = () => setState({ loading: false, me: null, justLoggedIn: false });
     window.addEventListener("hamac:unauthorized", onUnauthorized);
     return () => window.removeEventListener("hamac:unauthorized", onUnauthorized);
   }, []);
 
+  const refresh = useCallback(async () => {
+    const me = await auth.me();
+    setState((s) => ({ ...s, me }));
+  }, []);
+  const closeLoginPrompt = useCallback(() => setState((s) => ({ ...s, justLoggedIn: false })), []);
+  const account = useMemo<Account | null>(() => (state.me ? { me: state.me, refresh, justLoggedIn: state.justLoggedIn, closeLoginPrompt } : null), [state.me, state.justLoggedIn, refresh, closeLoginPrompt]);
+
   if (state.loading) return null;
-  if (!state.email)
+  if (!account)
     return (
       <Login
-        onDone={(email) => {
+        onDone={async () => {
           qc.clear();
-          setState({ loading: false, email });
+          setState({ loading: false, me: await auth.me(), justLoggedIn: true });
         }}
       />
     );
-  return <>{children(state.email)}</>;
+  return <AccountContext.Provider value={account}>{children(account.me.email)}</AccountContext.Provider>;
 }
 
-function Login({ onDone }: { onDone: (email: string) => void }) {
+function Login({ onDone }: { onDone: () => Promise<void> }) {
   const [cfg, setCfg] = useState<{ signup: "invite" | "open" | "closed"; firstUser: boolean } | null>(null);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -38,6 +47,7 @@ function Login({ onDone }: { onDone: (email: string) => void }) {
   const [invite, setInvite] = useState(() => new URLSearchParams(window.location.search).get("invitation") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [challenge, setChallenge] = useState<string | null>(null);
 
   useEffect(() => {
     void auth.config().then((c) => {
@@ -46,13 +56,17 @@ function Login({ onDone }: { onDone: (email: string) => void }) {
     });
   }, []);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const r = mode === "login" ? await auth.login(email, password) : await auth.signup(email, password, invite || undefined);
-      onDone(r.email!);
+      if (mode === "signup") await auth.signup(email, password, invite || undefined);
+      else {
+        const r = await auth.login(email, password);
+        if (r.challenge) return setChallenge(r.challenge);
+      }
+      await onDone();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -63,16 +77,23 @@ function Login({ onDone }: { onDone: (email: string) => void }) {
   const canSignup = cfg && (cfg.firstUser || cfg.signup !== "closed");
   const needInvite = cfg && (cfg.firstUser || cfg.signup === "invite");
 
+  if (challenge)
+    return (
+      <LoginCard>
+        <CodeStep
+          challenge={challenge}
+          onDone={onDone}
+          onRestart={(message) => {
+            setChallenge(null);
+            setPassword("");
+            setError(message);
+          }}
+        />
+      </LoginCard>
+    );
+
   return (
-    <div className="flex min-h-full items-center justify-center p-6">
-      <Card className="w-full max-w-sm p-7">
-        <div className="mb-6 flex items-center gap-2.5">
-          <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-            <rect width="32" height="32" rx="8" fill="var(--color-accent)" />
-            <path d="M6 10 C 10 23, 22 23, 26 10" fill="none" stroke="var(--color-accent-fg)" strokeWidth="2.6" strokeLinecap="round" />
-          </svg>
-          <span className="text-xl font-semibold">Hamac</span>
-        </div>
+    <LoginCard>
         {cfg?.firstUser && <p className="mb-4 text-sm text-fg-muted">Première connexion : créez le compte administrateur de cette instance.</p>}
         {canSignup && !cfg?.firstUser && (
           <div className="mb-5 grid grid-cols-2 rounded-lg bg-surface-2 p-1 text-sm">
@@ -98,8 +119,75 @@ function Login({ onDone }: { onDone: (email: string) => void }) {
             {mode === "login" ? "Se connecter" : "Créer le compte"}
           </Button>
         </form>
+    </LoginCard>
+  );
+}
+
+function LoginCard({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-full items-center justify-center p-6">
+      <Card className="w-full max-w-sm p-7">
+        <div className="mb-6 flex items-center gap-2.5">
+          <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="var(--color-accent)" />
+            <path d="M6 10 C 10 23, 22 23, 26 10" fill="none" stroke="var(--color-accent-fg)" strokeWidth="2.6" strokeLinecap="round" />
+          </svg>
+          <span className="text-xl font-semibold">Hamac</span>
+        </div>
+        {children}
         <p className="mt-5 text-xs text-fg-faint">Vos données sont stockées dans une base personnelle sur ce serveur, séparée de celle des autres utilisateurs.</p>
       </Card>
     </div>
+  );
+}
+
+/** Deuxième étape : aucune session n'est ouverte tant qu'un code n'est pas accepté. */
+function CodeStep({ challenge, onDone, onRestart }: { challenge: string; onDone: () => Promise<void>; onRestart: (message: string) => void }) {
+  const [recovery, setRecovery] = useState(false);
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await auth.submitCode(challenge, code, recovery);
+      await onDone();
+    } catch (err) {
+      if (err instanceof AuthError && err.restart) return onRestart(err.message);
+      setError((err as Error).message);
+      setCode("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const switchMode = () => {
+    setRecovery(!recovery);
+    setCode("");
+    setError(null);
+  };
+
+  return (
+    <form className="space-y-4" onSubmit={submit}>
+      {recovery ? (
+        <Field key="secours" label="Code de secours" help="Un des codes que vous avez mis de côté. Il ne servira qu'une fois.">
+          {(id) => <TextInput id={id} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="XXXX-XXXX" value={code} onChange={(e) => setCode(cleanRecoveryCode(e.target.value))} required autoFocus className="font-mono" />}
+        </Field>
+      ) : (
+        <Field key="application" label="Code de votre application" help="Les 6 chiffres affichés pour Hamac sur votre téléphone.">
+          {(id) => <TextInput id={id} inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(cleanAppCode(e.target.value))} required autoFocus className="font-mono" />}
+        </Field>
+      )}
+      {error && <p className="text-sm text-negative">{error}</p>}
+      <Button variant="primary" type="submit" className="w-full" disabled={busy || !loginCodeReady(code, recovery)}>
+        Valider
+      </Button>
+      <button type="button" onClick={switchMode} className="w-full text-center text-xs text-fg-muted underline-offset-2 hover:text-fg hover:underline">
+        {recovery ? "Utiliser le code de l'application" : "Utiliser un code de secours"}
+      </button>
+    </form>
   );
 }

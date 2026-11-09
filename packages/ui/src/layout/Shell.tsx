@@ -1,5 +1,6 @@
 import { Eye, EyeOff, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAccount } from "@/lib/account";
 import { auth } from "@/lib/auth";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
@@ -7,6 +8,7 @@ import { useSetSetting, useSetting } from "@/lib/queries";
 import { readCollapsed, saveCollapsed, sidebarLayout } from "@/lib/sidebar";
 import { NAV, SETTINGS_ITEM, type NavItem } from "@/nav";
 import { PriceStatus } from "@/components/PriceStatus";
+import { TwoFactorBanner, TwoFactorPrompt } from "@/components/TwoFactorNudge";
 import { useWorkspace } from "@/lib/workspace";
 
 /** En dessous, la barre reste réduite pour laisser la place au contenu. */
@@ -101,6 +103,7 @@ export function Shell() {
       </div>
 
       <div className="print-flow flex min-w-0 flex-1 flex-col">
+        <TwoFactorBanner />
         <div className="no-print flex h-16 shrink-0 items-center gap-2 border-b border-line px-4 lg:px-8">
           <button onClick={toggle} className="-ml-1 rounded-lg p-2 text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label={collapsed ? "Agrandir le menu" : "Réduire le menu"} aria-expanded={!collapsed} title={collapsed ? "Agrandir le menu" : "Réduire le menu"}>
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -123,16 +126,14 @@ export function Shell() {
           </div>
         </main>
       </div>
+      <TwoFactorPrompt />
     </div>
   );
 }
 
 /** Mode web : utilisateur connecté et déconnexion. */
 function WebUser({ collapsed }: { collapsed: boolean }) {
-  const [email, setEmail] = useState<string | null>(null);
-  useEffect(() => {
-    void auth.me().then(setEmail);
-  }, []);
+  const email = useAccount()?.me.email ?? null;
   return (
     <div className={cn("mt-1 flex items-center gap-2 py-1.5 text-xs text-fg-faint", collapsed ? "justify-center" : "justify-between px-3")} title={collapsed ? (email ?? "") : undefined}>
       {!collapsed && (
