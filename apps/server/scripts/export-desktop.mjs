@@ -8,7 +8,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-const SOURCE = process.argv[2] ?? join(homedir(), "Library/Application Support/@hamac/hamac.sqlite");
+const SOURCE = process.argv[2] ?? join(homedir(), "Library/Application Support/@hamac/desktop/hamac.sqlite");
 const TARGET = process.argv[3] ?? "hamac-export-bureau.json";
 const SECRETS = "market.secrets";
 const TABLES = ["settings", "institutions", "accounts", "assets", "transactions", "contribution_plans", "contribution_skips", "bond_plans", "fund_rates", "statements", "prices", "planned_expenses", "properties", "crowd_projects", "loans", "account_rates"];
