@@ -1,5 +1,6 @@
 # Hamac, pour vous et vos proches.
 #   docker compose up -d --build     puis ouvrez http://localhost:8080 et créez le premier compte (administrateur)
+#   docker compose logs hamac        code d'installation demandé pour ce premier compte
 #   docker compose exec hamac node cli.mjs invite     code d'invitation à envoyer
 #
 # Réglages facultatifs : copiez .env.example en .env, à côté de ce fichier. Tout y est expliqué.

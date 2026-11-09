@@ -128,8 +128,9 @@ cd hamac
 docker compose up -d --build
 ```
 
-Ouvrez <http://localhost:8080> et créez le premier compte : il devient administrateur de l'instance et
-règle les sources de cours. Les suivants s'inscrivent ensuite avec un code d'invitation.
+Ouvrez <http://localhost:8080> et créez le premier compte, avec le code d'installation à usage unique affiché
+par `docker compose logs hamac`. Ce compte devient administrateur de l'instance et règle les sources de cours.
+Les suivants s'inscrivent ensuite avec un code d'invitation.
 
 ```bash
 docker compose exec hamac node cli.mjs invite              # code d'invitation à transmettre

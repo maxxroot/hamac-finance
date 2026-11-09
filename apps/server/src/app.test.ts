@@ -4,6 +4,7 @@ import { testProvider } from "@hamac/backend/testkit";
 import { createApp, type SignupMode } from "./app";
 
 type App = Awaited<ReturnType<typeof createApp>>;
+const SETUP = "code-installation-test";
 let current: App | null = null;
 afterEach(async () => {
   await current?.close();
@@ -11,7 +12,7 @@ afterEach(async () => {
 });
 
 async function server(signup: SignupMode = "invite", trustProxy = true) {
-  current = await createApp({ provider: testProvider(), dataDir: null, signup, secureCookies: false, trustProxy, staticDir: null, appVersion: "test", autoRefreshPrices: false });
+  current = await createApp({ provider: testProvider(), dataDir: null, signup, secureCookies: false, trustProxy, staticDir: null, appVersion: "test", autoRefreshPrices: false, setupCode: SETUP });
   await rawFor(await testProvider().session()).exec("TRUNCATE comptes.users, comptes.tenants, comptes.sessions, comptes.invites CASCADE");
   return current;
 }
@@ -23,7 +24,8 @@ function client(s: App, ipAddr = "1.1.1.1") {
     const res = await s.app.request(path, {
       method,
       headers: { "content-type": "application/json", "x-forwarded-for": ipAddr, ...(cookie ? { cookie } : {}), ...headers },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // Le premier compte de chaque instance de test utilise le code d'installation.
+      body: body === undefined ? undefined : JSON.stringify(path.endsWith("/signup") ? { invite: SETUP, ...(body as object) } : body),
     });
     const set = res.headers.get("set-cookie");
     if (set) cookie = set.split(";")[0].endsWith("=") ? "" : set.split(";")[0];
@@ -35,7 +37,7 @@ function client(s: App, ipAddr = "1.1.1.1") {
   };
 }
 
-const SIGNUP = { method: "POST", headers: { "content-type": "application/json", "x-hamac": "1" }, body: JSON.stringify({ email: "a@exemple.fr", password: "motdepasse-long" }) };
+const SIGNUP = { method: "POST", headers: { "content-type": "application/json", "x-hamac": "1" }, body: JSON.stringify({ email: "a@exemple.fr", password: "motdepasse-long", invite: SETUP }) };
 
 describe("HTTPS", () => {
   it("refuse le HTTP simple hors de cette machine, sauf autorisation explicite", async () => {
@@ -75,7 +77,16 @@ describe("HTTPS", () => {
 });
 
 describe("serveur web", () => {
-  it("premier compte sans invitation, puis invitation obligatoire et à usage unique", async () => {
+  it("le premier compte exige le code d'installation, valable une seule fois", async () => {
+    const s = await server("open");
+    expect((await client(s).req("POST", "/api/auth/signup", { email: "pirate@exemple.fr", password: "motdepasse-long", invite: "" })).status).toBe(403);
+    expect((await client(s, "2.2.2.2").req("POST", "/api/auth/signup", { email: "pirate@exemple.fr", password: "motdepasse-long", invite: "au-hasard" })).status).toBe(403);
+    expect(await s.users.count()).toBe(0);
+    expect((await client(s, "3.3.3.3").req("POST", "/api/auth/signup", { email: "admin@exemple.fr", password: "motdepasse-long" })).status).toBe(200);
+    expect((await s.users.list())[0]).toMatchObject({ email: "admin@exemple.fr", isAdmin: true });
+  });
+
+  it("premier compte avec son code, puis invitation obligatoire et à usage unique", async () => {
     const s = await server();
     const admin = client(s);
     expect((await admin.req("POST", "/api/auth/signup", { email: "admin@exemple.fr", password: "motdepasse-long" })).status).toBe(200);

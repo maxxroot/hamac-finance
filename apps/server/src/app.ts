@@ -1,10 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { Hono, type Context } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createBackend, SharedMarket, type Backend, type MarketConfig, type PgProvider } from "@hamac/backend";
-import { UserStore, type User } from "./users";
+import { sameSecret, UserStore, type User } from "./users";
 
 export type SignupMode = "invite" | "open" | "closed";
 
@@ -27,6 +28,8 @@ export interface ServerConfig {
   market?: Partial<MarketConfig>;
   /** Durée d'une session avant de devoir se reconnecter. */
   sessionDays?: number;
+  /** Code du premier compte ; aléatoire et écrit dans les journaux si absent. */
+  setupCode?: string;
   /** Perte de la connexion d'administration : sans elle, plus de comptes ni de sessions. */
   onAdminLost?: () => void;
 }
@@ -136,6 +139,10 @@ export async function createApp(cfg: ServerConfig) {
   const market = await SharedMarket.open(cfg.provider, undefined, cfg.onAdminLost, cfg.market);
   if (cfg.autoRefreshPrices) market.start(() => users.tenantIds());
   const pool = new BackendPool(cfg, market);
+  // Instance neuve : sans ce code, la première personne à atteindre le serveur en deviendrait l'administrateur.
+  const setupCode = cfg.setupCode ?? randomBytes(12).toString("base64url");
+  if (!cfg.setupCode && (await users.count()) === 0) console.log(`[hamac] Instance neuve. Code d'installation du compte administrateur : ${setupCode}`);
+  let installing = false;
   const limiter = new RateLimiter(10, 15 * 60_000);
   // Par compte visé : freine une attaque répartie sur plusieurs adresses.
   const accountLimiter = new RateLimiter(20, 15 * 60_000);
@@ -229,14 +236,21 @@ export async function createApp(cfg: ServerConfig) {
     const body = (await c.req.json().catch(() => ({}))) as { email?: string; password?: string; invite?: string };
     const email = (body.email ?? "").trim();
     const password = body.password ?? "";
-    // Le tout premier compte (l'administrateur de l'instance) n'a pas besoin d'invitation.
     const first = (await users.count()) === 0;
+    if (first && !sameSecret(body.invite ?? "", setupCode)) return c.json({ error: "Code d'installation invalide : il est affiché dans les journaux du serveur." }, 403);
     if (!first && cfg.signup === "closed") return c.json({ error: "Les inscriptions sont fermées sur cette instance." }, 403);
     if (!first && cfg.signup === "invite" && !(body.invite && (await users.inviteIsValid(body.invite)))) return c.json({ error: "Code d'invitation invalide ou expiré." }, 403);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return c.json({ error: "Adresse e-mail invalide." }, 400);
     if (password.length < MIN_PASSWORD) return c.json({ error: `Mot de passe trop court (${MIN_PASSWORD} caractères minimum).` }, 400);
     if (await users.findByEmail(email)) return c.json({ error: "Un compte existe déjà avec cette adresse." }, 409);
-    const user = await users.createUser(email, password);
+    if (first && installing) return c.json({ error: "Installation déjà en cours." }, 409);
+    installing = first;
+    let user: User;
+    try {
+      user = await users.createUser(email, password);
+    } finally {
+      if (first) installing = false;
+    }
     if (!first && cfg.signup === "invite") await users.useInvite(body.invite!, user.id);
     await startSession(c, user);
     return c.json({ email: user.email });

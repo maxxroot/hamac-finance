@@ -61,7 +61,7 @@ function Login({ onDone }: { onDone: (email: string) => void }) {
   };
 
   const canSignup = cfg && (cfg.firstUser || cfg.signup !== "closed");
-  const needInvite = cfg && !cfg.firstUser && cfg.signup === "invite";
+  const needInvite = cfg && (cfg.firstUser || cfg.signup === "invite");
 
   return (
     <div className="flex min-h-full items-center justify-center p-6">
@@ -89,7 +89,7 @@ function Login({ onDone }: { onDone: (email: string) => void }) {
             {(id) => <TextInput id={id} type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} required />}
           </Field>
           {mode === "signup" && needInvite && (
-            <Field label="Code d'invitation" help="Fourni par la personne qui gère cette instance.">
+            <Field label={cfg?.firstUser ? "Code d'installation" : "Code d'invitation"} help={cfg?.firstUser ? "Affiché dans les journaux du serveur : docker compose logs hamac" : "Fourni par la personne qui gère cette instance."}>
               {(id) => <TextInput id={id} value={invite} onChange={(e) => setInvite(e.target.value)} required className="font-mono" />}
             </Field>
           )}

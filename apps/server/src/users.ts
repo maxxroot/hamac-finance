@@ -22,6 +22,11 @@ function sha(s: string): string {
   return createHash("sha256").update(s).digest("base64url");
 }
 
+/** Comparaison à temps constant de deux secrets, quelles que soient leurs longueurs. */
+export function sameSecret(a: string, b: string): boolean {
+  return timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
+}
+
 type Row = { id: string; tenant_id: string; email: string; is_admin: boolean; created_at: string };
 const toUser = (r: Row): User => ({ id: r.id, tenantId: r.tenant_id, email: r.email, isAdmin: r.is_admin, createdAt: r.created_at });
 
