@@ -9,7 +9,7 @@ import { useMutate } from "@/lib/workspace";
 
 type LeaseDraft = Required<Omit<LeaseInput, "id">> & { id?: string };
 
-const emptyLease = (property: Property): LeaseDraft => ({ propertyId: property.id, kind: "vide", tenant: "", startDate: todayIso(), durationMonths: defaultLeaseMonths("vide", property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", guarantor: "", tenantInsuranceUntil: null });
+const emptyLease = (property: Property): LeaseDraft => ({ propertyId: property.id, kind: "vide", tenant: "", startDate: todayIso(), durationMonths: defaultLeaseMonths("vide", property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", guarantor: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "" });
 
 export function LeaseDialog({ open, property, lease, others, onClose }: { open: boolean; property: Property; lease: Lease | null; others: readonly Lease[]; onClose: () => void }) {
   const [d, setD] = useState<LeaseDraft>(() => emptyLease(property));
@@ -99,6 +99,27 @@ export function LeaseDialog({ open, property, lease, others, onClose }: { open: 
           <Field label="Garant (facultatif)">{(id) => <TextInput id={id} value={d.guarantor} onChange={(e) => update({ guarantor: e.target.value })} />}</Field>
           <Field label="Assurance du locataire valable jusqu'au">{(id) => <TextInput id={id} type="date" value={d.tenantInsuranceUntil ?? ""} onChange={(e) => update({ tenantInsuranceUntil: e.target.value || null })} />}</Field>
         </FormGrid>
+        <Field label="Adresse du propriétaire (facultative)" help="Imprimée sur le courrier de révision.">{(id) => <TextInput id={id} value={d.landlordAddress} onChange={(e) => update({ landlordAddress: e.target.value })} />}</Field>
+        {(d.kind === "vide" || d.kind === "meuble") && (
+          <FormGrid>
+            <div className="flex items-end pb-2">
+              <Checkbox checked={d.revisable} onChange={(v) => update({ revisable: v })} label="Le bail prévoit une révision annuelle du loyer" />
+            </div>
+            {d.revisable && (
+              <Field label="Trimestre de référence de l'indice" help="Indiqué dans le bail.">
+                {(id) => (
+                  <Select id={id} value={d.irlQuarter ?? ""} onChange={(e) => update({ irlQuarter: e.target.value ? Number(e.target.value) : null })}>
+                    <option value="">Dernier publié à la date du bail</option>
+                    <option value="1">1er trimestre</option>
+                    <option value="2">2e trimestre</option>
+                    <option value="3">3e trimestre</option>
+                    <option value="4">4e trimestre</option>
+                  </Select>
+                )}
+              </Field>
+            )}
+          </FormGrid>
+        )}
         <Checkbox checked={d.reminders} onChange={(v) => update({ reminders: v })} label="Me rappeler les échéances de ce bail, deux mois à l'avance" />
 
         {lease && (

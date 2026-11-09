@@ -285,7 +285,7 @@ export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "le
     if (current.lease.tenantInsuranceUntil != null && daysBetween(today, current.lease.tenantInsuranceUntil) <= DOCUMENT_ALERT_DAYS) {
       out.push({ id: `bail-assurance-${current.lease.id}`, level: "info", title: `${property.name} : attestation d'assurance du locataire à renouveler`, detail: `Valable jusqu'au ${frDate(current.lease.tenantInsuranceUntil)}.`, link });
     }
-    if (revision) out.push({ id: `bail-revision-${current.lease.id}`, level: "info", title: `${property.name} : révision annuelle du loyer au ${frDate(revision)}`, detail: "Si le bail le prévoit, calculez le nouveau loyer avec l'indice de référence des loyers.", link });
+    if (revision) out.push({ id: `bail-revision-${current.lease.id}`, level: "info", title: `${property.name} : révision annuelle du loyer au ${frDate(revision)}`, detail: "Le calcul d'après l'indice de l'INSEE et le courrier au locataire sont prêts dans l'onglet Location.", link: `${link}?onglet=location` });
     if (soon(current.end)) {
       out.push(
         current.status === "conge"

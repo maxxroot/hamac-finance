@@ -92,6 +92,13 @@
       "when": 1794234885796,
       "tag": "0012_breezy_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794236935286,
+      "tag": "0013_harsh_lightspeed",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { fetchIrl } from "./irl";
 import { describe, expect, it } from "vitest";
 import { defaultFetcher } from "./http";
 import { fetchFrom, fetchLongHistory, searchAssets } from "./index";
@@ -66,4 +67,15 @@ describe.skipIf(!live)("sources réelles", () => {
       console.warn("Yahoo indisponible :", (e as Error).message);
     }
   }, 30_000);
+});
+
+describe.runIf(process.env.HAMAC_LIVE)("indice des loyers de l'INSEE, en réel", () => {
+  it("trois zones, chacune avec un indice récent et sa date de publication", async () => {
+    const data = await fetchIrl(defaultFetcher, null, new Date().toISOString());
+    for (const zone of ["metropole", "corse", "outremer"] as const) {
+      const last = [...data.series[zone]].sort((a, b) => a.quarter.localeCompare(b.quarter)).at(-1)!;
+      expect(last.value).toBeGreaterThan(100);
+      expect(last.published).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  }, 40_000);
 });

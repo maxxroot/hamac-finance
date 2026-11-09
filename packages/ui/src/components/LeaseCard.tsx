@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { LEASE_KIND_LABELS, LEASE_STATUS_LABELS, currentLease, depositRetained, dpeFreezesRent, leaseState, type Lease, type LeaseRent, type LeaseState, type Property } from "@hamac/core";
+import { Link } from "react-router";
+import { LEASE_KIND_LABELS, LEASE_STATUS_LABELS, NO_IRL_DATA, currentLease, depositRetained, dpeFreezesRent, irlQuarterLabel, leaseState, pendingRevisionAnniversary, proposeRevision, type Lease, type LeaseRent, type LeaseState, type Property, type RevisionProposal } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine } from "@/components/DetailLine";
 import { RowActions } from "@/components/RowActions";
@@ -8,7 +10,9 @@ import { Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle } from "@/components/ui";
 import { LeaseDialog } from "@/dialogs/LeaseDialog";
 import { LeaseRentDialog } from "@/dialogs/LeaseRentDialog";
+import { RentRevisionDialog } from "@/dialogs/RentRevisionDialog";
 import { formatDate, formatMonth } from "@/lib/numbers";
+import { call } from "@/lib/transport";
 import { useMutate } from "@/lib/workspace";
 
 const describeLease = (l: Lease) => (l.tenant ? `${LEASE_KIND_LABELS[l.kind]} · ${l.tenant}` : LEASE_KIND_LABELS[l.kind]);
@@ -24,6 +28,13 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
   const previous = states.filter((s) => s !== current).sort((a, b) => b.lease.startDate.localeCompare(a.lease.startDate));
   const currentRents = current ? rents.filter((r) => r.leaseId === current.lease.id) : [];
   const editedId = editing && editing !== "new" ? editing.id : null;
+  const active = current?.status === "en_cours" || current?.status === "conge" ? current : null;
+  const due = active ? pendingRevisionAnniversary(active.lease, rents, today) : null;
+  const frozen = dpeFreezesRent(property.dpe);
+  // L'indice ne change que quatre fois par an : inutile de le redemander à chaque affichage.
+  const irl = useQuery({ queryKey: ["market.irl"], queryFn: () => call("market.irl"), enabled: due != null && !frozen, staleTime: 3_600_000 });
+  const proposal = active && due && !frozen && !irl.isLoading ? proposeRevision(active.lease, rents, irl.data ?? NO_IRL_DATA, property, today) : null;
+  const [revising, setRevising] = useState<RevisionProposal | null>(null);
 
   return (
     <Card>
@@ -63,6 +74,24 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
               )}
             </>
           )}
+          {due && frozen && <p className="mt-3 rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg-muted">Anniversaire du {formatDate(due)} : avec une note DPE F ou G, le loyer ne peut pas être révisé.</p>}
+          {proposal && (
+            <div className="mt-3 rounded-lg bg-surface-2 px-3 py-2.5">
+              <div className="text-sm font-medium">Révision du loyer au {formatDate(proposal.anniversary)}</div>
+              <p className="mt-0.5 text-sm text-fg-muted">
+                {proposal.newRent != null ? (
+                  <>
+                    <Amount value={proposal.previousRent} /> → <b className="text-fg"><Amount value={proposal.newRent} /></b>, d'après l'indice du {irlQuarterLabel(proposal.quarterNew)}.
+                  </>
+                ) : (
+                  <>L'indice du {irlQuarterLabel(proposal.quarterNew)} n'est pas encore connu : vous pourrez le saisir.</>
+                )}
+              </p>
+              <Button className="mt-2 h-8" variant="primary" onClick={() => setRevising(proposal)}>
+                Réviser le loyer
+              </Button>
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button className="h-8" onClick={() => setEditing(current.lease)}>
               Modifier ou donner congé
@@ -80,6 +109,11 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
               {currentRents.map((r) => (
                 <DetailLine key={r.id} label={`À partir de ${formatMonth(r.fromMonth)}`}>
                   <span className="inline-flex items-center gap-2">
+                    {r.revision && (
+                      <Link className="text-xs text-fg-muted underline hover:text-fg" to={`/impression/revision/${r.id}`} target="_blank" rel="noopener" aria-label={`Courrier de révision de ${formatMonth(r.fromMonth)}`}>
+                        Courrier
+                      </Link>
+                    )}
                     <Amount value={r.rent} />
                     <button className="rounded p-1 text-fg-muted hover:bg-surface-3 hover:text-fg" aria-label={`Supprimer le loyer de ${formatMonth(r.fromMonth)}`} onClick={() => deleteRent.mutate({ id: r.id })}>
                       <Trash2 size={13} />
@@ -117,6 +151,7 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
         </div>
       )}
       <LeaseDialog open={editing !== null} property={property} lease={editing === "new" ? null : editing} others={leases.filter((l) => l.id !== editedId)} onClose={() => setEditing(null)} />
+      {active && <RentRevisionDialog proposal={revising} lease={active.lease} onClose={() => setRevising(null)} />}
       <LeaseRentDialog state={newRent} frozen={dpeFreezesRent(property.dpe)} onClose={() => setNewRent(null)} />
     </Card>
   );

@@ -239,10 +239,15 @@ export const LeaseInput = z
     landlord: text(120).default(""),
     guarantor: text(120).default(""),
     tenantInsuranceUntil: isoDate.nullable().default(null),
+    revisable: z.boolean().default(true),
+    irlQuarter: z.number().int().min(1).max(4).nullable().default(null),
+    landlordAddress: text(300).default(""),
   })
   .refine((l) => (l.noticeBy == null) === (l.noticeDate == null), { path: ["noticeDate"], message: "Indiquez qui donne congé et à quelle date." })
   .refine((l) => (l.depositReturned == null) === (l.depositReturnedOn == null), { path: ["depositReturnedOn"], message: "Indiquez le montant rendu et sa date." });
 export type LeaseInput = z.input<typeof LeaseInput>;
+
+const quarter = z.string().regex(/^\d{4}-Q[1-4]$/, "Trimestre invalide");
 
 export const LeaseRentInput = z.object({
   id: id.optional(),
@@ -250,6 +255,10 @@ export const LeaseRentInput = z.object({
   fromMonth: month,
   rent: money.min(0),
   charges: money.min(0).default(0),
+  revision: z
+    .object({ anniversary: isoDate, demandDate: isoDate, previousRent: money.positive(), quarterNew: quarter, quarterOld: quarter, indexNew: z.number().positive(), indexOld: z.number().positive() })
+    .nullable()
+    .default(null),
 });
 export type LeaseRentInput = z.input<typeof LeaseRentInput>;
 

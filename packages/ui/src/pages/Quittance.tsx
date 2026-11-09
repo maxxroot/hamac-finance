@@ -23,6 +23,7 @@ export function Quittance() {
     <PrintPage>
       <h1 className="mb-1 text-xl font-semibold">{receipt.kind === "quittance" ? "Quittance de loyer" : "Reçu de paiement partiel"}</h1>
       <p className="mb-5 text-neutral-600">Période : {period}</p>
+      {lease.landlordAddress && <p className="mb-5 whitespace-pre-line">{lease.landlord}{"\n"}{lease.landlordAddress}</p>}
       <PrintSection title="Logement">
         <p>{place}</p>
       </PrintSection>

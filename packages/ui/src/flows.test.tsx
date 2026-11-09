@@ -19,6 +19,7 @@ import { makeXlsx } from "@/lib/xlsx.fixture";
 import { ToastProvider } from "@/lib/toast";
 import { useWorkspaceIndex } from "@/lib/workspace";
 import { Bien } from "@/pages/Bien";
+import { CourrierRevision } from "@/pages/CourrierRevision";
 import { Credits } from "@/pages/Credits";
 import { ImpressionBien } from "@/pages/ImpressionBien";
 import { Quittance } from "@/pages/Quittance";
@@ -67,9 +68,12 @@ function show(ui: ReactNode, path = "/") {
 
 beforeEach(async () => {
   h.backend = await testBackend();
+  // Aucun service externe pendant les parcours : l'indice INSEE reste à saisir.
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503 })));
 });
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   h.backend.close();
 });
 
@@ -330,6 +334,47 @@ describe("parcours de l'interface", () => {
     expect((screen.getByRole("button", { name: "Ajouter" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(fieldOf("Début du bail"), { target: { value: "2026-03-01" } });
     expect(await screen.findByText(/se reconduit automatiquement/)).toBeTruthy();
+  });
+
+  it("révision du loyer : indices saisis, loyer calculé, courrier avec le détail", async () => {
+    const user = userEvent.setup();
+    const today = new Date();
+    const y = today.getFullYear();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const debut = `${y - 2}-${pad(today.getMonth() + 1)}-01`;
+    const bien = await rpc<Property>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000, postalCode: "69001", city: "Ville fictive" });
+    const bail = await rpc<{ id: string }>("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: debut, durationMonths: 36, rent: 800, charges: 50, tenant: "Locataire fictif", landlord: "Propriétaire fictif", irlQuarter: 2 });
+    show(
+      <Routes>
+        <Route path="/immobilier/:id" element={<Bien />} />
+        <Route path="/impression/revision/:rentId" element={<CourrierRevision />} />
+      </Routes>,
+      `/immobilier/${bien.id}?onglet=location`,
+    );
+    await user.click(await screen.findByRole("button", { name: "Réviser le loyer" }));
+    const dialog = await screen.findByRole("dialog", { name: "Révision annuelle du loyer" });
+    expect((within(dialog).getByRole("button", { name: "Appliquer la révision" }) as HTMLButtonElement).disabled).toBe(true);
+    const [nouveau, ancien] = within(dialog).getAllByLabelText(/^Indice du/) as HTMLInputElement[];
+    await user.clear(nouveau);
+    await user.type(nouveau, "148,37");
+    await user.tab();
+    await user.clear(ancien);
+    await user.type(ancien, "146,68");
+    await user.tab();
+    await user.click(within(dialog).getByRole("button", { name: "Appliquer la révision" }));
+    await waitFor(async () => expect((await rpc<{ leaseRents: unknown[] }>("workspace.load")).leaseRents).toMatchObject([{ leaseId: bail.id, rent: 809.22, charges: 50, revision: { indexNew: 148.37, indexOld: 146.68, previousRent: 800 } }]));
+    const { leaseRents } = await rpc<{ leaseRents: Array<{ id: string }> }>("workspace.load");
+    cleanup();
+    show(
+      <Routes>
+        <Route path="/impression/revision/:rentId" element={<CourrierRevision />} />
+      </Routes>,
+      `/impression/revision/${leaseRents[0].id}`,
+    );
+    expect(await screen.findByRole("heading", { name: "Objet : révision annuelle du loyer" })).toBeTruthy();
+    expect(screen.getByText("Variation de l'indice sur un an")).toBeTruthy();
+    expect(screen.getByText("Propriétaire fictif")).toBeTruthy();
+    expect(screen.getByText("Locataire fictif")).toBeTruthy();
   });
 
   it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {

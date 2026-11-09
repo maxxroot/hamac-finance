@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from "drizzle-orm";
 import { one } from "./db/driver";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionError, addMonth, dayOfMonth, monthOf, loanHasProperty, uniqueAccountConflict, validateLease, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, type EnergyLetter, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -570,6 +570,9 @@ export const handlers: Handlers = {
       landlord: input.landlord,
       guarantor: input.guarantor,
       tenantInsuranceUntil: input.tenantInsuranceUntil,
+      revisable: input.revisable,
+      irlQuarter: input.irlQuarter,
+      landlordAddress: input.landlordAddress,
       updatedAt: nowIso(),
     };
     if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));
@@ -585,9 +588,31 @@ export const handlers: Handlers = {
   async "leaseRents.upsert"(input, ctx) {
     const lease = await ctx.db.select().from(t.leases).where(eq(t.leases.id, input.leaseId)).limit(1).then(one);
     if (!lease) throw new RpcError("NOT_FOUND", "Bail introuvable.");
-    if (input.fromMonth <= lease.startDate.slice(0, 7)) throw new RpcError("VALIDATION", "Un nouveau loyer s'applique après le premier mois du bail. Pour corriger le loyer de départ, modifiez le bail.");
+    const r = input.revision;
+    if (r) {
+      const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, lease.propertyId)).limit(1).then(one);
+      if (!leaseCanBeRevised(mapLease(lease))) throw new RpcError("CONFLICT", "Ce bail ne prévoit pas de révision annuelle.");
+      if (dpeFreezesRent((property?.dpe ?? null) as EnergyLetter | null)) throw new RpcError("CONFLICT", "Avec une note DPE F ou G, le loyer ne peut pas être révisé.");
+      if (!revisionStillPossible(r.anniversary, r.demandDate)) throw new RpcError("VALIDATION", "Plus d'un an après l'anniversaire : la révision de cette année n'est plus possible.");
+      if (input.rent > revisedRent(r.previousRent, r.indexOld, r.indexNew)) throw new RpcError("VALIDATION", "Le nouveau loyer dépasse la variation de l'indice.");
+    }
+    // Une révision prend effet à sa demande, jamais avant l'anniversaire.
+    const fromMonth = r ? revisionEffectiveDate(r.anniversary, r.demandDate).slice(0, 7) : input.fromMonth;
+    if (fromMonth <= lease.startDate.slice(0, 7)) throw new RpcError("VALIDATION", "Un nouveau loyer s'applique après le premier mois du bail. Pour corriger le loyer de départ, modifiez le bail.");
     const id = input.id ?? newId();
-    const set = { fromMonth: input.fromMonth, rentCents: toCents(input.rent), chargesCents: toCents(input.charges), updatedAt: nowIso() };
+    const set = {
+      fromMonth,
+      rentCents: toCents(input.rent),
+      chargesCents: toCents(input.charges),
+      revisionAnniversary: r?.anniversary ?? null,
+      revisionDemandDate: r?.demandDate ?? null,
+      revisionPreviousRentCents: r ? toCents(r.previousRent) : null,
+      revisionQuarterNew: r?.quarterNew ?? null,
+      revisionQuarterOld: r?.quarterOld ?? null,
+      revisionIndexNew: r?.indexNew ?? null,
+      revisionIndexOld: r?.indexOld ?? null,
+      updatedAt: nowIso(),
+    };
     const saved = await ctx.db
       .insert(t.leaseRents)
       .values({ id, leaseId: input.leaseId, ...set })
@@ -806,6 +831,10 @@ export const handlers: Handlers = {
 
   async "assets.search"({ query }, ctx) {
     return searchAssets(ctx.fetcher, query);
+  },
+
+  async "market.irl"(_input, ctx) {
+    return ctx.market.irl();
   },
 
   async "market.series"(input, ctx) {

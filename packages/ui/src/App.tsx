@@ -5,6 +5,7 @@ import { Shell } from "@/layout/Shell";
 import { ALL_ITEMS } from "@/nav";
 import { Actions } from "@/pages/Actions";
 import { Bien } from "@/pages/Bien";
+import { CourrierRevision } from "@/pages/CourrierRevision";
 import { Credits } from "@/pages/Credits";
 import { Crowdlending } from "@/pages/Crowdlending";
 import { Crypto } from "@/pages/Crypto";
@@ -68,6 +69,7 @@ const router = createHashRouter([
   // Pages à imprimer : sans menu ni fond sombre.
   { path: "/impression/bien/:id", element: <ImpressionBien />, errorElement: <RouteError /> },
   { path: "/impression/quittance/:leaseId/:month", element: <Quittance />, errorElement: <RouteError /> },
+  { path: "/impression/revision/:rentId", element: <CourrierRevision />, errorElement: <RouteError /> },
 ]);
 
 export function App() {

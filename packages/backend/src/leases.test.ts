@@ -169,3 +169,51 @@ describe("sortie du locataire et autres recettes", () => {
     expect((await data()).propertyIncomes).toEqual([]);
   });
 });
+
+describe("révision du loyer", () => {
+  const revision = { anniversary: "2026-01-15", demandDate: "2026-01-02", previousRent: 800, quarterNew: "2025-Q2", quarterOld: "2024-Q2", indexNew: 146.68, indexOld: 145.17 };
+  const input = (leaseId: string, extra: object = {}) => ({ leaseId, fromMonth: "2026-01", rent: 808.32, charges: 50, revision, ...extra });
+  const start = async (b: Backend, kind = "vide", bail: object = {}) => {
+    const propertyId = await newProperty(b);
+    return (await call<{ id: string }>(b, "leases.upsert", { ...lease(propertyId), kind, ...bail })).id;
+  };
+
+  it("enregistre le détail, à l'anniversaire si la demande est antérieure", async () => {
+    backend = await testBackend();
+    const leaseId = await start(backend);
+    await call(backend, "leaseRents.upsert", input(leaseId));
+    expect((await ws(backend)).leaseRents).toMatchObject([{ fromMonth: "2026-01", rent: 808.32, revision }]);
+  });
+
+  it("une demande tardive prend effet à sa date, même si le mois envoyé est antérieur", async () => {
+    backend = await testBackend();
+    const leaseId = await start(backend);
+    await call(backend, "leaseRents.upsert", input(leaseId, { revision: { ...revision, demandDate: "2026-04-10" } }));
+    expect((await ws(backend)).leaseRents).toMatchObject([{ fromMonth: "2026-04" }]);
+  });
+
+  it("refuse plus que la variation de l'indice, une demande après un an, un bail sans clause", async () => {
+    backend = await testBackend();
+    const leaseId = await start(backend);
+    await expect(call(backend, "leaseRents.upsert", input(leaseId, { rent: 900 }))).rejects.toThrow("dépasse");
+    await expect(call(backend, "leaseRents.upsert", input(leaseId, { revision: { ...revision, demandDate: "2027-02-01" } }))).rejects.toThrow("plus possible");
+    await expect(call(backend, "leaseRents.upsert", input(await start(backend, "vide", { revisable: false })))).rejects.toThrow("ne prévoit pas");
+  });
+
+  it("refuse une note DPE F ou G", async () => {
+    backend = await testBackend();
+    const propertyId = (await call<{ id: string }>(backend, "properties.upsert", { kind: "locatif", name: "Passoire", value: 1, dpe: "F" })).id;
+    const { id } = await call<{ id: string }>(backend, "leases.upsert", lease(propertyId));
+    await expect(call(backend, "leaseRents.upsert", input(id))).rejects.toThrow("F ou G");
+  });
+
+  it("un loyer saisi à la main reste sans détail, dans les sauvegardes aussi", async () => {
+    backend = await testBackend();
+    const leaseId = await start(backend);
+    await call(backend, "leaseRents.upsert", input(leaseId));
+    await call(backend, "leaseRents.upsert", { leaseId, fromMonth: "2025-06", rent: 790 });
+    const dump = await call(backend, "data.export");
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await ws(backend)).leaseRents).toMatchObject([{ fromMonth: "2025-06", revision: null }, { fromMonth: "2026-01", revision }]);
+  });
+});

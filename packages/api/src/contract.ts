@@ -10,6 +10,7 @@ import type {
   ContributionSkip,
   FundRate,
   CrowdProject,
+  IrlData,
   Lease,
   LeaseRent,
   Loan,
@@ -251,6 +252,7 @@ export const procedures = {
 
   "prices.refresh": { input: z.void(), output: entity<PriceStatus>() },
   "market.settings": { input: z.void(), output: entity<MarketSettings>() },
+  "market.irl": { input: z.void(), output: entity<IrlData>() },
   "market.configure": {
     input: z.object({
       order: z.array(z.object({ id: z.enum(PRICE_PROVIDERS), enabled: z.boolean() })),

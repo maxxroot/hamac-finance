@@ -1,3 +1,5 @@
+import { NO_IRL_DATA, type IrlData } from "@hamac/core";
+import { fetchIrl } from "./irl";
 import { addMonths, type PriceProvider } from "@hamac/core";
 import type { PgProvider, PgSession, RawDb } from "../db/driver";
 import { rawFor, tenantNames } from "../db/postgres";
@@ -66,7 +68,11 @@ const asAsset = (r: Pick<Row, "kind" | "isin" | "symbol" | "priceProvider">): Ma
  * droit SQL : seul ce service y lit et y écrit. La clé Twelve Data ne vient que de l'environnement du serveur :
  * elle n'est ni stockée en base, ni transmise à l'interface.
  */
+const IRL_MAX_AGE_MS = 24 * 3_600_000;
+const IRL_RETRY_MS = 15 * 60_000;
+
 export class SharedMarket {
+  private irlFailedAt = 0;
   private inFlight = new Map<string, Promise<boolean>>();
   private seriesInFlight = new Map<string, Promise<StoredSeries>>();
   private seriesFailures = new Map<string, { at: number; message: string }>();
@@ -229,6 +235,21 @@ export class SharedMarket {
    * Historique long d'un titre, à la demande, sans passer par le portefeuille. Conservé à part des cours
    * qui valorisent les positions : il peut inclure les dividendes. Twelve Data en est exclu pour préserver son quota.
    */
+  /** Indice des loyers de l'INSEE : relu au plus une fois par jour pour toute l'instance, valeurs connues si l'INSEE ne répond pas. */
+  async irl(): Promise<IrlData> {
+    const cached = await this.read<IrlData>("irl");
+    const fresh = cached?.checkedAt != null && Date.now() - Date.parse(cached.checkedAt) < IRL_MAX_AGE_MS;
+    if (fresh || Date.now() - this.irlFailedAt < IRL_RETRY_MS) return cached ?? NO_IRL_DATA;
+    try {
+      const data = await fetchIrl(this.fetcher, cached, new Date().toISOString());
+      await this.write("irl", data);
+      return data;
+    } catch {
+      this.irlFailedAt = Date.now();
+      return cached ?? NO_IRL_DATA;
+    }
+  }
+
   async series(asset: SeriesAsset): Promise<StoredSeries> {
     const key = [asset.kind, (asset.isin ?? "").toUpperCase(), (asset.symbol ?? "").toUpperCase()].join("|");
     let run = this.seriesInFlight.get(key);

@@ -71,7 +71,7 @@ en la fiabilisant.
 - **Crypto** : positions, plus-values de chaque cession et impôt de l'année.
 - **Crowdlending** : prêts projet par projet, intérêts déclarés par mois et par plateforme, paiements
   partiels, échéances prolongées, retards et défauts, import du fichier Bricks.
-- **Immobilier et SCPI** : biens, fiche descriptive et DPE, statut, frais d'achat et part détenue, pour obtenir le patrimoine net ; suivi locatif avec bail, rappels, loyers, dépenses et rentabilité, résultats par année, valeur dans le temps, vente, documents, quittances et fiche imprimable.
+- **Immobilier et SCPI** : biens, fiche descriptive et DPE, statut, frais d'achat et part détenue, pour obtenir le patrimoine net ; suivi locatif avec bail, rappels, loyers, dépenses et rentabilité, résultats par année, valeur dans le temps, vente, documents, quittances, révision du loyer selon l'indice INSEE avec courrier, et fiche imprimable.
 - **Crédits** immobiliers, travaux, consommation ou auto, avec différé et remboursements anticipés : échéance et capital restant dû calculés ou repris
   d'un relevé, assurance en montant fixe ou en taux (capital emprunté ou restant dû), coût année par année.
 

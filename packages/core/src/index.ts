@@ -4,6 +4,7 @@ export * from "./domain";
 export * from "./params";
 export * from "./realestate";
 export * from "./leases";
+export * from "./irl";
 export * from "./energy";
 export * from "./rental";
 export * from "./crowdlending";

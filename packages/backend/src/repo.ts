@@ -263,6 +263,9 @@ export const mapLease = (r: typeof t.leases.$inferSelect): Lease => ({
   landlord: r.landlord,
   guarantor: r.guarantor,
   tenantInsuranceUntil: r.tenantInsuranceUntil,
+  revisable: r.revisable,
+  irlQuarter: r.irlQuarter,
+  landlordAddress: r.landlordAddress,
 });
 
 export const mapLeaseRent = (r: typeof t.leaseRents.$inferSelect): LeaseRent => ({
@@ -271,6 +274,10 @@ export const mapLeaseRent = (r: typeof t.leaseRents.$inferSelect): LeaseRent => 
   fromMonth: r.fromMonth,
   rent: fromCents(r.rentCents),
   charges: fromCents(r.chargesCents),
+  revision:
+    r.revisionAnniversary == null
+      ? null
+      : { anniversary: r.revisionAnniversary, demandDate: r.revisionDemandDate!, previousRent: fromCents(r.revisionPreviousRentCents!), quarterNew: r.revisionQuarterNew!, quarterOld: r.revisionQuarterOld!, indexNew: r.revisionIndexNew!, indexOld: r.revisionIndexOld! },
 });
 
 export const mapRentException = (r: typeof t.rentExceptions.$inferSelect): RentException => ({

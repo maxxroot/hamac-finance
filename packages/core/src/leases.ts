@@ -107,6 +107,11 @@ export interface Lease {
   guarantor: string;
   /** Fin de validité de l'attestation d'assurance du locataire. */
   tenantInsuranceUntil: string | null;
+  /** Le bail contient une clause de révision annuelle. */
+  revisable: boolean;
+  /** Trimestre de référence de l'indice (1 à 4) ; null = celui du dernier indice publié à la date du bail. */
+  irlQuarter: number | null;
+  landlordAddress: string;
 }
 
 /** Nouveau loyer (révision annuelle…), en vigueur à partir d'un mois. */
@@ -117,6 +122,19 @@ export interface LeaseRent {
   fromMonth: string;
   rent: number;
   charges: number;
+  /** Détail de la révision annuelle qui a donné ce loyer ; absent pour un loyer saisi à la main. */
+  revision?: LeaseRevision | null;
+}
+
+export interface LeaseRevision {
+  anniversary: string;
+  demandDate: string;
+  previousRent: number;
+  /** AAAA-Qn */
+  quarterNew: string;
+  quarterOld: string;
+  indexNew: number;
+  indexOld: number;
 }
 
 type LeaseDates = Pick<Lease, "kind" | "startDate" | "durationMonths" | "noticeBy" | "noticeDate" | "noticeMonths" | "actualEnd">;
@@ -291,8 +309,8 @@ export const depositRetained = (lease: Pick<Lease, "deposit" | "depositReturned"
 const RENT_REVISION_ALERT_DAYS = 30;
 
 /** Date anniversaire du bail si une révision de loyer est à faire autour de `today` ; null s'il n'y en a pas, ou si le loyer vient de changer. */
-export function leaseRevisionDue(lease: Pick<Lease, "id" | "kind" | "startDate">, rents: readonly LeaseRent[], today: string): string | null {
-  if (lease.kind !== "vide" && lease.kind !== "meuble") return null;
+export function leaseRevisionDue(lease: Pick<Lease, "id" | "kind" | "startDate" | "revisable">, rents: readonly LeaseRent[], today: string): string | null {
+  if (!lease.revisable || (lease.kind !== "vide" && lease.kind !== "meuble")) return null;
   for (let n = 1; ; n++) {
     const anniversary = addMonths(lease.startDate, 12 * n);
     const days = daysBetween(today, anniversary);
