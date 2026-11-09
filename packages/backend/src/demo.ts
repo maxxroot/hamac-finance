@@ -68,7 +68,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
     await call("accountRates.set", { accountId: id, fromDate: `${y}-02-01`, rate });
   }
 
-  const appartement = await call("properties.upsert", { kind: "residence_principale", name: "Appartement (fictif)", value: 180_000, valueDate: `${y}-01-15`, purchasePrice: 160_000, purchaseDate: `${y - 3}-02-01` });
+  const appartement = await call("properties.upsert", { kind: "residence_principale", name: "Appartement (fictif)", value: 180_000, valueDate: `${y}-01-15`, purchasePrice: 160_000, purchaseDate: `${y - 3}-02-01`, notaryFees: 12_000 });
   await call("loans.upsert", { kind: "consommation", name: "Crédit voiture d'occasion (fictif)", principal: 9_000, rate: 0.049, termMonths: 48, firstPayment: `${y - 1}-04-10` });
   await call("loans.upsert", { kind: "immobilier", name: "Prêt immobilier (fictif)", propertyId: appartement.id, principal: 140_000, rate: 0.025, termMonths: 240, firstPayment: `${y - 3}-03-05`, insurance: 25 });
 

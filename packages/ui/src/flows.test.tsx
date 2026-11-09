@@ -2,18 +2,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testBackend } from "@hamac/backend/testkit";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
 import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { LoanDialog } from "@/dialogs/LoanDialog";
+import { PropertyDialog } from "@/dialogs/PropertyDialog";
 import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
 import { TransactionDialog } from "@/dialogs/TransactionDialog";
 import { makeXlsx } from "@/lib/xlsx.fixture";
 import { ToastProvider } from "@/lib/toast";
 import { useWorkspaceIndex } from "@/lib/workspace";
+import { Bien } from "@/pages/Bien";
 import { Crowdlending } from "@/pages/Crowdlending";
 import { Notice, NOTICE_PLAN } from "@/pages/Notice";
 import { Declaration } from "@/pages/Declaration";
@@ -39,18 +41,19 @@ async function rpc<T = unknown>(name: string, input?: unknown): Promise<T> {
 interface Ws {
   params: Record<string, never> & { profile: { goal: string }; customClasses: unknown[] };
   transactions: Array<{ type: string; amount: number }>;
-  loans: Array<{ kind: string; name: string; propertyId: string | null; principal: number }>;
+  loans: Array<{ kind: string; name: string; propertyId: string | null; principal: number; share: number }>;
+  properties: Array<{ kind: string; ownership: string; name: string; purchasePrice: number | null; newBuild: boolean; notaryFees: number }>;
   plans: Array<{ accountId: string; amount: number }>;
   assets: Array<{ id: string; inAllocation: boolean | null }>;
 }
 const workspace = () => rpc<Ws>("workspace.load");
 
-function show(ui: ReactNode) {
+function show(ui: ReactNode, path = "/") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <MemoryRouter>{ui}</MemoryRouter>
+        <MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -176,6 +179,72 @@ describe("parcours de l'interface", () => {
     await user.click(screen.getByRole("button", { name: "Ajouter" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect((await workspace()).loans).toMatchObject([{ kind: "consommation", name: "Voiture", propertyId: null, principal: 9000 }]);
+  });
+
+  it("crédit remboursé à deux : la part à charge est enregistrée", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    show(<LoanDialog open loan={null} properties={[]} onClose={onClose} />);
+    await user.type(fieldOf("Nom"), "Prêt commun");
+    const amount = fieldOf("Montant emprunté");
+    await user.clear(amount);
+    await user.type(amount, "100000");
+    await user.tab();
+    const share = fieldOf("Part à ma charge");
+    await user.clear(share);
+    await user.type(share, "50");
+    await user.tab();
+    expect(screen.getByText(/À votre charge/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect((await workspace()).loans).toMatchObject([{ name: "Prêt commun", principal: 100_000, share: 0.5 }]);
+  });
+
+  it("fiche d'un bien : utilisation, statut, achat et crédit rattaché ; bien inconnu signalé", async () => {
+    const bien = await rpc<{ id: string }>("properties.upsert", { kind: "locatif", ownership: "sci_familiale", name: "Studio", value: 200_000, purchasePrice: 100_000, notaryFees: 8000, share: 0.5 });
+    await rpc("loans.upsert", { name: "Prêt studio", propertyId: bien.id, principal: 50_000, rate: 0, termMonths: 100, firstPayment: "2026-01-05", share: 0.5 });
+    const routes = (
+      <Routes>
+        <Route path="/immobilier/:id" element={<Bien />} />
+      </Routes>
+    );
+    const first = show(routes, `/immobilier/${bien.id}`);
+    expect(await screen.findByRole("heading", { name: "Studio" })).toBeTruthy();
+    expect(screen.getByText(/Investissement locatif · SCI familiale/)).toBeTruthy();
+    expect(screen.getByText("Coût d'achat complet")).toBeTruthy();
+    expect(screen.getByText("Prêt studio")).toBeTruthy();
+    first.unmount();
+    show(routes, "/immobilier/inconnu");
+    expect(await screen.findByRole("heading", { name: "Bien introuvable" })).toBeTruthy();
+  });
+
+  it("nouveau bien : utilisation, statut et frais d'achat, avec le coût complet affiché", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    show(<PropertyDialog open property={null} onClose={onClose} />);
+    await user.type(fieldOf("Nom"), "Studio");
+    await user.selectOptions(fieldOf("Utilisation"), "locatif");
+    await user.selectOptions(fieldOf("Statut"), "indivision");
+    const price = fieldOf("Prix d'achat (facultatif)");
+    await user.clear(price);
+    await user.type(price, "100000");
+    await user.tab();
+    const notary = fieldOf("Frais de notaire");
+    await waitFor(() => expect(notary.value).toMatch(/\d/));
+    const ancien = notary.value;
+    await user.selectOptions(fieldOf("État à l'achat"), "neuf");
+    await waitFor(() => expect(notary.value).not.toBe(ancien));
+    await user.clear(notary);
+    await user.type(notary, "8000");
+    await user.tab();
+    // Une fois saisi, le montant ne suit plus l'estimation.
+    await user.selectOptions(fieldOf("État à l'achat"), "ancien");
+    await user.selectOptions(fieldOf("État à l'achat"), "neuf");
+    expect(screen.getByRole("button", { name: "Reprendre l'estimation" })).toBeTruthy();
+    expect(screen.getByText(/Coût d'achat complet/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect((await workspace()).properties).toMatchObject([{ kind: "locatif", ownership: "indivision", name: "Studio", purchasePrice: 100_000, newBuild: true, notaryFees: 8000 }]);
   });
 
   it("allocation personnalisée : part à zéro refusée, ligne valide transmise", async () => {

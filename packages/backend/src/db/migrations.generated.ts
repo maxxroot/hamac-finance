@@ -19,5 +19,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0004_vengeful_black_tom",
     "sql": "CREATE TABLE \"tax_statement_amounts\" (\n\t\"institution_id\" text NOT NULL,\n\t\"year\" bigint NOT NULL,\n\t\"box\" text NOT NULL,\n\t\"amount_cents\" bigint NOT NULL,\n\t\"created_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\t\"updated_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\tCONSTRAINT \"tax_statement_amounts_institution_id_year_box_pk\" PRIMARY KEY(\"institution_id\",\"year\",\"box\")\n);\n--> statement-breakpoint\nALTER TABLE \"tax_statement_amounts\" ADD CONSTRAINT \"tax_statement_amounts_institution_id_institutions_id_fk\" FOREIGN KEY (\"institution_id\") REFERENCES \"institutions\"(\"id\") ON DELETE cascade ON UPDATE no action;"
+  },
+  {
+    "tag": "0005_hard_doctor_octopus",
+    "sql": "ALTER TABLE \"loans\" ADD COLUMN \"share\" double precision DEFAULT 1 NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"ownership\" text DEFAULT 'nom_propre' NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"new_build\" boolean DEFAULT false NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"notary_fees_cents\" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"agency_fees_cents\" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"initial_works_cents\" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"other_fees_cents\" bigint DEFAULT 0 NOT NULL;"
   }
 ];

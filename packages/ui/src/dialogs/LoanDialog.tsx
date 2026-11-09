@@ -9,7 +9,7 @@ import { useMutate } from "@/lib/workspace";
 
 type LoanDraft = Required<Omit<LoanInput, "id">> & { id?: string };
 
-const emptyLoan = (): LoanDraft => ({ kind: "immobilier", name: "", propertyId: null, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insuranceMode: "montant", insurance: 0, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false });
+const emptyLoan = (): LoanDraft => ({ kind: "immobilier", name: "", propertyId: null, share: 1, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insuranceMode: "montant", insurance: 0, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false });
 
 export function LoanDialog({ open, loan, properties, onClose }: { open: boolean; loan: Loan | null; properties: readonly Property[]; onClose: () => void }) {
   const [d, setD] = useState<LoanDraft>(emptyLoan());
@@ -19,7 +19,7 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
   }, [open, loan]);
   const set = <K extends keyof LoanDraft>(k: K, v: LoanDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const balanceIncomplete = (d.manualBalance == null) !== (d.manualBalanceDate == null);
-  const valid = d.name.trim() && d.principal > 0 && d.termMonths >= 1 && d.firstPayment && !balanceIncomplete;
+  const valid = d.name.trim() && d.principal > 0 && d.termMonths >= 1 && d.firstPayment && !balanceIncomplete && d.share > 0 && d.share <= 1;
   const preview = valid ? loanState({ ...d, id: d.id ?? "apercu" }, todayIso()) : null;
   return (
     <Modal
@@ -92,6 +92,9 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
             </Field>
           )}
         </FormGrid>
+        <FormGrid cols={3}>
+          <Field label="Part à ma charge" help="50 % si le montant saisi est le crédit entier, remboursé à deux.">{(id) => <PercentInput id={id} value={d.share} onChange={(v) => set("share", v ?? 0)} />}</Field>
+        </FormGrid>
 
         <div>
           <div className="mb-2 text-xs font-medium text-fg-muted">Saisie manuelle (facultative), d'après un relevé de la banque</div>
@@ -105,6 +108,11 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
         {preview && (
           <p className="text-sm text-fg-muted">
             Échéance <b className="text-fg"><Amount value={preview.payment} /></b> + assurance <b className="text-fg"><Amount value={preview.insurance} /></b> ce mois-ci, capital restant dû aujourd'hui <b className="text-fg"><Amount value={preview.balance} /></b>, dernière échéance le {formatDate(preview.endDate)}. Coût total : <b className="text-fg"><Amount value={preview.totalInterest + preview.totalInsurance} /></b>, dont <Amount value={preview.totalInterest} /> d'intérêts et <Amount value={preview.totalInsurance} /> d'assurance.
+            {d.share < 1 && (
+              <>
+                {" "}À votre charge : <b className="text-fg"><Amount value={preview.heldMonthly} /></b> par mois et <b className="text-fg"><Amount value={preview.heldBalance} /></b> de capital restant dû.
+              </>
+            )}
           </p>
         )}
         {loan && <Checkbox checked={d.archived} onChange={(v) => set("archived", v)} label="Archivé (soldé : ne compte plus dans le patrimoine)" />}

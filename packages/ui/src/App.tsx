@@ -4,6 +4,7 @@ import { RouteError } from "@/layout/RouteError";
 import { Shell } from "@/layout/Shell";
 import { ALL_ITEMS } from "@/nav";
 import { Actions } from "@/pages/Actions";
+import { Bien } from "@/pages/Bien";
 import { Credits } from "@/pages/Credits";
 import { Crowdlending } from "@/pages/Crowdlending";
 import { Crypto } from "@/pages/Crypto";
@@ -52,12 +53,15 @@ const router = createHashRouter([
   {
     element: <Shell />,
     errorElement: <RouteError />,
-    children: ALL_ITEMS.map((item) => ({
-      path: item.path,
-      element: PAGES[item.path] ?? <Placeholder item={item} />,
-      // Une erreur dans une page n'emporte pas la navigation.
-      errorElement: <RouteError />,
-    })),
+    children: [
+      ...ALL_ITEMS.map((item) => ({
+        path: item.path,
+        element: PAGES[item.path] ?? <Placeholder item={item} />,
+        // Une erreur dans une page n'emporte pas la navigation.
+        errorElement: <RouteError />,
+      })),
+      { path: "/immobilier/:id", element: <Bien />, errorElement: <RouteError /> },
+    ],
   },
 ]);
 

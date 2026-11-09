@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -155,11 +155,17 @@ export type CrowdImportInput = z.input<typeof CrowdImportInput>;
 export const PropertyInput = z.object({
   id: id.optional(),
   kind: z.enum(PROPERTY_KINDS),
+  ownership: z.enum(PROPERTY_OWNERSHIPS).default("nom_propre"),
   name: text(120).min(1, "Nom requis"),
   value: money.min(0),
   valueDate: isoDate.nullable().default(null),
   purchasePrice: money.min(0).nullable().default(null),
   purchaseDate: isoDate.nullable().default(null),
+  newBuild: z.boolean().default(false),
+  notaryFees: money.min(0).default(0),
+  agencyFees: money.min(0).default(0),
+  initialWorks: money.min(0).default(0),
+  otherFees: money.min(0).default(0),
   share: z.number().gt(0, "Part détenue requise").max(1).default(1),
   inAllocation: z.boolean().nullable().default(null),
   classId: id.nullable().default(null),
@@ -174,6 +180,7 @@ export const LoanInput = z
     kind: z.enum(LOAN_KINDS).default("immobilier"),
     name: text(120).min(1, "Nom requis"),
     propertyId: id.nullable().default(null),
+    share: z.number().gt(0, "Part à charge requise").max(1).default(1),
     principal: money.positive("Montant emprunté requis"),
     rate: z.number().min(0).max(1),
     termMonths: z.number().int().min(1).max(600),

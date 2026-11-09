@@ -36,12 +36,12 @@ export function Credits() {
       />
 
       <StatGrid>
-        <Stat label="Capital restant dû">
+        <Stat label="Capital restant dû" sub="part à votre charge">
           <span className="text-2xl">
             <Amount value={netWorth.debts} compact />
           </span>
         </Stat>
-        <Stat label="Mensualités" sub="assurance comprise">
+        <Stat label="Mensualités" sub="part à votre charge, assurance comprise">
           <Amount value={netWorth.monthlyLoans} compact />
         </Stat>
         <Stat label="Patrimoine net" sub="financier + immobilier − crédits">
@@ -93,6 +93,11 @@ export function Credits() {
                       dont assurance <Amount value={l.insurance} />
                     </div>
                   )}
+                  {l.loan.share < 1 && (
+                    <div className="text-xs text-fg-faint">
+                      à votre charge <Amount value={l.heldMonthly} />
+                    </div>
+                  )}
                 </Td>
                 <Td align="right">
                   <Amount value={l.totalInterest + l.totalInsurance} compact />
@@ -105,6 +110,11 @@ export function Credits() {
                     {l.fromManualBalance && <Badge>d'après relevé</Badge>}
                     <Amount value={l.balance} />
                   </span>
+                  {l.loan.share < 1 && (
+                    <div className="text-xs text-fg-faint">
+                      à votre charge <Amount value={l.heldBalance} />
+                    </div>
+                  )}
                 </Td>
                 <Td align="right">{l.paymentsLeft}</Td>
                 <Td className="whitespace-nowrap text-fg-muted">{formatDate(l.endDate)}</Td>

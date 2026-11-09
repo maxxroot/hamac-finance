@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { loanPayment, loanState, loanYears, propertyValue, type Loan } from "./realestate";
+import { estimateNotaryFees, loanPayment, loanState, loanYears, propertySummary, propertyTotalCost, propertyValue, type Loan, type Property } from "./realestate";
 
-const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
+const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, share: 1, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
 
 describe("crédits", () => {
   it("échéance constante, taux zéro compris", () => {
@@ -114,5 +114,64 @@ describe("crédits", () => {
 
   it("valeur d'un bien : part détenue", () => {
     expect(propertyValue({ value: 300_000, share: 0.5 })).toBe(150_000);
+  });
+
+  it("part à charge : réduit capital et mensualité sans changer le crédit lui-même", () => {
+    const entier = loanState({ ...loan, insurance: 30 }, "2026-06-10");
+    const moitie = loanState({ ...loan, insurance: 30, share: 0.5 }, "2026-06-10");
+    expect(moitie.balance).toBe(entier.balance);
+    expect(moitie.monthly).toBe(entier.monthly);
+    expect(entier.heldBalance).toBe(entier.balance);
+    expect(moitie.heldBalance).toBeCloseTo(entier.balance / 2, 1);
+    expect(moitie.heldMonthly).toBeCloseTo(entier.monthly / 2, 1);
+  });
+
+  it("part à charge : plus rien une fois le prêt remboursé", () => {
+    const fini = loanState({ ...loan, share: 0.5 }, "2050-01-01");
+    expect(fini.heldBalance).toBe(0);
+    expect(fini.heldMonthly).toBe(0);
+  });
+});
+
+describe("biens", () => {
+  const bien: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 300_000, valueDate: null, purchasePrice: 200_000, purchaseDate: "2020-01-01", newBuild: false, notaryFees: 15_000, agencyFees: 5_000, initialWorks: 10_000, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
+
+  it("frais de notaire estimés pour 200 000 € : droits, émoluments TTC, sécurité immobilière et formalités", () => {
+    // Émoluments : 1 995,25 € HT (exemple de service-public), soit 2 394,30 € TTC ; sécurité immobilière 200 € ; formalités 1 000 €.
+    expect(estimateNotaryFees(200_000, false, "2026-03-01")).toBe(16_231); // droits 6,3185 % : 12 637 €
+    expect(estimateNotaryFees(200_000, false, "2025-03-31")).toBe(15_208); // droits 5,80665 % : 11 613,30 €
+    expect(estimateNotaryFees(200_000, false, null)).toBe(16_231);
+    expect(estimateNotaryFees(200_000, true, "2026-03-01")).toBe(5_024); // droits 0,715 % : 1 430 €
+  });
+
+  it("frais de notaire : petite vente dans la première tranche, rien sans prix", () => {
+    // 5 000 × 3,87 % × 1,2 = 232,20 € ; droits 315,93 € ; sécurité immobilière 5 € ; formalités 1 000 €.
+    expect(estimateNotaryFees(5_000, false, "2026-03-01")).toBe(1_553);
+    expect(estimateNotaryFees(0, false, "2026-03-01")).toBe(0);
+  });
+
+  it("coût d'achat complet : prix et tous les frais, inconnu sans prix", () => {
+    expect(propertyTotalCost(bien)).toBe(230_000);
+    expect(propertyTotalCost({ ...bien, purchasePrice: null })).toBeNull();
+  });
+
+  it("synthèse à la part détenue : coût, gain et valeur nette des seuls crédits rattachés", () => {
+    const rattache = loanState({ ...loan, id: "r", propertyId: "b", share: 0.5 }, "2026-06-10");
+    const autre = loanState({ ...loan, id: "a", propertyId: "x" }, "2026-06-10");
+    const s = propertySummary(bien, [rattache, autre]);
+    expect(s.heldValue).toBe(150_000);
+    expect(s.heldCost).toBe(115_000);
+    expect(s.gain).toBe(35_000);
+    expect(s.loans.map((l) => l.loan.id)).toEqual(["r"]);
+    expect(s.heldDebt).toBe(rattache.heldBalance);
+    expect(s.heldMonthly).toBe(rattache.heldMonthly);
+    expect(s.netValue).toBeCloseTo(150_000 - rattache.heldBalance, 2);
+  });
+
+  it("synthèse sans prix d'achat : ni coût ni gain, la valeur nette reste calculée", () => {
+    const s = propertySummary({ ...bien, purchasePrice: null }, []);
+    expect(s.heldCost).toBeNull();
+    expect(s.gain).toBeNull();
+    expect(s.netValue).toBe(150_000);
   });
 });

@@ -499,7 +499,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
 
   const realEstate = roundCents(properties.reduce((s, x) => s + propertyValue(x), 0));
   const loans = (data.loans ?? []).filter((l) => !l.archived).map((l) => loanState(l, asOf));
-  const debts = roundCents(loans.reduce((s, l) => s + l.balance, 0));
+  const debts = roundCents(loans.reduce((s, l) => s + l.heldBalance, 0));
 
   const state: PortfolioState = {
     asOf,
@@ -509,7 +509,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     totals,
     buckets,
     allocation: { invested: roundCents(invested), rows },
-    netWorth: { financial: totals.value, realEstate, debts, net: roundCents(totals.value + realEstate - debts), monthlyLoans: roundCents(loans.reduce((s, l) => s + l.monthly, 0)), loans },
+    netWorth: { financial: totals.value, realEstate, debts, net: roundCents(totals.value + realEstate - debts), monthlyLoans: roundCents(loans.reduce((s, l) => s + l.heldMonthly, 0)), loans },
     livrets: {
       total: livretsTotal,
       floor,

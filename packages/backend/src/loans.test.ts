@@ -51,3 +51,52 @@ describe("assurance d'un crédit", () => {
     expect((await loans(backend))[0]).toMatchObject({ insuranceMode: "montant", insurance: 25, insuranceRate: 0 });
   });
 });
+
+describe("part à charge d'un crédit", () => {
+  it("100 % sans précision, enregistre la part indiquée, refuse une part hors limites", async () => {
+    backend = await testBackend();
+    expect(await call(backend, "loans.upsert", base)).toMatchObject({ share: 1 });
+    expect(await call(backend, "loans.upsert", { ...base, share: 0.5 })).toMatchObject({ share: 0.5 });
+    await expect(call(backend, "loans.upsert", { ...base, share: 0 })).rejects.toThrow();
+    await expect(call(backend, "loans.upsert", { ...base, share: 1.5 })).rejects.toThrow();
+  });
+
+  it("une sauvegarde sans cette colonne se restaure à 100 %", async () => {
+    backend = await testBackend();
+    await call(backend, "loans.upsert", base);
+    const dump = await call<{ tables: { loans: Array<Record<string, unknown>> } }>(backend, "data.export");
+    for (const row of dump.tables.loans) delete row.share;
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await loans(backend))[0]).toMatchObject({ share: 1 });
+  });
+});
+
+describe("statut et frais d'un bien", () => {
+  const bien = { kind: "locatif", name: "Studio", value: 100_000 };
+  const properties = async (b: Backend) => (await call<{ properties: Array<Record<string, unknown>> }>(b, "workspace.load")).properties;
+
+  it("en nom propre et sans frais par défaut, enregistre ce qui est saisi", async () => {
+    backend = await testBackend();
+    expect(await call(backend, "properties.upsert", bien)).toMatchObject({ ownership: "nom_propre", notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0 });
+    await call(backend, "properties.upsert", { ...bien, name: "SCI", ownership: "sci_familiale", notaryFees: 7_500.5, agencyFees: 3_000, initialWorks: 12_000, otherFees: 450 });
+    expect((await properties(backend)).find((p) => p.name === "SCI")).toMatchObject({ ownership: "sci_familiale", notaryFees: 7_500.5, agencyFees: 3_000, initialWorks: 12_000, otherFees: 450 });
+  });
+
+  it("refuse un statut inconnu ou des frais négatifs", async () => {
+    backend = await testBackend();
+    await expect(call(backend, "properties.upsert", { ...bien, ownership: "inconnu" })).rejects.toThrow();
+    await expect(call(backend, "properties.upsert", { ...bien, notaryFees: -1 })).rejects.toThrow();
+  });
+
+  it("une sauvegarde sans ces colonnes se restaure en nom propre, sans frais", async () => {
+    backend = await testBackend();
+    await call(backend, "properties.upsert", { ...bien, ownership: "indivision", notaryFees: 5_000 });
+    const dump = await call<{ tables: { properties: Array<Record<string, unknown>> } }>(backend, "data.export");
+    for (const row of dump.tables.properties) {
+      delete row.ownership;
+      delete row.notary_fees_cents;
+    }
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await properties(backend))[0]).toMatchObject({ ownership: "nom_propre", notaryFees: 0 });
+  });
+});

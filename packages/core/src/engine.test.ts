@@ -5,6 +5,7 @@ import { embeddedFee } from "./fees";
 import type { Institution } from "./institutions";
 import { defaultParams } from "./params";
 import { buildHistory } from "./history";
+import type { Loan, Property } from "./realestate";
 import { cryptoTax, withdrawalTaxes, yearlyTaxes } from "./taxes";
 
 // ——— Fabriques ———
@@ -317,5 +318,18 @@ describe("historique reconstruit", () => {
     const regime = (id: string) => withdrawalTaxes(d, s, cryptoTax(d, "2026-06-01")).find((r) => r.accountId === id)!.regime;
     expect(regime("preleve")).toContain("30 %");
     expect(regime("adeclarer")).toContain("à déclarer");
+  });
+});
+
+describe("patrimoine net", () => {
+  it("compte la part détenue des biens et la part à charge des crédits", () => {
+    const bien: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 200_000, valueDate: null, purchasePrice: null, purchaseDate: null, newBuild: false, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
+    // Taux zéro : 1 000 € de capital par mois, 5 échéances passées au 1er juin.
+    const pret: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: "b", share: 0.5, principal: 100_000, rate: 0, termMonths: 100, firstPayment: "2026-01-05", insuranceMode: "montant", insurance: 10, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
+    const { netWorth } = computePortfolio(data({ properties: [bien], loans: [pret] }), "2026-06-01");
+    expect(netWorth.realEstate).toBe(100_000);
+    expect(netWorth.debts).toBe(47_500);
+    expect(netWorth.monthlyLoans).toBe(505);
+    expect(netWorth.net).toBe(52_500);
   });
 });

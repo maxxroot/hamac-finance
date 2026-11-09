@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router";
 import { PROPERTY_KIND_LABELS, classEnabled, formatPct, propertyValue, type Property } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
@@ -27,7 +28,7 @@ export function Immobilier() {
     <>
       <PageHeader
         title="Immobilier"
-        description="Vos biens et vos SCPI. Par défaut hors allocation cible : réglable dans Paramètres › Répartition ou sur chaque bien."
+        description="Vos biens et vos SCPI. Cliquez sur le nom d'un bien pour ouvrir sa fiche. Par défaut hors allocation cible : réglable dans Paramètres › Répartition ou sur chaque bien."
         actions={
           <Button variant="primary" onClick={() => setEditing("new")}>
             <Plus size={16} /> Nouveau bien
@@ -65,7 +66,9 @@ export function Immobilier() {
               {properties.map((p) => (
                 <Tr key={p.id} className={cn("group", p.archived && "opacity-50")}>
                   <Td className="font-medium">
-                    {p.name}
+                    <Link to={`/immobilier/${p.id}`} className="hover:text-accent hover:underline">
+                      {p.name}
+                    </Link>
                     <div className="text-xs font-normal text-fg-faint">
                       {PROPERTY_KIND_LABELS[p.kind]}
                       {p.valueDate ? ` · estimé le ${formatDate(p.valueDate)}` : ""}
