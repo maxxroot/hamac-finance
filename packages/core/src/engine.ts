@@ -141,12 +141,33 @@ export interface PerformanceRow {
   assumption: number | null;
 }
 
+/** Une cession datée : vente, ou remboursement d'une obligation à l'échéance. */
+export interface Disposal {
+  /** Opération d'origine ; null pour un remboursement calculé à l'échéance. */
+  txId: string | null;
+  kind: "vente" | "remboursement";
+  date: string;
+  accountId: string;
+  assetId: string;
+  quantity: number;
+  /** Prix de cession net de frais. */
+  proceeds: number;
+  fee: number;
+  /** Prix de revient sorti, au coût moyen pondéré du compte. */
+  cost: number;
+  gain: number;
+  /** Vente supérieure à la quantité détenue : le prix de revient est incomplet. */
+  oversold: boolean;
+}
+
 export interface PortfolioState {
   asOf: string;
   age: number;
   accounts: AccountState[];
   accountById: Map<string, AccountState>;
   totals: { value: number; netContrib: number; gain: number; monthly: number; cash: number };
+  /** Cessions de titres, par ordre chronologique. */
+  disposals: Disposal[];
   buckets: Record<Bucket, number>;
   allocation: { invested: number; rows: AllocationRow[] };
   /** Patrimoine financier + biens immobiliers (part détenue) − capital restant dû des crédits. */
@@ -231,6 +252,7 @@ function position(acc: AccAcc, asset: Asset): PosAcc {
 export function computePortfolio(data: EngineData, asOf: string): PortfolioState {
   const { params } = data;
   const warnings: string[] = [];
+  const disposals: Disposal[] = [];
   const assetById = new Map(data.assets.map((a) => [a.id, a]));
   const accs = new Map<string, AccAcc>(data.accounts.map((a) => [a.id, newAcc()]));
   const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth, params.profile.contributionDay);
@@ -261,6 +283,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       if (!acc || !p || p.qty <= 1e-9) continue;
       acc.cash += p.qty; // remboursement du nominal à 100 %
       p.realized += p.qty - p.cost;
+      disposals.push({ txId: null, kind: "remboursement", date: ev.date, accountId: ev.accountId, assetId: ev.assetId, quantity: p.qty, proceeds: roundCents(p.qty), fee: 0, cost: roundCents(p.cost), gain: roundCents(p.qty - p.cost), oversold: false });
       p.qty = 0;
       p.cost = 0;
       p.lots = [];
@@ -340,6 +363,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
         const frac = p.qty > 0 ? sold / p.qty : 0;
         const costOut = p.cost * frac;
         p.realized += tx.amount - costOut;
+        disposals.push({ txId: tx.id, kind: "vente", date: tx.date, accountId: tx.accountId, assetId: asset.id, quantity: tx.quantity, proceeds: tx.amount, fee: tx.fee ?? 0, cost: roundCents(costOut), gain: roundCents(tx.amount - costOut), oversold: tx.quantity > p.qty + 1e-9 });
         p.cost -= costOut;
         p.qty -= sold;
         for (const lot of p.lots) {
@@ -484,6 +508,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     },
     performance: [],
     warnings,
+    disposals,
   };
   state.performance = computePerformance(data, state, schedule);
   return state;

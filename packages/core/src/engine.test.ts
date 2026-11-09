@@ -229,6 +229,36 @@ describe("fiscalité", () => {
   });
 });
 
+describe("registre des cessions", () => {
+  it("date chaque vente au coût moyen pondéré, frais d'achat compris", () => {
+    const d = data({
+      accounts: [acc("cto", "cto")],
+      assets: [asset("a", "action")],
+      transactions: [
+        tx("2025-01-10", "achat", "cto", 1000, { assetId: "a", quantity: 10, fee: 5 }),
+        tx("2025-02-10", "achat", "cto", 2000, { assetId: "a", quantity: 10, fee: 5 }),
+        tx("2025-06-10", "vente", "cto", 900, { assetId: "a", quantity: 5, fee: 4 }),
+      ],
+    });
+    const [v] = computePortfolio(d, "2025-12-31").disposals;
+    expect(v).toMatchObject({ kind: "vente", date: "2025-06-10", proceeds: 900, fee: 4, cost: 750, gain: 150, oversold: false });
+  });
+
+  it("signale une vente supérieure à la quantité détenue", () => {
+    const d = data({ accounts: [acc("cto", "cto")], assets: [asset("a", "action")], transactions: [tx("2025-01-10", "achat", "cto", 100, { assetId: "a", quantity: 1 }), tx("2025-02-10", "vente", "cto", 300, { assetId: "a", quantity: 3 })] });
+    expect(computePortfolio(d, "2025-12-31").disposals[0]).toMatchObject({ oversold: true, cost: 100, gain: 200 });
+  });
+
+  it("date le remboursement d'une obligation à son échéance", () => {
+    const d = data({
+      accounts: [acc("cto", "cto")],
+      assets: [asset("oat", "obligation", { couponRate: 0.02, maturityDate: "2025-05-25" })],
+      transactions: [tx("2024-01-15", "achat", "cto", 950, { assetId: "oat", quantity: 1000 })],
+    });
+    expect(computePortfolio(d, "2025-12-31").disposals[0]).toMatchObject({ kind: "remboursement", txId: null, date: "2025-05-25", proceeds: 1000, cost: 950, gain: 50 });
+  });
+});
+
 describe("historique reconstruit", () => {
   it("un point par mois, cohérent avec le calcul du jour", () => {
     const d = sheetCase();

@@ -15,6 +15,7 @@ export * from "./bonds";
 export * from "./prices";
 export * from "./engine";
 export * from "./fiscalRules";
+export * from "./securitiesGains";
 export * from "./taxes";
 export * from "./history";
 export * from "./projection";
