@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { leaseAlerts } from "./alerts";
-import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseRevisionDue, leaseState, depositRetained, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
+import { documentAlerts, leaseAlerts } from "./alerts";
+import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseRevisionDue, leaseState, rentReceipt, depositRetained, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 
-const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "" };
+const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", guarantor: "", tenantInsuranceUntil: null };
 const meuble: Lease = { ...vide, kind: "meuble", durationMonths: 12, startDate: "2025-03-01" };
 
 describe("règles légales", () => {
@@ -273,5 +273,35 @@ describe("dépôt à la sortie et révision du loyer", () => {
     expect(ids({ ...parti, depositReturned: 800, depositReturnedOn: "2025-07-01" })).not.toContain("bail-depot-l");
     expect(ids({ ...parti, reminders: false })).not.toContain("bail-depot-l");
     expect(ids({ ...parti, deposit: 0 })).not.toContain("bail-depot-l");
+  });
+});
+
+describe("quittances", () => {
+  const month = { leaseId: "l", month: "2026-02", occupied: 1, expectedRent: 620, expectedCharges: 62, receivedRent: 620, receivedCharges: 62, status: "paye", exception: null } as const;
+  it("loyer payé : quittance avec loyer et charges distingués", () => {
+    expect(rentReceipt(month)).toEqual({ kind: "quittance", rent: 620, charges: 62, total: 682 });
+  });
+  it("paiement partiel : un reçu ; rien reçu : aucun document", () => {
+    expect(rentReceipt({ ...month, status: "montant", receivedRent: 500 })).toEqual({ kind: "recu", rent: 500, charges: 62, total: 562 });
+    expect(rentReceipt({ ...month, status: "impaye", receivedRent: 0, receivedCharges: 0 })).toBeNull();
+  });
+});
+
+describe("rappels de documents et d'assurance", () => {
+  const bien = { id: "b", kind: "locatif", name: "Studio", archived: false, dpe: null } as Property;
+  const doc = { id: "d", propertyId: "b", kind: "diagnostic", label: "Diagnostic gaz", date: null, expiresOn: "2026-06-30", location: "" } as const;
+  it("document : prévenu 30 jours avant, signalé une fois expiré, rien sans date ou bien archivé", () => {
+    expect(documentAlerts({ properties: [bien], propertyDocuments: [doc] }, "2026-05-30")).toHaveLength(0);
+    expect(documentAlerts({ properties: [bien], propertyDocuments: [doc] }, "2026-05-31")[0]).toMatchObject({ level: "info" });
+    expect(documentAlerts({ properties: [bien], propertyDocuments: [doc] }, "2026-07-01")[0]).toMatchObject({ level: "attention" });
+    expect(documentAlerts({ properties: [bien], propertyDocuments: [{ ...doc, expiresOn: null }] }, "2026-07-01")).toHaveLength(0);
+    expect(documentAlerts({ properties: [{ ...bien, archived: true }], propertyDocuments: [doc] }, "2026-07-01")).toHaveLength(0);
+  });
+  it("assurance du locataire : rappel à l'approche, seulement si les rappels sont actifs", () => {
+    const l = { ...vide, tenantInsuranceUntil: "2026-03-01" };
+    const ids = (x: Lease, today: string) => leaseAlerts({ properties: [bien], leases: [x], leaseRents: [] }, today).map((a) => a.id);
+    expect(ids(l, "2026-01-29")).not.toContain("bail-assurance-l");
+    expect(ids(l, "2026-02-10")).toContain("bail-assurance-l");
+    expect(ids({ ...l, reminders: false }, "2026-02-10")).not.toContain("bail-assurance-l");
   });
 });

@@ -11,6 +11,8 @@ import { Crypto } from "@/pages/Crypto";
 import { FondsEuros } from "@/pages/FondsEuros";
 import { Historique } from "@/pages/Historique";
 import { Immobilier } from "@/pages/Immobilier";
+import { ImpressionBien } from "@/pages/ImpressionBien";
+import { Quittance } from "@/pages/Quittance";
 import { Declaration } from "@/pages/Declaration";
 import { Impots } from "@/pages/Impots";
 import { Journal } from "@/pages/Journal";
@@ -63,6 +65,9 @@ const router = createHashRouter([
       { path: "/immobilier/:id", element: <Bien />, errorElement: <RouteError /> },
     ],
   },
+  // Pages à imprimer : sans menu ni fond sombre.
+  { path: "/impression/bien/:id", element: <ImpressionBien />, errorElement: <RouteError /> },
+  { path: "/impression/quittance/:leaseId/:month", element: <Quittance />, errorElement: <RouteError /> },
 ]);
 
 export function App() {

@@ -85,6 +85,13 @@
       "when": 1794234594329,
       "tag": "0011_crazy_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794234885796,
+      "tag": "0012_breezy_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

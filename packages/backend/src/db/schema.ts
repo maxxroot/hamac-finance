@@ -308,6 +308,8 @@ export const loans = pgTable("loans", {
   manualBalanceDate: text("manual_balance_date"),
   archived: boolean("archived").notNull().default(false),
   closedOn: text("closed_on"),
+  deferredMonths: bigint("deferred_months", { mode: "number" }).notNull().default(0),
+  deferredKind: text("deferred_kind").notNull().default("partiel"),
   ...timestamps,
 });
 
@@ -335,6 +337,9 @@ export const leases = pgTable(
     depositReturnedCents: bigint("deposit_returned_cents", { mode: "number" }),
     depositReturnedOn: text("deposit_returned_on"),
     depositReason: text("deposit_reason").notNull().default(""),
+    landlord: text("landlord").notNull().default(""),
+    guarantor: text("guarantor").notNull().default(""),
+    tenantInsuranceUntil: text("tenant_insurance_until"),
     ...timestamps,
   },
   (t) => [index("leases_property_idx").on(t.propertyId)],
@@ -386,6 +391,41 @@ export const propertyIncomes = pgTable(
     ...timestamps,
   },
   (t) => [index("property_incomes_property_idx").on(t.propertyId)],
+);
+
+/** Registre des documents d'un bien : leur emplacement, pas les fichiers. */
+export const propertyDocuments = pgTable(
+  "property_documents",
+  {
+    id: text("id").primaryKey(),
+    propertyId: text("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    label: text("label").notNull(),
+    date: text("date"),
+    expiresOn: text("expires_on"),
+    location: text("location").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [index("property_documents_property_idx").on(t.propertyId)],
+);
+
+/** Remboursements anticipés d'un crédit. */
+export const loanPrepayments = pgTable(
+  "loan_prepayments",
+  {
+    id: text("id").primaryKey(),
+    loanId: text("loan_id")
+      .notNull()
+      .references(() => loans.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    feeCents: bigint("fee_cents", { mode: "number" }).notNull().default(0),
+    mode: text("mode").notNull().default("duree"),
+    ...timestamps,
+  },
+  (t) => [index("loan_prepayments_loan_idx").on(t.loanId)],
 );
 
 /** Écarts signalés sur les loyers : sans ligne ici, le loyer prévu du mois est réputé perçu. */

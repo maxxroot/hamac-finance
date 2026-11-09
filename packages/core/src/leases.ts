@@ -102,6 +102,11 @@ export interface Lease {
   depositReturned: number | null;
   depositReturnedOn: string | null;
   depositReason: string;
+  /** Nom du propriétaire, pour les quittances. */
+  landlord: string;
+  guarantor: string;
+  /** Fin de validité de l'attestation d'assurance du locataire. */
+  tenantInsuranceUntil: string | null;
 }
 
 /** Nouveau loyer (révision annuelle…), en vigueur à partir d'un mois. */
@@ -294,4 +299,15 @@ export function leaseRevisionDue(lease: Pick<Lease, "id" | "kind" | "startDate">
       return revised ? null : anniversary;
     }
   }
+}
+
+/**
+ * Quittance d'un mois : le détail distingue loyer et charges ; un paiement partiel donne droit à un reçu (art. 21 de la loi du 6 juillet 1989).
+ * null si rien n'a été reçu.
+ */
+export function rentReceipt(m: RentMonth): { kind: "quittance" | "recu"; rent: number; charges: number; total: number } | null {
+  const total = roundCents(m.receivedRent + m.receivedCharges);
+  if (total <= 0) return null;
+  const partial = m.receivedRent < m.expectedRent;
+  return { kind: partial ? "recu" : "quittance", rent: m.receivedRent, charges: m.receivedCharges, total };
 }

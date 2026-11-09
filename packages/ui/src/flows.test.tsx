@@ -18,6 +18,9 @@ import { makeXlsx } from "@/lib/xlsx.fixture";
 import { ToastProvider } from "@/lib/toast";
 import { useWorkspaceIndex } from "@/lib/workspace";
 import { Bien } from "@/pages/Bien";
+import { Credits } from "@/pages/Credits";
+import { ImpressionBien } from "@/pages/ImpressionBien";
+import { Quittance } from "@/pages/Quittance";
 import { Crowdlending } from "@/pages/Crowdlending";
 import { Notice, NOTICE_PLAN } from "@/pages/Notice";
 import { Declaration } from "@/pages/Declaration";
@@ -261,6 +264,36 @@ describe("parcours de l'interface", () => {
     await user.click(screen.getByRole("button", { name: "Enregistrer la vente" }));
     expect(await screen.findByText("Bilan de la vente")).toBeTruthy();
     expect((await workspace()).properties).toMatchObject([{ archived: true, salePrice: 210_000 }]);
+  });
+
+  it("impression : fiche du bien et quittance d'un mois payé, reçu refusé sans paiement", async () => {
+    const bien = await rpc<{ id: string }>("properties.upsert", { kind: "locatif", name: "Studio", value: 120_000, purchasePrice: 100_000, surface: 25, city: "Ville fictive", dpe: "D" });
+    const bail = await rpc<{ id: string }>("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: "2024-01-01", durationMonths: 36, rent: 500, charges: 50, tenant: "Locataire fictif", landlord: "Propriétaire fictif" });
+    await rpc("rentExceptions.set", { leaseId: bail.id, month: "2024-03", kind: "impaye" });
+    const routes = (
+      <Routes>
+        <Route path="/impression/bien/:id" element={<ImpressionBien />} />
+        <Route path="/impression/quittance/:leaseId/:month" element={<Quittance />} />
+      </Routes>
+    );
+    const fiche = show(routes, `/impression/bien/${bien.id}`);
+    expect(await screen.findByRole("heading", { name: "Studio" })).toBeTruthy();
+    expect(screen.getByText("Ville fictive")).toBeTruthy();
+    fiche.unmount();
+    const quittance = show(routes, `/impression/quittance/${bail.id}/2024-02`);
+    expect(await screen.findByRole("heading", { name: "Quittance de loyer" })).toBeTruthy();
+    expect(screen.getByText(/Propriétaire fictif/)).toBeTruthy();
+    expect(screen.getByText(/Locataire fictif/)).toBeTruthy();
+    quittance.unmount();
+    show(routes, `/impression/quittance/${bail.id}/2024-03`);
+    expect(await screen.findByText(/Aucun paiement/)).toBeTruthy();
+  });
+
+  it("crédit archivé : listé et rétablissable", async () => {
+    await rpc("loans.upsert", { name: "Ancien prêt", principal: 10_000, rate: 0.02, termMonths: 24, firstPayment: "2020-01-05", archived: true });
+    show(<Credits />);
+    expect(await screen.findByText("Crédits archivés")).toBeTruthy();
+    expect(screen.getByText("Ancien prêt")).toBeTruthy();
   });
 
   it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {

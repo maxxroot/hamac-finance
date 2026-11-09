@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { RENT_EXCEPTION_LABELS, rentMonths, type Lease, type LeaseRent, type RentException, type RentMonth } from "@hamac/core";
+import { Link } from "react-router";
+import { RENT_EXCEPTION_LABELS, rentMonths, rentReceipt, type Lease, type LeaseRent, type RentException, type RentMonth } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Select } from "@/components/form";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
@@ -51,6 +52,11 @@ export function RentsCard({ leases, rents, exceptions, today }: { leases: readon
               <Td align="right"><Amount value={m.receivedRent + m.receivedCharges} /></Td>
               <Td>{m.status === "paye" ? <Badge tone="positive">Reçu</Badge> : <Badge tone={m.status === "impaye" ? "negative" : "neutral"}>{RENT_EXCEPTION_LABELS[m.status]}</Badge>}</Td>
               <Td align="right">
+                {rentReceipt(m) && (
+                  <Link className="mr-1 text-xs text-fg-muted underline hover:text-fg" to={`/impression/quittance/${m.leaseId}/${m.month}`} target="_blank" rel="noopener" aria-label={`Quittance de ${formatMonth(m.month)}`}>
+                    Quittance
+                  </Link>
+                )}
                 <Button className="h-7 px-2 text-xs" variant="ghost" aria-label={`Signaler un écart pour ${formatMonth(m.month)}`} onClick={() => setReporting(m)}>
                   {m.exception ? "Modifier" : "Signaler"}
                 </Button>

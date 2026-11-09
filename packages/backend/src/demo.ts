@@ -79,6 +79,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
   await call("rentExceptions.set", { leaseId: bail.id, month: `${y - 1}-03`, kind: "vide" });
   await call("propertyExpenses.upsert", { propertyId: studio.id, date: `${y - 3}-10-15`, category: "taxe_fonciere", amount: 720, yearly: true });
   await call("propertyExpenses.upsert", { propertyId: studio.id, date: `${y - 3}-09-01`, category: "assurance", amount: 110, yearly: true });
+  await call("propertyDocuments.upsert", { propertyId: studio.id, kind: "diagnostic", label: "DPE (fictif)", date: `${y - 3}-06-20`, location: "Dossier du studio" });
   await call("propertyIncomes.upsert", { propertyId: studio.id, date: `${y - 1}-02-10`, category: "regularisation_recue", amount: 38, label: "Charges de l'année précédente" });
 
   const plateformePret = await call("institutions.upsert", { name: "Plateforme E", kind: "crowdlending", offers: { crowdlending: { taxWithheld: true, taxRate: 0.314 } } });

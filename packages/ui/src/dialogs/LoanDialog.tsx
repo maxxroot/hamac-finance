@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LOAN_INSURANCE_MODE_LABELS, LOAN_INSURANCE_MODES, LOAN_KIND_LABELS, LOAN_KINDS, loanHasProperty, loanState, type Loan, type LoanInsuranceMode, type LoanKind, type Property } from "@hamac/core";
+import { LOAN_DEFERRED_KIND_LABELS, LOAN_DEFERRED_KINDS, LOAN_INSURANCE_MODE_LABELS, LOAN_INSURANCE_MODES, LOAN_KIND_LABELS, LOAN_KINDS, loanHasProperty, loanState, type Loan, type LoanDeferredKind, type LoanInsuranceMode, type LoanKind, type Property } from "@hamac/core";
 import type { LoanInput } from "@hamac/api";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Amount } from "@/components/Amount";
@@ -9,7 +9,7 @@ import { useMutate } from "@/lib/workspace";
 
 type LoanDraft = Required<Omit<LoanInput, "id">> & { id?: string };
 
-const emptyLoan = (): LoanDraft => ({ kind: "immobilier", name: "", propertyId: null, share: 1, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insuranceMode: "montant", insurance: 0, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false });
+const emptyLoan = (): LoanDraft => ({ kind: "immobilier", name: "", propertyId: null, share: 1, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insuranceMode: "montant", insurance: 0, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, deferredMonths: 0, deferredKind: "partiel" });
 
 export function LoanDialog({ open, loan, properties, onClose }: { open: boolean; loan: Loan | null; properties: readonly Property[]; onClose: () => void }) {
   const [d, setD] = useState<LoanDraft>(emptyLoan());
@@ -19,8 +19,8 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
   }, [open, loan]);
   const set = <K extends keyof LoanDraft>(k: K, v: LoanDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const balanceIncomplete = (d.manualBalance == null) !== (d.manualBalanceDate == null);
-  const valid = d.name.trim() && d.principal > 0 && d.termMonths >= 1 && d.firstPayment && !balanceIncomplete && d.share > 0 && d.share <= 1;
-  const preview = valid ? loanState({ ...d, id: d.id ?? "apercu", closedOn: null }, todayIso()) : null;
+  const valid = d.name.trim() && d.principal > 0 && d.termMonths >= 1 && d.firstPayment && !balanceIncomplete && d.share > 0 && d.share <= 1 && d.deferredMonths < d.termMonths;
+  const preview = valid ? loanState({ ...d, id: d.id ?? "apercu", closedOn: null, prepayments: loan?.prepayments ?? [] }, todayIso()) : null;
   return (
     <Modal
       open={open}
@@ -94,6 +94,20 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
         </FormGrid>
         <FormGrid cols={3}>
           <Field label="Part à ma charge" help="50 % si le montant saisi est le crédit entier, remboursé à deux.">{(id) => <PercentInput id={id} value={d.share} onChange={(v) => set("share", v ?? 0)} />}</Field>
+          <Field label="Différé (mois)" help="Premières échéances, comprises dans la durée.">{(id) => <NumberInput id={id} decimals={0} grouping={false} value={d.deferredMonths} onChange={(v) => set("deferredMonths", v == null ? 0 : Math.round(v))} />}</Field>
+          {d.deferredMonths > 0 && (
+            <Field label="Type de différé">
+              {(id) => (
+                <Select id={id} value={d.deferredKind} onChange={(e) => set("deferredKind", e.target.value as LoanDeferredKind)}>
+                  {LOAN_DEFERRED_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {LOAN_DEFERRED_KIND_LABELS[k]}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          )}
         </FormGrid>
 
         <div>

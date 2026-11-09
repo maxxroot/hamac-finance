@@ -23,7 +23,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapProperty, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -566,6 +566,9 @@ export const handlers: Handlers = {
       depositReturnedCents: input.depositReturned == null ? null : toCents(input.depositReturned),
       depositReturnedOn: input.depositReturnedOn,
       depositReason: input.depositReturned == null ? "" : input.depositReason,
+      landlord: input.landlord,
+      guarantor: input.guarantor,
+      tenantInsuranceUntil: input.tenantInsuranceUntil,
       updatedAt: nowIso(),
     };
     if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));
@@ -640,6 +643,35 @@ export const handlers: Handlers = {
     return OK;
   },
 
+  async "propertyDocuments.upsert"(input, ctx) {
+    if (!(await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one))) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    const id = input.id ?? newId();
+    const row = { propertyId: input.propertyId, kind: input.kind, label: input.label, date: input.date, expiresOn: input.expiresOn, location: input.location, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.propertyDocuments).set(row).where(eq(t.propertyDocuments.id, id));
+    else await ctx.db.insert(t.propertyDocuments).values({ id, ...row });
+    return mapPropertyDocument((await ctx.db.select().from(t.propertyDocuments).where(eq(t.propertyDocuments.id, id)).limit(1).then(one))!);
+  },
+
+  async "propertyDocuments.delete"({ id }, ctx) {
+    await ctx.db.delete(t.propertyDocuments).where(eq(t.propertyDocuments.id, id));
+    return OK;
+  },
+
+  async "loanPrepayments.upsert"(input, ctx) {
+    const loan = await ctx.db.select().from(t.loans).where(eq(t.loans.id, input.loanId)).limit(1).then(one);
+    if (!loan) throw new RpcError("NOT_FOUND", "Crédit introuvable.");
+    const id = input.id ?? newId();
+    const row = { loanId: input.loanId, date: input.date, amountCents: toCents(input.amount), feeCents: toCents(input.fee), mode: input.mode, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.loanPrepayments).set(row).where(eq(t.loanPrepayments.id, id));
+    else await ctx.db.insert(t.loanPrepayments).values({ id, ...row });
+    return mapLoanPrepayment((await ctx.db.select().from(t.loanPrepayments).where(eq(t.loanPrepayments.id, id)).limit(1).then(one))!);
+  },
+
+  async "loanPrepayments.delete"({ id }, ctx) {
+    await ctx.db.delete(t.loanPrepayments).where(eq(t.loanPrepayments.id, id));
+    return OK;
+  },
+
   async "propertyExpenses.delete"({ id }, ctx) {
     await ctx.db.delete(t.propertyExpenses).where(eq(t.propertyExpenses.id, id));
     return OK;
@@ -665,11 +697,14 @@ export const handlers: Handlers = {
       manualBalanceDate: input.manualBalanceDate,
       archived: input.archived,
       ...(input.archived ? {} : { closedOn: null }),
+      deferredMonths: input.deferredMonths,
+      deferredKind: input.deferredKind,
       updatedAt: nowIso(),
     };
     if (input.id) await ctx.db.update(t.loans).set(row).where(eq(t.loans.id, id));
     else await ctx.db.insert(t.loans).values({ id, ...row });
-    return mapLoan((await ctx.db.select().from(t.loans).where(eq(t.loans.id, id)).limit(1).then(one))!);
+    const prepayments = (await ctx.db.select().from(t.loanPrepayments).where(eq(t.loanPrepayments.loanId, id))).map(mapLoanPrepayment);
+    return mapLoan((await ctx.db.select().from(t.loans).where(eq(t.loans.id, id)).limit(1).then(one))!, prepayments);
   },
 
   async "loans.delete"({ id }, ctx) {

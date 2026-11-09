@@ -447,6 +447,9 @@ export function Notice() {
           Les dépenses et travaux se notent sur tout bien, dans l'onglet Finances. Cochez « Améliore le bien » pour un agrandissement ou une rénovation : le montant s'ajoute au coût pour calculer le gain et le rendement. Chaque nouvelle estimation est gardée, et la page Historique montre le patrimoine net dans le temps, biens et crédits compris. Le bouton « Vendre » retire le bien du patrimoine à la date de vente, solde ses crédits et affiche le bilan.
         </p>
         <p>
+          Sur la fiche, le registre des documents note où se trouve chaque papier et prévient avant une date d'expiration ; Hamac ne stocke pas les fichiers. Le bouton « Imprimer » donne une version à imprimer ou à enregistrer en PDF, et le lien « Quittance » de chaque mois prépare la quittance, ou un reçu pour un paiement partiel.
+        </p>
+        <p>
           Les résultats par année sont calculés pour votre part et avant impôt. Ce suivi reste séparé de vos comptes : il ne change pas le patrimoine financier, et un loyer versé sur un livret suivi dans Hamac se note aussi dans le Journal. L'impôt sur les loyers n'est pas calculé, et ces revenus n'entrent pas dans la projection.
         </p>
         <p>
@@ -460,7 +463,7 @@ export function Notice() {
         </p>
         <p>L'assurance se saisit en montant fixe par mois, ou en taux annuel appliqué au capital emprunté ou au capital restant dû. Seuls les crédits immobiliers et travaux peuvent être rattachés à un bien.</p>
         <p>Si vous remboursez à plusieurs et que le montant saisi est le crédit entier, indiquez votre « Part à ma charge » : le patrimoine net et les mensualités ne comptent que cette part.</p>
-        <p>Si la banque indique d'autres chiffres, saisissez la mensualité ou le capital restant dû d'un relevé, avec sa date : le calcul repart de là. Un crédit renouvelable, sans échéancier fixe, se saisit en « autre » et se corrige à la main.</p>
+        <p>Un différé se saisit dans le crédit. Pour un remboursement anticipé, ouvrez le détail du crédit : indiquez le montant, l'indemnité éventuelle, et si vous réduisez la durée ou la mensualité. Les crédits archivés restent listés sous le tableau, pour pouvoir les rétablir. Si la banque indique d'autres chiffres, saisissez la mensualité ou le capital restant dû d'un relevé, avec sa date : le calcul repart de là. Un crédit renouvelable, sans échéancier fixe, se saisit en « autre » et se corrige à la main.</p>
       </Fold>
 
       <Fold id="autres" title="PEA-PME, PER, épargne salariale">

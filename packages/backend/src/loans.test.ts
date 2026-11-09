@@ -176,3 +176,47 @@ describe("vie d'un bien", () => {
     expect(await call(backend, "propertyExpenses.upsert", { ...depense, category: "assurance" })).toMatchObject({ improvement: false });
   });
 });
+
+describe("différé, remboursements anticipés et documents", () => {
+  const data = (b: Backend) => call<{ loans: Array<Record<string, unknown> & { prepayments: Array<{ id: string }> }>; propertyDocuments: Array<Record<string, unknown>> }>(b, "workspace.load");
+
+  it("différé : sans différé par défaut, enregistré, refusé s'il dépasse la durée", async () => {
+    backend = await testBackend();
+    expect(await call(backend, "loans.upsert", base)).toMatchObject({ deferredMonths: 0, deferredKind: "partiel" });
+    expect(await call(backend, "loans.upsert", { ...base, deferredMonths: 24, deferredKind: "total" })).toMatchObject({ deferredMonths: 24, deferredKind: "total" });
+    await expect(call(backend, "loans.upsert", { ...base, deferredMonths: 120 })).rejects.toThrow();
+  });
+
+  it("remboursement anticipé : rattaché au crédit, supprimable, dans les sauvegardes", async () => {
+    backend = await testBackend();
+    const { id: loanId } = await call<{ id: string }>(backend, "loans.upsert", base);
+    await expect(call(backend, "loanPrepayments.upsert", { loanId: "inconnu", date: "2027-01-10", amount: 5_000 })).rejects.toThrow("introuvable");
+    await call(backend, "loanPrepayments.upsert", { loanId, date: "2027-01-10", amount: 5_000, fee: 150, mode: "mensualite" });
+    expect((await data(backend)).loans[0].prepayments).toMatchObject([{ date: "2027-01-10", amount: 5_000, fee: 150, mode: "mensualite" }]);
+    const dump = await call(backend, "data.export");
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    const after = await data(backend);
+    expect(after.loans[0].prepayments).toHaveLength(1);
+    await call(backend, "loanPrepayments.delete", { id: after.loans[0].prepayments[0].id });
+    expect((await data(backend)).loans[0].prepayments).toEqual([]);
+  });
+
+  it("modifier un crédit garde ses remboursements anticipés", async () => {
+    backend = await testBackend();
+    const { id: loanId } = await call<{ id: string }>(backend, "loans.upsert", base);
+    await call(backend, "loanPrepayments.upsert", { loanId, date: "2027-01-10", amount: 5_000 });
+    expect(await call(backend, "loans.upsert", { ...base, id: loanId, name: "Renommé" })).toMatchObject({ name: "Renommé", prepayments: [{ amount: 5_000 }] });
+  });
+
+  it("documents : enregistrés, nom requis, retirés avec le bien, dans les sauvegardes", async () => {
+    backend = await testBackend();
+    const { id: propertyId } = await call<{ id: string }>(backend, "properties.upsert", { kind: "residence_principale", name: "Maison", value: 1 });
+    await expect(call(backend, "propertyDocuments.upsert", { propertyId, kind: "acte", label: "" })).rejects.toThrow();
+    await call(backend, "propertyDocuments.upsert", { propertyId, kind: "diagnostic", label: "Électricité", expiresOn: "2030-01-01", location: "Dossier" });
+    const dump = await call(backend, "data.export");
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await data(backend)).propertyDocuments).toMatchObject([{ kind: "diagnostic", label: "Électricité", expiresOn: "2030-01-01", location: "Dossier" }]);
+    await call(backend, "properties.delete", { id: propertyId });
+    expect((await data(backend)).propertyDocuments).toEqual([]);
+  });
+});

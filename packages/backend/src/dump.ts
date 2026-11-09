@@ -26,8 +26,10 @@ const TABLES = [
   "property_expenses",
   "property_values",
   "property_incomes",
+  "property_documents",
   "crowd_projects",
   "loans",
+  "loan_prepayments",
   "account_rates",
 ] as const;
 

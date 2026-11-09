@@ -49,6 +49,8 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
           {current.nextDeadline && <DetailLine label="Dernier jour pour donner congé">{formatDate(current.nextDeadline)}</DetailLine>}
           {current.noticeTooLateFor && <p className="py-1.5 text-xs text-warning">Congé trop tardif pour l'échéance du {formatDate(current.noticeTooLateFor)} : il vaut pour la suivante.</p>}
           {!current.lease.reminders && <DetailLine label="Rappels">Désactivés</DetailLine>}
+          {current.lease.guarantor && <DetailLine label="Garant">{current.lease.guarantor}</DetailLine>}
+          {current.lease.tenantInsuranceUntil && <DetailLine label="Assurance du locataire jusqu'au">{formatDate(current.lease.tenantInsuranceUntil)}</DetailLine>}
           <DetailLine label="Loyer hors charges"><Amount value={current.rent} /></DetailLine>
           <DetailLine label="Charges"><Amount value={current.charges} /></DetailLine>
           {current.lease.depositReturned == null ? (

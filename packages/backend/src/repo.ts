@@ -17,8 +17,10 @@ import type {
   Lease,
   LeaseRent,
   Loan,
+  LoanPrepayment,
   PlannedExpense,
   Property,
+  PropertyDocument,
   PropertyExpense,
   PropertyIncome,
   PropertyValue,
@@ -216,7 +218,7 @@ export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
   archived: r.archived,
 });
 
-export const mapLoan = (r: typeof t.loans.$inferSelect): Loan => ({
+export const mapLoan = (r: typeof t.loans.$inferSelect, prepayments: readonly LoanPrepayment[] = []): Loan => ({
   id: r.id,
   kind: r.kind as Loan["kind"],
   name: r.name,
@@ -234,6 +236,9 @@ export const mapLoan = (r: typeof t.loans.$inferSelect): Loan => ({
   manualBalanceDate: r.manualBalanceDate,
   archived: r.archived,
   closedOn: r.closedOn,
+  deferredMonths: r.deferredMonths,
+  deferredKind: r.deferredKind as Loan["deferredKind"],
+  prepayments,
 });
 
 export const mapLease = (r: typeof t.leases.$inferSelect): Lease => ({
@@ -255,6 +260,9 @@ export const mapLease = (r: typeof t.leases.$inferSelect): Lease => ({
   depositReturned: r.depositReturnedCents == null ? null : fromCents(r.depositReturnedCents),
   depositReturnedOn: r.depositReturnedOn,
   depositReason: r.depositReason,
+  landlord: r.landlord,
+  guarantor: r.guarantor,
+  tenantInsuranceUntil: r.tenantInsuranceUntil,
 });
 
 export const mapLeaseRent = (r: typeof t.leaseRents.$inferSelect): LeaseRent => ({
@@ -277,6 +285,10 @@ export const mapRentException = (r: typeof t.rentExceptions.$inferSelect): RentE
 export const mapPropertyValue = (r: typeof t.propertyValues.$inferSelect): PropertyValue => ({ id: r.id, propertyId: r.propertyId, date: r.date, value: fromCents(r.valueCents) });
 
 export const mapPropertyIncome = (r: typeof t.propertyIncomes.$inferSelect): PropertyIncome => ({ id: r.id, propertyId: r.propertyId, date: r.date, category: r.category as PropertyIncome["category"], amount: fromCents(r.amountCents), label: r.label });
+
+export const mapLoanPrepayment = (r: typeof t.loanPrepayments.$inferSelect): LoanPrepayment => ({ id: r.id, loanId: r.loanId, date: r.date, amount: fromCents(r.amountCents), fee: fromCents(r.feeCents), mode: r.mode as LoanPrepayment["mode"] });
+
+export const mapPropertyDocument = (r: typeof t.propertyDocuments.$inferSelect): PropertyDocument => ({ id: r.id, propertyId: r.propertyId, kind: r.kind as PropertyDocument["kind"], label: r.label, date: r.date, expiresOn: r.expiresOn, location: r.location });
 
 export const mapPropertyExpense = (r: typeof t.propertyExpenses.$inferSelect): PropertyExpense => ({
   id: r.id,
@@ -316,7 +328,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows, propertyValueRows, incomeRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows, propertyValueRows, incomeRows, documentRows, prepaymentRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
     db.select().from(t.assets).orderBy(t.assets.name),
@@ -346,6 +358,8 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     db.select().from(t.propertyExpenses).orderBy(desc(t.propertyExpenses.date)),
     db.select().from(t.propertyValues).orderBy(t.propertyValues.date),
     db.select().from(t.propertyIncomes).orderBy(desc(t.propertyIncomes.date)),
+    db.select().from(t.propertyDocuments).orderBy(desc(t.propertyDocuments.date)),
+    db.select().from(t.loanPrepayments).orderBy(t.loanPrepayments.date),
   ]);
   // Cours communs à l'instance, fusionnés avec ceux propres au tenant.
   const mappedAssets = assets.map(mapAsset);
@@ -371,7 +385,8 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     propertyExpenses: expenseRows.map(mapPropertyExpense),
     propertyValues: propertyValueRows.map(mapPropertyValue),
     propertyIncomes: incomeRows.map(mapPropertyIncome),
-    loans: loanRows.map(mapLoan),
+    propertyDocuments: documentRows.map(mapPropertyDocument),
+    loans: loanRows.map((r) => mapLoan(r, prepaymentRows.filter((p) => p.loanId === r.id).map(mapLoanPrepayment))),
     crowdProjects: crowdRows.map(mapCrowdProject),
     prices: merged.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,

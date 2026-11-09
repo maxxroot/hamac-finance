@@ -2,11 +2,12 @@ import { Plus } from "lucide-react";
 import { Fragment, useState } from "react";
 import { LOAN_KIND_LABELS, type Loan } from "@hamac/core";
 import { Amount } from "@/components/Amount";
+import { LoanPrepayments } from "@/components/LoanPrepayments";
 import { LoanYearsChart } from "@/components/LoanYearsChart";
 import { RowActions } from "@/components/RowActions";
 import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, stopRowClick, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
-import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { LoanDialog } from "@/dialogs/LoanDialog";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -22,6 +23,7 @@ export function Credits() {
   const { netWorth } = pf.state;
   const properties = pf.idx.ws.properties;
   const propertyName = new Map(properties.map((p) => [p.id, p.name]));
+  const archivedLoans = pf.idx.ws.loans.filter((l) => l.archived);
 
   return (
     <>
@@ -123,6 +125,7 @@ export function Credits() {
               {isOpen(l.loan.id) && (
                 <DetailRow cols={8}>
                   <LoanYearsChart loan={l.loan} />
+                  <LoanPrepayments loan={l.loan} />
                 </DetailRow>
               )}
               </Fragment>
@@ -131,6 +134,35 @@ export function Credits() {
           </tbody>
         </Table>
       </Card>
+
+      {archivedLoans.length > 0 && (
+        <Card className="mt-5">
+          <CardTitle hint="pour rétablir un crédit, ouvrez-le et décochez « Archivé »">Crédits archivés</CardTitle>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Crédit</Th>
+                <Th align="right">Montant emprunté</Th>
+                <Th>Soldé le</Th>
+                <Th />
+              </tr>
+            </thead>
+            <tbody>
+              {archivedLoans.map((loan) => (
+                <Tr key={loan.id} className="group">
+                  <Td className="font-medium">
+                    {loan.name}
+                    <div className="text-xs font-normal text-fg-faint">{LOAN_KIND_LABELS[loan.kind]}</div>
+                  </Td>
+                  <Td align="right"><Amount value={loan.principal} /></Td>
+                  <Td className="whitespace-nowrap text-fg-muted">{loan.closedOn ? formatDate(loan.closedOn) : "—"}</Td>
+                  <Td className="w-20"><RowActions onEdit={() => setEditing(loan)} onDelete={() => confirm(`Supprimer « ${loan.name} » ?`) && del.mutate({ id: loan.id })} /></Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      )}
 
       <LoanDialog open={editing !== null} loan={editing === "new" ? null : editing} properties={properties.filter((p) => !p.archived)} onClose={() => setEditing(null)} />
     </>

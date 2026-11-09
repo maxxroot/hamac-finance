@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Printer } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, currentLease, formatPct, leaseState, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost, propertyYears } from "@hamac/core";
@@ -7,6 +7,7 @@ import { DetailLine as Line } from "@/components/DetailLine";
 import { ExpensesCard } from "@/components/ExpensesCard";
 import { IncomesCard } from "@/components/IncomesCard";
 import { LeaseCard } from "@/components/LeaseCard";
+import { DocumentsCard } from "@/components/DocumentsCard";
 import { DescriptionCard, EnergyCard, ProfitabilityCard, SaleCard } from "@/components/PropertySheetCards";
 import { PropertyYearsCard } from "@/components/PropertyYearsCard";
 import { RentsCard } from "@/components/RentsCard";
@@ -78,6 +79,9 @@ export function Bien() {
             ) : (
               <Button onClick={() => setSelling(true)}>Vendre</Button>
             )}
+            <Link to={`/impression/bien/${property.id}`} target="_blank" rel="noopener" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-sm text-fg-muted hover:text-fg">
+              <Printer size={16} /> Imprimer
+            </Link>
             <Button onClick={() => setEditing(true)}>
               <Pencil size={16} /> Modifier
             </Button>
@@ -130,6 +134,7 @@ export function Bien() {
             {sale && <SaleCard sale={sale} />}
             <EnergyCard property={property} today={pf.today} />
             {rented && <ProfitabilityCard years={years} />}
+            <DocumentsCard propertyId={property.id} documents={ws.propertyDocuments.filter((d) => d.propertyId === property.id)} />
           </div>
         </div>
       )}

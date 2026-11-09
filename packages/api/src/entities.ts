@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -227,6 +227,9 @@ export const LeaseInput = z
     depositReturned: money.min(0).nullable().default(null),
     depositReturnedOn: isoDate.nullable().default(null),
     depositReason: text(200).default(""),
+    landlord: text(120).default(""),
+    guarantor: text(120).default(""),
+    tenantInsuranceUntil: isoDate.nullable().default(null),
   })
   .refine((l) => (l.noticeBy == null) === (l.noticeDate == null), { path: ["noticeDate"], message: "Indiquez qui donne congé et à quelle date." })
   .refine((l) => (l.depositReturned == null) === (l.depositReturnedOn == null), { path: ["depositReturnedOn"], message: "Indiquez le montant rendu et sa date." });
@@ -293,9 +296,33 @@ export const LoanInput = z
     manualBalance: money.min(0).nullable().default(null),
     manualBalanceDate: isoDate.nullable().default(null),
     archived: z.boolean().default(false),
+    deferredMonths: z.number().int().min(0).max(240).default(0),
+    deferredKind: z.enum(LOAN_DEFERRED_KINDS).default("partiel"),
   })
+  .refine((l) => l.deferredMonths < l.termMonths, { path: ["deferredMonths"], message: "Le différé doit être plus court que le crédit." })
   .refine((l) => (l.manualBalance == null) === (l.manualBalanceDate == null), { path: ["manualBalanceDate"], message: "Indiquez le capital restant dû et sa date." });
 export type LoanInput = z.input<typeof LoanInput>;
+
+export const LoanPrepaymentInput = z.object({
+  id: id.optional(),
+  loanId: id,
+  date: isoDate,
+  amount: money.positive("Montant requis"),
+  fee: money.min(0).default(0),
+  mode: z.enum(LOAN_PREPAYMENT_MODES).default("duree"),
+});
+export type LoanPrepaymentInput = z.input<typeof LoanPrepaymentInput>;
+
+export const PropertyDocumentInput = z.object({
+  id: id.optional(),
+  propertyId: id,
+  kind: z.enum(DOCUMENT_KINDS),
+  label: text(120).min(1, "Nom requis"),
+  date: isoDate.nullable().default(null),
+  expiresOn: isoDate.nullable().default(null),
+  location: text(300).default(""),
+});
+export type PropertyDocumentInput = z.input<typeof PropertyDocumentInput>;
 
 export const InstitutionInput = z.object({
   id: id.optional(),

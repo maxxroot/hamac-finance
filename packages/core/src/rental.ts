@@ -205,3 +205,26 @@ export function propertyProfitability(years: readonly PropertyYear[]): PropertyP
     totalCapital: roundCents(years.reduce((s, y) => s + y.capital, 0)),
   };
 }
+
+export const DOCUMENT_KINDS = ["acte", "bail", "diagnostic", "assurance", "facture", "autre"] as const;
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = {
+  acte: "Acte de vente",
+  bail: "Bail",
+  diagnostic: "Diagnostic",
+  assurance: "Assurance",
+  facture: "Facture",
+  autre: "Autre document",
+};
+
+/** Registre des documents d'un bien : Hamac note où ils se trouvent, sans stocker les fichiers. */
+export interface PropertyDocument {
+  id: string;
+  propertyId: string;
+  kind: DocumentKind;
+  label: string;
+  date: string | null;
+  expiresOn: string | null;
+  /** Où le retrouver : dossier, coffre-fort numérique… */
+  location: string;
+}

@@ -140,6 +140,24 @@ export const LOAN_INSURANCE_MODE_LABELS: Record<LoanInsuranceMode, string> = {
   capital_restant: "Capital restant dû",
 };
 
+export const LOAN_DEFERRED_KINDS = ["partiel", "total"] as const;
+export type LoanDeferredKind = (typeof LOAN_DEFERRED_KINDS)[number];
+export const LOAN_DEFERRED_KIND_LABELS: Record<LoanDeferredKind, string> = { partiel: "Partiel (intérêts seuls)", total: "Total (rien à payer)" };
+
+export const LOAN_PREPAYMENT_MODES = ["duree", "mensualite"] as const;
+export type LoanPrepaymentMode = (typeof LOAN_PREPAYMENT_MODES)[number];
+export const LOAN_PREPAYMENT_MODE_LABELS: Record<LoanPrepaymentMode, string> = { duree: "Réduire la durée", mensualite: "Réduire la mensualité" };
+
+export interface LoanPrepayment {
+  id: string;
+  loanId: string;
+  date: string;
+  amount: number;
+  /** Indemnité de remboursement anticipé. */
+  fee: number;
+  mode: LoanPrepaymentMode;
+}
+
 export interface Loan {
   id: string;
   kind: LoanKind;
@@ -166,6 +184,10 @@ export interface Loan {
   archived: boolean;
   /** Date à laquelle le crédit a été soldé, par exemple à la vente du bien. */
   closedOn: string | null;
+  /** Nombre de premières échéances en différé, comprises dans la durée. */
+  deferredMonths: number;
+  deferredKind: LoanDeferredKind;
+  prepayments: readonly LoanPrepayment[];
 }
 
 /** Échéance constante hors assurance d'un prêt amortissable. */
@@ -184,11 +206,6 @@ function paymentsDue(firstPayment: string, termMonths: number, asOf: string): nu
   return Math.min(k, termMonths);
 }
 
-const balanceAfter = (start: number, r: number, payment: number, k: number) => {
-  const balance = r === 0 ? start - payment * k : start * Math.pow(1 + r, k) - (payment * (Math.pow(1 + r, k) - 1)) / r;
-  return Math.max(0, balance);
-};
-
 /** Assurance d'un mois, avant l'échéance : `balance` est le capital restant dû à ce moment-là. */
 function insuranceFor(loan: Loan, balance: number): number {
   if (loan.insuranceMode === "montant") return loan.insurance;
@@ -197,6 +214,8 @@ function insuranceFor(loan: Loan, balance: number): number {
 
 interface LoanStep {
   date: string;
+  /** Échéance hors assurance. */
+  payment: number;
   capital: number;
   interest: number;
   insurance: number;
@@ -204,23 +223,54 @@ interface LoanStep {
   balance: number;
 }
 
-/** Échéancier mois par mois. Un relevé remplace le capital calculé à sa date ; un écart à la baisse compte comme capital remboursé. */
-function loanSteps(loan: Loan, payment: number): LoanStep[] {
+/**
+ * Échéancier mois par mois. Un relevé remplace le capital calculé à sa date ; un écart à la baisse compte comme capital remboursé.
+ * Différé partiel : on ne paie que les intérêts. Différé total : les intérêts s'ajoutent au capital (capital négatif, sans sortie d'argent).
+ * Remboursement anticipé : appliqué à l'échéance suivante ; on garde la mensualité (durée réduite) ou la durée (mensualité recalculée).
+ */
+function loanSteps(loan: Loan): LoanStep[] {
   const r = loan.rate / 12;
   const anchorIndex = loan.manualBalance != null && loan.manualBalanceDate ? paymentsDue(loan.firstPayment, loan.termMonths, loan.manualBalanceDate) : null;
+  const deferred = Math.min(loan.deferredMonths, loan.termMonths - 1);
+  const prepayments = [...loan.prepayments].sort((a, b) => a.date.localeCompare(b.date));
+  const capitalised = loan.deferredKind === "total" ? loan.principal * Math.pow(1 + r, deferred) : loan.principal;
+  let payment = loan.manualPayment ?? loanPayment(capitalised, loan.rate, loan.termMonths - deferred);
   const steps: LoanStep[] = [];
   let balance = loan.principal;
+  let nextPrepayment = 0;
+  let recompute = false;
   for (let k = 0; k < loan.termMonths; k++) {
+    const date = addMonths(loan.firstPayment, k);
     let earlyRepayment = 0;
+    let fee = 0;
     if (k === anchorIndex) {
       earlyRepayment = Math.max(0, balance - loan.manualBalance!);
       balance = loan.manualBalance!;
     }
+    for (; nextPrepayment < prepayments.length && prepayments[nextPrepayment].date <= date; nextPrepayment++) {
+      const p = prepayments[nextPrepayment];
+      const paid = Math.min(balance, p.amount);
+      balance -= paid;
+      earlyRepayment += paid;
+      fee += p.fee;
+      if (p.mode === "mensualite") recompute = true;
+    }
+    if (recompute && k >= deferred) {
+      if (balance > 0) payment = loanPayment(balance, loan.rate, loan.termMonths - k);
+      recompute = false;
+    }
     const interest = balance * r;
     const insurance = insuranceFor(loan, balance);
+    if (k < deferred) {
+      const added = loan.deferredKind === "total" ? interest : 0;
+      balance += added;
+      steps.push({ date, payment: interest - added, capital: earlyRepayment - added, interest: interest + fee, insurance, balance });
+      continue;
+    }
     const capital = Math.min(balance, Math.max(0, payment - interest));
     balance -= capital;
-    steps.push({ date: addMonths(loan.firstPayment, k), capital: capital + earlyRepayment, interest, insurance, balance });
+    steps.push({ date, payment, capital: capital + earlyRepayment, interest: interest + fee, insurance, balance });
+    if (prepayments.length > 0 && balance <= 0.005) break;
   }
   return steps;
 }
@@ -236,9 +286,8 @@ export interface LoanYear {
 
 /** Ce que le crédit coûte chaque année civile : capital remboursé, intérêts et assurance ; arrêté à `until` si indiqué. */
 export function loanYears(loan: Loan, until?: string): LoanYear[] {
-  const payment = loan.manualPayment ?? loanPayment(loan.principal, loan.rate, loan.termMonths);
   const years = new Map<number, LoanYear>();
-  for (const s of loanSteps(loan, payment)) {
+  for (const s of loanSteps(loan)) {
     if (until != null && s.date > until) break;
     const year = Number(s.date.slice(0, 4));
     const y = years.get(year) ?? { year, capital: 0, interest: 0, insurance: 0, endBalance: 0 };
@@ -276,17 +325,18 @@ export interface LoanState {
 }
 
 export function loanState(loan: Loan, asOf: string): LoanState {
-  const r = loan.rate / 12;
-  const payment = loan.manualPayment ?? loanPayment(loan.principal, loan.rate, loan.termMonths);
-  const paymentsDone = paymentsDue(loan.firstPayment, loan.termMonths, asOf);
-  const paymentsLeft = loan.termMonths - paymentsDone;
+  const steps = loanSteps(loan);
+  const paymentsDone = steps.filter((x) => x.date <= asOf).length;
+  const paymentsLeft = steps.length - paymentsDone;
+  const last = paymentsDone > 0 ? steps[paymentsDone - 1] : null;
   const anchored = loan.manualBalance != null && !!loan.manualBalanceDate && loan.manualBalanceDate <= asOf;
-  // Depuis un relevé : on repart de son montant, seules les échéances postérieures au relevé comptent.
-  const balance = anchored
-    ? balanceAfter(loan.manualBalance!, r, payment, paymentsDone - paymentsDue(loan.firstPayment, loan.termMonths, loan.manualBalanceDate!))
-    : balanceAfter(loan.principal, r, payment, paymentsDone);
-  const insurance = paymentsLeft > 0 ? insuranceFor(loan, balance) : 0;
-  const steps = loanSteps(loan, payment);
+  // Un relevé sans échéance depuis, ou un remboursement anticipé pas encore passé dans l'échéancier, comptent déjà.
+  const scheduled = anchored && paymentsDone === paymentsDue(loan.firstPayment, loan.termMonths, loan.manualBalanceDate!) ? loan.manualBalance! : (last?.balance ?? loan.principal);
+  const pending = loan.prepayments.filter((p) => p.date <= asOf && (last == null || p.date > last.date)).reduce((sum, p) => sum + p.amount, 0);
+  const balance = Math.max(0, scheduled - pending);
+  const next = steps[paymentsDone];
+  const payment = (next ?? steps[steps.length - 1]).payment;
+  const insurance = next?.insurance ?? 0;
   return {
     loan,
     payment: roundCents(payment),
@@ -297,9 +347,9 @@ export function loanState(loan: Loan, asOf: string): LoanState {
     heldMonthly: roundCents(paymentsLeft > 0 ? (payment + insurance) * loan.share : 0),
     paymentsDone,
     paymentsLeft,
-    endDate: addMonths(loan.firstPayment, loan.termMonths - 1),
-    totalInterest: roundCents(steps.reduce((s, x) => s + x.interest, 0)),
-    totalInsurance: roundCents(steps.reduce((s, x) => s + x.insurance, 0)),
+    endDate: steps[steps.length - 1].date,
+    totalInterest: roundCents(steps.reduce((sum, x) => sum + x.interest, 0)),
+    totalInsurance: roundCents(steps.reduce((sum, x) => sum + x.insurance, 0)),
     fromManualBalance: anchored,
   };
 }

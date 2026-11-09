@@ -196,6 +196,7 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
 
   out.push(...leaseAlerts(data, today));
   out.push(...energyAlerts(data, today));
+  out.push(...documentAlerts(data, today));
 
   // Janvier–mars : intérêts de l'année passée à saisir.
   const month = +today.slice(5, 7);
@@ -238,6 +239,22 @@ export function energyAlerts(data: Pick<EngineData, "properties">, today: string
   return out;
 }
 
+/** Délai avant la fin de validité d'un document ou d'une attestation à partir duquel on prévient. */
+const DOCUMENT_ALERT_DAYS = 30;
+
+/** Documents d'un bien non archivé qui expirent bientôt ou ont expiré. */
+export function documentAlerts(data: Pick<EngineData, "properties" | "propertyDocuments">, today: string): Alert[] {
+  const properties = new Map((data.properties ?? []).filter((p) => !p.archived).map((p) => [p.id, p]));
+  const out: Alert[] = [];
+  for (const d of data.propertyDocuments ?? []) {
+    const property = properties.get(d.propertyId);
+    if (!property || d.expiresOn == null || daysBetween(today, d.expiresOn) > DOCUMENT_ALERT_DAYS) continue;
+    const expired = d.expiresOn < today;
+    out.push({ id: `document-${d.id}`, level: expired ? "attention" : "info", title: `${property.name} : ${d.label} ${expired ? "a expiré le" : "expire le"} ${frDate(d.expiresOn)}`, link: `/immobilier/${property.id}` });
+  }
+  return out;
+}
+
 /** Délai avant une échéance de bail à partir duquel on la rappelle. */
 const LEASE_ALERT_DAYS = 60;
 
@@ -265,6 +282,9 @@ export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "le
     }
     if (current.status === "a_venir") continue;
     const revision = current.status === "en_cours" && !dpeFreezesRent(property.dpe) ? leaseRevisionDue(current.lease, data.leaseRents ?? [], today) : null;
+    if (current.lease.tenantInsuranceUntil != null && daysBetween(today, current.lease.tenantInsuranceUntil) <= DOCUMENT_ALERT_DAYS) {
+      out.push({ id: `bail-assurance-${current.lease.id}`, level: "info", title: `${property.name} : attestation d'assurance du locataire à renouveler`, detail: `Valable jusqu'au ${frDate(current.lease.tenantInsuranceUntil)}.`, link });
+    }
     if (revision) out.push({ id: `bail-revision-${current.lease.id}`, level: "info", title: `${property.name} : révision annuelle du loyer au ${frDate(revision)}`, detail: "Si le bail le prévoit, calculez le nouveau loyer avec l'indice de référence des loyers.", link });
     if (soon(current.end)) {
       out.push(

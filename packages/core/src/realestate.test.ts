@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NO_PROPERTY_DETAILS, estimateNotaryFees, loanPayment, loanState, loanYears, loanHeldBalanceAt, loanPayoffAt, propertyHeldValueAt, propertySale, propertySqm, propertySummary, propertyTotalCost, propertyValue, type Loan, type Property, type PropertyValue } from "./realestate";
 
-const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, share: 1, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null };
+const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, share: 1, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null, deferredMonths: 0, deferredKind: "partiel", prepayments: [] };
 
 describe("crédits", () => {
   it("échéance constante, taux zéro compris", () => {
@@ -119,6 +119,56 @@ describe("crédits", () => {
   it("coût par année arrêté à une date : seules les échéances passées comptent", () => {
     const [annee] = loanYears({ ...loan, firstPayment: "2026-01-05", insurance: 0, rate: 0, principal: 24_000, termMonths: 24 }, "2026-03-10");
     expect(annee).toMatchObject({ year: 2026, capital: 3_000 });
+  });
+
+  describe("différé et remboursement anticipé", () => {
+    const pret: Loan = { ...loan, rate: 0.03, principal: 120_000, termMonths: 120, firstPayment: "2026-01-05", insurance: 0 };
+    const zero: Loan = { ...loan, rate: 0, principal: 100_000, termMonths: 100, firstPayment: "2026-01-05", insurance: 0 };
+
+    it("différé partiel : intérêts seuls, capital inchangé, puis amortissement sur le reste", () => {
+      const d = { ...pret, deferredMonths: 12 };
+      const pendant = loanState(d, "2026-06-10");
+      expect(pendant).toMatchObject({ payment: 300, balance: 120_000 });
+      const apres = loanState(d, "2027-01-10");
+      expect(apres.payment).toBeCloseTo(loanPayment(120_000, 0.03, 108), 2);
+      expect(apres.balance).toBeLessThan(120_000);
+      expect(apres.endDate).toBe("2035-12-05");
+      expect(loanState(d, "2036-01-01").balance).toBe(0);
+    });
+
+    it("différé total : rien à payer, intérêts ajoutés au capital", () => {
+      const d = { ...pret, deferredMonths: 12, deferredKind: "total" as const };
+      expect(loanState(d, "2026-06-10").payment).toBe(0);
+      expect(loanState(d, "2026-12-10").balance).toBeCloseTo(120_000 * Math.pow(1.0025, 12), 2);
+      const [annee] = loanYears(d);
+      // Intérêts dus mais capitalisés : aucune sortie d'argent sur l'année.
+      expect(annee.capital).toBeCloseTo(-annee.interest, 2);
+      expect(loanState(d, "2027-01-10").payment).toBeCloseTo(loanPayment(120_000 * Math.pow(1.0025, 12), 0.03, 108), 2);
+    });
+
+    it("remboursement anticipé : durée réduite, mensualité gardée, compté dès sa date", () => {
+      const d: Loan = { ...zero, prepayments: [{ id: "p", loanId: "l", date: "2026-06-10", amount: 20_000, fee: 300, mode: "duree" }] };
+      expect(loanState(d, "2026-06-09").balance).toBe(94_000);
+      expect(loanState(d, "2026-06-15").balance).toBe(74_000);
+      const apres = loanState(d, "2026-07-10");
+      expect(apres).toMatchObject({ payment: 1_000, balance: 73_000 });
+      expect(apres.endDate).toBe("2032-08-05");
+      expect(apres.totalInterest).toBe(300);
+      const year = loanYears(d).find((y) => y.year === 2026)!;
+      expect(year).toMatchObject({ capital: 32_000, interest: 300 });
+    });
+
+    it("remboursement anticipé : durée gardée, mensualité recalculée", () => {
+      const d: Loan = { ...zero, prepayments: [{ id: "p", loanId: "l", date: "2026-06-10", amount: 20_000, fee: 0, mode: "mensualite" }] };
+      const apres = loanState(d, "2026-07-10");
+      expect(apres.payment).toBeCloseTo(74_000 / 94, 2);
+      expect(apres.endDate).toBe("2034-04-05");
+    });
+
+    it("remboursement total : le crédit s'arrête", () => {
+      const d: Loan = { ...zero, prepayments: [{ id: "p", loanId: "l", date: "2026-03-10", amount: 500_000, fee: 0, mode: "duree" }] };
+      expect(loanState(d, "2026-04-10")).toMatchObject({ balance: 0, monthly: 0, paymentsLeft: 0 });
+    });
   });
 
   it("part à charge : réduit capital et mensualité sans changer le crédit lui-même", () => {
