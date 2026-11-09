@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { Hono, type Context } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -13,8 +13,10 @@ export interface ServerConfig {
   /** Dossier des copies faites avant une migration, un sous-dossier par tenant ; null pour les désactiver. */
   dataDir: string | null;
   signup: SignupMode;
-  /** Cookie « Secure » : à activer derrière HTTPS (recommandé en production). */
+  /** Considère toute requête comme HTTPS, quel que soit ce qu'annonce le proxy. */
   secureCookies: boolean;
+  /** Autorise les connexions en HTTP simple hors de cette machine : mots de passe et sessions circulent alors en clair. */
+  allowHttp?: boolean;
   /** Derrière un reverse proxy de confiance : l'adresse du client se lit dans X-Forwarded-For. */
   trustProxy: boolean;
   /** Interface construite (packages/ui/dist) ; absente en test. */
@@ -30,6 +32,9 @@ export interface ServerConfig {
 }
 
 const COOKIE = "hamac_session";
+/** En HTTPS : le préfixe impose Secure, Path=/ et aucun domaine, donc aucun sous-domaine ne peut le remplacer. */
+const SECURE_COOKIE = "__Host-hamac_session";
+const HTTPS_ONLY = "Connexion refusée : ouvrez Hamac en HTTPS.";
 const IDLE_MS = 15 * 60_000;
 const MIN_PASSWORD = 10;
 
@@ -138,15 +143,30 @@ export async function createApp(cfg: ServerConfig) {
   const decoyHash = UserStore.hashPassword("leurre");
   const app = new Hono();
 
+  /** HTTPS annoncé par le proxy de confiance (dernière entrée, celle qu'il a ajoutée), sinon protocole de la requête. */
+  const isHttps = (c: Context): boolean => {
+    if (cfg.secureCookies) return true;
+    const proto = cfg.trustProxy ? c.req.header("x-forwarded-proto")?.split(",").at(-1)?.trim() : undefined;
+    return proto ? proto === "https" : new URL(c.req.url).protocol === "https:";
+  };
+  const isLocal = (c: Context): boolean => ["localhost", "127.0.0.1", "[::1]"].includes(new URL(c.req.url).hostname);
+  const cookieName = (c: Context): string => (isHttps(c) ? SECURE_COOKIE : COOKIE);
+
   // En-têtes de sécurité.
   app.use("*", async (c, next) => {
     await next();
     c.header("X-Content-Type-Options", "nosniff");
     c.header("X-Frame-Options", "DENY");
     c.header("Referrer-Policy", "same-origin");
+    c.header("Cross-Origin-Opener-Policy", "same-origin");
+    c.header("Cross-Origin-Resource-Policy", "same-origin");
+    c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+    // Pas de sous-domaines : ils peuvent héberger autre chose que Hamac, sans HTTPS.
+    if (isHttps(c)) c.header("Strict-Transport-Security", "max-age=31536000");
+    if (c.req.path.startsWith("/api/")) c.header("Cache-Control", "no-store");
     c.header(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'",
     );
   });
 
@@ -163,16 +183,22 @@ export async function createApp(cfg: ServerConfig) {
     }
   };
   const currentUser = async (c: Context): Promise<User | null> => {
-    const token = getCookie(c, COOKIE);
+    const token = getCookie(c, cookieName(c));
     return token ? users.userForSession(token) : null;
   };
   const startSession = async (c: Context, user: User) => {
     const { token, expiresAt } = await users.createSession(user.id);
-    setCookie(c, COOKIE, token, { httpOnly: true, sameSite: "Strict", secure: cfg.secureCookies, path: "/", expires: expiresAt });
+    setCookie(c, cookieName(c), token, { httpOnly: true, sameSite: "Strict", secure: isHttps(c), path: "/", expires: expiresAt });
   };
   const unauthorized = (c: Context) => c.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Session expirée : reconnectez-vous." } }, 401);
   // Protection CSRF : en plus du cookie SameSite=Strict, toute écriture exige un en-tête qu'un formulaire tiers ne peut pas envoyer.
   const csrfOk = (c: Context) => c.req.header("x-hamac") === "1";
+
+  // Hors de cette machine, jamais de mot de passe ni de session sur une connexion en clair.
+  app.use("/api/*", async (c, next) => {
+    if (c.req.path !== "/api/auth/config" && !cfg.allowHttp && !isHttps(c) && !isLocal(c)) return c.json({ error: HTTPS_ONLY }, 403);
+    await next();
+  });
 
   app.get("/api/auth/config", async (c) => c.json({ signup: cfg.signup, firstUser: (await users.count()) === 0 }));
 
@@ -218,9 +244,10 @@ export async function createApp(cfg: ServerConfig) {
 
   app.post("/api/auth/logout", async (c) => {
     if (!csrfOk(c)) return c.json({ error: "Requête refusée." }, 403);
-    const token = getCookie(c, COOKIE);
+    const name = cookieName(c);
+    const token = getCookie(c, name);
     if (token) await users.deleteSession(token);
-    deleteCookie(c, COOKIE, { path: "/" });
+    deleteCookie(c, name, { path: "/", secure: isHttps(c) });
     return c.json({ ok: true });
   });
 
@@ -239,9 +266,14 @@ export async function createApp(cfg: ServerConfig) {
   if (cfg.staticDir) {
     const root = resolve(cfg.staticDir);
     app.get("*", (c) => {
-      const rel = normalize(decodeURIComponent(new URL(c.req.url).pathname)).replace(/^([/\\])+/, "");
+      let rel = "index.html";
+      try {
+        rel = normalize(decodeURIComponent(new URL(c.req.url).pathname)).replace(/^([/\\])+/, "");
+      } catch {
+        // Adresse mal encodée : on sert l'interface.
+      }
       let file = resolve(root, rel);
-      if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) file = join(root, "index.html");
+      if (!(file === root || file.startsWith(root + sep)) || !existsSync(file) || statSync(file).isDirectory()) file = join(root, "index.html");
       const body = readFileSync(file);
       const ext = extname(file);
       c.header("Content-Type", MIME[ext] ?? "application/octet-stream");

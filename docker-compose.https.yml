@@ -1,0 +1,35 @@
+# Production en HTTPS, activée par COMPOSE_FILE et HAMAC_DOMAIN dans .env (voir .env.example).
+# Hamac n'est plus publié sur la machine : seul Caddy le joint, donc l'en-tête du proxy est fiable.
+services:
+  hamac:
+    ports: !reset []
+    environment:
+      HAMAC_TRUST_PROXY: "1"
+      HAMAC_SECURE: "1"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      hamac:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      HAMAC_DOMAIN: ${HAMAC_DOMAIN:?Renseignez HAMAC_DOMAIN dans le fichier .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  caddy-data:
+  caddy-config:

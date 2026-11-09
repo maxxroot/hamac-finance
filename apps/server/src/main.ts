@@ -12,7 +12,8 @@ import { databaseUrl, intFromEnv } from "./env";
  *   HAMAC_DATA_DIR   dossier des copies faites avant une migration (défaut : ./data)
  *   HAMAC_PORT       port d'écoute (défaut : 8080)
  *   HAMAC_SIGNUP     invite (défaut) | open | closed
- *   HAMAC_SECURE     1 si le serveur est derrière HTTPS (cookies « Secure »)
+ *   HAMAC_SECURE     1 pour considérer toute requête comme HTTPS (sinon détecté d'après le proxy de confiance)
+ *   HAMAC_ALLOW_HTTP 1 pour autoriser le HTTP simple hors de cette machine (déconseillé)
  *   HAMAC_UI_DIR     dossier de l'interface construite (défaut : ./ui à côté du serveur)
  *   HAMAC_PRICES     0 pour ne pas actualiser les cours automatiquement
  *   HAMAC_TWELVEDATA_KEY          clé Twelve Data (facultative, jamais stockée en base)
@@ -24,7 +25,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const signup = (process.env.HAMAC_SIGNUP ?? "invite") as SignupMode;
 if (!["invite", "open", "closed"].includes(signup)) throw new Error("HAMAC_SIGNUP doit valoir invite, open ou closed.");
 
-if (process.env.HAMAC_SECURE !== "1") console.warn("[hamac] Cookies non sécurisés : placez un proxy HTTPS devant le serveur et activez HAMAC_SECURE=1.");
+const allowHttp = process.env.HAMAC_ALLOW_HTTP === "1";
+if (allowHttp) console.warn("[hamac] HAMAC_ALLOW_HTTP=1 : hors HTTPS, mots de passe et sessions circulent en clair sur le réseau.");
 
 const market = {
   twelveDataKey: process.env.HAMAC_TWELVEDATA_KEY?.trim() || null,
@@ -47,6 +49,7 @@ const { app, close } = await createApp({
   dataDir: process.env.HAMAC_DATA_DIR ?? join(process.cwd(), "data"),
   signup,
   secureCookies: process.env.HAMAC_SECURE === "1",
+  allowHttp,
   trustProxy: process.env.HAMAC_TRUST_PROXY === "1",
   staticDir: process.env.HAMAC_UI_DIR ?? join(here, "ui"),
   appVersion: process.env.npm_package_version ?? "0.1.0",

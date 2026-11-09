@@ -137,16 +137,23 @@ docker compose exec hamac node cli.mjs users               # liste des comptes
 docker compose exec hamac node cli.mjs password <e-mail>   # changer un mot de passe
 ```
 
-Par défaut, Hamac n'écoute que sur la machine qui l'héberge. Pour l'ouvrir à d'autres appareils, placez un
-reverse proxy HTTPS (Caddy, Traefik, nginx) devant le serveur et réglez les variables ci-dessous dans un
-fichier `.env` à côté de `docker-compose.yml` (`cp .env.example .env`, puis `docker compose up -d`). Il est
-facultatif, exclu de git et de l'image Docker.
+Par défaut, Hamac n'écoute que sur la machine qui l'héberge. Hors de cette machine, il refuse les connexions
+en HTTP simple.
+
+**Mise en production, en HTTPS** : faites pointer un nom de domaine vers le serveur, ouvrez les ports 80 et 443,
+puis décommentez `COMPOSE_FILE` et `HAMAC_DOMAIN` dans `.env` (`cp .env.example .env`) et lancez
+`docker compose up -d --build`. [Caddy](https://caddyserver.com) obtient et renouvelle le certificat, redirige
+le HTTP vers HTTPS, et Hamac n'est plus joignable que par lui.
+
+Toutes les variables se règlent dans ce fichier `.env`, facultatif, exclu de git et de l'image Docker.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `HAMAC_BIND` | `127.0.0.1` | `0.0.0.0` pour écouter sur le réseau |
-| `HAMAC_SECURE` | `0` | `1` derrière HTTPS (cookies sécurisés) |
-| `HAMAC_TRUST_PROXY` | `0` | `1` derrière un reverse proxy (sinon tous les visiteurs partagent la même limite de connexions) |
+| `HAMAC_DOMAIN` | | Nom de domaine servi par Caddy, avec `COMPOSE_FILE` |
+| `HAMAC_BIND` | `127.0.0.1` | `0.0.0.0` pour écouter sur le réseau, derrière votre propre reverse proxy HTTPS |
+| `HAMAC_TRUST_PROXY` | `0` | `1` derrière un reverse proxy : HTTPS détecté, vraie adresse des visiteurs. Réglé par le Caddy fourni |
+| `HAMAC_SECURE` | `0` | `1` pour considérer toute requête comme HTTPS. Réglé par le Caddy fourni |
+| `HAMAC_ALLOW_HTTP` | `0` | `1` pour autoriser le HTTP simple hors de la machine (déconseillé) |
 | `HAMAC_SIGNUP` | `invite` | `invite`, `open` ou `closed` |
 | `HAMAC_DB_PASSWORD` | `hamac` | Mot de passe PostgreSQL, lettres et chiffres ; la base n'est jamais exposée hors de Docker |
 | `HAMAC_PORT` | `8080` | Port publié sur la machine |
@@ -156,8 +163,7 @@ facultatif, exclu de git et de l'image Docker.
 | `HAMAC_TWELVEDATA_KEY` | vide | Clé [Twelve Data](https://twelvedata.com), facultative. C'est le seul endroit où elle se règle : ni en base, ni dans l'interface |
 | `HAMAC_TWELVEDATA_DAILY_LIMIT` | `800` | Requêtes par jour de votre offre Twelve Data |
 
-Sécurité : mots de passe hachés (scrypt), sessions par cookie `HttpOnly` et `SameSite=Strict`, en-tête
-anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe. Chaque compte a son propre
+Sécurité : sessions par cookie `HttpOnly`, `SameSite=Strict` et `Secure` en HTTPS, HSTS, en-tête anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe. Chaque compte a son propre
 schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de
 l'instance.
 

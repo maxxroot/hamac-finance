@@ -1,0 +1,6 @@
+# HTTPS automatique devant Hamac : certificat obtenu et renouvelé par Caddy, HTTP redirigé vers HTTPS.
+{$HAMAC_DOMAIN} {
+	encode zstd gzip
+	header -Server
+	reverse_proxy hamac:8080
+}

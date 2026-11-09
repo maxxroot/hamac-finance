@@ -35,6 +35,45 @@ function client(s: App, ipAddr = "1.1.1.1") {
   };
 }
 
+const SIGNUP = { method: "POST", headers: { "content-type": "application/json", "x-hamac": "1" }, body: JSON.stringify({ email: "a@exemple.fr", password: "motdepasse-long" }) };
+
+describe("HTTPS", () => {
+  it("refuse le HTTP simple hors de cette machine, sauf autorisation explicite", async () => {
+    const s = await server("open", false);
+    const res = await s.app.request("http://hamac.exemple.fr/api/auth/signup", SIGNUP);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "Connexion refusée : ouvrez Hamac en HTTPS." });
+    expect((await s.app.request("http://hamac.exemple.fr/api/auth/config")).status).toBe(200);
+  });
+
+  it("derrière le proxy : cookie __Host- Secure et HSTS ; X-Forwarded-Proto ignoré sans proxy de confiance", async () => {
+    const s = await server("open", true);
+    const res = await s.app.request("http://hamac.exemple.fr/api/auth/signup", { ...SIGNUP, headers: { ...SIGNUP.headers, "x-forwarded-proto": "https", "x-forwarded-for": "1.1.1.1" } });
+    expect(res.status).toBe(200);
+    const cookie = res.headers.get("set-cookie")!;
+    expect(cookie).toMatch(/^__Host-hamac_session=/);
+    expect(cookie).toMatch(/; Secure/);
+    expect(cookie).toMatch(/; HttpOnly/);
+    expect(cookie).toMatch(/; SameSite=Strict/);
+    expect(res.headers.get("strict-transport-security")).toBe("max-age=31536000");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const me = await s.app.request("http://hamac.exemple.fr/api/auth/me", { headers: { cookie: cookie.split(";")[0]!, "x-forwarded-proto": "https" } });
+    expect(await me.json()).toEqual({ email: "a@exemple.fr" });
+
+    const direct = await server("open", false);
+    expect((await direct.app.request("http://hamac.exemple.fr/api/auth/signup", { ...SIGNUP, headers: { ...SIGNUP.headers, "x-forwarded-proto": "https" } })).status).toBe(403);
+  });
+
+  it("en local, le HTTP reste possible, sans cookie Secure (refusé par Safari sur localhost)", async () => {
+    const s = await server("open", false);
+    const res = await s.app.request("/api/auth/signup", SIGNUP);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toMatch(/^hamac_session=/);
+    expect(res.headers.get("set-cookie")).not.toMatch(/Secure/);
+    expect(res.headers.get("strict-transport-security")).toBeNull();
+  });
+});
+
 describe("serveur web", () => {
   it("premier compte sans invitation, puis invitation obligatoire et à usage unique", async () => {
     const s = await server();
