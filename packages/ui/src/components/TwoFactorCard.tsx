@@ -39,6 +39,11 @@ export function TwoFactorCard() {
     card.current?.scrollIntoView({ block: "center" });
   }, [wanted, canStart, setSearch]);
 
+  // Le QR code et les codes de secours, montrés une seule fois, doivent être à l'écran, y compris sur un téléphone.
+  useEffect(() => {
+    if (stage.name === "scan" || stage.name === "codes") card.current?.scrollIntoView({ block: "start" });
+  }, [stage.name]);
+
   if (!account || !status) return null;
 
   const done = (message: string) => {
