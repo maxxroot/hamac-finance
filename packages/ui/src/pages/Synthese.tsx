@@ -1,14 +1,12 @@
-import { ACCOUNT_KIND_LABELS, BUCKET_LABELS, BUCKETS } from "@hamac/core";
-import { useMemo } from "react";
+import { ACCOUNT_KIND_LABELS } from "@hamac/core";
 import { SortTh, useSortable } from "@/lib/sort";
 import type { AccountState, PortfolioState } from "@hamac/core";
 import { Amount } from "@/components/Amount";
-import { Chart, type ChartOption } from "@/components/Chart";
-import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
+import { Notice, Pct } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
-import { BUCKET_COLORS, INK } from "@/lib/colors";
+import { BUCKET_COLORS } from "@/lib/colors";
 import { usePortfolio } from "@/lib/portfolio";
 import { formatEur } from "@hamac/core";
 
@@ -16,26 +14,6 @@ const ACTION_LABEL = { ok: "OK", renforcer: "Renforcer", alleger: "Alléger (ver
 
 export function Synthese() {
   const pf = usePortfolio();
-  const donut = useMemo<ChartOption | null>(() => {
-    if (!pf) return null;
-    const data = BUCKETS.map((b) => ({ name: BUCKET_LABELS[b], value: pf.state.buckets[b], itemStyle: { color: BUCKET_COLORS[b] } })).filter((d) => d.value > 0);
-    return {
-      tooltip: { trigger: "item", backgroundColor: INK.surface2, borderColor: INK.line, textStyle: { color: INK.fg }, valueFormatter: (v: unknown) => formatEur(Number(v), { compact: true }) },
-      legend: { bottom: 0, icon: "circle", itemWidth: 8, itemHeight: 8, textStyle: { color: INK.muted } },
-      series: [
-        {
-          type: "pie",
-          radius: ["58%", "80%"],
-          center: ["50%", "44%"],
-          padAngle: 1,
-          itemStyle: { borderColor: INK.surface, borderWidth: 2, borderRadius: 4 },
-          label: { show: false },
-          data,
-        },
-      ],
-    };
-  }, [pf]);
-
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
   const { state } = pf;
@@ -44,25 +22,9 @@ export function Synthese() {
   return (
     <>
       <PageHeader title="Synthèse des enveloppes" description="Tout est calculé depuis le journal : apports, versements mensuels passés et mouvements." />
-      <StatGrid>
-        <Stat label="Patrimoine total">
-          <Amount value={state.totals.value} compact />
-        </Stat>
-        <Stat label="Versé net">
-          <Amount value={state.totals.netContrib} compact />
-        </Stat>
-        <Stat label="Gain / perte" sub={<Pct value={state.totals.netContrib > 0 ? state.totals.gain / state.totals.netContrib : null} signed />}>
-          <Amount value={state.totals.gain} signed compact />
-        </Stat>
-        <Stat label="Versements ce mois-ci">
-          <Amount value={state.totals.monthly} compact />
-        </Stat>
-      </StatGrid>
-
       <AccountsTable rows={rows} totals={state.totals} />
 
-      <div className="grid gap-5 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
+      <Card>
           <CardTitle hint={`Âge ${state.age} ans · alerte au-delà de ${Math.round(pf.data.params.livrets.driftAlert * 100)} % d'écart`}>Allocation de la partie investie</CardTitle>
           <Table>
             <thead>
@@ -106,12 +68,7 @@ export function Synthese() {
           <p className="mt-3 text-xs text-fg-faint">
             Partie investie : <Amount value={state.allocation.invested} compact /> (réglée dans Paramètres › Répartition). On rééquilibre en orientant les versements, sans vendre.
           </p>
-        </Card>
-        <Card className="lg:col-span-2">
-          <CardTitle>Répartition du patrimoine</CardTitle>
-          {donut && state.totals.value > 0 ? <Chart option={donut} height={260} /> : <p className="py-16 text-center text-sm text-fg-muted">La répartition apparaîtra avec les premiers montants.</p>}
-        </Card>
-      </div>
+      </Card>
 
       <div className="mt-5">
         <LivretsStatus />
@@ -149,7 +106,7 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
   const { sorted, by } = useSortable(rows, {
     name: (a) => a.account.name,
     role: (a) => a.account.role,
-    initial: (a) => a.initial,
+    share: (a) => a.value,
     monthly: (a) => a.currentMonthly,
     value: (a) => a.value,
     net: (a) => a.netContrib,
@@ -162,14 +119,14 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
         <tr>
           <SortTh {...by("name")}>Compte</SortTh>
           <SortTh {...by("role")}>Rôle</SortTh>
-          <SortTh {...by("initial")} align="right">
-            Apport initial
-          </SortTh>
           <SortTh {...by("monthly")} align="right">
             Versement mensuel
           </SortTh>
           <SortTh {...by("value")} align="right">
             Valeur
+          </SortTh>
+          <SortTh {...by("share")} align="right">
+            Part du patrimoine
           </SortTh>
           <SortTh {...by("net")} align="right">
             Versé net
@@ -194,13 +151,13 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
               {a.account.role}
             </Td>
             <Td align="right">
-              <Amount value={a.initial} compact />
-            </Td>
-            <Td align="right">
               <Amount value={a.currentMonthly} compact />
             </Td>
             <Td align="right" className="font-medium">
               <Amount value={a.value} />
+            </Td>
+            <Td align="right">
+              <Pct value={totals.value > 0 ? a.value / totals.value : null} />
             </Td>
             <Td align="right">
               <Amount value={a.netContrib} />
@@ -217,13 +174,13 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
           <Td>Total</Td>
           <Td />
           <Td align="right">
-            <Amount value={rows.reduce((s, a) => s + a.initial, 0)} compact />
-          </Td>
-          <Td align="right">
             <Amount value={totals.monthly} compact />
           </Td>
           <Td align="right">
             <Amount value={totals.value} />
+          </Td>
+          <Td align="right">
+            <Pct value={totals.value > 0 ? 1 : null} />
           </Td>
           <Td align="right">
             <Amount value={totals.netContrib} />
