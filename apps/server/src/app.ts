@@ -146,8 +146,6 @@ export async function createApp(cfg: ServerConfig) {
   const limiter = new RateLimiter(10, 15 * 60_000);
   // Par compte visé : freine une attaque répartie sur plusieurs adresses.
   const accountLimiter = new RateLimiter(20, 15 * 60_000);
-  // Même coût que l'e-mail existe ou non : une seule vérification, contre un leurre calculé une fois.
-  const decoyHash = UserStore.hashPassword("leurre");
   const app = new Hono();
 
   /** HTTPS annoncé par le proxy de confiance (dernière entrée, celle qu'il a ajoutée), sinon protocole de la requête. */
@@ -222,7 +220,7 @@ export async function createApp(cfg: ServerConfig) {
     const accountKey = `login:${(body.email ?? "").trim().toLowerCase()}`;
     if (!accountLimiter.allow(accountKey)) return c.json({ error: "Trop de tentatives : réessayez dans 15 minutes." }, 429);
     // Même réponse et même coût que l'e-mail existe ou non.
-    const ok = UserStore.verifyPassword(body.password ?? "", found?.passwordHash ?? decoyHash);
+    const ok = await users.checkPassword(found, body.password ?? "");
     if (!found || !ok) return c.json({ error: "E-mail ou mot de passe incorrect." }, 401);
     limiter.reset(`login:${ip(c)}`);
     accountLimiter.reset(accountKey);

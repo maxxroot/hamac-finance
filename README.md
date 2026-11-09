@@ -164,7 +164,7 @@ Toutes les variables se règlent dans ce fichier `.env`, facultatif, exclu de gi
 | `HAMAC_TWELVEDATA_KEY` | vide | Clé [Twelve Data](https://twelvedata.com), facultative. C'est le seul endroit où elle se règle : ni en base, ni dans l'interface |
 | `HAMAC_TWELVEDATA_DAILY_LIMIT` | `800` | Requêtes par jour de votre offre Twelve Data |
 
-Sécurité : sessions par cookie `HttpOnly`, `SameSite=Strict` et `Secure` en HTTPS, HSTS, en-tête anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe. Chaque compte a son propre
+Sécurité : mots de passe hachés avec Argon2id, sessions par cookie `HttpOnly`, `SameSite=Strict` et `Secure` en HTTPS, HSTS, en-tête anti-CSRF, limitation des tentatives de connexion, en-têtes CSP et anti-iframe. Chaque compte a son propre
 schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de
 l'instance.
 

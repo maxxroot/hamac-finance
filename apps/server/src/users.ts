@@ -1,9 +1,10 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { rawFor, type PgProvider, type PgSession } from "@hamac/backend";
+import { PasswordHasher } from "./password";
 
 /**
  * Comptes, sessions et invitations de l'instance (schéma « comptes », inaccessible aux tenants).
- * Mots de passe : scrypt (intégré à Node), sel aléatoire, comparaison à temps constant.
+ * Mots de passe : Argon2id (voir password.ts).
  * Jetons de session : seule leur empreinte SHA-256 est stockée.
  */
 export interface User {
@@ -16,7 +17,6 @@ export interface User {
   createdAt: string;
 }
 
-const SCRYPT = { N: 16384, r: 8, p: 1 } as const;
 
 function sha(s: string): string {
   return createHash("sha256").update(s).digest("base64url");
@@ -36,6 +36,9 @@ export class UserStore {
     private db: ReturnType<typeof rawFor>,
     private sessionDays: number,
   ) {}
+
+  private hasher = new PasswordHasher();
+  private decoy: Promise<string> | null = null;
 
   /** Ouvre la connexion d'administration et crée les tables manquantes. `onLost` signale sa perte. */
   static async open(provider: PgProvider, onLost?: () => void, sessionDays = 30): Promise<UserStore> {
@@ -69,18 +72,12 @@ export class UserStore {
     return new UserStore(session, db, sessionDays);
   }
 
-  static hashPassword(password: string): string {
-    const salt = randomBytes(16);
-    const hash = scryptSync(password, salt, 64, SCRYPT);
-    return `scrypt$${salt.toString("base64")}$${hash.toString("base64")}`;
-  }
-
-  static verifyPassword(password: string, stored: string): boolean {
-    const [algo, saltB64, hashB64] = stored.split("$");
-    if (algo !== "scrypt" || !saltB64 || !hashB64) return false;
-    const expected = Buffer.from(hashB64, "base64");
-    const actual = scryptSync(password, Buffer.from(saltB64, "base64"), expected.length, SCRYPT);
-    return timingSafeEqual(actual, expected);
+  /** Même coût que le compte existe ou non ; convertit au passage une empreinte aux anciens paramètres. */
+  async checkPassword(user: { id: string; passwordHash: string } | null, password: string): Promise<boolean> {
+    const { ok, outdated } = await this.hasher.verify(password, user?.passwordHash ?? (await (this.decoy ??= this.hasher.hash("leurre"))));
+    if (!user || !ok) return false;
+    if (outdated) await this.db.run("UPDATE comptes.users SET password_hash = ? WHERE id = ?", [await this.hasher.hash(password), user.id]);
+    return true;
   }
 
   /** Crée le compte et son tenant. Le premier compte de l'instance en est l'administrateur. */
@@ -88,7 +85,7 @@ export class UserStore {
     const isAdmin = (await this.count()) === 0;
     const user: User = { id: crypto.randomUUID(), tenantId: crypto.randomUUID(), email: email.trim().toLowerCase(), isAdmin, createdAt: new Date().toISOString() };
     await this.db.run("INSERT INTO comptes.tenants (id, created_at) VALUES (?, ?)", [user.tenantId, user.createdAt]);
-    await this.db.run("INSERT INTO comptes.users (id, tenant_id, email, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)", [user.id, user.tenantId, user.email, UserStore.hashPassword(password), isAdmin, user.createdAt]);
+    await this.db.run("INSERT INTO comptes.users (id, tenant_id, email, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)", [user.id, user.tenantId, user.email, await this.hasher.hash(password), isAdmin, user.createdAt]);
     return user;
   }
 
@@ -98,7 +95,7 @@ export class UserStore {
   }
 
   async setPassword(userId: string, password: string): Promise<void> {
-    await this.db.run("UPDATE comptes.users SET password_hash = ? WHERE id = ?", [UserStore.hashPassword(password), userId]);
+    await this.db.run("UPDATE comptes.users SET password_hash = ? WHERE id = ?", [await this.hasher.hash(password), userId]);
     await this.db.run("DELETE FROM comptes.sessions WHERE user_id = ?", [userId]);
   }
 

@@ -1,3 +1,4 @@
+import { randomBytes, scryptSync } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { rawFor } from "@hamac/backend";
 import { testProvider } from "@hamac/backend/testkit";
@@ -84,6 +85,18 @@ describe("serveur web", () => {
     expect(await s.users.count()).toBe(0);
     expect((await client(s, "3.3.3.3").req("POST", "/api/auth/signup", { email: "admin@exemple.fr", password: "motdepasse-long" })).status).toBe(200);
     expect((await s.users.list())[0]).toMatchObject({ email: "admin@exemple.fr", isAdmin: true });
+  });
+
+  it("une ancienne empreinte scrypt est convertie en Argon2id à la connexion", async () => {
+    const s = await server("open");
+    const c = client(s);
+    await c.req("POST", "/api/auth/signup", { email: "a@exemple.fr", password: "motdepasse-long" });
+    const db = rawFor(await testProvider().session());
+    const salt = randomBytes(16);
+    await db.run("UPDATE comptes.users SET password_hash = ?", [`scrypt$${salt.toString("base64")}$${scryptSync("ancien-mot-de-passe", salt, 64, { N: 16384, r: 8, p: 1 }).toString("base64")}`]);
+    expect((await c.req("POST", "/api/auth/login", { email: "a@exemple.fr", password: "ancien-mot-de-passe" })).status).toBe(200);
+    expect((await db.get<{ h: string }>("SELECT password_hash AS h FROM comptes.users"))?.h).toMatch(/^\$argon2id\$/);
+    expect((await c.req("POST", "/api/auth/login", { email: "a@exemple.fr", password: "ancien-mot-de-passe" })).status).toBe(200);
   });
 
   it("premier compte avec son code, puis invitation obligatoire et à usage unique", async () => {
