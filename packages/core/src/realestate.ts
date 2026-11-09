@@ -166,11 +166,12 @@ export interface LoanYear {
   endBalance: number;
 }
 
-/** Ce que le crédit coûte chaque année civile : capital remboursé, intérêts et assurance. */
-export function loanYears(loan: Loan): LoanYear[] {
+/** Ce que le crédit coûte chaque année civile : capital remboursé, intérêts et assurance ; arrêté à `until` si indiqué. */
+export function loanYears(loan: Loan, until?: string): LoanYear[] {
   const payment = loan.manualPayment ?? loanPayment(loan.principal, loan.rate, loan.termMonths);
   const years = new Map<number, LoanYear>();
   for (const s of loanSteps(loan, payment)) {
+    if (until != null && s.date > until) break;
     const year = Number(s.date.slice(0, 4));
     const y = years.get(year) ?? { year, capital: 0, interest: 0, insurance: 0, endBalance: 0 };
     y.capital += s.capital;

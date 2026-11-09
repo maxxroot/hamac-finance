@@ -6,6 +6,7 @@ import { Amount } from "@/components/Amount";
 import { DetailLine as Line } from "@/components/DetailLine";
 import { ExpensesCard } from "@/components/ExpensesCard";
 import { LeaseCard } from "@/components/LeaseCard";
+import { PropertyYearsCard } from "@/components/PropertyYearsCard";
 import { RentsCard } from "@/components/RentsCard";
 import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
@@ -127,6 +128,7 @@ export function Bien() {
             <LeaseCard property={property} leases={leases} rents={pf.idx.ws.leaseRents} today={pf.today} />
             <RentsCard leases={leases} rents={pf.idx.ws.leaseRents} exceptions={pf.idx.ws.rentExceptions} today={pf.today} />
             <ExpensesCard propertyId={property.id} expenses={pf.idx.ws.propertyExpenses.filter((e) => e.propertyId === property.id)} />
+            <PropertyYearsCard data={{ property, leases, rents: pf.idx.ws.leaseRents, exceptions: pf.idx.ws.rentExceptions, expenses: pf.idx.ws.propertyExpenses, loans: pf.idx.ws.loans }} today={pf.today} />
           </>
         )}
       </div>

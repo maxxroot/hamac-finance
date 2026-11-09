@@ -247,6 +247,7 @@ export const daysInMonth = (month: string) => daysBetween(`${month}-01`, nextMon
 
 /** Mois du bail échus ou en cours à `asOf`, pour le bien entier ; le premier et le dernier sont au prorata des jours. */
 export function rentMonths(lease: Lease, rents: readonly LeaseRent[], exceptions: readonly RentException[], asOf: string): RentMonth[] {
+  if (asOf < lease.startDate) return [];
   const end = leaseEnd(lease);
   const lastMonth = end != null && end.slice(0, 7) < asOf.slice(0, 7) ? end.slice(0, 7) : asOf.slice(0, 7);
   const out: RentMonth[] = [];

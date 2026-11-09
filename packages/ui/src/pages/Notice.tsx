@@ -164,7 +164,7 @@ const LEXIQUE: ReadonlyArray<readonly [string, string]> = [
   ["Obligation", "Un prêt à un État ou à une entreprise : vous recevez des coupons, puis le nominal à l'échéance."],
   ["PEA", "Le plan d'épargne en actions : une enveloppe avantageuse pour les actions, surtout après 5 ans."],
   ["PER", "Le plan d'épargne retraite : les sommes sont en principe bloquées jusqu'à la retraite."],
-  ["Patrimoine net", "Le patrimoine financier, plus les biens immobiliers (part détenue), moins le capital restant dû des crédits."],
+  ["Patrimoine net", "Le patrimoine financier, plus les biens immobiliers (part détenue), moins le capital restant dû des crédits (part à votre charge)."],
   ["Plus-value", "Le gain réalisé en vendant plus cher que le prix payé. Dans le cas contraire, c'est une moins-value."],
   ["PRU", "Le prix de revient unitaire : le prix moyen payé par part, frais compris."],
   ["Prélèvements sociaux", "Les contributions sociales dues sur les revenus de l'épargne, en plus de l'impôt."],
@@ -432,6 +432,18 @@ export function Notice() {
           <B>Un bien immobilier</B> se saisit dans <L to="/immobilier">Immobilier</L>, avec sa valeur estimée et la part que vous détenez (50 % pour un bien à deux). Il s'ajoute au patrimoine net et reste hors répartition, sauf si vous cochez le contraire.
         </p>
         <p>
+          Indiquez aussi son utilisation, son statut (nom propre, indivision, SCI…) et ses frais d'achat. Les <B>frais de notaire</B> sont estimés d'après le prix, la date d'achat et l'état du bien (neuf ou ancien), avec le taux de droits de mutation le plus courant : comparez-les à votre acte et corrigez-les si besoin. Cliquez sur le nom d'un bien pour ouvrir sa fiche : valeur, coût d'achat, gain estimé et crédits rattachés.
+        </p>
+        <p>
+          <B>Un investissement locatif</B> a en plus son suivi sur cette fiche. Déclarez le bail : son type propose la durée et calcule le dépôt de garantie, tous deux modifiables. Sans congé, le bail se reconduit tout seul. Un congé se note dans le bail, et le tableau de bord rappelle la fin du bail et le dernier jour pour donner congé.
+        </p>
+        <p>
+          Les loyers se comptent tout seuls chaque mois : signalez seulement un impayé, un mois vide ou un montant différent. Un loyer qui change se note avec « Nouveau loyer », pour ne pas réécrire les mois passés. Les dépenses se notent à part, avec l'option « chaque année » pour la taxe foncière ou l'assurance.
+        </p>
+        <p>
+          Les résultats par année sont calculés pour votre part et avant impôt. Ce suivi reste séparé de vos comptes : il ne change pas le patrimoine financier, et un loyer versé sur un livret suivi dans Hamac se note aussi dans le Journal. L'impôt sur les loyers n'est pas calculé, et ces revenus n'entrent pas dans la projection.
+        </p>
+        <p>
           <B>Une SCPI</B> se crée comme un actif (type SCPI), puis s'achète dans le Journal sur un compte-titres, une assurance-vie ou un PER. Les loyers se notent en <B>Dividende</B>, et son prix se saisit à la main. Elle compte dans le patrimoine financier, reste hors répartition par défaut, et n'entre dans la projection que si sa classe est incluse avec un rendement attendu. L'impôt sur ses revenus n'est pas calculé.
         </p>
       </Fold>
@@ -441,6 +453,7 @@ export function Notice() {
           Dans <L to="/credits">Crédits</L>, indiquez le type de crédit, le montant emprunté, le taux, la durée, la première échéance et l'assurance, comme dans votre contrat. Hamac calcule la mensualité, le capital restant dû, le coût total et la date de fin. Cliquez sur un crédit pour voir le détail année par année.
         </p>
         <p>L'assurance se saisit en montant fixe par mois, ou en taux annuel appliqué au capital emprunté ou au capital restant dû. Seuls les crédits immobiliers et travaux peuvent être rattachés à un bien.</p>
+        <p>Si vous remboursez à plusieurs et que le montant saisi est le crédit entier, indiquez votre « Part à ma charge » : le patrimoine net et les mensualités ne comptent que cette part.</p>
         <p>Si la banque indique d'autres chiffres, saisissez la mensualité ou le capital restant dû d'un relevé, avec sa date : le calcul repart de là. Un crédit renouvelable, sans échéancier fixe, se saisit en « autre » et se corrige à la main.</p>
       </Fold>
 

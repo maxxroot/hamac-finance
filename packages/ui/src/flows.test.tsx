@@ -248,6 +248,7 @@ describe("parcours de l'interface", () => {
       </Routes>,
       `/immobilier/${bien.id}`,
     );
+    expect(await screen.findByText("Résultats par année")).toBeTruthy();
     const [first] = await screen.findAllByRole("button", { name: /Signaler un écart/ });
     await user.click(first);
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));

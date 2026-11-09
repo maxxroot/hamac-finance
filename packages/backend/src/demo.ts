@@ -72,6 +72,14 @@ export async function seedDemo(backend: Backend): Promise<void> {
   await call("loans.upsert", { kind: "consommation", name: "Crédit voiture d'occasion (fictif)", principal: 9_000, rate: 0.049, termMonths: 48, firstPayment: `${y - 1}-04-10` });
   await call("loans.upsert", { kind: "immobilier", name: "Prêt immobilier (fictif)", propertyId: appartement.id, principal: 140_000, rate: 0.025, termMonths: 240, firstPayment: `${y - 3}-03-05`, insurance: 25 });
 
+  const studio = await call("properties.upsert", { kind: "locatif", name: "Studio en location (fictif)", value: 125_000, valueDate: `${y}-01-15`, purchasePrice: 110_000, purchaseDate: `${y - 4}-05-10`, notaryFees: 8_900, agencyFees: 3_000, initialWorks: 4_000 });
+  await call("loans.upsert", { kind: "immobilier", name: "Prêt du studio (fictif)", propertyId: studio.id, principal: 95_000, rate: 0.021, termMonths: 240, firstPayment: `${y - 4}-07-05`, insurance: 14 });
+  const bail = await call("leases.upsert", { propertyId: studio.id, kind: "meuble", startDate: `${y - 3}-09-01`, durationMonths: 12, rent: 560, charges: 45, deposit: 1_120 });
+  await call("leaseRents.upsert", { leaseId: bail.id, fromMonth: `${y - 1}-09`, rent: 580, charges: 45 });
+  await call("rentExceptions.set", { leaseId: bail.id, month: `${y - 1}-03`, kind: "vide" });
+  await call("propertyExpenses.upsert", { propertyId: studio.id, date: `${y - 3}-10-15`, category: "taxe_fonciere", amount: 720, yearly: true });
+  await call("propertyExpenses.upsert", { propertyId: studio.id, date: `${y - 3}-09-01`, category: "assurance", amount: 110, yearly: true });
+
   const plateformePret = await call("institutions.upsert", { name: "Plateforme E", kind: "crowdlending", offers: { crowdlending: { taxWithheld: true, taxRate: 0.314 } } });
   const pret = await call("accounts.upsert", { kind: "crowdlending", name: "Plateforme E (fictive)", institutionId: plateformePret.id, openedOn: `${y - 1}-02-01`, role: "Prêts à des projets immobiliers" });
   await call("transactions.upsert", { date: `${y - 1}-02-01`, type: "versement", accountId: pret.id, amount: 2500, comment: "Dépôt sur la plateforme" });

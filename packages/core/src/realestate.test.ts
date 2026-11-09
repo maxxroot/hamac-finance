@@ -116,6 +116,11 @@ describe("crédits", () => {
     expect(propertyValue({ value: 300_000, share: 0.5 })).toBe(150_000);
   });
 
+  it("coût par année arrêté à une date : seules les échéances passées comptent", () => {
+    const [annee] = loanYears({ ...loan, firstPayment: "2026-01-05", insurance: 0, rate: 0, principal: 24_000, termMonths: 24 }, "2026-03-10");
+    expect(annee).toMatchObject({ year: 2026, capital: 3_000 });
+  });
+
   it("part à charge : réduit capital et mensualité sans changer le crédit lui-même", () => {
     const entier = loanState({ ...loan, insurance: 30 }, "2026-06-10");
     const moitie = loanState({ ...loan, insurance: 30, share: 0.5 }, "2026-06-10");

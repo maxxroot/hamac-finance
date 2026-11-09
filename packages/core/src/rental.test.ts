@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { expenseDates } from "./rental";
+import type { Lease, RentException } from "./leases";
+import type { Loan, Property } from "./realestate";
+import { expenseDates, propertyYears, type PropertyExpense, type RentalData } from "./rental";
 
 describe("dates d'une dépense", () => {
   it("ponctuelle : une fois, si la date est passée", () => {
@@ -14,5 +16,74 @@ describe("dates d'une dépense", () => {
 
   it("annuelle : s'arrête après la dernière année indiquée", () => {
     expect(expenseDates({ date: "2024-10-15", yearly: true, untilYear: 2025 }, "2030-01-01")).toEqual(["2024-10-15", "2025-10-15"]);
+  });
+});
+
+describe("résultats par année", () => {
+  const property: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 120_000, valueDate: null, purchasePrice: 92_000, purchaseDate: "2024-06-01", newBuild: false, notaryFees: 8_000, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
+  const lease: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 50, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "" };
+  const expense: PropertyExpense = { id: "e", propertyId: "b", date: "2025-10-15", category: "taxe_fonciere", amount: 600, label: "", yearly: true, untilYear: null };
+  const loan: Loan = { id: "c", kind: "immobilier", name: "Prêt", propertyId: "b", share: 0.5, principal: 50_000, rate: 0, termMonths: 100, firstPayment: "2025-02-05", insuranceMode: "montant", insurance: 10, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false };
+  const data: RentalData = { property, leases: [lease], rents: [], exceptions: [], expenses: [expense], loans: [loan] };
+
+  it("année avant le premier bail : présente, sans rendement ni occupation", () => {
+    expect(propertyYears(data, "2026-03-10")[0]).toMatchObject({ year: 2024, rents: 0, remaining: 0, grossYield: null, netYield: null, occupancy: null, partial: false });
+  });
+
+  it("année complète : montants à la part détenue, rendement sur le coût complet", () => {
+    const y = propertyYears(data, "2026-03-10")[1];
+    expect(y).toMatchObject({ year: 2025, partial: false, rents: 3_000, charges: 300, expenses: 300, interest: 0, insurance: 55, capital: 2_750, remaining: 195, occupancy: 1 });
+    // 6 000 € de loyers sur 100 000 € de coût complet.
+    expect(y.grossYield).toBeCloseTo(0.06, 6);
+    // Loyers et charges reçus (6 600 €) moins 600 € de dépenses.
+    expect(y.netYield).toBeCloseTo(0.06, 6);
+  });
+
+  it("année en cours : arrêtée au mois en cours, rendement ramené à une année entière", () => {
+    const y = propertyYears(data, "2026-03-10")[2];
+    expect(y).toMatchObject({ year: 2026, partial: true, rents: 750, expenses: 0, insurance: 15, capital: 750, occupancy: 1 });
+    // 1 500 € sur 90 jours, ramenés à 365 jours.
+    expect(y.grossYield).toBeCloseTo((1_500 / 100_000) * (365 / 90), 6);
+  });
+
+  it("vacance entre deux baux et mois vide : l'occupation et le rendement baissent", () => {
+    const parti: Lease = { ...lease, actualEnd: "2025-06-30" };
+    const suivant: Lease = { ...lease, id: "l2", startDate: "2025-10-01" };
+    const vide: RentException = { id: "x", leaseId: "l2", month: "2025-12", kind: "vide", amount: null, comment: "" };
+    const y = propertyYears({ ...data, leases: [parti, suivant], exceptions: [vide] }, "2026-03-10")[1];
+    // Occupé de janvier à juin (181 j), puis octobre et novembre (61 j), sur 365 jours.
+    expect(y.occupancy).toBeCloseTo((181 + 61) / 365, 6);
+    expect(y.rents).toBe(2_000); // 8 mois de loyer à 500 €, à 50 %
+    expect(y.grossYield).toBeCloseTo(4_000 / 100_000, 6);
+  });
+
+  it("impayé : le logement reste occupé, le loyer n'est pas perçu", () => {
+    const impaye: RentException = { id: "x", leaseId: "l", month: "2025-03", kind: "impaye", amount: null, comment: "" };
+    const y = propertyYears({ ...data, exceptions: [impaye] }, "2026-03-10")[1];
+    expect(y.rents).toBe(2_750);
+    expect(y.occupancy).toBe(1);
+  });
+
+  it("bail qui n'a pas encore commencé : ni loyer, ni occupation, même s'il débute ce mois-ci", () => {
+    const y = propertyYears({ ...data, leases: [{ ...lease, startDate: "2026-03-20" }], expenses: [], loans: [] }, "2026-03-10").at(-1)!;
+    expect(y).toMatchObject({ year: 2026, rents: 0, occupancy: null, grossYield: null });
+  });
+
+  it("sans prix d'achat : pas de rendement, le reste est calculé", () => {
+    const y = propertyYears({ ...data, property: { ...property, purchasePrice: null } }, "2026-03-10")[1];
+    expect(y.grossYield).toBeNull();
+    expect(y.netYield).toBeNull();
+    expect(y.rents).toBe(3_000);
+  });
+
+  it("ignore les baux, dépenses et crédits d'un autre bien ; rien sans données", () => {
+    const y = propertyYears({ ...data, leases: [{ ...lease, propertyId: "x" }], expenses: [{ ...expense, propertyId: "x" }], loans: [{ ...loan, propertyId: "x" }] }, "2026-03-10");
+    expect(y.every((row) => row.rents === 0 && row.expenses === 0 && row.capital === 0)).toBe(true);
+    expect(propertyYears({ ...data, property: { ...property, purchaseDate: null }, leases: [], expenses: [], loans: [] }, "2026-03-10")).toEqual([]);
+  });
+
+  it("crédit arrêté à la date du jour, y compris une fois archivé", () => {
+    const y = propertyYears({ ...data, loans: [{ ...loan, archived: true }] }, "2025-03-10")[1];
+    expect(y).toMatchObject({ year: 2025, capital: 500 }); // échéances de février et mars, à 50 %
   });
 });
