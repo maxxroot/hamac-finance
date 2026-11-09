@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, LEASE_KINDS, LEASE_NOTICE_BY, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -173,6 +173,35 @@ export const PropertyInput = z.object({
   archived: z.boolean().default(false),
 });
 export type PropertyInput = z.input<typeof PropertyInput>;
+
+export const LeaseInput = z
+  .object({
+    id: id.optional(),
+    propertyId: id,
+    kind: z.enum(LEASE_KINDS),
+    tenant: text(120).default(""),
+    startDate: isoDate,
+    durationMonths: z.number().int().min(1).max(600),
+    rent: money.min(0),
+    charges: money.min(0).default(0),
+    deposit: money.min(0).default(0),
+    noticeBy: z.enum(LEASE_NOTICE_BY).nullable().default(null),
+    noticeDate: isoDate.nullable().default(null),
+    noticeMonths: z.number().int().min(1).max(24).nullable().default(null),
+    actualEnd: isoDate.nullable().default(null),
+    comment: text(500).default(""),
+  })
+  .refine((l) => (l.noticeBy == null) === (l.noticeDate == null), { path: ["noticeDate"], message: "Indiquez qui donne congé et à quelle date." });
+export type LeaseInput = z.input<typeof LeaseInput>;
+
+export const LeaseRentInput = z.object({
+  id: id.optional(),
+  leaseId: id,
+  fromMonth: month,
+  rent: money.min(0),
+  charges: money.min(0).default(0),
+});
+export type LeaseRentInput = z.input<typeof LeaseRentInput>;
 
 export const LoanInput = z
   .object({

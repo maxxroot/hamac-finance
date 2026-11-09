@@ -43,6 +43,13 @@
       "when": 1794232076401,
       "tag": "0005_hard_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794232379675,
+      "tag": "0006_bright_rictor",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,8 @@
 import { allocationReport } from "./allocations";
 import { proposeContributions } from "./contributions";
-import { addMonths, monthsBetween } from "./dates";
+import { addDays, addMonths, monthsBetween } from "./dates";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
+import { currentLease, leaseState } from "./leases";
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
 import { daysBetween } from "./xirr";
@@ -192,6 +193,8 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
     if (defaults.length) out.push({ id: `crowd-defaut-${a.account.id}`, level: "info", title: `${defaults.length} projet${defaults.length > 1 ? "s" : ""} en défaut sur ${a.account.name}`, detail: `${eur(defaults.reduce((s, x) => s + x.outstanding, 0))} de capital, compté${defaults.length > 1 ? "s" : ""} pour ${eur(defaults.reduce((s, x) => s + x.value, 0))}.`, link: "/crowdlending" });
   }
 
+  out.push(...leaseAlerts(data, today));
+
   // Janvier–mars : intérêts de l'année passée à saisir.
   const month = +today.slice(5, 7);
   if (month <= 3) {
@@ -203,6 +206,37 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   }
 
   return out.sort((x, y) => RANK[x.level] - RANK[y.level]);
+}
+
+/** Délai avant une échéance de bail à partir duquel on la rappelle. */
+const LEASE_ALERT_DAYS = 60;
+
+/** Rappels des biens en location : fin de bail, départ du locataire et date limite pour donner congé. */
+export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents">, today: string): Alert[] {
+  const out: Alert[] = [];
+  const soon = (date: string | null): date is string => date != null && daysBetween(today, date) >= 0 && daysBetween(today, date) <= LEASE_ALERT_DAYS;
+  for (const property of (data.properties ?? []).filter((p) => p.kind === "locatif" && !p.archived)) {
+    const states = (data.leases ?? []).filter((l) => l.propertyId === property.id).map((l) => leaseState(l, data.leaseRents ?? [], today));
+    const current = currentLease(states);
+    if (!current) continue;
+    const link = `/immobilier/${property.id}`;
+    if (current.status === "termine") {
+      out.push({ id: `bail-vacant-${property.id}`, level: "info", title: `${property.name} : aucun bail en cours`, link });
+      continue;
+    }
+    if (current.status === "a_venir") continue;
+    if (soon(current.end)) {
+      out.push(
+        current.status === "conge"
+          ? { id: `bail-depart-${current.lease.id}`, level: "info", title: `${property.name} : fin du bail le ${frDate(current.end)}`, detail: "Un congé a été donné.", link }
+          : { id: `bail-fin-${current.lease.id}`, level: "attention", title: `${property.name} : le bail se termine le ${frDate(current.end)}`, detail: "Ce bail ne se reconduit pas : prévoyez un nouveau bail.", link },
+      );
+    }
+    if (soon(current.nextDeadline)) {
+      out.push({ id: `bail-conge-${current.lease.id}`, level: "attention", title: `${property.name} : dernier jour pour donner congé le ${frDate(current.nextDeadline)}`, detail: `Sans congé reçu par le locataire à cette date, le bail se reconduit le ${frDate(addDays(current.nextDeadlineTermEnd!, 1))}.`, link });
+    }
+  }
+  return out;
 }
 
 function frDate(iso: string): string {

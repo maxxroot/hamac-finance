@@ -1,0 +1,182 @@
+import { describe, expect, it } from "vitest";
+import { leaseAlerts } from "./alerts";
+import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseState, maxDeposit, validateLease, type Lease, type LeaseRent } from "./leases";
+import type { Property } from "./realestate";
+
+const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "" };
+const meuble: Lease = { ...vide, kind: "meuble", durationMonths: 12, startDate: "2025-03-01" };
+
+describe("règles légales", () => {
+  it("durée proposée selon le type de bail et le statut (art. 10, 13, 25-7, 25-14)", () => {
+    expect(defaultLeaseMonths("vide", "nom_propre")).toBe(36);
+    expect(defaultLeaseMonths("vide", "indivision")).toBe(36);
+    expect(defaultLeaseMonths("vide", "sci_familiale")).toBe(36);
+    expect(defaultLeaseMonths("vide", "sci")).toBe(72);
+    expect(defaultLeaseMonths("meuble", "sci")).toBe(12);
+    expect(defaultLeaseMonths("etudiant", "nom_propre")).toBe(9);
+    expect(defaultLeaseMonths("mobilite", "nom_propre")).toBe(10);
+  });
+
+  it("dépôt de garantie maximal (art. 22, 25-6, 25-17)", () => {
+    expect(maxDeposit("vide", 800)).toBe(800);
+    expect(maxDeposit("meuble", 800)).toBe(1600);
+    expect(maxDeposit("etudiant", 800)).toBe(1600);
+    expect(maxDeposit("mobilite", 800)).toBe(0);
+    expect(maxDeposit("autre", 800)).toBeNull();
+  });
+
+  it("signale une durée sous le minimum légal sans bloquer", () => {
+    expect(leaseDurationNote("vide", "nom_propre", 24)).toContain("3 ans");
+    expect(leaseDurationNote("vide", "sci", 36)).toContain("6 ans");
+    expect(leaseDurationNote("vide", "nom_propre", 36)).toBeNull();
+    expect(leaseDurationNote("mobilite", "nom_propre", 12)).toContain("dix mois");
+  });
+});
+
+describe("échéances d'un bail", () => {
+  it("période initiale : fin la veille de l'anniversaire, congé du propriétaire 6 mois avant", () => {
+    const s = leaseState(vide, [], "2026-05-01");
+    expect(s.status).toBe("en_cours");
+    expect(s.end).toBeNull();
+    expect(s.termEnd).toBe("2027-01-14");
+    expect(s.nextDeadline).toBe("2026-07-14");
+    expect(s.nextDeadlineTermEnd).toBe("2027-01-14");
+  });
+
+  it("date limite passée : la prochaine vise la période suivante", () => {
+    const s = leaseState(vide, [], "2026-08-01");
+    expect(s.termEnd).toBe("2027-01-14");
+    expect(s.nextDeadline).toBe("2029-07-14");
+    expect(s.nextDeadlineTermEnd).toBe("2030-01-14");
+  });
+
+  it("reconduction automatique pour la même durée", () => {
+    const s = leaseState(vide, [], "2027-03-01");
+    expect(s.status).toBe("en_cours");
+    expect(s.termEnd).toBe("2030-01-14");
+  });
+
+  it("meublé : reconduit d'un an, congé du propriétaire 3 mois avant", () => {
+    const s = leaseState(meuble, [], "2025-06-01");
+    expect(s.termEnd).toBe("2026-02-28");
+    expect(s.nextDeadline).toBe("2025-11-28");
+  });
+
+  it("bail étudiant et bail mobilité : s'arrêtent seuls, sans date limite", () => {
+    const etudiant = leaseState({ ...meuble, kind: "etudiant", durationMonths: 9 }, [], "2025-06-01");
+    expect(etudiant.end).toBe("2025-11-30");
+    expect(etudiant.nextDeadline).toBeNull();
+    expect(leaseEnd({ ...meuble, kind: "mobilite", durationMonths: 4 })).toBe("2025-06-30");
+  });
+
+  it("congé du locataire : même quantième, ou dernier jour du mois (F32360)", () => {
+    expect(leaseEnd({ ...meuble, noticeBy: "locataire", noticeDate: "2025-09-05" })).toBe("2025-10-05");
+    expect(leaseEnd({ ...meuble, noticeBy: "locataire", noticeDate: "2026-01-30" })).toBe("2026-02-28");
+    expect(leaseEnd({ ...vide, noticeBy: "locataire", noticeDate: "2025-09-05" })).toBe("2025-12-05");
+    expect(leaseEnd({ ...vide, noticeBy: "locataire", noticeDate: "2025-09-05", noticeMonths: 1 })).toBe("2025-10-05");
+  });
+
+  it("congé du locataire : statut, puis terminé après la date de fin", () => {
+    const l = { ...meuble, noticeBy: "locataire" as const, noticeDate: "2025-09-05" };
+    expect(leaseState(l, [], "2025-10-05").status).toBe("conge");
+    expect(leaseState(l, [], "2025-10-06").status).toBe("termine");
+  });
+
+  it("congé du propriétaire : à la fin de la période s'il est dans les temps", () => {
+    const l = { ...vide, noticeBy: "proprietaire" as const, noticeDate: "2026-07-14" };
+    expect(leaseEnd(l)).toBe("2027-01-14");
+    expect(leaseState(l, [], "2026-08-01").noticeTooLateFor).toBeNull();
+  });
+
+  it("congé du propriétaire trop tardif : vaut pour la période suivante", () => {
+    const l = { ...vide, noticeBy: "proprietaire" as const, noticeDate: "2026-07-15" };
+    expect(leaseEnd(l)).toBe("2030-01-14");
+    expect(leaseState(l, [], "2026-08-01").noticeTooLateFor).toBe("2027-01-14");
+  });
+
+  it("le départ réel prime sur la fin calculée", () => {
+    expect(leaseEnd({ ...vide, noticeBy: "locataire", noticeDate: "2025-09-05", actualEnd: "2025-11-01" })).toBe("2025-11-01");
+  });
+
+  it("à venir avant son début", () => {
+    expect(leaseState(vide, [], "2023-12-01").status).toBe("a_venir");
+  });
+});
+
+describe("loyer en vigueur", () => {
+  const rents: LeaseRent[] = [
+    { id: "r2", leaseId: "l", fromMonth: "2026-01", rent: 830, charges: 60 },
+    { id: "r1", leaseId: "l", fromMonth: "2025-01", rent: 815, charges: 50 },
+    { id: "x", leaseId: "autre", fromMonth: "2024-06", rent: 1, charges: 1 },
+  ];
+  it("loyer de départ, puis dernier changement applicable", () => {
+    expect(leaseRentAt(vide, rents, "2024-12")).toEqual({ rent: 800, charges: 50 });
+    expect(leaseRentAt(vide, rents, "2025-01")).toEqual({ rent: 815, charges: 50 });
+    expect(leaseRentAt(vide, rents, "2026-06")).toEqual({ rent: 830, charges: 60 });
+    expect(leaseState(vide, rents, "2026-06-15").rent).toBe(830);
+  });
+});
+
+describe("validation d'un bail", () => {
+  const nouveau = { ...vide, id: undefined, startDate: "2028-01-01" };
+  it("refuse un second bail tant que le premier court sans date de fin", () => {
+    expect(validateLease(nouveau, [vide])).toContain("déjà un bail");
+  });
+  it("accepte un bail après la fin du précédent, refuse le chevauchement", () => {
+    const parti = { ...vide, noticeBy: "locataire" as const, noticeDate: "2025-09-05" };
+    expect(validateLease({ ...nouveau, startDate: "2025-12-06" }, [parti])).toBeNull();
+    expect(validateLease({ ...nouveau, startDate: "2025-12-05" }, [parti])).toContain("déjà un bail");
+  });
+  it("ignore le bail en cours de modification, contrôle congé et départ", () => {
+    expect(validateLease(vide, [vide])).toBeNull();
+    expect(validateLease({ ...vide, noticeBy: "locataire" }, [])).toContain("qui donne congé");
+    expect(validateLease({ ...vide, noticeBy: "locataire", noticeDate: "2023-01-01" }, [])).toContain("précéder");
+    expect(validateLease({ ...vide, actualEnd: "2023-01-01" }, [])).toContain("précéder");
+  });
+});
+
+describe("bail à mettre en avant", () => {
+  it("en cours, sinon à venir, sinon le dernier terminé", () => {
+    const fini = leaseState({ ...vide, id: "a", actualEnd: "2024-06-01" }, [], "2026-01-01");
+    const encours = leaseState({ ...vide, id: "b", startDate: "2024-07-01" }, [], "2026-01-01");
+    const avenir = leaseState({ ...vide, id: "c", startDate: "2027-01-01" }, [], "2026-01-01");
+    expect(currentLease([fini, encours, avenir])?.lease.id).toBe("b");
+    expect(currentLease([fini, avenir])?.lease.id).toBe("c");
+    expect(currentLease([fini])?.lease.id).toBe("a");
+    expect(currentLease([])).toBeNull();
+  });
+});
+
+describe("rappels", () => {
+  const bien: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Studio", value: 100_000, valueDate: null, purchasePrice: null, purchaseDate: null, newBuild: false, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
+  const run = (lease: Lease, today: string, property = bien) => leaseAlerts({ properties: [property], leases: [lease], leaseRents: [] }, today);
+
+  it("date limite pour donner congé : rappelée 60 jours avant, pas au-delà ni après", () => {
+    expect(run(vide, "2026-05-14")).toHaveLength(0);
+    const [alert] = run(vide, "2026-05-15");
+    expect(alert).toMatchObject({ level: "attention", link: "/immobilier/b" });
+    expect(alert.title).toContain("14/07/2026");
+    expect(alert.detail).toContain("15/01/2027");
+    expect(run(vide, "2026-07-15")).toHaveLength(0);
+  });
+
+  it("fin d'un bail qui ne se reconduit pas", () => {
+    const [alert] = run({ ...meuble, kind: "etudiant", durationMonths: 9 }, "2025-11-01");
+    expect(alert.title).toContain("30/11/2025");
+    expect(alert.level).toBe("attention");
+  });
+
+  it("congé donné : fin de bail annoncée", () => {
+    const [alert] = run({ ...meuble, noticeBy: "locataire", noticeDate: "2025-09-05" }, "2025-09-10");
+    expect(alert).toMatchObject({ id: "bail-depart-l", level: "info" });
+  });
+
+  it("plus de bail en cours", () => {
+    expect(run({ ...meuble, actualEnd: "2025-06-01" }, "2026-01-01")[0].id).toBe("bail-vacant-b");
+  });
+
+  it("rien pour un bien qui n'est plus en location ou archivé", () => {
+    expect(run(vide, "2026-05-20", { ...bien, kind: "autre" })).toHaveLength(0);
+    expect(run(vide, "2026-05-20", { ...bien, archived: true })).toHaveLength(0);
+  });
+});

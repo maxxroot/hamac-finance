@@ -10,6 +10,8 @@ import type {
   ContributionSkip,
   FundRate,
   CrowdProject,
+  Lease,
+  LeaseRent,
   Loan,
   PlannedExpense,
   Property,
@@ -29,6 +31,8 @@ import {
   PlanInput,
   CrowdImportInput,
   CrowdProjectInput,
+  LeaseInput,
+  LeaseRentInput,
   LoanInput,
   PlannedExpenseInput,
   PropertyInput,
@@ -68,6 +72,8 @@ export interface Workspace {
   statements: Statement[];
   plannedExpenses: PlannedExpense[];
   properties: Property[];
+  leases: Lease[];
+  leaseRents: LeaseRent[];
   crowdProjects: CrowdProject[];
   loans: Loan[];
   institutions: Institution[];
@@ -176,6 +182,10 @@ export const procedures = {
   "crowdProjects.applyImport": { input: CrowdImportInput, output: entity<{ transactions: number; projects: number }>() },
   "properties.upsert": { input: PropertyInput, output: entity<Property>() },
   "properties.delete": { input: byId, output: ok },
+  "leases.upsert": { input: LeaseInput, output: entity<Lease>() },
+  "leases.delete": { input: byId, output: ok },
+  "leaseRents.upsert": { input: LeaseRentInput, output: entity<LeaseRent>() },
+  "leaseRents.delete": { input: byId, output: ok },
   "loans.upsert": { input: LoanInput, output: entity<Loan>() },
   "loans.delete": { input: byId, output: ok },
 

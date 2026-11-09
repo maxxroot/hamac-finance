@@ -288,6 +288,47 @@ export const loans = pgTable("loans", {
   ...timestamps,
 });
 
+/** Baux d'un bien en location : une seule location à la fois, avec des baux successifs possibles. */
+export const leases = pgTable(
+  "leases",
+  {
+    id: text("id").primaryKey(),
+    propertyId: text("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    tenant: text("tenant").notNull().default(""),
+    startDate: text("start_date").notNull(),
+    durationMonths: bigint("duration_months", { mode: "number" }).notNull(),
+    rentCents: bigint("rent_cents", { mode: "number" }).notNull(),
+    chargesCents: bigint("charges_cents", { mode: "number" }).notNull().default(0),
+    depositCents: bigint("deposit_cents", { mode: "number" }).notNull().default(0),
+    noticeBy: text("notice_by"),
+    noticeDate: text("notice_date"),
+    noticeMonths: bigint("notice_months", { mode: "number" }),
+    actualEnd: text("actual_end"),
+    comment: text("comment").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [index("leases_property_idx").on(t.propertyId)],
+);
+
+/** Nouveaux loyers d'un bail, en vigueur à partir d'un mois. */
+export const leaseRents = pgTable(
+  "lease_rents",
+  {
+    id: text("id").primaryKey(),
+    leaseId: text("lease_id")
+      .notNull()
+      .references(() => leases.id, { onDelete: "cascade" }),
+    fromMonth: text("from_month").notNull(),
+    rentCents: bigint("rent_cents", { mode: "number" }).notNull(),
+    chargesCents: bigint("charges_cents", { mode: "number" }).notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("lease_rents_lease_month_uq").on(t.leaseId, t.fromMonth)],
+);
+
 /** Historique des taux d'un compte (livrets) : taux en vigueur à partir d'une date. */
 export const accountRates = pgTable(
   "account_rates",

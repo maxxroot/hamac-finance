@@ -1,8 +1,10 @@
 import { ArrowLeft, Pencil } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, formatPct, propertySummary, propertyTotalCost } from "@hamac/core";
 import { Amount } from "@/components/Amount";
+import { DetailLine as Line } from "@/components/DetailLine";
+import { LeaseCard } from "@/components/LeaseCard";
 import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
@@ -15,15 +17,6 @@ const BackLink = () => (
     <ArrowLeft size={14} /> Immobilier
   </Link>
 );
-
-function Line({ label, strong, children }: { label: string; strong?: boolean; children: ReactNode }) {
-  return (
-    <div className={`flex items-baseline justify-between gap-3 py-1.5 text-sm ${strong ? "font-medium" : ""}`}>
-      <span className={strong ? "" : "text-fg-muted"}>{label}</span>
-      <span>{children}</span>
-    </div>
-  );
-}
 
 /** Fiche d'un bien : ce qu'il vaut, ce qu'il a coûté et les crédits qui s'y rattachent. */
 export function Bien() {
@@ -43,6 +36,7 @@ export function Bien() {
   const s = propertySummary(property, pf.state.netWorth.loans);
   const totalCost = propertyTotalCost(property);
   const shareLabel = property.share < 1 ? ` · part détenue ${formatPct(property.share)}` : "";
+  const leases = pf.idx.ws.leases.filter((l) => l.propertyId === property.id);
 
   return (
     <>
@@ -125,6 +119,8 @@ export function Bien() {
             </tbody>
           </Table>
         </Card>
+
+        {property.kind === "locatif" && <LeaseCard property={property} leases={leases} rents={pf.idx.ws.leaseRents} today={pf.today} />}
       </div>
 
       <PropertyDialog open={editing} property={property} onClose={() => setEditing(false)} />

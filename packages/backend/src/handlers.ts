@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from "drizzle-orm";
 import { one } from "./db/driver";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionError, addMonth, dayOfMonth, monthOf, loanHasProperty, uniqueAccountConflict, validateTransaction, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionError, addMonth, dayOfMonth, monthOf, loanHasProperty, uniqueAccountConflict, validateLease, validateTransaction, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -23,7 +23,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLoan, mapProperty, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapProperty, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -474,6 +474,59 @@ export const handlers: Handlers = {
 
   async "properties.delete"({ id }, ctx) {
     await ctx.db.delete(t.properties).where(eq(t.properties.id, id));
+    return OK;
+  },
+
+  async "leases.upsert"(input, ctx) {
+    const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one);
+    if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    if (property.kind !== "locatif") throw new RpcError("CONFLICT", "Seul un investissement locatif peut avoir un bail.");
+    const others = (await ctx.db.select().from(t.leases).where(eq(t.leases.propertyId, input.propertyId))).map(mapLease);
+    const error = validateLease(input, others);
+    if (error) throw new RpcError("VALIDATION", error);
+    const id = input.id ?? newId();
+    const row = {
+      propertyId: input.propertyId,
+      kind: input.kind,
+      tenant: input.tenant,
+      startDate: input.startDate,
+      durationMonths: input.durationMonths,
+      rentCents: toCents(input.rent),
+      chargesCents: toCents(input.charges),
+      depositCents: toCents(input.deposit),
+      noticeBy: input.noticeBy,
+      noticeDate: input.noticeDate,
+      noticeMonths: input.noticeBy === "locataire" ? input.noticeMonths : null,
+      actualEnd: input.actualEnd,
+      comment: input.comment,
+      updatedAt: nowIso(),
+    };
+    if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));
+    else await ctx.db.insert(t.leases).values({ id, ...row });
+    return mapLease((await ctx.db.select().from(t.leases).where(eq(t.leases.id, id)).limit(1).then(one))!);
+  },
+
+  async "leases.delete"({ id }, ctx) {
+    await ctx.db.delete(t.leases).where(eq(t.leases.id, id));
+    return OK;
+  },
+
+  async "leaseRents.upsert"(input, ctx) {
+    const lease = await ctx.db.select().from(t.leases).where(eq(t.leases.id, input.leaseId)).limit(1).then(one);
+    if (!lease) throw new RpcError("NOT_FOUND", "Bail introuvable.");
+    if (input.fromMonth <= lease.startDate.slice(0, 7)) throw new RpcError("VALIDATION", "Un nouveau loyer s'applique après le premier mois du bail. Pour corriger le loyer de départ, modifiez le bail.");
+    const id = input.id ?? newId();
+    const set = { fromMonth: input.fromMonth, rentCents: toCents(input.rent), chargesCents: toCents(input.charges), updatedAt: nowIso() };
+    const saved = await ctx.db
+      .insert(t.leaseRents)
+      .values({ id, leaseId: input.leaseId, ...set })
+      .onConflictDoUpdate({ target: [t.leaseRents.leaseId, t.leaseRents.fromMonth], set })
+      .returning();
+    return mapLeaseRent(saved[0]);
+  },
+
+  async "leaseRents.delete"({ id }, ctx) {
+    await ctx.db.delete(t.leaseRents).where(eq(t.leaseRents.id, id));
     return OK;
   },
 

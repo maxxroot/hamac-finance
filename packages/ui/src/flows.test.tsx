@@ -5,9 +5,11 @@ import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testBackend } from "@hamac/backend/testkit";
+import type { Property } from "@hamac/core";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
 import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
+import { LeaseDialog } from "@/dialogs/LeaseDialog";
 import { LoanDialog } from "@/dialogs/LoanDialog";
 import { PropertyDialog } from "@/dialogs/PropertyDialog";
 import { StatementImportDialog } from "@/dialogs/StatementImportDialog";
@@ -216,6 +218,24 @@ describe("parcours de l'interface", () => {
     first.unmount();
     show(routes, "/immobilier/inconnu");
     expect(await screen.findByRole("heading", { name: "Bien introuvable" })).toBeTruthy();
+  });
+
+  it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const bien = await rpc<Property>("properties.upsert", { kind: "locatif", ownership: "sci", name: "Studio", value: 100_000 });
+    show(<LeaseDialog open property={bien} lease={null} others={[]} onClose={onClose} />);
+    expect(fieldOf("Durée (mois)").value).toBe("72");
+    await user.selectOptions(fieldOf("Type de bail"), "meuble");
+    expect(fieldOf("Durée (mois)").value).toBe("12");
+    const rent = fieldOf("Loyer hors charges");
+    await user.clear(rent);
+    await user.type(rent, "800");
+    await user.tab();
+    await waitFor(() => expect(fieldOf("Dépôt de garantie (caution)").value).toMatch(/^1.?600/));
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect((await rpc<{ leases: unknown[] }>("workspace.load")).leases).toMatchObject([{ propertyId: bien.id, kind: "meuble", durationMonths: 12, rent: 800, deposit: 1600 }]);
   });
 
   it("nouveau bien : utilisation, statut et frais d'achat, avec le coût complet affiché", async () => {

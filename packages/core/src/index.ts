@@ -3,6 +3,7 @@ export * from "./dates";
 export * from "./domain";
 export * from "./params";
 export * from "./realestate";
+export * from "./leases";
 export * from "./crowdlending";
 export * from "./allocationTargets";
 export * from "./bricksImport";

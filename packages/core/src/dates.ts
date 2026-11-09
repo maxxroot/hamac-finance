@@ -49,6 +49,12 @@ export function addMonths(date: IsoDate, n: number): IsoDate {
   return `${ny}-${String(nm).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
 }
 
+/** Ajoute n jours civils. */
+export function addDays(date: IsoDate, n: number): IsoDate {
+  const { y, m, d } = parseIso(date);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
 /** Premier jour du mois de la date. */
 export function startOfMonth(date: IsoDate): IsoDate {
   return `${date.slice(0, 7)}-01`;
