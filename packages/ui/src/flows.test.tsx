@@ -15,6 +15,7 @@ import { makeXlsx } from "@/lib/xlsx.fixture";
 import { ToastProvider } from "@/lib/toast";
 import { useWorkspaceIndex } from "@/lib/workspace";
 import { Crowdlending } from "@/pages/Crowdlending";
+import { Notice, NOTICE_PLAN } from "@/pages/Notice";
 import { Declaration } from "@/pages/Declaration";
 import { Parametres } from "@/pages/Parametres";
 
@@ -66,6 +67,16 @@ afterEach(() => {
 const fieldOf = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
 
 describe("parcours de l'interface", () => {
+  it("notice : chaque entrée du sommaire mène à une section, et ouvre celle qui est repliée", async () => {
+    const user = userEvent.setup();
+    const { container } = show(<Notice />);
+    for (const [id] of NOTICE_PLAN.flatMap((g) => g.items)) expect(container.querySelector(`[id="${id}"]`), id).toBeTruthy();
+    const lexique = container.querySelector("#lexique") as HTMLDetailsElement;
+    expect(lexique.open).toBe(false);
+    await user.click(screen.getAllByRole("button", { name: "Les mots à connaître" })[0]);
+    expect(lexique.open).toBe(true);
+  });
+
   it("aide à la déclaration : une fiche pour l'établissement coché, l'année de validité et les cases", async () => {
     const user = userEvent.setup();
     const inst = await rpc<{ id: string }>("institutions.upsert", { name: "Courtier Fictif", kind: "courtier", tax: { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 } });
