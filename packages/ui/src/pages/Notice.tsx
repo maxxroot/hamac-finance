@@ -31,7 +31,7 @@ export function Notice() {
           On note dans le <L to="/journal">Journal</L> ce qui se passe : argent qui arrive, achats, intérêts, retraits. Tout le reste se calcule : valeurs, plus-values, rendement, impôts, projection, alertes. Les
           versements mensuels automatiques se programment une fois dans <L to="/versements">Versements</L> ; chaque mois écoulé est compté comme versé, sauf s'il est déclaré manqué.
         </p>
-        <p>Pour voir l'évolution d'un compte, cliquez sur sa ligne (Synthèse, Livrets, Crowdlending) ou sur « Évolution » dans les blocs Fonds euros, Actions et Crypto.</p>
+        <p>Pour voir l'évolution d'un compte, cliquez sur sa ligne (Synthèse, Livrets, Crowdlending) ou sur « Évolution » dans les blocs Fonds euros, Actions et Crypto : le graphique montre la valeur totale, le montant investi et chaque titre ; cliquez sur un nom de la légende pour masquer sa courbe. Pour un titre seul, cliquez sur sa ligne (Actions, Crypto, Obligations).</p>
         <p>Vos données restent sur votre serveur, isolées de celles des autres comptes. Une copie est faite automatiquement avant chaque mise à jour de la base ; pour une copie à garder chez vous, exportez une sauvegarde (Paramètres › Application).</p>
         <p>
           Hamac s'adapte à votre usage. Dans <L to="/parametres">Paramètres › Plan</L>, choisissez de préparer votre retraite ou seulement de gérer votre patrimoine (sans projection, avec une allocation fixe), et masquez les pages dont vous n'avez pas besoin avec les modules : aucun calcul ne change.

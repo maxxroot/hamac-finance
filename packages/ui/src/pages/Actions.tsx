@@ -1,13 +1,13 @@
 import { RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { advisedMonthlyPurchase, describeOrderFees, fiscalAnniversary, monthsElapsed, splitByTarget, tradeFeeFor, type AccountState, type Asset, type PositionState } from "@hamac/core";
 import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
-import { AccountEvolution, EvolutionToggle } from "@/components/AccountEvolution";
+import { AccountEvolution, EvolutionToggle, PositionEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
-import { EmptyRow, Table, Td, Tr } from "@/components/table";
+import { DetailRow, EmptyRow, ExpandButton, stopRowClick, Table, Td, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
 import { PriceDialog } from "@/dialogs/PriceDialog";
 import { SortTh, useSortable } from "@/lib/sort";
@@ -81,6 +81,7 @@ export function Actions() {
 
 function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void }) {
   const [showEvolution, setShowEvolution] = useState(false);
+  const { isOpen, rowProps } = useExpandedRow();
   const pf = usePortfolio()!;
   const { params } = pf.data;
   const equities = s.positions.filter((p) => p.bucket === "croissance");
@@ -192,7 +193,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
         <tbody>
           {equities.length === 0 && <EmptyRow cols={11}>Aucune position. Saisissez vos achats dans le journal.</EmptyRow>}
           {sorted.map((p) => (
-            <PositionRow key={p.asset.id} p={p} total={equityValue} onPrice={onPrice} />
+            <PositionRow key={p.asset.id} p={p} total={equityValue} onPrice={onPrice} open={isOpen(p.asset.id)} row={rowProps(p.asset.id)} />
           ))}
           {equities.length > 0 && (
             <tr className="bg-surface-2/60 font-medium">
@@ -277,14 +278,16 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
   );
 }
 
-function PositionRow({ p, total, onPrice }: { p: PositionState; total: number; onPrice: (a: Asset) => void }) {
+function PositionRow({ p, total, onPrice, open, row }: { p: PositionState; total: number; onPrice: (a: Asset) => void; open: boolean; row: ReturnType<ReturnType<typeof useExpandedRow>["rowProps"]> }) {
   const share = total > 0 ? p.value / total : 0;
   const target = p.asset.targetWeight;
   return (
-    <Tr className="group">
+    <Fragment>
+    <Tr {...row} className={`group ${row.className}`}>
       <Td className="font-medium">
+        <ExpandButton open={open} label={p.asset.name} />
         {p.asset.name}
-        {p.asset.isin && <div className="font-mono text-xs font-normal text-fg-faint">{p.asset.isin}</div>}
+        {p.asset.isin && <div className="ml-[21px] font-mono text-xs font-normal text-fg-faint">{p.asset.isin}</div>}
       </Td>
       <Td align="right">{formatQty(p.quantity)}</Td>
       <Td align="right">
@@ -293,7 +296,7 @@ function PositionRow({ p, total, onPrice }: { p: PositionState; total: number; o
       <Td align="right">
         <Amount value={p.cost} />
       </Td>
-      <Td align="right">
+      <Td align="right" onClick={stopRowClick}>
         <button className="inline-flex items-center gap-1.5 hover:text-accent" onClick={() => onPrice(p.asset)} title="Saisir le cours à la main">
           <Amount value={p.price} />
           <RefreshCw size={11} className="text-fg-faint opacity-0 group-hover:opacity-100" />
@@ -320,5 +323,11 @@ function PositionRow({ p, total, onPrice }: { p: PositionState; total: number; o
       </Td>
       <Td align="right">{target != null ? <Pct value={share - target} signed /> : "—"}</Td>
     </Tr>
+    {open && (
+      <DetailRow cols={11}>
+        <PositionEvolution accountId={p.accountId} assetId={p.asset.id} />
+      </DetailRow>
+    )}
+    </Fragment>
   );
 }

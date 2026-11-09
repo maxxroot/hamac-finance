@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AccountState, Alert, AllocationRow, HistoryPoint } from "@hamac/core";
-import { accountHistory, allocationBars, alertsToReview, axisFloor, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
+import { accountHistory, assetLines, positionHistory, allocationBars, alertsToReview, axisFloor, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
 
-const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {} });
+const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {}, byPosition: {} });
 const history = Array.from({ length: 20 }, (_, i) => point(i + 1));
 const account = (id: string, value: number, netContrib = value, gain = 0) => ({ account: { id, name: id }, value, netContrib, gain }) as unknown as AccountState;
 const allocation = (key: string, share: number, target: number) => ({ key, share, target }) as AllocationRow;
@@ -23,6 +23,50 @@ describe("tableau de bord", () => {
     ]);
     expect(accountHistory([at(1, 10, 8)], ["lep", "autre"])[0]).toMatchObject({ value: 1009, netContrib: 9, gain: 1000 });
     expect(accountHistory([at(1, 10, 8)], ["inconnu"])).toEqual([]);
+  });
+
+  describe("titre par titre", () => {
+    const at = (i: number, total: number, positions: Record<string, { value: number; cost: number }>) => ({ ...point(i), byAccount: { pea: total }, contribByAccount: { pea: total }, byPosition: positions });
+    const name = (id: string) => id.toUpperCase();
+
+    it("historique d'un titre : prix de revient comme montant investi, à partir de son achat", () => {
+      const h = [at(1, 100, {}), at(2, 100, { "pea:a": { value: 60, cost: 50 } }), at(3, 100, { "pea:a": { value: 70, cost: 50 } })];
+      expect(positionHistory(h, "pea", "a")).toEqual([
+        { month: "2026-02", value: 60, netContrib: 50, gain: 10 },
+        { month: "2026-03", value: 70, netContrib: 50, gain: 20 },
+      ]);
+      expect(positionHistory(h, "autre", "a")).toEqual([]);
+    });
+
+    it("une courbe par titre, plus les espèces : leur somme redonne le total", () => {
+      const h = [at(1, 100, { "pea:a": { value: 60, cost: 50 } }), at(2, 130, { "pea:a": { value: 70, cost: 50 }, "pea:b": { value: 40, cost: 40 } })];
+      const lines = assetLines(h, accountHistory(h, ["pea"]), ["pea"], name);
+      expect(lines.map((l) => [l.key, l.name, l.values])).toEqual([
+        ["a", "A", [60, 70]],
+        ["b", "B", [0, 40]],
+        ["especes", "Espèces", [40, 20]],
+      ]);
+    });
+
+    it("sans titre, pas de courbe (un livret) ; sans espèces, pas de ligne vide", () => {
+      const vide = [at(1, 100, {}), at(2, 110, {})];
+      expect(assetLines(vide, accountHistory(vide, ["pea"]), ["pea"], name)).toEqual([]);
+      const h = [at(1, 60, { "pea:a": { value: 60, cost: 50 } })];
+      expect(assetLines(h, accountHistory(h, ["pea"]), ["pea"], name).map((l) => l.key)).toEqual(["a"]);
+    });
+
+    it("un même titre sur deux comptes additionnés ne fait qu'une courbe", () => {
+      const h = [{ ...point(1), byAccount: { x: 30, y: 20 }, contribByAccount: { x: 30, y: 20 }, byPosition: { "x:btc": { value: 30, cost: 30 }, "y:btc": { value: 20, cost: 20 } } }];
+      expect(assetLines(h, accountHistory(h, ["x", "y"]), ["x", "y"], name)).toEqual([{ key: "btc", name: "BTC", values: [50] }]);
+    });
+
+    it("au-delà de cinq titres, les plus petits sont regroupés sans perdre de valeur", () => {
+      const positions = Object.fromEntries([50, 40, 30, 20, 10, 5].map((v, i) => [`pea:t${i}`, { value: v, cost: v }]));
+      const h = [at(1, 155, positions)];
+      const lines = assetLines(h, accountHistory(h, ["pea"]), ["pea"], name);
+      expect(lines.map((l) => l.key)).toEqual(["t0", "t1", "t2", "t3", "autres"]);
+      expect(lines.at(-1)).toMatchObject({ name: "2 autres titres", values: [15] });
+    });
   });
 
   it("le gain du mois ignore les versements", () => {

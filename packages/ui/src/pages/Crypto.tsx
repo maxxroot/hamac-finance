@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { Asset } from "@hamac/core";
 import { incomeTaxRate } from "@hamac/core";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
-import { AccountEvolution, EvolutionToggle } from "@/components/AccountEvolution";
+import { AccountEvolution, EvolutionToggle, PositionEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
-import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
+import { EmptyRow, Table, Td, Th, Tr, DetailRow, ExpandButton, stopRowClick, useExpandedRow } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
 import { PriceDialog } from "@/dialogs/PriceDialog";
 import { SortTh, useSortable } from "@/lib/sort";
@@ -216,6 +216,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function CryptoPositions({ positions, onPrice }: { positions: PositionState[]; onPrice: (a: Asset) => void }) {
   const idx = usePortfolio()!.idx;
+  const { isOpen, rowProps } = useExpandedRow();
   const { sorted, by } = useSortable(positions, {
     nom: (p) => p.asset.name,
     plateforme: (p) => idx.accountById.get(p.accountId)?.name,
@@ -245,8 +246,12 @@ function CryptoPositions({ positions, onPrice }: { positions: PositionState[]; o
       <tbody>
         {positions.length === 0 && <EmptyRow cols={9}>Aucune position.</EmptyRow>}
         {sorted.map((p) => (
-          <Tr key={`${p.accountId}-${p.asset.id}`} className="group">
-            <Td className="font-medium">{p.asset.name}</Td>
+          <Fragment key={`${p.accountId}-${p.asset.id}`}>
+          <Tr {...rowProps(`${p.accountId}-${p.asset.id}`)}>
+            <Td className="font-medium">
+              <ExpandButton open={isOpen(`${p.accountId}-${p.asset.id}`)} label={p.asset.name} />
+              {p.asset.name}
+            </Td>
             <Td className="text-fg-muted">{idx.accountById.get(p.accountId)?.name}</Td>
             <Td align="right">{formatQty(p.quantity)}</Td>
             <Td align="right">
@@ -255,7 +260,7 @@ function CryptoPositions({ positions, onPrice }: { positions: PositionState[]; o
             <Td align="right">
               <Amount value={p.cost} />
             </Td>
-            <Td align="right">
+            <Td align="right" onClick={stopRowClick}>
               <button className="hover:text-accent" onClick={() => onPrice(p.asset)} title="Saisir le cours à la main">
                 <Amount value={p.price} />
               </button>
@@ -271,6 +276,12 @@ function CryptoPositions({ positions, onPrice }: { positions: PositionState[]; o
               <Pct value={p.gainPct} signed />
             </Td>
           </Tr>
+          {isOpen(`${p.accountId}-${p.asset.id}`) && (
+            <DetailRow cols={9}>
+              <PositionEvolution accountId={p.accountId} assetId={p.asset.id} />
+            </DetailRow>
+          )}
+          </Fragment>
         ))}
       </tbody>
     </Table>

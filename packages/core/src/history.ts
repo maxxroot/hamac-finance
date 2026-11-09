@@ -13,6 +13,8 @@ export interface HistoryPoint {
   byAccount: Record<string, number>;
   /** Argent versé net, par compte. */
   contribByAccount: Record<string, number>;
+  /** Titres détenus : valeur et prix de revient, par « compte:titre ». */
+  byPosition: Record<string, { value: number; cost: number }>;
 }
 
 function endOfMonth(m: Month): string {
@@ -45,6 +47,7 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
       buckets: Object.fromEntries(BUCKETS.map((b) => [b, s.buckets[b]])) as Record<Bucket, number>,
       byAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.value])),
       contribByAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.netContrib])),
+      byPosition: Object.fromEntries(s.accounts.flatMap((a) => a.positions.map((p) => [`${a.account.id}:${p.asset.id}`, { value: p.value, cost: p.cost }]))),
     });
     month = addMonth(month, 1);
   }

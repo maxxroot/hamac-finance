@@ -1,13 +1,14 @@
 import { ShoppingCart, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { BOND_KIND_LABELS, maturityLabel, nextCoupon, type PositionState } from "@hamac/core";
+import { PositionEvolution } from "@/components/AccountEvolution";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, MoneyInput, NumberInput, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
 import { Notice, Pct, Stat, StatGrid } from "@/components/Stat";
-import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
+import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { cn } from "@/lib/cn";
@@ -18,6 +19,7 @@ import { SortTh, useSortable } from "@/lib/sort";
 
 export function Obligations() {
   const pf = usePortfolio();
+  const { isOpen, rowProps } = useExpandedRow();
   const [label, setLabel] = useState("");
   const [targetYear, setTargetYear] = useState<number | null>(null);
   const [nominal, setNominal] = useState<number | null>(null);
@@ -121,8 +123,10 @@ export function Obligations() {
         <tbody>
           {held.length + matured.length + idx.ws.bondPlans.length === 0 && <EmptyRow cols={11}>Aucune obligation. Prévoyez votre échelle ci-dessous, puis saisissez les achats dans le journal.</EmptyRow>}
           {ladder.sorted.map((p) => (
-              <Tr key={`${p.accountId}-${p.asset.id}`}>
+              <Fragment key={`${p.accountId}-${p.asset.id}`}>
+              <Tr {...rowProps(`${p.accountId}-${p.asset.id}`)}>
                 <Td className="font-medium">
+                  <ExpandButton open={isOpen(`${p.accountId}-${p.asset.id}`)} label={p.asset.name} />
                   {p.asset.name}
                   <div className="text-xs font-normal text-fg-faint">
                     {p.asset.bondKind ? BOND_KIND_LABELS[p.asset.bondKind] : "Obligation"}
@@ -161,6 +165,12 @@ export function Obligations() {
                   <Badge tone="positive">Détenue</Badge>
                 </Td>
               </Tr>
+              {isOpen(`${p.accountId}-${p.asset.id}`) && (
+                <DetailRow cols={11}>
+                  <PositionEvolution accountId={p.accountId} assetId={p.asset.id} />
+                </DetailRow>
+              )}
+              </Fragment>
             ))}
           {idx.ws.bondPlans.map((b) => (
             <Tr key={b.id} className="group">

@@ -16,13 +16,66 @@ export type EvolutionPoint = Pick<HistoryPoint, "month" | "value" | "netContrib"
 /** Historique d'un ou plusieurs comptes additionnés, à partir de leur premier mois non vide. */
 export function accountHistory(history: readonly HistoryPoint[], accountIds: readonly string[]): EvolutionPoint[] {
   const sum = (byId: Record<string, number>) => accountIds.reduce((s, id) => s + (byId[id] ?? 0), 0);
-  const points = history.map((h) => {
-    const value = sum(h.byAccount);
-    const netContrib = sum(h.contribByAccount);
-    return { month: h.month, value, netContrib, gain: value - netContrib };
-  });
+  return fromFirstMonth(
+    history.map((h) => {
+      const value = sum(h.byAccount);
+      const netContrib = sum(h.contribByAccount);
+      return { month: h.month, value, netContrib, gain: value - netContrib };
+    }),
+  );
+}
+
+/** Retire les mois d'avant la première donnée. */
+function fromFirstMonth(points: EvolutionPoint[]): EvolutionPoint[] {
   const first = points.findIndex((p) => p.value !== 0 || p.netContrib !== 0);
   return first < 0 ? [] : points.slice(first);
+}
+
+/** Historique d'un titre dans un compte : le montant investi est son prix de revient. */
+export function positionHistory(history: readonly HistoryPoint[], accountId: string, assetId: string): EvolutionPoint[] {
+  const key = `${accountId}:${assetId}`;
+  return fromFirstMonth(
+    history.map((h) => {
+      const { value = 0, cost = 0 } = h.byPosition[key] ?? {};
+      return { month: h.month, value, netContrib: cost, gain: value - cost };
+    }),
+  );
+}
+
+export interface AssetLine {
+  key: string;
+  name: string;
+  /** Une valeur par point de l'évolution du compte. */
+  values: number[];
+}
+
+/** Courbes affichées au plus : au-delà, les plus petits titres sont regroupés. */
+const MAX_ASSET_LINES = 5;
+
+/** Une courbe par titre du ou des comptes, plus les espèces : leur somme redonne la valeur totale. */
+export function assetLines(history: readonly HistoryPoint[], points: readonly EvolutionPoint[], accountIds: readonly string[], nameOf: (assetId: string) => string): AssetLine[] {
+  const byMonth = new Map(history.map((h) => [h.month, h]));
+  const months = points.map((p) => byMonth.get(p.month));
+  const assets = new Set<string>();
+  const valueOf = (h: HistoryPoint | undefined, assetId: string) => accountIds.reduce((s, id) => s + (h?.byPosition[`${id}:${assetId}`]?.value ?? 0), 0);
+  for (const h of months) {
+    for (const key of Object.keys(h?.byPosition ?? {})) {
+      const [accountId, assetId] = key.split(":");
+      if (accountIds.includes(accountId!)) assets.add(assetId!);
+    }
+  }
+  if (!assets.size) return [];
+  const all = [...assets]
+    .map((id) => ({ key: id, name: nameOf(id), values: months.map((h) => valueOf(h, id)) }))
+    .sort((a, b) => (b.values.at(-1) ?? 0) - (a.values.at(-1) ?? 0));
+  const lines: AssetLine[] = all.length <= MAX_ASSET_LINES ? all : all.slice(0, MAX_ASSET_LINES - 1);
+  if (all.length > MAX_ASSET_LINES) {
+    const rest = all.slice(MAX_ASSET_LINES - 1);
+    lines.push({ key: "autres", name: `${rest.length} autres titres`, values: points.map((_, i) => rest.reduce((s, l) => s + l.values[i]!, 0)) });
+  }
+  const cash = points.map((p, i) => p.value - all.reduce((s, l) => s + l.values[i]!, 0));
+  if (cash.some((v) => Math.abs(v) >= 1)) lines.push({ key: "especes", name: "Espèces", values: cash });
+  return lines;
 }
 
 /** Derniers points de la période ; un de plus que le nombre de mois, pour disposer du point de départ. */
