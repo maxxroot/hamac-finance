@@ -37,6 +37,21 @@ export const institutions = pgTable("institutions", {
   ...timestamps,
 });
 
+/** Montants lus sur le document fiscal d'un établissement, pour les comparer au récapitulatif. */
+export const taxStatementAmounts = pgTable(
+  "tax_statement_amounts",
+  {
+    institutionId: text("institution_id")
+      .notNull()
+      .references(() => institutions.id, { onDelete: "cascade" }),
+    year: bigint("year", { mode: "number" }).notNull(),
+    box: text("box").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.institutionId, t.year, t.box] })],
+);
+
 export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),

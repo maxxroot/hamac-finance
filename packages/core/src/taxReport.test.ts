@@ -3,7 +3,7 @@ import type { Account, Asset, Transaction } from "./domain";
 import { computePortfolio, type EngineData } from "./engine";
 import type { Institution, InstitutionTax } from "./institutions";
 import { defaultParams } from "./params";
-import { buildTaxReport, resolveIncome, rulesValidityLabel, taxReportCsvRows, taxReportYears, worstStatus } from "./taxReport";
+import { buildTaxReport, compareWithStatement, reportTotalsMismatches, resolveIncome, rulesValidityLabel, taxReportAlerts, taxReportCsvRows, taxReportYears, worstStatus } from "./taxReport";
 import { cryptoTax, yearlyTaxes } from "./taxes";
 
 const acc = (id: string, kind: Account["kind"], institutionId: string | null = null): Account => ({
@@ -204,3 +204,66 @@ describe("impôts de chaque année, mêmes calculs que le récapitulatif", () =>
     expect(row.securitiesSocial).toBeCloseTo(300 * 0.186, 2);
   });
 });
+
+describe("contrôles de cohérence", () => {
+  const alerts = (d: EngineData, year = 2025, statements: Parameters<typeof taxReportAlerts>[3] = []) => {
+    const asOf = "2026-11-09";
+    const disposals = computePortfolio(d, asOf).disposals;
+    return taxReportAlerts(buildTaxReport(d, disposals, cryptoTax(d, asOf), year), d, disposals, statements).map((a) => a.message).join("\n");
+  };
+
+  it("signale un revenu sans brut, une vente sans achat et un compte sans établissement", () => {
+    const d = data({
+      accounts: [acc("c", "cto", "e"), acc("s", "cto")],
+      assets: [asset("a", "action")],
+      institutions: [etab("e", { report: true })],
+      transactions: [tx("2025-03-01", "dividende", "c", 50, { assetId: "a" }), tx("2025-04-01", "vente", "c", 100, { assetId: "a", quantity: 1 }), tx("2025-05-01", "interets", "s", 10)],
+    });
+    const m = alerts(d);
+    expect(m).toContain("1 revenu sans brut");
+    expect(m).toContain("il manque un achat");
+    expect(m).toContain("n'ont pas d'établissement");
+  });
+
+  it("signale les retraits hors périmètre, les SCPI, un titre sur plusieurs comptes et une année non vérifiée", () => {
+    const d = data({
+      accounts: [acc("pea", "pea", "e"), acc("c1", "cto", "e"), acc("c2", "cto", "e")],
+      assets: [asset("a", "action"), asset("s", "scpi")],
+      institutions: [etab("e", { report: true })],
+      transactions: [
+        tx("2025-03-01", "retrait", "pea", 100),
+        tx("2024-01-01", "achat", "c1", 100, { assetId: "a", quantity: 1 }),
+        tx("2024-01-01", "achat", "c2", 200, { assetId: "a", quantity: 1 }),
+        tx("2025-05-01", "vente", "c1", 150, { assetId: "a", quantity: 1 }),
+        tx("2024-01-01", "achat", "c1", 500, { assetId: "s", quantity: 1 }),
+        tx("2025-06-01", "vente", "c1", 600, { assetId: "s", quantity: 1 }),
+      ],
+    });
+    const m = alerts(d);
+    expect(m).toContain("Retrait en 2025 sur pea");
+    expect(m).toContain("parts de SCPI");
+    expect(m).toContain("plusieurs comptes-titres");
+    expect(alerts(d, 2026)).toContain("ne sont pas encore vérifiées");
+  });
+
+  it("repère un relevé qui s'écarte de la valeur calculée", () => {
+    const d = data({ accounts: [acc("c", "cto", "e")], institutions: [etab("e", { report: true })], transactions: [tx("2025-01-05", "versement", "c", 1000)], statements: [{ id: "r", accountId: "c", date: "2025-12-31", value: 1500, comment: "" }] });
+    expect(alerts(d)).toContain("s'écarte de la valeur calculée");
+  });
+
+  it("compare une fiche au document de l'établissement, case par case", () => {
+    const d = data({ accounts: [acc("c", "cto", "e")], institutions: [etab("e", { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 })], transactions: [tx("2025-03-01", "interets", "c", 87.2)] });
+    const r = report(d);
+    const rows = compareWithStatement(r.sheets[0], r.rules, new Map([["2TR", 95]]));
+    expect(rows.find((x) => x.rule.box === "2TR")).toMatchObject({ hamac: 100, official: 95, gap: 5 });
+    expect(rows.find((x) => x.rule.box === "2DC")).toMatchObject({ hamac: 0, official: null, gap: null });
+    expect(alerts(d, 2025, [{ institutionId: "e", year: 2025, box: "2TR", amount: 95 }])).toContain("écart sur la case 2TR");
+    expect(alerts(d, 2025, [{ institutionId: "e", year: 2025, box: "2TR", amount: 100 }])).not.toContain("écart");
+  });
+
+  it("le récapitulatif ne présente aucun écart avec les fiches", () => {
+    const d = data({ accounts: [acc("c", "cto", "e")], institutions: [etab("e", { report: true, withheldIncomeTax: 0, withheldSocial: 0 })], transactions: [tx("2025-03-01", "interets", "c", 33.33)] });
+    expect(reportTotalsMismatches(report(d))).toEqual([]);
+  });
+});
+

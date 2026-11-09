@@ -26,6 +26,8 @@ export interface CryptoSale {
   attributed: number;
   gain: number;
   year: number;
+  /** Un autre actif a été valorisé sans cours récent : la valeur globale est approximative. */
+  estimatedValue: boolean;
 }
 
 export interface CryptoYear {
@@ -78,18 +80,20 @@ export function cryptoTax(data: EngineData, asOf: string): CryptoTaxReport {
     const unit = q > 0 ? gross / q : 0;
     // Valeur globale : le titre vendu au prix de la cession, les autres au dernier cours connu (sinon au coût).
     let V = 0;
+    let estimatedValue = false;
     for (const [aid, held] of qty) {
       if (held <= 0) continue;
       if (aid === id) V += held * unit;
       else {
         const p = book.at(aid, t.date);
         const c = costPerUnit.get(aid);
+        if (!p || Date.parse(t.date) - Date.parse(p.date) > 7 * 86_400_000) estimatedValue = true;
         V += held * (p?.price ?? (c && c.qty > 0 ? c.cost / c.qty : 0));
       }
     }
     const attributed = V > 0 ? (pta * gross) / V : 0;
     const gain = t.amount - attributed;
-    sales.push({ tx: t, date: t.date, gross: roundCents(gross), net: t.amount, fee, portfolioValue: roundCents(V), acquisitionBefore: roundCents(pta), attributed: roundCents(attributed), gain: roundCents(gain), year: +t.date.slice(0, 4) });
+    sales.push({ tx: t, date: t.date, gross: roundCents(gross), net: t.amount, fee, portfolioValue: roundCents(V), acquisitionBefore: roundCents(pta), attributed: roundCents(attributed), gain: roundCents(gain), year: +t.date.slice(0, 4), estimatedValue });
     pta = Math.max(0, pta - attributed);
     qty.set(id, Math.max(0, (qty.get(id) ?? 0) - q));
   }

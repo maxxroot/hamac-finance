@@ -1,5 +1,5 @@
 import type { Account, Asset, Transaction } from "./domain";
-import type { Disposal, EngineData } from "./engine";
+import { computePortfolio, type Disposal, type EngineData } from "./engine";
 import { fiscalRulesFor, LAST_VERIFIED_INCOME_YEAR, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
 import { crowdTaxOf, grossFromNet, NO_INSTITUTION_TAX, type Institution } from "./institutions";
 import { roundCents } from "./money";
@@ -205,7 +205,7 @@ export function buildTaxReport(data: EngineData, disposals: readonly Disposal[],
       });
     const cryptoSales: CryptoSaleDetail[] = crypto.sales
       .filter((s) => s.year === year && ids.has(s.tx.accountId))
-      .map((sale) => ({ sale, accountName: accountsById.get(sale.tx.accountId)!.name, assetName: assets.get(sale.tx.assetId!)?.name ?? "Actif inconnu", status: sale.portfolioValue > 0 ? "calcule" : "manquant" }));
+      .map((sale) => ({ sale, accountName: accountsById.get(sale.tx.accountId)!.name, assetName: assets.get(sale.tx.assetId!)?.name ?? "Actif inconnu", status: sale.portfolioValue <= 0 ? "manquant" : sale.estimatedValue ? "a_verifier" : "calcule" }));
 
     const report = institution?.tax?.report ?? false;
     if (!report && incomes.length === 0 && details.length === 0 && cryptoSales.length === 0) continue;
@@ -315,5 +315,125 @@ export function taxReportCsvRows(report: TaxReport): Array<Array<string | number
     for (const c of s.cryptoSales) rows.push([s.name, mode, c.accountName, c.sale.date, "Cession crypto", c.assetName, c.sale.net, null, null, null, null, c.sale.attributed, c.sale.gain, STATUS_LABELS[c.status], null]);
   }
   return rows;
+}
+
+// ——— Contrôles de cohérence ———
+
+export interface TaxAlert {
+  level: "erreur" | "attention";
+  message: string;
+  /** Fiche concernée ; null pour le récapitulatif complet. */
+  sheetKey: string | null;
+}
+
+/** Montant lu sur le document de l'établissement, pour une case. */
+export interface TaxStatementAmount {
+  institutionId: string;
+  year: number;
+  box: string;
+  amount: number;
+}
+
+export interface StatementComparison {
+  key: TaxBoxKey;
+  rule: TaxBoxRule;
+  hamac: number;
+  /** Montant du document ; null tant qu'il n'est pas saisi. */
+  official: number | null;
+  gap: number | null;
+}
+
+const COMPARED_KEYS: Record<"cto" | "crowdlending", readonly TaxBoxKey[]> = {
+  cto: ["dividendes", "interets", "psDejaPreleves", "acompte", "creditImpot", "plusValue", "moinsValue"],
+  crowdlending: ["crowdlending", "psDejaPreleves", "acompte"],
+};
+
+/** Compare une fiche à ce qui est écrit sur le document de l'établissement, case par case. */
+export function compareWithStatement(sheet: TaxSheet, rules: FiscalYearRules, official: ReadonlyMap<string, number>): StatementComparison[] {
+  const keys = [...new Set(sheet.accounts.flatMap((a) => (a.kind === "cto" || a.kind === "crowdlending" ? COMPARED_KEYS[a.kind] : [])))];
+  return keys.map((key) => {
+    const rule = rules.boxes[key];
+    const hamac = key === "plusValue" ? Math.max(0, sheet.securities.net) : key === "moinsValue" ? Math.max(0, -sheet.securities.net) : (sheet.lines.find((l) => l.key === key)?.amount ?? 0);
+    const value = official.get(rule.box) ?? null;
+    return { key, rule, hamac, official: value, gap: value == null ? null : roundCents(hamac - value) };
+  });
+}
+
+/** Écarts entre le récapitulatif et la somme des fiches : toujours vide, sauf anomalie de calcul. */
+export function reportTotalsMismatches(report: TaxReport): string[] {
+  const out: string[] = [];
+  for (const l of report.lines) {
+    if (l.toEnter === null) continue;
+    const sum = report.sheets.reduce((t, s) => t + (s.lines.find((x) => x.key === l.key)?.amount ?? 0), 0);
+    if (Math.abs(sum - l.total) >= 0.01) out.push(l.rule.box);
+  }
+  if (report.securities && Math.abs(report.sheets.reduce((t, s) => t + s.securities.net, 0) - report.securities.net) >= 0.01) out.push(report.rules.boxes.plusValue.box);
+  if (report.crypto && Math.abs(report.sheets.reduce((t, s) => t + s.crypto.gain, 0) - report.crypto.netGain) >= 0.02) out.push(report.rules.boxes.cryptoPlusValue.box);
+  return out;
+}
+
+const plural = (n: number, one: string, many: string) => (n > 1 ? many : one);
+
+export function taxReportAlerts(report: TaxReport, data: EngineData, disposals: readonly Disposal[], statements: readonly TaxStatementAmount[] = []): TaxAlert[] {
+  const alerts: TaxAlert[] = [];
+  const { year, rules, sheets } = report;
+  const prefix = `${year}-`;
+  const assets = new Map(data.assets.map((a) => [a.id, a]));
+  if (!rules.covered) alerts.push({ level: "attention", message: `Les cases des revenus ${year} ne sont pas encore vérifiées : comparez-les à la notice de l'année.`, sheetKey: null });
+  const mismatches = reportTotalsMismatches(report);
+  if (mismatches.length) alerts.push({ level: "erreur", message: `La somme des fiches ne correspond pas au récapitulatif (${mismatches.join(", ")}).`, sheetKey: null });
+
+  for (const s of sheets) {
+    const missing = s.incomes.filter((i) => i.status === "manquant").length;
+    if (missing) alerts.push({ level: "erreur", message: `${s.name} : ${missing} ${plural(missing, "revenu", "revenus")} sans brut ni retenues. Complétez les opérations au Journal, ou réglez les retenues sur l'établissement.`, sheetKey: s.key });
+    const incoherent = s.incomes.filter((i) => i.tx.gross != null && i.status === "a_verifier").length;
+    if (incoherent) alerts.push({ level: "attention", message: `${s.name} : ${incoherent} ${plural(incoherent, "revenu dont", "revenus dont")} le brut moins les retenues diffère du montant reçu.`, sheetKey: s.key });
+    for (const d of s.disposals.filter((x) => x.status === "manquant")) alerts.push({ level: "erreur", message: `${s.name} : ${d.assetName}, cession du ${d.date}. ${d.note}`, sheetKey: s.key });
+    const bonds = s.disposals.filter((x) => x.status === "a_verifier").length;
+    if (bonds) alerts.push({ level: "attention", message: `${s.name} : ${bonds} ${plural(bonds, "cession d'obligation", "cessions d'obligations")} à vérifier.`, sheetKey: s.key });
+    for (const c of s.cryptoSales.filter((x) => x.status !== "calcule")) alerts.push({ level: c.status === "manquant" ? "erreur" : "attention", message: `${s.name} : cession du ${c.sale.date}, valeur globale du portefeuille ${c.status === "manquant" ? "inconnue" : "estimée faute de cours récent pour un autre actif"}.`, sheetKey: s.key });
+    if (s.institutionId === null) alerts.push({ level: "attention", message: "Des comptes n'ont pas d'établissement : rattachez-les pour savoir si leurs montants sont à saisir ou à contrôler.", sheetKey: s.key });
+    if (s.institutionId) {
+      const own = new Map(statements.filter((x) => x.institutionId === s.institutionId && x.year === year).map((x) => [x.box, x.amount]));
+      for (const c of compareWithStatement(s, rules, own)) {
+        if (c.gap != null && Math.abs(c.gap) >= 1) alerts.push({ level: "attention", message: `${s.name} : écart sur la case ${c.rule.box} entre Hamac et le document de l'établissement.`, sheetKey: s.key });
+      }
+    }
+  }
+
+  const covered = new Set(sheets.flatMap((s) => s.accounts.map((a) => a.id)));
+  const accounts = new Map(data.accounts.map((a) => [a.id, a]));
+  const ofYear = disposals.filter((d) => d.date.startsWith(prefix));
+  for (const d of ofYear.filter((x) => assets.get(x.assetId)?.kind === "scpi" && accounts.get(x.accountId)?.kind === "cto")) {
+    alerts.push({ level: "attention", message: `Cession de ${assets.get(d.assetId)!.name} le ${d.date} : les parts de SCPI relèvent des plus-values immobilières et ne sont pas reprises ici.`, sheetKey: null });
+  }
+  const multiple = new Set<string>();
+  for (const assetId of new Set(ofYear.filter((d) => accounts.get(d.accountId)?.kind === "cto").map((d) => d.assetId))) {
+    const holders = new Set(data.transactions.filter((t) => t.assetId === assetId && t.type === "achat" && accounts.get(t.accountId)?.kind === "cto").map((t) => t.accountId));
+    if (holders.size > 1) multiple.add(assets.get(assetId)?.name ?? assetId);
+  }
+  for (const name of multiple) alerts.push({ level: "attention", message: `${name} est détenu sur plusieurs comptes-titres : le prix de revient est calculé compte par compte, à vérifier.`, sheetKey: null });
+
+  for (const a of data.accounts.filter((x) => !covered.has(x.id))) {
+    if (["pea", "pea_pme", "assurance_vie", "per"].includes(a.kind) && data.transactions.some((t) => t.accountId === a.id && t.type === "retrait" && t.date.startsWith(prefix))) {
+      alerts.push({ level: "attention", message: `Retrait en ${year} sur ${a.name} : non calculé ici, reportez-vous à l'IFU de l'établissement.`, sheetKey: null });
+    }
+  }
+  for (const a of data.accounts.filter((x) => x.kind === "crypto")) {
+    if (data.transactions.some((t) => t.accountId === a.id && t.type === "interets" && t.date.startsWith(prefix))) alerts.push({ level: "attention", message: `Intérêts ${year} sur ${a.name} : les revenus de placement de crypto ne sont pas repris ici.`, sheetKey: null });
+  }
+
+  const statesByDate = new Map<string, ReturnType<typeof computePortfolio>>();
+  for (const s of sheets) {
+    for (const a of s.accounts) {
+      const last = (data.statements ?? []).filter((x) => x.accountId === a.id && x.date.startsWith(prefix)).sort((x, y) => y.date.localeCompare(x.date))[0];
+      if (!last) continue;
+      const state = statesByDate.get(last.date) ?? computePortfolio(data, last.date);
+      statesByDate.set(last.date, state);
+      const gap = state.accountById.get(a.id)?.statementGap ?? 0;
+      if (Math.abs(gap) > Math.max(10, Math.abs(last.value) * 0.01)) alerts.push({ level: "attention", message: `${a.name} : le relevé du ${last.date} s'écarte de la valeur calculée. Une opération manque peut-être au Journal.`, sheetKey: s.key });
+    }
+  }
+  return alerts.sort((a, b) => (a.level === b.level ? 0 : a.level === "erreur" ? -1 : 1));
 }
 

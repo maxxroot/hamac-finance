@@ -3,27 +3,33 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import {
   buildTaxReport,
+  compareWithStatement,
   MODE_LABELS,
+  reportTotalsMismatches,
   rulesValidityLabel,
   STATUS_LABELS,
   TAX_DISCLAIMER,
+  taxReportAlerts,
   taxReportCsvRows,
   taxReportYears,
   type ConsolidatedLine,
   type FiscalYearRules,
+  type TaxAlert,
   type TaxLine,
   type TaxReport,
   type TaxSheet,
+  type TaxStatementAmount,
   type TaxStatus,
 } from "@hamac/core";
 import { Amount } from "@/components/Amount";
-import { Field, Select } from "@/components/form";
+import { Field, MoneyInput, Select } from "@/components/form";
 import { Notice } from "@/components/Stat";
 import { Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { downloadText, toCsv } from "@/lib/files";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
+import { useMutate } from "@/lib/workspace";
 import { Onboarding } from "@/pages/Onboarding";
 
 const COMPLETE = "complet";
@@ -36,6 +42,7 @@ export function Declaration() {
   // Par défaut : la dernière année terminée, celle qui se déclare.
   const year = chosenYear ?? (pf && years.includes(+pf.today.slice(0, 4) - 1) ? +pf.today.slice(0, 4) - 1 : (years[0] ?? 0));
   const report = useMemo(() => (pf ? buildTaxReport(pf.data, pf.state.disposals, pf.crypto, year) : null), [pf, year]);
+  const alerts = useMemo(() => (pf && report ? taxReportAlerts(report, pf.data, pf.state.disposals, pf.idx.ws.taxStatements) : []), [pf, report]);
   if (!pf || !report) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
 
@@ -95,7 +102,8 @@ export function Declaration() {
       </div>
 
       <DocumentHeader title={sheet ? `Récapitulatif fiscal – ${sheet.name}` : "Récapitulatif fiscal complet"} rules={report.rules} today={pf.today} mode={sheet ? MODE_LABELS[sheet.mode] : null} />
-      {sheet ? <SheetView sheet={sheet} rules={report.rules} /> : <CompleteView report={report} onOpen={setDoc} />}
+      <Controls alerts={sheet ? alerts.filter((a) => a.sheetKey === sheet.key) : alerts} consistent={sheet ? null : reportTotalsMismatches(report).length === 0} />
+      {sheet ? <SheetView key={`${sheet.key}-${year}`} sheet={sheet} rules={report.rules} statements={pf.idx.ws.taxStatements} /> : <CompleteView report={report} onOpen={setDoc} />}
     </>
   );
 }
@@ -114,6 +122,27 @@ function DocumentHeader({ title, rules, today, mode }: { title: string; rules: F
         <Notice tone={rules.covered ? "info" : "warning"}>{rulesValidityLabel(rules)}</Notice>
         <Notice>{TAX_DISCLAIMER}</Notice>
       </div>
+    </div>
+  );
+}
+
+function Controls({ alerts, consistent }: { alerts: readonly TaxAlert[]; consistent: boolean | null }) {
+  if (alerts.length === 0 && consistent === null) return null;
+  return (
+    <div className="mb-6 space-y-2">
+      {consistent && <Notice tone="ok">Contrôle de cohérence : la somme des fiches correspond au récapitulatif.</Notice>}
+      {alerts.length > 0 && (
+        <Notice tone="warning">
+          <div className="mb-1.5 font-medium">{alerts.length > 1 ? `${alerts.length} points à contrôler` : "1 point à contrôler"}</div>
+          <ul className="list-disc space-y-1 pl-5">
+            {alerts.map((a) => (
+              <li key={a.message} className={a.level === "erreur" ? "text-negative" : undefined}>
+                {a.message}
+              </li>
+            ))}
+          </ul>
+        </Notice>
+      )}
     </div>
   );
 }
@@ -317,7 +346,60 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function SheetView({ sheet, rules }: { sheet: TaxSheet; rules: FiscalYearRules }) {
+/** Montants lus sur le document de l'établissement, comparés au récapitulatif de Hamac. */
+function StatementCheck({ sheet, rules, statements }: { sheet: TaxSheet; rules: FiscalYearRules; statements: readonly TaxStatementAmount[] }) {
+  const save = useMutate("taxStatements.save", { success: "Montants enregistrés" });
+  const saved = useMemo(() => new Map(statements.filter((x) => x.institutionId === sheet.institutionId && x.year === rules.incomeYear).map((x) => [x.box, x.amount])), [statements, sheet.institutionId, rules.incomeYear]);
+  const [draft, setDraft] = useState<ReadonlyMap<string, number | null>>(new Map());
+  const official = new Map(saved);
+  for (const [box, amount] of draft) {
+    if (amount == null) official.delete(box);
+    else official.set(box, amount);
+  }
+  const rows = compareWithStatement(sheet, rules, official);
+  if (!sheet.institutionId || rows.length === 0) return null;
+  const persist = () => save.mutate({ institutionId: sheet.institutionId!, year: rules.incomeYear, amounts: rows.flatMap((r) => (r.official == null ? [] : [{ box: r.rule.box, amount: r.official }])) }, { onSuccess: () => setDraft(new Map()) });
+  return (
+    <Block title="Comparer avec le document de l'établissement">
+      <p className="mb-3 text-sm text-fg-muted">Recopiez les montants de son document fiscal : l'écart apparaît case par case.</p>
+      <Table>
+        <thead>
+          <tr>
+            <Th>Case</Th>
+            <Th>Libellé</Th>
+            <Th align="right">Hamac</Th>
+            <Th align="right">Document</Th>
+            <Th align="right">Écart</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <Tr key={r.key}>
+              <BoxCell line={r} covered={rules.covered} />
+              <Td>{r.rule.label}</Td>
+              <Td align="right">
+                <Amount value={r.hamac} />
+              </Td>
+              <Td align="right" className="w-40">
+                <MoneyInput aria-label={`Document, case ${r.rule.box}`} value={r.official} onChange={(v) => setDraft(new Map(draft).set(r.rule.box, v))} />
+              </Td>
+              <Td align="right" className={r.gap != null && Math.abs(r.gap) >= 1 ? "font-medium text-warning" : undefined}>
+                {r.gap == null ? "—" : <Amount value={r.gap} />}
+              </Td>
+            </Tr>
+          ))}
+        </tbody>
+      </Table>
+      <div className="no-print mt-3 flex justify-end">
+        <Button variant="primary" disabled={draft.size === 0 || save.isPending} onClick={persist}>
+          Enregistrer les montants
+        </Button>
+      </div>
+    </Block>
+  );
+}
+
+function SheetView({ sheet, rules, statements }: { sheet: TaxSheet; rules: FiscalYearRules; statements: readonly TaxStatementAmount[] }) {
   const empty = sheet.lines.length === 0 && sheet.disposals.length === 0 && sheet.cryptoSales.length === 0;
   return (
     <>
@@ -505,6 +587,8 @@ function SheetView({ sheet, rules }: { sheet: TaxSheet; rules: FiscalYearRules }
           <p className="mt-3 text-xs text-fg-faint">Le gain imposable se calcule sur le portefeuille global, toutes plateformes : voir le récapitulatif complet.</p>
         </Block>
       )}
+
+      <StatementCheck sheet={sheet} rules={rules} statements={statements} />
     </>
   );
 }

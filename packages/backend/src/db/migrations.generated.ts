@@ -15,5 +15,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0003_ordinary_trish_tilby",
     "sql": "ALTER TABLE \"institutions\" ADD COLUMN \"tax\" text DEFAULT '{}' NOT NULL;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"gross_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"withheld_income_tax_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"withheld_social_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"transactions\" ADD COLUMN \"withheld_foreign_cents\" bigint;"
+  },
+  {
+    "tag": "0004_vengeful_black_tom",
+    "sql": "CREATE TABLE \"tax_statement_amounts\" (\n\t\"institution_id\" text NOT NULL,\n\t\"year\" bigint NOT NULL,\n\t\"box\" text NOT NULL,\n\t\"amount_cents\" bigint NOT NULL,\n\t\"created_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\t\"updated_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\tCONSTRAINT \"tax_statement_amounts_institution_id_year_box_pk\" PRIMARY KEY(\"institution_id\",\"year\",\"box\")\n);\n--> statement-breakpoint\nALTER TABLE \"tax_statement_amounts\" ADD CONSTRAINT \"tax_statement_amounts_institution_id_institutions_id_fk\" FOREIGN KEY (\"institution_id\") REFERENCES \"institutions\"(\"id\") ON DELETE cascade ON UPDATE no action;"
   }
 ];

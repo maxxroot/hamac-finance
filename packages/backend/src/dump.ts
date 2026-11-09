@@ -8,6 +8,7 @@ import { MARKET_SECRETS_KEY } from "./market/config";
 const TABLES = [
   "settings",
   "institutions",
+  "tax_statement_amounts",
   "accounts",
   "assets",
   "transactions",

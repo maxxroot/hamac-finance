@@ -20,6 +20,7 @@ import type {
   PriceSource,
   PricePoint,
   Statement,
+  TaxStatementAmount,
   Transaction,
   TxType,
 } from "@hamac/core";
@@ -225,7 +226,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
     db.select().from(t.assets).orderBy(t.assets.name),
@@ -248,6 +249,7 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     db.select().from(t.properties).orderBy(t.properties.name),
     db.select().from(t.loans).orderBy(t.loans.name),
     db.select().from(t.crowdProjects).orderBy(desc(t.crowdProjects.startDate)),
+    db.select().from(t.taxStatementAmounts),
   ]);
   // Cours communs à l'instance, fusionnés avec ceux propres au tenant.
   const mappedAssets = assets.map(mapAsset);
@@ -272,6 +274,7 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     prices: merged.map((p): PricePoint => ({ ...p })),
     priceStatus: status ? JSON.parse(status.value) : null,
     institutions: institutions.map(mapInstitution),
+    taxStatements: taxStatementRows.map((r): TaxStatementAmount => ({ institutionId: r.institutionId, year: r.year, box: r.box, amount: fromCents(r.amountCents) })),
     accountRates: rates.map((r): AccountRate => ({ id: r.id, accountId: r.accountId, fromDate: r.fromDate, rate: r.rate, comment: r.comment })),
   };
 }

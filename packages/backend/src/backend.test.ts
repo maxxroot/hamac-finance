@@ -270,6 +270,20 @@ describe("établissements", () => {
     expect(ws.transactions[0]).toMatchObject({ gross: 100, withheldIncomeTax: 12.8, withheldSocial: 0 });
   });
 
+  it("garde les montants du document fiscal, les remplace, et les inclut dans la sauvegarde", async () => {
+    const b = await memory();
+    const inst = await call<{ id: string }>(b, "institutions.upsert", { name: "Courtier", kind: "courtier" });
+    const save = (amounts: unknown[]) => call(b, "taxStatements.save", { institutionId: inst.id, year: 2025, amounts });
+    await save([{ box: "2DC", amount: 12.34 }, { box: "2TR", amount: 5 }]);
+    await save([{ box: "2DC", amount: 20 }]);
+    const ws = await call<{ taxStatements: unknown[] }>(b, "workspace.load");
+    expect(ws.taxStatements).toEqual([{ institutionId: inst.id, year: 2025, box: "2DC", amount: 20 }]);
+    const dump = await call<{ tables: Record<string, unknown[]> }>(b, "data.export");
+    expect(dump.tables.tax_statement_amounts).toHaveLength(1);
+    await call(b, "data.import", { dump, confirm: "REMPLACER" });
+    expect((await call<{ taxStatements: unknown[] }>(b, "workspace.load")).taxStatements).toHaveLength(1);
+  });
+
   it("refuse une grille invalide", async () => {
     const b = await memory();
     const bad = await b.dispatch("institutions.upsert", { name: "X", kind: "courtier", offers: { pea: { orderFees: { tiers: [] } } } });

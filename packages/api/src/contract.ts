@@ -15,6 +15,7 @@ import type {
   Property,
   PricePoint,
   Statement,
+  TaxStatementAmount,
   Transaction,
 } from "@hamac/core";
 import {
@@ -70,6 +71,8 @@ export interface Workspace {
   crowdProjects: CrowdProject[];
   loans: Loan[];
   institutions: Institution[];
+  /** Montants lus sur les documents fiscaux des établissements. */
+  taxStatements: TaxStatementAmount[];
   accountRates: AccountRate[];
   /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
   prices: PricePoint[];
@@ -179,6 +182,15 @@ export const procedures = {
   "prices.setManual": { input: ManualPriceInput, output: ok },
   "institutions.upsert": { input: InstitutionInput, output: entity<Institution>() },
   "institutions.delete": { input: byId, output: ok },
+  /** Remplace les montants lus sur le document fiscal d'un établissement, pour une année. */
+  "taxStatements.save": {
+    input: z.object({
+      institutionId: z.string().min(1),
+      year: z.number().int().min(2000).max(2100),
+      amounts: z.array(z.object({ box: z.string().trim().min(1).max(8), amount: z.number().finite() })).max(40),
+    }),
+    output: ok,
+  },
 
   "transactions.bulkCreate": {
     input: z.object({ items: z.array(TransactionInput).min(1).max(5000) }),

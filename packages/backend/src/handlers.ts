@@ -535,6 +535,14 @@ export const handlers: Handlers = {
     return mapInstitution((await ctx.db.select().from(t.institutions).where(eq(t.institutions.id, id)).limit(1).then(one))!);
   },
 
+  async "taxStatements.save"({ institutionId, year, amounts }, ctx) {
+    await ctx.raw.transaction(async () => {
+      await ctx.db.delete(t.taxStatementAmounts).where(and(eq(t.taxStatementAmounts.institutionId, institutionId), eq(t.taxStatementAmounts.year, year)));
+      if (amounts.length) await ctx.db.insert(t.taxStatementAmounts).values(amounts.map((a) => ({ institutionId, year, box: a.box, amountCents: toCents(a.amount) })));
+    });
+    return OK;
+  },
+
   async "institutions.delete"({ id }, ctx) {
     // Les comptes rattachés gardent leur historique et repassent sur les frais par défaut.
     await ctx.db.update(t.accounts).set({ institutionId: null, updatedAt: nowIso() }).where(eq(t.accounts.institutionId, id));

@@ -26,6 +26,7 @@ function normalizeWorkspace(ws: Partial<Workspace>): Workspace {
     loans: list("loans"),
     prices: list("prices"),
     institutions: list("institutions"),
+    taxStatements: list("taxStatements"),
     accountRates: list("accountRates"),
     priceStatus: ws.priceStatus ?? null,
     // Réglages ajoutés depuis : valeur par défaut plutôt qu'un champ vide dans les formulaires.
