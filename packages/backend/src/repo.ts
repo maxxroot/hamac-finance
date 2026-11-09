@@ -19,6 +19,8 @@ import type {
   Loan,
   PlannedExpense,
   Property,
+  PropertyExpense,
+  RentException,
   PriceSource,
   PricePoint,
   Statement,
@@ -234,6 +236,26 @@ export const mapLeaseRent = (r: typeof t.leaseRents.$inferSelect): LeaseRent => 
   charges: fromCents(r.chargesCents),
 });
 
+export const mapRentException = (r: typeof t.rentExceptions.$inferSelect): RentException => ({
+  id: r.id,
+  leaseId: r.leaseId,
+  month: r.month,
+  kind: r.kind as RentException["kind"],
+  amount: r.amountCents == null ? null : fromCents(r.amountCents),
+  comment: r.comment,
+});
+
+export const mapPropertyExpense = (r: typeof t.propertyExpenses.$inferSelect): PropertyExpense => ({
+  id: r.id,
+  propertyId: r.propertyId,
+  date: r.date,
+  category: r.category as PropertyExpense["category"],
+  amount: fromCents(r.amountCents),
+  label: r.label,
+  yearly: r.yearly,
+  untilYear: r.untilYear,
+});
+
 function parseInstitutionTax(raw: string): InstitutionTax {
   const parsed = InstitutionTax.safeParse(JSON.parse(raw));
   return parsed.success ? parsed.data : NO_INSTITUTION_TAX;
@@ -260,7 +282,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
     db.select().from(t.assets).orderBy(t.assets.name),
@@ -286,6 +308,8 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     db.select().from(t.taxStatementAmounts),
     db.select().from(t.leases).orderBy(t.leases.startDate),
     db.select().from(t.leaseRents).orderBy(t.leaseRents.fromMonth),
+    db.select().from(t.rentExceptions).orderBy(t.rentExceptions.month),
+    db.select().from(t.propertyExpenses).orderBy(desc(t.propertyExpenses.date)),
   ]);
   // Cours communs à l'instance, fusionnés avec ceux propres au tenant.
   const mappedAssets = assets.map(mapAsset);
@@ -307,6 +331,8 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     properties: propertyRows.map(mapProperty),
     leases: leaseRows.map(mapLease),
     leaseRents: leaseRentRows.map(mapLeaseRent),
+    rentExceptions: rentExceptionRows.map(mapRentException),
+    propertyExpenses: expenseRows.map(mapPropertyExpense),
     loans: loanRows.map(mapLoan),
     crowdProjects: crowdRows.map(mapCrowdProject),
     prices: merged.map((p): PricePoint => ({ ...p })),

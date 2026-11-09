@@ -23,7 +23,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapProperty, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapProperty, mapPropertyExpense, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -527,6 +527,40 @@ export const handlers: Handlers = {
 
   async "leaseRents.delete"({ id }, ctx) {
     await ctx.db.delete(t.leaseRents).where(eq(t.leaseRents.id, id));
+    return OK;
+  },
+
+  async "rentExceptions.set"(input, ctx) {
+    const lease = await ctx.db.select().from(t.leases).where(eq(t.leases.id, input.leaseId)).limit(1).then(one);
+    if (!lease) throw new RpcError("NOT_FOUND", "Bail introuvable.");
+    if (input.month < lease.startDate.slice(0, 7)) throw new RpcError("VALIDATION", "Ce mois précède le début du bail.");
+    const set = { kind: input.kind, amountCents: input.kind === "montant" ? toCents(input.amount!) : null, comment: input.comment, updatedAt: nowIso() };
+    const saved = await ctx.db
+      .insert(t.rentExceptions)
+      .values({ id: newId(), leaseId: input.leaseId, month: input.month, ...set })
+      .onConflictDoUpdate({ target: [t.rentExceptions.leaseId, t.rentExceptions.month], set })
+      .returning();
+    return mapRentException(saved[0]);
+  },
+
+  async "rentExceptions.delete"({ id }, ctx) {
+    await ctx.db.delete(t.rentExceptions).where(eq(t.rentExceptions.id, id));
+    return OK;
+  },
+
+  async "propertyExpenses.upsert"(input, ctx) {
+    const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one);
+    if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    if (input.yearly && input.untilYear != null && input.untilYear < Number(input.date.slice(0, 4))) throw new RpcError("VALIDATION", "La dernière année précède la date de la dépense.");
+    const id = input.id ?? newId();
+    const row = { propertyId: input.propertyId, date: input.date, category: input.category, amountCents: toCents(input.amount), label: input.label, yearly: input.yearly, untilYear: input.yearly ? input.untilYear : null, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.propertyExpenses).set(row).where(eq(t.propertyExpenses.id, id));
+    else await ctx.db.insert(t.propertyExpenses).values({ id, ...row });
+    return mapPropertyExpense((await ctx.db.select().from(t.propertyExpenses).where(eq(t.propertyExpenses.id, id)).limit(1).then(one))!);
+  },
+
+  async "propertyExpenses.delete"({ id }, ctx) {
+    await ctx.db.delete(t.propertyExpenses).where(eq(t.propertyExpenses.id, id));
     return OK;
   },
 

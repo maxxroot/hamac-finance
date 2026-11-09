@@ -329,6 +329,42 @@ export const leaseRents = pgTable(
   (t) => [uniqueIndex("lease_rents_lease_month_uq").on(t.leaseId, t.fromMonth)],
 );
 
+/** Écarts signalés sur les loyers : sans ligne ici, le loyer prévu du mois est réputé perçu. */
+export const rentExceptions = pgTable(
+  "rent_exceptions",
+  {
+    id: text("id").primaryKey(),
+    leaseId: text("lease_id")
+      .notNull()
+      .references(() => leases.id, { onDelete: "cascade" }),
+    month: text("month").notNull(),
+    kind: text("kind").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }),
+    comment: text("comment").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("rent_exceptions_lease_month_uq").on(t.leaseId, t.month)],
+);
+
+/** Dépenses d'un bien en location, pour le bien entier ; `yearly` les répète à la même date chaque année. */
+export const propertyExpenses = pgTable(
+  "property_expenses",
+  {
+    id: text("id").primaryKey(),
+    propertyId: text("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    category: text("category").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    label: text("label").notNull().default(""),
+    yearly: boolean("yearly").notNull().default(false),
+    untilYear: bigint("until_year", { mode: "number" }),
+    ...timestamps,
+  },
+  (t) => [index("property_expenses_property_idx").on(t.propertyId)],
+);
+
 /** Historique des taux d'un compte (livrets) : taux en vigueur à partir d'une date. */
 export const accountRates = pgTable(
   "account_rates",

@@ -24,7 +24,8 @@ import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
 import { ageInYear, classEnabled, classLabel, classTargets, type PlanParams } from "./params";
 import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
-import type { Lease, LeaseRent } from "./leases";
+import type { Lease, LeaseRent, RentException } from "./leases";
+import type { PropertyExpense } from "./rental";
 import { loanState, propertyValue, type Loan, type LoanState, type Property } from "./realestate";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
@@ -46,6 +47,8 @@ export interface EngineData {
   loans?: readonly Loan[];
   leases?: readonly Lease[];
   leaseRents?: readonly LeaseRent[];
+  rentExceptions?: readonly RentException[];
+  propertyExpenses?: readonly PropertyExpense[];
   /** Historique des cours (ou au moins le dernier cours de chaque titre). */
   prices: readonly PricePoint[];
   /** Établissements et leurs grilles de frais (facultatif). */

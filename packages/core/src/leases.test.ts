@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { leaseAlerts } from "./alerts";
-import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseState, maxDeposit, validateLease, type Lease, type LeaseRent } from "./leases";
+import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseState, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
 import type { Property } from "./realestate";
 
 const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "" };
@@ -178,5 +178,53 @@ describe("rappels", () => {
   it("rien pour un bien qui n'est plus en location ou archivé", () => {
     expect(run(vide, "2026-05-20", { ...bien, kind: "autre" })).toHaveLength(0);
     expect(run(vide, "2026-05-20", { ...bien, archived: true })).toHaveLength(0);
+  });
+});
+
+describe("loyers automatiques", () => {
+  const bail: Lease = { ...vide, startDate: "2026-01-16", durationMonths: 36, rent: 620, charges: 62 };
+  const exception = (month: string, kind: RentException["kind"], amount: number | null = null): RentException => ({ id: month, leaseId: "l", month, kind, amount, comment: "" });
+
+  it("un mois par mois échu ou en cours, premier mois au prorata des jours", () => {
+    const months = rentMonths(bail, [], [], "2026-03-10");
+    expect(months.map((m) => m.month)).toEqual(["2026-01", "2026-02", "2026-03"]);
+    // 16 jours sur 31 en janvier.
+    expect(months[0].occupied).toBeCloseTo(16 / 31, 6);
+    expect(months[0]).toMatchObject({ expectedRent: 320, expectedCharges: 32, receivedRent: 320, status: "paye" });
+    expect(months[2]).toMatchObject({ occupied: 1, receivedRent: 620, receivedCharges: 62 });
+  });
+
+  it("dernier mois au prorata, rien après la fin du bail", () => {
+    const months = rentMonths({ ...bail, actualEnd: "2026-03-15" }, [], [], "2026-06-01");
+    expect(months.map((m) => m.month)).toEqual(["2026-01", "2026-02", "2026-03"]);
+    expect(months[2].expectedRent).toBe(300); // 15 jours sur 31 de 620 €
+  });
+
+  it("nouveau loyer appliqué à partir de son mois", () => {
+    const rents: LeaseRent[] = [{ id: "r", leaseId: "l", fromMonth: "2026-03", rent: 640, charges: 62 }];
+    const months = rentMonths(bail, rents, [], "2026-03-10");
+    expect(months[1].expectedRent).toBe(620);
+    expect(months[2].expectedRent).toBe(640);
+  });
+
+  it("impayé : rien de reçu, logement occupé", () => {
+    const [, m] = rentMonths(bail, [], [exception("2026-02", "impaye")], "2026-03-10");
+    expect(m).toMatchObject({ status: "impaye", occupied: 1, expectedRent: 620, receivedRent: 0, receivedCharges: 0 });
+  });
+
+  it("mois vide : rien de prévu ni d'occupé", () => {
+    const [, m] = rentMonths(bail, [], [exception("2026-02", "vide")], "2026-03-10");
+    expect(m).toMatchObject({ status: "vide", occupied: 0, expectedRent: 0, receivedRent: 0 });
+  });
+
+  it("montant différent : le loyer reçu est celui indiqué, les charges restent prévues", () => {
+    const [, m] = rentMonths(bail, [], [exception("2026-02", "montant", 500)], "2026-03-10");
+    expect(m).toMatchObject({ status: "montant", expectedRent: 620, receivedRent: 500, receivedCharges: 62 });
+  });
+
+  it("alerte sur les loyers impayés", () => {
+    const bien = { id: "b", kind: "locatif", name: "Studio", archived: false } as Property;
+    const alerts = leaseAlerts({ properties: [bien], leases: [bail], leaseRents: [], rentExceptions: [exception("2026-02", "impaye")] }, "2026-03-10");
+    expect(alerts.find((a) => a.id === "loyers-impayes-b")).toMatchObject({ level: "attention", title: "Studio : 1 loyer impayé" });
   });
 });

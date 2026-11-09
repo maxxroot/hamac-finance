@@ -4,7 +4,9 @@ import { Link, useParams } from "react-router";
 import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, formatPct, propertySummary, propertyTotalCost } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine as Line } from "@/components/DetailLine";
+import { ExpensesCard } from "@/components/ExpensesCard";
 import { LeaseCard } from "@/components/LeaseCard";
+import { RentsCard } from "@/components/RentsCard";
 import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
@@ -120,7 +122,13 @@ export function Bien() {
           </Table>
         </Card>
 
-        {property.kind === "locatif" && <LeaseCard property={property} leases={leases} rents={pf.idx.ws.leaseRents} today={pf.today} />}
+        {property.kind === "locatif" && (
+          <>
+            <LeaseCard property={property} leases={leases} rents={pf.idx.ws.leaseRents} today={pf.today} />
+            <RentsCard leases={leases} rents={pf.idx.ws.leaseRents} exceptions={pf.idx.ws.rentExceptions} today={pf.today} />
+            <ExpensesCard propertyId={property.id} expenses={pf.idx.ws.propertyExpenses.filter((e) => e.propertyId === property.id)} />
+          </>
+        )}
       </div>
 
       <PropertyDialog open={editing} property={property} onClose={() => setEditing(false)} />

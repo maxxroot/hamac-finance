@@ -2,7 +2,7 @@ import { allocationReport } from "./allocations";
 import { proposeContributions } from "./contributions";
 import { addDays, addMonths, monthsBetween } from "./dates";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
-import { currentLease, leaseState } from "./leases";
+import { currentLease, leaseState, rentMonths } from "./leases";
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
 import { daysBetween } from "./xirr";
@@ -211,8 +211,8 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
 /** Délai avant une échéance de bail à partir duquel on la rappelle. */
 const LEASE_ALERT_DAYS = 60;
 
-/** Rappels des biens en location : fin de bail, départ du locataire et date limite pour donner congé. */
-export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents">, today: string): Alert[] {
+/** Rappels des biens en location : fin de bail, départ du locataire, date limite pour donner congé et loyers impayés. */
+export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents" | "rentExceptions">, today: string): Alert[] {
   const out: Alert[] = [];
   const soon = (date: string | null): date is string => date != null && daysBetween(today, date) >= 0 && daysBetween(today, date) <= LEASE_ALERT_DAYS;
   for (const property of (data.properties ?? []).filter((p) => p.kind === "locatif" && !p.archived)) {
@@ -220,6 +220,11 @@ export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "le
     const current = currentLease(states);
     if (!current) continue;
     const link = `/immobilier/${property.id}`;
+    const unpaid = states.flatMap((s) => rentMonths(s.lease, data.leaseRents ?? [], data.rentExceptions ?? [], today)).filter((m) => m.status === "impaye");
+    if (unpaid.length) {
+      const due = unpaid.reduce((sum, m) => sum + m.expectedRent + m.expectedCharges, 0);
+      out.push({ id: `loyers-impayes-${property.id}`, level: "attention", title: `${property.name} : ${unpaid.length} loyer${unpaid.length > 1 ? "s" : ""} impayé${unpaid.length > 1 ? "s" : ""}`, detail: `${eur(due)} à recevoir.`, link });
+    }
     if (current.status === "termine") {
       out.push({ id: `bail-vacant-${property.id}`, level: "info", title: `${property.name} : aucun bail en cours`, link });
       continue;

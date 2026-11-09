@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, LEASE_KINDS, LEASE_NOTICE_BY, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -202,6 +202,29 @@ export const LeaseRentInput = z.object({
   charges: money.min(0).default(0),
 });
 export type LeaseRentInput = z.input<typeof LeaseRentInput>;
+
+export const RentExceptionInput = z
+  .object({
+    leaseId: id,
+    month,
+    kind: z.enum(RENT_EXCEPTION_KINDS),
+    amount: money.min(0).nullable().default(null),
+    comment: text(200).default(""),
+  })
+  .refine((e) => e.kind !== "montant" || e.amount != null, { path: ["amount"], message: "Indiquez le montant reçu." });
+export type RentExceptionInput = z.input<typeof RentExceptionInput>;
+
+export const PropertyExpenseInput = z.object({
+  id: id.optional(),
+  propertyId: id,
+  date: isoDate,
+  category: z.enum(EXPENSE_CATEGORIES),
+  amount: money.positive("Montant requis"),
+  label: text(120).default(""),
+  yearly: z.boolean().default(false),
+  untilYear: z.number().int().min(1900).max(2200).nullable().default(null),
+});
+export type PropertyExpenseInput = z.input<typeof PropertyExpenseInput>;
 
 export const LoanInput = z
   .object({

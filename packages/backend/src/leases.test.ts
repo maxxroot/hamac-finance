@@ -81,3 +81,53 @@ describe("baux", () => {
     expect(after.leaseRents).toHaveLength(1);
   });
 });
+
+describe("loyers signalés et dépenses", () => {
+  const start = async (b: Backend) => {
+    const propertyId = await newProperty(b);
+    const { id: leaseId } = await call<{ id: string }>(b, "leases.upsert", lease(propertyId));
+    return { propertyId, leaseId };
+  };
+  const data = (b: Backend) => call<{ rentExceptions: Array<Record<string, unknown>>; propertyExpenses: Array<Record<string, unknown>> }>(b, "workspace.load");
+
+  it("un seul écart par mois : le dernier signalement remplace le précédent", async () => {
+    backend = await testBackend();
+    const { leaseId } = await start(backend);
+    await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "impaye" });
+    await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "montant", amount: 500 });
+    expect((await data(backend)).rentExceptions).toMatchObject([{ leaseId, month: "2025-03", kind: "montant", amount: 500 }]);
+  });
+
+  it("refuse un montant manquant ou un mois avant le bail, ne garde pas de montant inutile", async () => {
+    backend = await testBackend();
+    const { leaseId } = await start(backend);
+    await expect(call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "montant" })).rejects.toThrow();
+    await expect(call(backend, "rentExceptions.set", { leaseId, month: "2023-12", kind: "impaye" })).rejects.toThrow("précède");
+    expect(await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "vide", amount: 100 })).toMatchObject({ amount: null });
+  });
+
+  it("dépense annuelle, dernière année contrôlée, retirée à la suppression", async () => {
+    backend = await testBackend();
+    const { propertyId } = await start(backend);
+    const base = { propertyId, date: "2025-10-15", category: "taxe_fonciere", amount: 900 };
+    await expect(call(backend, "propertyExpenses.upsert", { ...base, yearly: true, untilYear: 2024 })).rejects.toThrow("dernière année");
+    const saved = await call<{ id: string }>(backend, "propertyExpenses.upsert", { ...base, yearly: true, untilYear: 2030 });
+    expect((await data(backend)).propertyExpenses).toMatchObject([{ propertyId, amount: 900, yearly: true, untilYear: 2030 }]);
+    await call(backend, "propertyExpenses.upsert", { ...base, id: saved.id, yearly: false, untilYear: 2030 });
+    expect((await data(backend)).propertyExpenses).toMatchObject([{ yearly: false, untilYear: null }]);
+    await call(backend, "propertyExpenses.delete", { id: saved.id });
+    expect((await data(backend)).propertyExpenses).toEqual([]);
+  });
+
+  it("présents dans les sauvegardes", async () => {
+    backend = await testBackend();
+    const { propertyId, leaseId } = await start(backend);
+    await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "impaye" });
+    await call(backend, "propertyExpenses.upsert", { propertyId, date: "2025-10-15", category: "assurance", amount: 120 });
+    const dump = await call(backend, "data.export");
+    await call(backend, "data.import", { dump, confirm: "REMPLACER" });
+    const after = await data(backend);
+    expect(after.rentExceptions).toHaveLength(1);
+    expect(after.propertyExpenses).toHaveLength(1);
+  });
+});

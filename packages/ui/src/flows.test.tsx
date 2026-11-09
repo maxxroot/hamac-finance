@@ -238,6 +238,29 @@ describe("parcours de l'interface", () => {
     expect((await rpc<{ leases: unknown[] }>("workspace.load")).leases).toMatchObject([{ propertyId: bien.id, kind: "meuble", durationMonths: 12, rent: 800, deposit: 1600 }]);
   });
 
+  it("fiche d'un bien en location : signaler un impayé et ajouter une dépense", async () => {
+    const user = userEvent.setup();
+    const bien = await rpc<{ id: string }>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
+    await rpc("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800 });
+    show(
+      <Routes>
+        <Route path="/immobilier/:id" element={<Bien />} />
+      </Routes>,
+      `/immobilier/${bien.id}`,
+    );
+    const [first] = await screen.findAllByRole("button", { name: /Signaler un écart/ });
+    await user.click(first);
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () => expect((await rpc<{ rentExceptions: unknown[] }>("workspace.load")).rentExceptions).toMatchObject([{ kind: "impaye" }]));
+    await user.click(await screen.findByRole("button", { name: /Nouvelle dépense/ }));
+    const amount = await screen.findByLabelText("Montant");
+    await user.clear(amount);
+    await user.type(amount, "900");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Ajouter" }));
+    await waitFor(async () => expect((await rpc<{ propertyExpenses: unknown[] }>("workspace.load")).propertyExpenses).toMatchObject([{ propertyId: bien.id, category: "taxe_fonciere", amount: 900 }]));
+  });
+
   it("nouveau bien : utilisation, statut et frais d'achat, avec le coût complet affiché", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

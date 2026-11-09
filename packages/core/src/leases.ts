@@ -1,6 +1,7 @@
 import { addDays, addMonths } from "./dates";
 import { roundCents } from "./money";
 import type { PropertyOwnership } from "./realestate";
+import { daysBetween } from "./xirr";
 
 /**
  * Baux d'habitation : durée, dépôt de garantie, reconduction et congé.
@@ -210,4 +211,60 @@ export function validateLease(lease: LeaseDates & { id?: string }, others: reado
     if (overlaps) return `Ce bien a déjà un bail sur cette période (début le ${frDate(other.startDate)}). Indiquez d'abord le congé ou la fin de ce bail.`;
   }
   return null;
+}
+
+export const RENT_EXCEPTION_KINDS = ["impaye", "vide", "montant"] as const;
+export type RentExceptionKind = (typeof RENT_EXCEPTION_KINDS)[number];
+export const RENT_EXCEPTION_LABELS: Record<RentExceptionKind, string> = { impaye: "Impayé", vide: "Mois vide", montant: "Montant différent" };
+
+/** Écart signalé sur un mois : sans signalement, le loyer prévu est réputé perçu. */
+export interface RentException {
+  id: string;
+  leaseId: string;
+  /** AAAA-MM */
+  month: string;
+  kind: RentExceptionKind;
+  /** Loyer reçu hors charges (kind « montant »). */
+  amount: number | null;
+  comment: string;
+}
+
+export interface RentMonth {
+  leaseId: string;
+  month: string;
+  /** Part du mois où le logement est occupé (0 à 1). */
+  occupied: number;
+  expectedRent: number;
+  expectedCharges: number;
+  receivedRent: number;
+  receivedCharges: number;
+  status: "paye" | RentExceptionKind;
+  exception: RentException | null;
+}
+
+const nextMonthStart = (month: string) => addMonths(`${month}-01`, 1);
+export const daysInMonth = (month: string) => daysBetween(`${month}-01`, nextMonthStart(month));
+
+/** Mois du bail échus ou en cours à `asOf`, pour le bien entier ; le premier et le dernier sont au prorata des jours. */
+export function rentMonths(lease: Lease, rents: readonly LeaseRent[], exceptions: readonly RentException[], asOf: string): RentMonth[] {
+  const end = leaseEnd(lease);
+  const lastMonth = end != null && end.slice(0, 7) < asOf.slice(0, 7) ? end.slice(0, 7) : asOf.slice(0, 7);
+  const out: RentMonth[] = [];
+  for (let month = lease.startDate.slice(0, 7); month <= lastMonth; month = nextMonthStart(month).slice(0, 7)) {
+    const monthStart = `${month}-01`;
+    const monthEnd = addDays(nextMonthStart(month), -1);
+    const from = lease.startDate > monthStart ? lease.startDate : monthStart;
+    const to = end != null && end < monthEnd ? end : monthEnd;
+    const fraction = from > to ? 0 : (daysBetween(from, to) + 1) / daysInMonth(month);
+    const { rent, charges } = leaseRentAt(lease, rents, month);
+    const expectedRent = roundCents(rent * fraction);
+    const expectedCharges = roundCents(charges * fraction);
+    const exception = exceptions.find((e) => e.leaseId === lease.id && e.month === month) ?? null;
+    const base = { leaseId: lease.id, month, exception };
+    if (exception?.kind === "impaye") out.push({ ...base, occupied: fraction, expectedRent, expectedCharges, receivedRent: 0, receivedCharges: 0, status: "impaye" });
+    else if (exception?.kind === "vide") out.push({ ...base, occupied: 0, expectedRent: 0, expectedCharges: 0, receivedRent: 0, receivedCharges: 0, status: "vide" });
+    else if (exception?.kind === "montant") out.push({ ...base, occupied: fraction, expectedRent, expectedCharges, receivedRent: exception.amount ?? expectedRent, receivedCharges: expectedCharges, status: "montant" });
+    else out.push({ ...base, occupied: fraction, expectedRent, expectedCharges, receivedRent: expectedRent, receivedCharges: expectedCharges, status: "paye" });
+  }
+  return out;
 }
