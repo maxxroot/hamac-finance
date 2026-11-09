@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { Hono, type Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createBackend, SharedMarket, type Backend, type MarketConfig, type PgProvider } from "@hamac/backend";
@@ -40,6 +41,10 @@ const SECURE_COOKIE = "__Host-hamac_session";
 const HTTPS_ONLY = "Connexion refusée : ouvrez Hamac en HTTPS.";
 const IDLE_MS = 15 * 60_000;
 const MIN_PASSWORD = 10;
+/** Sans session, rien ne justifie un corps volumineux. */
+const MAX_AUTH_BODY = 16 * 1024;
+/** Assez pour restaurer une sauvegarde complète. */
+const MAX_RPC_BODY = 32 * 1024 * 1024;
 
 /** Un backend par tenant, avec sa propre connexion, ouvert à la demande et refermé après inactivité. */
 class BackendPool {
@@ -204,6 +209,10 @@ export async function createApp(cfg: ServerConfig) {
     if (c.req.path !== "/api/auth/config" && !cfg.allowHttp && !isHttps(c) && !isLocal(c)) return c.json({ error: HTTPS_ONLY }, 403);
     await next();
   });
+
+  const TOO_LARGE = "Requête trop volumineuse.";
+  app.use("/api/auth/*", bodyLimit({ maxSize: MAX_AUTH_BODY, onError: (c) => c.json({ error: TOO_LARGE }, 413) }));
+  app.use("/api/rpc/*", bodyLimit({ maxSize: MAX_RPC_BODY, onError: (c) => c.json({ ok: false, error: { code: "VALIDATION", message: TOO_LARGE } }, 413) }));
 
   app.get("/api/auth/config", async (c) => c.json({ signup: cfg.signup, firstUser: (await users.count()) === 0 }));
 

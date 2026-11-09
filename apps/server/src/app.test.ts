@@ -190,6 +190,19 @@ describe("serveur web", () => {
     expect((await client(s, "4.4.4.4").req("POST", "/api/auth/login", { email: "a@exemple.fr", password: "nouveau-mot-de-passe" })).status).toBe(200);
   });
 
+  it("limite la taille des requêtes, plus strictement sans session", async () => {
+    const s = await server("open");
+    const headers = { "content-type": "application/json", "x-hamac": "1", "x-forwarded-for": "1.1.1.1" };
+    const big = JSON.stringify({ email: "a@exemple.fr", password: "x".repeat(20_000) });
+    const res = await s.app.request("/api/auth/login", { method: "POST", headers: { ...headers, "content-length": String(big.length) }, body: big });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "Requête trop volumineuse." });
+    // Sans longueur annoncée, la lecture s'arrête aussi à la limite.
+    expect((await s.app.request("/api/auth/login", { method: "POST", headers, body: big })).status).not.toBe(200);
+    const rpc = await s.app.request("/api/rpc/workspace.load", { method: "POST", headers: { ...headers, "content-length": String(40 * 1024 * 1024) }, body: "null" });
+    expect(rpc.status).toBe(413);
+  });
+
   it("refuse un mot de passe trop court et limite les tentatives", async () => {
     const s = await server("open");
     const c = client(s);
