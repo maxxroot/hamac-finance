@@ -14,7 +14,7 @@ interface FigiRecord {
 }
 
 export interface Candidate {
-  source: "openfigi" | "coingecko";
+  source: "openfigi" | "coingecko" | "euronext";
   kind: AssetKind;
   name: string;
   isin: string | null;

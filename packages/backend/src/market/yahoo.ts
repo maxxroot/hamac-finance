@@ -29,7 +29,7 @@ export function yahooRange(since: string | null, today: string): "5d" | "1y" | "
   return days <= 4 ? "5d" : days <= 360 ? "1y" : "2y";
 }
 
-export async function yahooHistory(fetcher: Fetcher, symbol: string, range: "5d" | "1y" | "2y"): Promise<Quote[]> {
+export async function yahooHistory(fetcher: Fetcher, symbol: string, range: "5d" | "1y" | "2y" | "10y"): Promise<Quote[]> {
   const s = await getSession(fetcher);
   const j = await getJson<Chart>(fetcher, `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d&crumb=${encodeURIComponent(s.crumb)}`, {
     headers: { Cookie: s.cookie },

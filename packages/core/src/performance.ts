@@ -1,3 +1,5 @@
+import { addMonths } from "./dates";
+import type { PricePoint } from "./domain";
 import { accountIrr, contributionFlows, irrOf, PERF_GROUPS, type EngineData, type PortfolioState } from "./engine";
 import type { HistoryPoint } from "./history";
 import { endOfMonth } from "./history";
@@ -423,7 +425,13 @@ export function assetPerformance(data: EngineData, state: PortfolioState, histor
 
 // ——— Comparaison ———
 
-export type CompareSide = { kind: "accounts"; accountIds: readonly string[] } | { kind: "asset"; assetId: string };
+export interface SeriesPoint {
+  date: string;
+  price: number;
+}
+
+/** Ce qu'on compare : des comptes, un titre du portefeuille, ou l'historique d'un titre qu'on ne détient pas. */
+export type CompareSide = { kind: "accounts"; accountIds: readonly string[] } | { kind: "asset"; assetId: string } | { kind: "series"; points: readonly SeriesPoint[] };
 
 export interface WhatIf {
   actual: number;
@@ -432,7 +440,9 @@ export interface WhatIf {
 }
 
 export interface Comparison {
-  months: Month[];
+  /** Mois (`AAAA-MM`) quand un portefeuille est comparé, jours (`AAAA-MM-JJ`) entre deux titres : voir `daily`. */
+  dates: string[];
+  daily: boolean;
   left: number[];
   right: number[];
   leftRate: number;
@@ -447,7 +457,35 @@ export function comparableAssetIds(data: EngineData): string[] {
   return data.assets.filter((a) => !a.archived && a.kind !== "obligation" && (dated.get(a.id)?.size ?? 0) >= 2).map((a) => a.id);
 }
 
-function sideRates(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], book: PriceBook, side: CompareSide): Map<Month, number | null> {
+type BookSide = Exclude<CompareSide, { kind: "series" }>;
+
+/** Au-delà, on espace les points : un graphique n'en montre pas davantage. */
+const MAX_COMPARE_POINTS = 300;
+
+/** Deux titres, sur leurs cours : du premier jour où les deux en ont (ou du début de la période) à aujourd'hui. */
+function comparePrices(book: PriceBook, leftId: string, rightId: string, asOf: string, monthsBack: number | null): Comparison | null {
+  const pricesOf = (id: string) => book.history(id).filter((p) => p.date > "1900-01-01" && p.date <= asOf);
+  const l = pricesOf(leftId);
+  const r = pricesOf(rightId);
+  if (!l.length || !r.length) return null;
+  const firstCommon = l[0]!.date > r[0]!.date ? l[0]!.date : r[0]!.date;
+  const windowFrom = monthsBack == null ? firstCommon : addMonths(asOf, -monthsBack);
+  const from = windowFrom > firstCommon ? windowFrom : firstCommon;
+  const all = [from, ...[...new Set([...l, ...r].map((p) => p.date))].filter((d) => d > from).sort()];
+  if (all.length < 2) return null;
+  const step = Math.ceil(all.length / MAX_COMPARE_POINTS);
+  const dates = all.filter((_, i) => i % step === 0 || i === all.length - 1);
+  const curve = (id: string): number[] | null => {
+    const base = book.at(id, from)?.price;
+    return base && base > 0 ? dates.map((d) => book.at(id, d)!.price / base - 1) : null;
+  };
+  const left = curve(leftId);
+  const right = curve(rightId);
+  if (!left || !right) return null;
+  return { dates, daily: true, left, right, leftRate: left.at(-1)!, rightRate: right.at(-1)!, whatIf: null };
+}
+
+function sideRates(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], book: PriceBook, side: BookSide): Map<Month, number | null> {
   const out = new Map<Month, number | null>();
   if (side.kind === "asset") {
     let previous: number | null = null;
@@ -483,11 +521,20 @@ export function sameFlowsOn(book: PriceBook, assetId: string, startValue: number
 }
 
 /**
- * Compare deux éléments sur les mois où ils ont tous deux des données, depuis un même point de départ.
- * Un titre est suivi par son cours : les dividendes distribués n'y figurent pas.
+ * Compare deux éléments depuis un même point de départ. Un portefeuille se lit mois par mois, sur sa durée ;
+ * deux titres se comparent sur leurs cours, sans dépendre de la date d'ouverture des comptes.
  */
-export function comparePerformance(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], left: CompareSide, right: CompareSide, monthsBack: number | null): Comparison | null {
-  const book = new PriceBook(data.prices, data.assets);
+export function comparePerformance(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], leftSide: CompareSide, rightSide: CompareSide, monthsBack: number | null): Comparison | null {
+  const outside: PricePoint[] = [];
+  const onBook = (side: CompareSide, assetId: string): BookSide => {
+    if (side.kind !== "series") return side;
+    for (const p of side.points) outside.push({ assetId, date: p.date, price: p.price, source: "comparaison" });
+    return { kind: "asset", assetId };
+  };
+  const left = onBook(leftSide, "__gauche");
+  const right = onBook(rightSide, "__droite");
+  const book = new PriceBook([...data.prices, ...outside], data.assets);
+  if (left.kind === "asset" && right.kind === "asset") return comparePrices(book, left.assetId, right.assetId, state.asOf, monthsBack);
   const l = sideRates(data, state, history, book, left);
   const r = sideRates(data, state, history, book, right);
   const start = windowStart(history.length, monthsBack);
@@ -511,5 +558,5 @@ export function comparePerformance(data: EngineData, state: PortfolioState, hist
     const simulated = sameFlowsOn(book, right.assetId, valueAt(base), base.date, accountFlows(data, left.accountIds, state.asOf), state.asOf);
     if (simulated != null) whatIf = { actual, simulated, difference: roundCents(simulated - actual) };
   }
-  return { months, left: leftCurve, right: rightCurve, leftRate: leftCurve.at(-1)!, rightRate: rightCurve.at(-1)!, whatIf };
+  return { dates: months, daily: false, left: leftCurve, right: rightCurve, leftRate: leftCurve.at(-1)!, rightRate: rightCurve.at(-1)!, whatIf };
 }

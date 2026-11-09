@@ -343,7 +343,7 @@ export function Notice() {
           head={["Page", "Ce que vous y trouvez"]}
           rows={[
             [<L to="/" key="d">Tableau de bord</L>, "Votre patrimoine, votre répartition et les points à regarder. Commencez par là."],
-            [<L to="/performance" key="p">Performance</L>, "Ce que votre argent a réellement rapporté, enveloppe par enveloppe."],
+            [<L to="/performance" key="p">Performance</L>, "Ce que votre argent a réellement rapporté, enveloppe par enveloppe, et sa comparaison avec un ETF ou un autre titre, même sans le détenir."],
             [<L to="/projection" key="j">Projection</L>, "Votre patrimoine à la retraite et le revenu mensuel possible."],
             [<L to="/historique" key="h">Historique</L>, "L'évolution de votre patrimoine, mois après mois."],
             [<L to="/enveloppes" key="s">Synthèse</L>, "Tous vos comptes côte à côte."],

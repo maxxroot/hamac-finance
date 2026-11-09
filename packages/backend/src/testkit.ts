@@ -50,6 +50,6 @@ export async function testBackend(opts: Partial<BackendOptions> = {}): Promise<B
 /** Une base de cours vide. */
 export async function testMarket(fetcher?: Fetcher, config?: Partial<MarketConfig>): Promise<SharedMarket> {
   const market = await SharedMarket.open(testProvider(), fetcher, undefined, config);
-  await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config CASCADE");
+  await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config, marche.series CASCADE");
   return market;
 }

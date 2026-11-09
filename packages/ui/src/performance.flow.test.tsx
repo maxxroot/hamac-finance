@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { testBackend } from "@hamac/backend/testkit";
+import { testBackend, testMarket } from "@hamac/backend/testkit";
 import { ToastProvider } from "@/lib/toast";
 import { Performance } from "@/pages/Performance";
 
@@ -77,12 +77,12 @@ describe("page Performance", () => {
     await waitFor(() => expect(screen.queryByRole("cell", { name: "Total" })).toBeNull());
 
     // Sur une période, la colonne après impôts n'a plus de sens.
-    await user.click(screen.getByRole("button", { name: "1A" }));
+    await user.click(screen.getAllByRole("button", { name: "1A" })[0]!);
     await waitFor(() => expect(screen.queryByText("Gain après impôts")).toBeNull());
     expect(screen.getByText("Versé sur la période")).toBeTruthy();
 
     // Comparateur : les mêmes versements sur un titre.
-    await user.click(screen.getByRole("button", { name: "Tout" }));
+    await user.click(screen.getAllByRole("button", { name: "Tout" })[0]!);
     const compare = within(screen.getByText("Comparer").closest("div.rounded-2xl") as HTMLElement);
     await user.selectOptions(compare.getByLabelText("Ce que je compare"), "PEA");
     await user.selectOptions(compare.getByLabelText("Avec"), "ETF Fictif");
@@ -91,5 +91,38 @@ describe("page Performance", () => {
     // Deux fois le même élément : rien à comparer.
     await user.selectOptions(compare.getByLabelText("Avec"), "PEA");
     expect(await compare.findByText("Choisissez deux éléments différents.")).toBeTruthy();
+  });
+
+  it("compare deux ETF recherchés par leur nom, sans rien ajouter au portefeuille", async () => {
+    const hit = (isin: string, name: string, ticker: string) => ({ isin, mic: "XPAR", link: `/en/product/etfs/${isin}-XPAR`, label: `<span class='name'><a href='#'>${name}</a></span><span class='symbol'>${ticker}</span>` });
+    const prices: Record<string, number[]> = { IE00B4L5Y983: [100, 200], LU1681043599: [100, 150] };
+    const fetcher = (async (url: string) => {
+      if (/searchJSON/.test(url)) return new Response(JSON.stringify(/Monde/.test(decodeURIComponent(url)) ? [hit("IE00B4L5Y983", "ETF Monde Fictif", "AAA")] : [hit("LU1681043599", "ETF Europe Fictif", "BBB")]));
+      const isin = /etfs\/([A-Z0-9]{12})\/performance/.exec(url)?.[1];
+      if (isin) return new Response(JSON.stringify({ series: [{ date: "2016-01-04", value: { raw: prices[isin]![0] } }, { date: "2026-01-05", value: { raw: prices[isin]![1] } }] }));
+      return new Response("introuvable", { status: 404 });
+    }) as import("@hamac/backend").BackendOptions["fetcher"];
+    h.backend.close();
+    h.backend = await testBackend({ fetcher, market: await testMarket(fetcher) });
+    const user = userEvent.setup();
+    await seed();
+    show();
+    await screen.findByText("Comparer");
+    const compare = within(screen.getByText("Comparer").closest("div.rounded-2xl") as HTMLElement);
+
+    const chercher = async (cote: string, texte: string, nom: string) => {
+      await user.click(compare.getByRole("button", { name: `Rechercher un titre : ${cote}` }));
+      await user.type(await screen.findByLabelText("Nom ou ISIN"), `${texte}{Enter}`);
+      await screen.findByText(nom);
+      await user.click(screen.getByRole("button", { name: "Choisir" }));
+    };
+    await chercher("Ce que je compare", "Monde", "ETF Monde Fictif");
+    await chercher("Avec", "Europe", "ETF Europe Fictif");
+
+    // Dix ans de cours alors que le portefeuille n'a pas deux ans.
+    expect(await compare.findByText("depuis 04/01/2016")).toBeTruthy();
+    expect(compare.getByText(/ETF Monde Fictif :/).textContent).toMatch(/100/);
+    expect(compare.getByText(/dividendes des ETF/)).toBeTruthy();
+    expect((await rpc<{ assets: unknown[] }>("workspace.load")).assets).toHaveLength(1);
   });
 });

@@ -30,6 +30,15 @@ export const AccountInput = z.object({
 });
 export type AccountInput = z.input<typeof AccountInput>;
 
+export const MarketSeriesInput = z
+  .object({
+    kind: z.enum(["etf", "action", "fonds", "crypto"]),
+    isin: z.string().trim().toUpperCase().regex(/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/, "ISIN invalide").nullable().default(null),
+    symbol: text(40).nullable().default(null),
+  })
+  .refine((a) => a.isin != null || a.symbol != null, { path: ["isin"], message: "ISIN ou symbole requis." });
+export type MarketSeriesInput = z.input<typeof MarketSeriesInput>;
+
 export const AssetInput = z.object({
   id: id.optional(),
   kind: z.enum(ASSET_KINDS),

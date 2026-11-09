@@ -1,4 +1,5 @@
-import { activeAccountIds, PERF_GROUPS, type AssetPerformance, type CompareSide, type EnvelopePerformance, type PortfolioState } from "@hamac/core";
+import type { MarketSeries, MarketSeriesInput } from "@hamac/api";
+import { activeAccountIds, PERF_GROUPS, type Asset, type AssetKind, type AssetPerformance, type CompareSide, type EngineData, type EnvelopePerformance, type PortfolioState } from "@hamac/core";
 
 /** Logique d'affichage de la page Performance, sans React pour pouvoir la tester. */
 
@@ -35,9 +36,40 @@ export function findScope(options: ScopeOptions, key: string): ScopeOption | nul
 
 export const assetKey = (assetId: string) => `asset:${assetId}`;
 
-/** Élément à comparer d'après sa clé ; null s'il n'existe plus. */
-export function compareSide(options: ScopeOptions, key: string): CompareSide | null {
-  if (key.startsWith("asset:")) return { kind: "asset", assetId: key.slice(6) };
+/** Titre recherché pour une comparaison : il n'est pas ajouté au portefeuille. */
+export interface Reference {
+  kind: "etf" | "action" | "fonds" | "crypto";
+  name: string;
+  isin: string | null;
+  symbol: string | null;
+}
+
+export const REFERENCE_KINDS: readonly AssetKind[] = ["etf", "action", "fonds", "crypto"];
+const MAX_REFERENCES = 8;
+
+export const referenceKey = (r: Pick<Reference, "kind" | "isin" | "symbol">) => `ref:${r.kind}|${r.isin ?? ""}|${r.symbol ?? ""}`;
+
+/** Titres réellement passés par le portefeuille, seuls proposés sous « Mes titres ». */
+export function ownedAssetIds(data: Pick<EngineData, "transactions">): Set<string> {
+  return new Set(data.transactions.flatMap((t) => (t.assetId ? [t.assetId] : [])));
+}
+
+/** Historique à demander pour cette clé ; null si l'élément se lit dans le portefeuille (comptes, cours manuels…). */
+export function seriesRequest(key: string, references: readonly Reference[], assetOf: (id: string) => Asset | undefined): MarketSeriesInput | null {
+  if (key.startsWith("ref:")) {
+    const r = references.find((x) => referenceKey(x) === key);
+    return r ? { kind: r.kind, isin: r.isin, symbol: r.symbol } : null;
+  }
+  if (!key.startsWith("asset:")) return null;
+  const a = assetOf(key.slice(6));
+  if (!a || a.priceSource !== "auto" || a.priceUrl || !REFERENCE_KINDS.includes(a.kind) || (!a.isin && !a.symbol)) return null;
+  return { kind: a.kind as Reference["kind"], isin: a.isin, symbol: a.symbol };
+}
+
+/** Élément à comparer d'après sa clé ; null s'il n'existe plus ou que ses cours manquent. */
+export function compareSide(options: ScopeOptions, key: string, series?: MarketSeries): CompareSide | null {
+  if (key.startsWith("ref:")) return series ? { kind: "series", points: series.points } : null;
+  if (key.startsWith("asset:")) return series && series.points.length >= 2 ? { kind: "series", points: series.points } : { kind: "asset", assetId: key.slice(6) };
   const scope = findScope(options, key);
   return scope ? { kind: "accounts", accountIds: scope.accountIds } : null;
 }
@@ -70,16 +102,34 @@ export function pctText(rate: number, digits = 1, signed = true): string {
 
 const COMPARE_KEY = "hamac.performance.comparaison";
 
-export function loadCompareChoice(): { left: string; right: string } | null {
+export interface CompareChoice {
+  left: string;
+  right: string;
+  references: Reference[];
+}
+
+const isReference = (r: unknown): r is Reference => {
+  const x = r as Partial<Reference> | null;
+  return typeof x?.name === "string" && REFERENCE_KINDS.includes(x.kind as AssetKind) && (typeof x.isin === "string" || typeof x.symbol === "string");
+};
+
+export function loadCompareChoice(): CompareChoice | null {
   try {
-    const raw = JSON.parse(localStorage.getItem(COMPARE_KEY) ?? "null") as { left?: unknown; right?: unknown } | null;
-    return typeof raw?.left === "string" && typeof raw.right === "string" ? { left: raw.left, right: raw.right } : null;
+    const raw = JSON.parse(localStorage.getItem(COMPARE_KEY) ?? "null") as { left?: unknown; right?: unknown; references?: unknown } | null;
+    if (typeof raw?.left !== "string" || typeof raw.right !== "string") return null;
+    return { left: raw.left, right: raw.right, references: Array.isArray(raw.references) ? raw.references.filter(isReference) : [] };
   } catch {
     return null;
   }
 }
 
-export function saveCompareChoice(choice: { left: string; right: string }): void {
+/** Place un titre recherché en tête des références, sans doublon. */
+export function withReference(references: readonly Reference[], added: Reference): Reference[] {
+  const key = referenceKey(added);
+  return [added, ...references.filter((r) => referenceKey(r) !== key)].slice(0, MAX_REFERENCES);
+}
+
+export function saveCompareChoice(choice: CompareChoice): void {
   try {
     localStorage.setItem(COMPARE_KEY, JSON.stringify(choice));
   } catch {

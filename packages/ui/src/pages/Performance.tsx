@@ -94,7 +94,7 @@ export function Performance() {
             <SourcesCard sources={perf.sources} />
           </div>
 
-          <PerformanceCompare data={pf.data} state={pf.state} history={history} idx={pf.idx} options={options} monthsBack={monthsBack} />
+          <PerformanceCompare data={pf.data} state={pf.state} history={history} idx={pf.idx} options={options} />
 
           <YearsCard years={perf.years} />
 

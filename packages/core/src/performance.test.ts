@@ -147,21 +147,58 @@ describe("page Performance sur un portefeuille", () => {
     const c = comparePerformance(d, computePortfolio(d, ASOF), buildHistory(d, ASOF), { kind: "accounts", accountIds: ["pea"] }, { kind: "asset", assetId: "ref" }, null)!;
     expect(c.left[0]).toBe(0);
     expect(c.right[0]).toBe(0);
-    expect(c.months[0]).toBe("2025-01");
+    expect(c.dates[0]).toBe("2025-01");
+    expect(c.daily).toBe(false);
     expect(c.rightRate).toBeCloseTo(0.21, 10);
     expect(c.whatIf!.actual).toBe(1260);
     // 1000 € fin janvier au cours de 100 → 10 parts, valant 121 € à la fin.
     expect(c.whatIf!.simulated).toBeCloseTo(1210, 2);
   });
 
-  it("deux titres : seuls leurs mois communs comptent, et pas de versements à simuler", () => {
+  it("deux titres : seule leur période commune compte, et pas de versements à simuler", () => {
     const d = base();
     d.prices = [...d.prices, price("late", "2025-11-30", 50), price("late", "2025-12-31", 55)];
     d.assets = [...d.assets, asset("late")];
     const c = comparePerformance(d, computePortfolio(d, ASOF), buildHistory(d, ASOF), { kind: "asset", assetId: "a" }, { kind: "asset", assetId: "late" }, null)!;
-    expect(c.months).toEqual(["2025-11", "2025-12"]);
+    expect(c.daily).toBe(true);
+    expect(c.dates[0]).toBe("2025-11-30");
+    expect(c.dates.at(-1)).toBe("2025-12-31");
     expect(c.rightRate).toBeCloseTo(0.1, 10);
     expect(c.whatIf).toBeNull();
+  });
+
+  it("deux titres qu'on ne détient pas : comparés au-delà de la durée du portefeuille, et sur la période demandée", () => {
+    const d = base();
+    const history = buildHistory(d, ASOF);
+    const state = computePortfolio(d, ASOF);
+    const gauche = { kind: "series", points: [{ date: "2015-01-01", price: 100 }, { date: "2024-12-31", price: 150 }, { date: "2025-12-31", price: 200 }] } as const;
+    const droite = { kind: "series", points: [{ date: "2010-06-01", price: 10 }, { date: "2015-01-01", price: 20 }, { date: "2025-12-31", price: 30 }] } as const;
+    const tout = comparePerformance(d, state, history, gauche, droite, null)!;
+    expect(tout.dates[0]).toBe("2015-01-01");
+    expect(tout.leftRate).toBeCloseTo(1, 10);
+    expect(tout.rightRate).toBeCloseTo(0.5, 10);
+    // Sur un an, le départ est le dernier cours connu à cette date, ici celui de fin 2024 pour le premier titre.
+    const unAn = comparePerformance(d, state, history, gauche, droite, 12)!;
+    expect(unAn.dates[0] > "2024-12-30").toBe(true);
+    expect(unAn.leftRate).toBeCloseTo(200 / 150 - 1, 10);
+    expect(unAn.rightRate).toBeCloseTo(0.5, 10);
+  });
+
+  it("un portefeuille face à un titre non détenu garde les mêmes versements simulés", () => {
+    const d = base();
+    const ref = d.prices.filter((p) => p.assetId === "ref").map((p) => ({ date: p.date, price: p.price }));
+    const parSerie = comparePerformance(d, computePortfolio(d, ASOF), buildHistory(d, ASOF), { kind: "accounts", accountIds: ["pea"] }, { kind: "series", points: ref }, null)!;
+    expect(parSerie.rightRate).toBeCloseTo(0.21, 10);
+    expect(parSerie.whatIf!.simulated).toBeCloseTo(1210, 2);
+  });
+
+  it("espace les points d'un très long historique, en gardant le premier et le dernier", () => {
+    const d = base();
+    const jours = (prix: number) => Array.from({ length: 2000 }, (_, i) => ({ date: new Date(Date.UTC(2020, 0, 1 + i)).toISOString().slice(0, 10), price: prix + i }));
+    const c = comparePerformance(d, computePortfolio(d, "2025-06-20"), buildHistory(d, "2025-06-20"), { kind: "series", points: jours(100) }, { kind: "series", points: jours(50) }, null)!;
+    expect(c.dates.length).toBeLessThanOrEqual(301);
+    expect(c.dates[0]).toBe("2020-01-01");
+    expect(c.dates.at(-1)).toBe("2025-06-20");
   });
 
   it("une référence sans assez de cours communs ne donne rien", () => {

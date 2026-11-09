@@ -1,4 +1,5 @@
-import { type Fetcher, MarketError, type Quote } from "./http";
+import type { AssetKind } from "@hamac/core";
+import { type Fetcher, getJson, MarketError, type Quote } from "./http";
 
 /**
  * Euronext (site public, sans clé) : historique de clôture par ISIN et place de cotation.
@@ -36,6 +37,34 @@ async function marketFor(fetcher: Fetcher, isin: string): Promise<string> {
   if (!mic) throw new MarketError("Ce titre n'a pas de cotation sûrement en euros sur Euronext.");
   marketCache.set(isin, mic);
   return mic;
+}
+
+export interface EuronextHit {
+  isin: string;
+  name: string;
+  kind: AssetKind;
+  ticker: string | null;
+  mic: string;
+}
+
+const KIND_BY_SECTION: Record<string, AssetKind> = { etfs: "etf", equities: "action", funds: "fonds" };
+
+const decodeHtml = (s: string) => s.replace(/&amp;/g, "&").replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').trim();
+
+/** Recherche par nom ou code : une ligne par ISIN, sur sa place en euros quand elle existe. */
+export async function euronextSearch(fetcher: Fetcher, query: string): Promise<EuronextHit[]> {
+  const rows = await getJson<Array<{ isin?: string; mic?: string; label?: string; link?: string }>>(fetcher, `${BASE}/instrumentSearch/searchJSON?q=${encodeURIComponent(query)}`);
+  const byIsin = new Map<string, EuronextHit>();
+  const rank = (mic: string) => (EUR_MARKETS.includes(mic) ? EUR_MARKETS.indexOf(mic) : EUR_MARKETS.length);
+  for (const r of rows) {
+    const kind = KIND_BY_SECTION[/\/product\/([a-z-]+)\//.exec(r.link ?? "")?.[1] ?? ""];
+    const name = /<a [^>]*>([^<]+)<\/a>/.exec(r.label ?? "")?.[1];
+    if (!kind || !name || !r.isin || !r.mic || !/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(r.isin)) continue;
+    const known = byIsin.get(r.isin);
+    if (known && rank(known.mic) <= rank(r.mic)) continue;
+    byIsin.set(r.isin, { isin: r.isin, name: decodeHtml(name), kind, ticker: /<span class='symbol'>([^<]+)/.exec(r.label ?? "")?.[1]?.trim() ?? null, mic: r.mic });
+  }
+  return [...byIsin.values()];
 }
 
 /** « 06/11/2026;683.48;692.33;683.48;692.33;692.33;… » → date et clôture (à défaut, dernier cours). */

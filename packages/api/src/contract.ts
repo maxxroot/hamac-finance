@@ -30,6 +30,7 @@ import {
   AccountInput,
   AccountRateInput,
   AssetInput,
+  MarketSeriesInput,
   BondPlanInput,
   InstitutionInput,
   FundRateInput,
@@ -142,8 +143,15 @@ export interface MarketSettings {
   };
 }
 
+/** Historique long d'un titre, pour le comparer sans l'ajouter au portefeuille. */
+export interface MarketSeries {
+  /** Vrai si les dividendes distribués sont inclus, comme s'ils étaient réinvestis. */
+  dividends: boolean;
+  points: Array<{ date: string; price: number }>;
+}
+
 export interface AssetCandidate {
-  source: "openfigi" | "coingecko";
+  source: "openfigi" | "coingecko" | "euronext";
   kind: import("@hamac/core").AssetKind;
   name: string;
   isin: string | null;
@@ -250,6 +258,7 @@ export const procedures = {
     output: entity<MarketSettings>(),
   },
   "assets.search": { input: z.object({ query: z.string().trim().min(2).max(80) }), output: entity<{ candidates: AssetCandidate[]; errors: string[] }>() },
+  "market.series": { input: MarketSeriesInput, output: entity<MarketSeries>() },
 } as const;
 
 export type Procedures = typeof procedures;

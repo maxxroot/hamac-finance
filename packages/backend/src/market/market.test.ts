@@ -199,6 +199,95 @@ describe("sources de cours", () => {
     expect(candidates.find((c) => c.kind === "crypto")).toMatchObject({ symbol: "bitcoin" });
   });
 
+  const euronextHit = (isin: string, mic: string, name: string, ticker: string, section = "etfs") => ({ value: isin, isin, mic, link: `/en/product/${section}/${isin}-${mic}`, name: "CODE", label: `<span class='name'><a href='/en/product/${section}/${isin}-${mic}' style='color: #007aff !important;'>${name}</a></span><span class='symbol'>${ticker}</span><span class='mic'>${mic}</span>` });
+
+  it("recherche par nom : Euronext donne l'ISIN, une ligne par titre, et écarte ce qu'on ne pourrait pas coter", async () => {
+    const f = fakeFetcher([
+      [/searchJSON/, [euronextHit("LU1681043599", "XPAR", "Amundi MSCI World Swap &amp; Co", "CW8"), euronextHit("LU1681043599", "ETFP", "Amundi MSCI World Swap &amp; Co", "CW8"), euronextHit("FR0000120271", "XPAR", "TotalEnergies", "TTE", "equities"), { value: "  ", isin: "", mic: "", label: "tout voir", link: "/en/search_instruments/msci" }]],
+      [/openfigi.*search/, { data: [{ name: "AMUNDI MSCI WORLD ETF", ticker: "CW8", exchCode: "FP", securityType: "ETP" }, { name: "TOTALENERGIES SE", ticker: "TTE", exchCode: "FP", securityType2: "Common Stock" }] }],
+    ]);
+    const { candidates } = await searchAssets(f, "msci world");
+    expect(candidates.map((c) => c.isin)).toEqual(["LU1681043599", "FR0000120271"]);
+    expect(candidates[0]).toMatchObject({ source: "euronext", kind: "etf", name: "Amundi MSCI World Swap & Co", symbol: null, exchange: "XPAR" });
+    expect(candidates[1]).toMatchObject({ kind: "action", symbol: "TTE.PA" });
+  });
+
+  it("recherche par nom : si Euronext tombe, le reste répond quand même", async () => {
+    const f = fakeFetcher([[/openfigi.*search/, { data: [{ name: "AMUNDI MSCI WORLD ETF", ticker: "CW8", exchCode: "FP", securityType: "ETP" }] }]]);
+    const { candidates, errors } = await searchAssets(f, "msci world");
+    expect(candidates[0]).toMatchObject({ source: "openfigi", kind: "etf" });
+    expect(errors[0]).toMatch(/Euronext/);
+  });
+
+  describe("historique de comparaison", () => {
+    const etf = { kind: "etf" as const, isin: "IE00B4L5Y983", symbol: null };
+    const justEtf = { latestQuote: { raw: 99 }, latestQuoteDate: "2026-11-06", series: [{ date: "2015-01-02", value: { raw: 100 } }, { date: "2020-01-02", value: { raw: 150 } }, { date: "2026-11-05", value: { raw: 300 } }] };
+
+    it("demande tout l'historique dividendes inclus, sans y mêler le dernier cours brut, puis ne retélécharge pas", async () => {
+      const f = fakeFetcher([[/justetf/, justEtf]]);
+      backend = await testBackend({ fetcher: f });
+      const s = await call<{ dividends: boolean; points: Array<{ date: string; price: number }> }>(backend, "market.series", etf);
+      expect(s.dividends).toBe(true);
+      expect(s.points.map((p) => p.price)).toEqual([100, 150, 300]);
+      expect(f.calls[0]).toMatch(/includeDividends=true/);
+      expect(f.calls[0]).toMatch(/dateFrom=2000-01-01/);
+      await call(backend, "market.series", etf);
+      expect(f.calls).toHaveLength(1);
+    });
+
+    it("n'ajoute rien au portefeuille", async () => {
+      backend = await testBackend({ fetcher: fakeFetcher([[/justetf/, justEtf]]) });
+      await call(backend, "market.series", etf);
+      const ws = await call<{ assets: unknown[]; prices: unknown[] }>(backend, "workspace.load");
+      expect(ws.assets).toHaveLength(0);
+      expect(ws.prices).toHaveLength(0);
+    });
+
+    it("passe à la source suivante, en cours seul, et n'utilise pas Twelve Data", async () => {
+      const csv = "06/01/2020;10;10;10;10;10\n06/01/2021;12;12;12;12;12\n";
+      const f = (async (url: string) => {
+        if (/searchJSON/.test(url)) return new Response(JSON.stringify([{ isin: "IE00B4L5Y983", mic: "ETFP" }]));
+        if (/AwlHistoricalPrice/.test(url)) return new Response(csv);
+        return new Response("introuvable", { status: 404 });
+      }) as Fetcher;
+      backend = await testBackend({ fetcher: f, market: await testMarket(f, { twelveDataKey: "cle" }) });
+      const s = await call<{ dividends: boolean; points: unknown[] }>(backend, "market.series", { ...etf, symbol: "IWDA" });
+      expect(s).toMatchObject({ dividends: false });
+      expect(s.points).toHaveLength(2);
+    });
+
+    it("garde la source qui remonte le plus loin, et s'arrête dès que c'est suffisant", async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const recent = `${new Date(Date.parse(today) - 500 * 86_400_000).toISOString().slice(0, 10)}`;
+      const [y, m, d] = recent.split("-");
+      const f = (async (url: string) => {
+        if (/justetf/.test(url)) return new Response(JSON.stringify({ series: [{ date: recent, value: { raw: 10 } }, { date: today, value: { raw: 11 } }] }));
+        if (/searchJSON/.test(url)) return new Response(JSON.stringify([{ isin: "IE00B4L5Y983", mic: "ETFP" }]));
+        if (/AwlHistoricalPrice/.test(url)) return new Response(`${d}/${m}/${Number(y) - 7};5;5;5;5;5\n${d}/${m}/${y};6;6;6;6;6\n`);
+        return new Response("introuvable", { status: 404 });
+      }) as Fetcher;
+      backend = await testBackend({ fetcher: f, market: await testMarket(f) });
+      const s = await call<{ dividends: boolean; points: Array<{ date: string }> }>(backend, "market.series", etf);
+      expect(s.dividends).toBe(false);
+      expect(s.points[0]!.date.slice(0, 4)).toBe(String(Number(y) - 7));
+    });
+
+    it("signale un titre introuvable sans réinterroger les sources aussitôt", async () => {
+      const f = fakeFetcher([]);
+      backend = await testBackend({ fetcher: f });
+      const first = await backend.dispatch("market.series", etf);
+      expect(first).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+      const n = f.calls.length;
+      await backend.dispatch("market.series", etf);
+      expect(f.calls).toHaveLength(n);
+    });
+
+    it("refuse une demande sans ISIN ni symbole", async () => {
+      backend = await testBackend({ fetcher: fakeFetcher([]) });
+      expect(await backend.dispatch("market.series", { kind: "etf" })).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+    });
+  });
+
   it("actualisation : enregistre l'historique, ne remplace jamais un cours manuel, signale les erreurs", async () => {
     const today = new Date().toISOString().slice(0, 10);
     const f = fakeFetcher([

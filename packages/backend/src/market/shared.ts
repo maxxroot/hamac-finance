@@ -1,14 +1,31 @@
-import type { PriceProvider } from "@hamac/core";
+import { addMonths, type PriceProvider } from "@hamac/core";
 import type { PgProvider, PgSession, RawDb } from "../db/driver";
 import { rawFor, tenantNames } from "../db/postgres";
 import { assertPlausible } from "./plausible";
 import { normalizeOrder, twelveDataAssets, type MarketState } from "./config";
-import { chainFor, defaultFetcher, fetchFrom, instrumentKey, type Fetcher, type MarketAsset, type ProviderSetting } from "./index";
+import { MarketError } from "./http";
+import { chainFor, defaultFetcher, fetchFrom, fetchLongHistory, instrumentKey, type Fetcher, type LongHistory, type MarketAsset, type ProviderSetting } from "./index";
 import { BASE_REFRESH_MINUTES, refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget, type TwelveDataUsage } from "./twelvedata";
 
 const today = () => new Date().toISOString().slice(0, 10);
 /** Un même titre n'est pas réinterrogé avant ce délai, quels que soient les utilisateurs qui le demandent. */
 const COOLDOWN_MS = 10 * 60_000;
+
+/** Un historique de comparaison est retéléchargé en entier au plus deux fois par jour. */
+const SERIES_MAX_AGE_MS = 12 * 3_600_000;
+/** Délai avant de réessayer un titre qu'aucune source n'a su donner, et nombre d'échecs retenus en mémoire. */
+const SERIES_RETRY_MS = 10 * 60_000;
+const SERIES_MAX_FAILURES = 500;
+/** Un historique qui remonte aussi loin suffit : inutile d'interroger les sources suivantes. */
+const SERIES_ENOUGH_MONTHS = 60;
+
+/** Titre à comparer : seulement ce qui permet de trouver ses cours. */
+export type SeriesAsset = Pick<MarketAsset, "kind" | "isin" | "symbol">;
+
+export interface StoredSeries {
+  dividends: boolean;
+  points: Array<{ date: string; price: number }>;
+}
 
 /** Réglages de l'instance, lus au démarrage du serveur (fichier .env). */
 export interface MarketConfig {
@@ -51,6 +68,8 @@ const asAsset = (r: Pick<Row, "kind" | "isin" | "symbol" | "priceProvider">): Ma
  */
 export class SharedMarket {
   private inFlight = new Map<string, Promise<boolean>>();
+  private seriesInFlight = new Map<string, Promise<StoredSeries>>();
+  private seriesFailures = new Map<string, { at: number; message: string }>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
 
@@ -87,6 +106,13 @@ export class SharedMarket {
         PRIMARY KEY (key, date)
       )`,
       "CREATE TABLE IF NOT EXISTS marche.config (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS marche.series (key TEXT PRIMARY KEY, dividends BOOLEAN NOT NULL, checked_at TEXT NOT NULL)",
+      `CREATE TABLE IF NOT EXISTS marche.series_points (
+        key TEXT NOT NULL REFERENCES marche.series(key) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        price DOUBLE PRECISION NOT NULL,
+        PRIMARY KEY (key, date)
+      )`,
       // Une clé saisie autrefois dans l'interface ne doit pas rester en base.
       "DELETE FROM marche.config WHERE key = 'twelveDataKey'",
     ])
@@ -197,6 +223,66 @@ export class SharedMarket {
     }
     await finish({ provider: null, lastDate: last?.date ?? null, message: "Aucune source n'a répondu", failed: true, tried });
     return false;
+  }
+
+  /**
+   * Historique long d'un titre, à la demande, sans passer par le portefeuille. Conservé à part des cours
+   * qui valorisent les positions : il peut inclure les dividendes. Twelve Data en est exclu pour préserver son quota.
+   */
+  async series(asset: SeriesAsset): Promise<StoredSeries> {
+    const key = [asset.kind, (asset.isin ?? "").toUpperCase(), (asset.symbol ?? "").toUpperCase()].join("|");
+    let run = this.seriesInFlight.get(key);
+    if (!run) {
+      run = this.loadSeries(key, asset).finally(() => this.seriesInFlight.delete(key));
+      this.seriesInFlight.set(key, run);
+    }
+    return run;
+  }
+
+  private async storedSeries(key: string, dividends: boolean): Promise<StoredSeries> {
+    return { dividends, points: await this.db.all<{ date: string; price: number }>("SELECT date, price FROM marche.series_points WHERE key = ? ORDER BY date", [key]) };
+  }
+
+  private async loadSeries(key: string, asset: SeriesAsset): Promise<StoredSeries> {
+    const known = await this.db.get<{ dividends: boolean; checked_at: string }>("SELECT dividends, checked_at FROM marche.series WHERE key = ?", [key]);
+    if (known && Date.now() - Date.parse(known.checked_at) < SERIES_MAX_AGE_MS) return this.storedSeries(key, known.dividends);
+    const failure = this.seriesFailures.get(key);
+    if (failure && Date.now() - failure.at < SERIES_RETRY_MS) {
+      if (known) return this.storedSeries(key, known.dividends);
+      throw new MarketError(failure.message);
+    }
+
+    const state = await this.state();
+    const target: MarketAsset = { ...asset, priceSource: "auto", priceProvider: null, priceUrl: null, pricePath: null };
+    const { chain, reason } = chainFor(target, state.order, false);
+    let message = reason ?? "Aucune source n'a de cours pour ce titre.";
+    // Toutes les sources ne remontent pas aussi loin (Euronext : deux ans environ) : on garde la plus longue.
+    let best: LongHistory | null = null;
+    for (const provider of chain) {
+      try {
+        const found = await fetchLongHistory(this.fetcher, provider, target, today());
+        if (found.quotes.length < 2) throw new MarketError("Historique trop court.");
+        if (!best || found.quotes[0]!.date < best.quotes[0]!.date) best = found;
+        if (best.quotes[0]!.date <= addMonths(today(), -SERIES_ENOUGH_MONTHS)) break;
+      } catch (e) {
+        message = (e as Error).message;
+      }
+    }
+    if (best) {
+      const { quotes, dividends } = best;
+      await this.db.run("INSERT INTO marche.series (key, dividends, checked_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET dividends = excluded.dividends, checked_at = excluded.checked_at", [key, dividends, new Date().toISOString()]);
+      for (let i = 0; i < quotes.length; i += 1000) {
+        const part = quotes.slice(i, i + 1000);
+        await this.db.run(`INSERT INTO marche.series_points (key, date, price) VALUES ${part.map(() => "(?, ?, ?)").join(", ")} ON CONFLICT (key, date) DO UPDATE SET price = excluded.price`, part.flatMap((q) => [key, q.date, q.price]));
+      }
+      await this.db.run("DELETE FROM marche.series_points WHERE key = ? AND date < ?", [key, quotes[0]!.date]);
+      this.seriesFailures.delete(key);
+      return this.storedSeries(key, dividends);
+    }
+    if (this.seriesFailures.size >= SERIES_MAX_FAILURES) this.seriesFailures.delete(this.seriesFailures.keys().next().value!);
+    this.seriesFailures.set(key, { at: Date.now(), message });
+    if (known) return this.storedSeries(key, known.dividends);
+    throw new MarketError(message);
   }
 
   /** Titres à cours automatique de tous les tenants : personne n'a besoin d'être connecté pour qu'ils soient à jour. */

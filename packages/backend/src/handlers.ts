@@ -6,6 +6,7 @@ import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionEr
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
+import { MarketError } from "./market/http";
 import { refreshPrices } from "./market/refresh";
 import { TwelveDataBudget } from "./market/twelvedata";
 import * as t from "./db/schema";
@@ -805,6 +806,15 @@ export const handlers: Handlers = {
 
   async "assets.search"({ query }, ctx) {
     return searchAssets(ctx.fetcher, query);
+  },
+
+  async "market.series"(input, ctx) {
+    try {
+      return await ctx.market.series(input);
+    } catch (e) {
+      if (e instanceof MarketError) throw new RpcError("NOT_FOUND", e.message);
+      throw e;
+    }
   },
 };
 

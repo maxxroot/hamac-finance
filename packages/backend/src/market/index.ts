@@ -1,7 +1,7 @@
 import { addMonths, PRICE_PROVIDER_LABELS, type Asset, type PriceProvider } from "@hamac/core";
 import { coingeckoHistory, coingeckoSearch } from "./coingecko";
 import { customQuote } from "./custom";
-import { euronextHistory } from "./euronext";
+import { euronextHistory, euronextSearch } from "./euronext";
 import { type Fetcher, MarketError, type Quote } from "./http";
 import { justEtfHistory } from "./justetf";
 import { figiByIsin, figiSearch, ISIN_RE, type Candidate } from "./openfigi";
@@ -110,7 +110,34 @@ export async function fetchFrom(fetcher: Fetcher, provider: PriceProvider, asset
   return quotes.filter((q) => (!since || q.date > since) && q.date <= today);
 }
 
-/** Recherche de titres : ISIN → OpenFIGI ; texte → OpenFIGI + CoinGecko. */
+/** Date de départ demandée pour un historique complet : chaque source répond à partir de ce qu'elle a. */
+const LONG_HISTORY_FROM = "2000-01-01";
+
+export interface LongHistory {
+  quotes: Quote[];
+  /** Vrai si les dividendes distribués sont inclus, comme s'ils étaient réinvestis. */
+  dividends: boolean;
+}
+
+/** Historique le plus long possible chez un fournisseur, pour comparer des titres sur plusieurs années. */
+export async function fetchLongHistory(fetcher: Fetcher, provider: PriceProvider, asset: MarketAsset, today: string): Promise<LongHistory> {
+  const within = (quotes: Quote[]) => quotes.filter((q) => q.date <= today).sort((a, b) => a.date.localeCompare(b.date));
+  switch (provider) {
+    case "justetf":
+      return { quotes: within(await justEtfHistory(fetcher, asset.isin!, LONG_HISTORY_FROM, today, true)), dividends: true };
+    case "euronext":
+      return { quotes: within(await euronextHistory(fetcher, asset.isin!, LONG_HISTORY_FROM, today)), dividends: false };
+    case "yahoo":
+      return { quotes: within(await yahooHistory(fetcher, asset.symbol!, "10y")), dividends: false };
+    case "coingecko":
+      return { quotes: within(await coingeckoHistory(fetcher, asset.symbol!, 365)), dividends: false };
+    case "twelvedata":
+    case "url":
+      throw new MarketError("Cette source ne sert pas aux comparaisons.");
+  }
+}
+
+/** Recherche de titres : ISIN → OpenFIGI ; texte → Euronext (qui donne l'ISIN, donc les cours) + OpenFIGI + CoinGecko. */
 export async function searchAssets(fetcher: Fetcher, query: string): Promise<{ candidates: Candidate[]; errors: string[] }> {
   const q = query.trim();
   const errors: string[] = [];
@@ -122,14 +149,24 @@ export async function searchAssets(fetcher: Fetcher, query: string): Promise<{ c
       return { candidates: [], errors: [(e as Error).message] };
     }
   }
-  const [figi, crypto] = await Promise.allSettled([figiSearch(fetcher, q), coingeckoSearch(fetcher, q)]);
+  const [euronext, figi, crypto] = await Promise.allSettled([euronextSearch(fetcher, q), figiSearch(fetcher, q), coingeckoSearch(fetcher, q)]);
   const candidates: Candidate[] = [];
+  const listed: Candidate[] =
+    euronext.status === "fulfilled"
+      ? euronext.value.slice(0, 8).map((h) => ({ source: "euronext", kind: h.kind, name: h.name, isin: h.isin, symbol: h.kind === "action" && h.ticker && (h.mic === "XPAR" || h.mic === "ALXP") ? `${h.ticker}.PA` : null, exchange: h.mic, couponRate: null, maturityDate: null, detail: `${h.ticker ?? ""} · ${h.mic}` }))
+      : [];
+  if (euronext.status === "rejected") errors.push(`Euronext : ${euronext.reason?.message ?? "erreur"}`);
+  const symbols = new Set(listed.map((c) => c.symbol).filter(Boolean));
   if (crypto.status === "fulfilled")
     candidates.push(
       ...crypto.value.slice(0, 3).map((c): Candidate => ({ source: "coingecko", kind: "crypto", name: c.name, isin: null, symbol: c.id, exchange: null, couponRate: null, maturityDate: null, detail: `${c.symbol.toUpperCase()} · CoinGecko` })),
     );
   else errors.push(`CoinGecko : ${crypto.reason?.message ?? "erreur"}`);
-  if (figi.status === "fulfilled") candidates.unshift(...figi.value);
-  else errors.push(`OpenFIGI : ${figi.reason?.message ?? "erreur"}`);
+  if (figi.status === "fulfilled") {
+    // Quand Euronext a répondu, les lignes sans ISIN ni symbole n'apporteraient qu'un titre impossible à coter.
+    const useful = figi.value.filter((c) => !symbols.has(c.symbol) && (euronext.status === "rejected" || c.kind === "obligation" || c.isin != null || c.symbol != null));
+    candidates.unshift(...listed, ...useful);
+  } else candidates.unshift(...listed);
+  if (figi.status === "rejected") errors.push(`OpenFIGI : ${figi.reason?.message ?? "erreur"}`);
   return { candidates, errors };
 }

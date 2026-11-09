@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultFetcher } from "./http";
-import { fetchFrom, searchAssets } from "./index";
+import { fetchFrom, fetchLongHistory, searchAssets } from "./index";
 
 /** Tests sur les vraies sources : HAMAC_LIVE=1 pnpm test */
 const live = process.env.HAMAC_LIVE === "1";
@@ -32,6 +32,31 @@ describe.skipIf(!live)("sources réelles", () => {
     expect(bond.candidates[0]).toMatchObject({ kind: "obligation", couponRate: 0.03 });
     const stock = await searchAssets(defaultFetcher, "totalenergies");
     expect(stock.candidates.some((c) => c.kind === "action" && c.symbol === "TTE.PA")).toBe(true);
+  }, 30_000);
+  it("recherche d'un ETF par nom : l'ISIN revient, et ses cours avec", async () => {
+    const { candidates } = await searchAssets(defaultFetcher, "CW8");
+    const etf = candidates.find((c) => c.kind === "etf" && c.isin);
+    expect(etf?.isin).toBe("LU1681043599");
+    const { quotes, dividends } = await fetchLongHistory(defaultFetcher, "justetf", { ...base, kind: "etf", isin: etf!.isin }, today);
+    expect(dividends).toBe(true);
+    expect(quotes[0]!.date < "2019-01-01").toBe(true);
+    expect(quotes.every((q, i) => i === 0 || quotes[i - 1]!.date < q.date)).toBe(true);
+    // La valeur dividendes réinvestis ne doit pas finir sur un cours brut d'une autre échelle.
+    expect(Math.abs(quotes.at(-1)!.price / quotes.at(-2)!.price - 1)).toBeLessThan(0.1);
+  }, 30_000);
+  it("historique long : Euronext et CoinGecko", async () => {
+    const stock = await fetchLongHistory(defaultFetcher, "euronext", { ...base, kind: "action", isin: "FR0000120073" }, today);
+    expect(stock.quotes.length).toBeGreaterThan(300);
+    const btc = await fetchLongHistory(defaultFetcher, "coingecko", { ...base, kind: "crypto", symbol: "bitcoin" }, today);
+    expect(btc.quotes.length).toBeGreaterThan(300);
+  }, 30_000);
+  it("historique long Yahoo : au mieux (peut être refusé selon le réseau)", async () => {
+    try {
+      const { quotes } = await fetchLongHistory(defaultFetcher, "yahoo", { ...base, kind: "action", symbol: "TTE.PA" }, today);
+      expect(quotes.length).toBeGreaterThan(1000);
+    } catch (e) {
+      console.warn("Yahoo indisponible :", (e as Error).message);
+    }
   }, 30_000);
   it("Yahoo : au mieux (peut être refusé selon le réseau)", async () => {
     try {
