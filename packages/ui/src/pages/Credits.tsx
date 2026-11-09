@@ -1,9 +1,9 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { LOAN_KIND_LABELS, formatPct, type Loan } from "@hamac/core";
+import { LOAN_KIND_LABELS, type Loan } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
-import { Stat, StatGrid } from "@/components/Stat";
+import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { LoanDialog } from "@/dialogs/LoanDialog";
@@ -54,6 +54,7 @@ export function Credits() {
               <Th className="pl-5">Crédit</Th>
               <Th align="right">Taux</Th>
               <Th align="right">Mensualité</Th>
+              <Th align="right">Coût total</Th>
               <Th align="right">Capital restant dû</Th>
               <Th align="right">Échéances restantes</Th>
               <Th>Fin</Th>
@@ -61,7 +62,7 @@ export function Credits() {
             </tr>
           </thead>
           <tbody>
-            {netWorth.loans.length === 0 && <EmptyRow cols={7}>Aucun crédit en cours.</EmptyRow>}
+            {netWorth.loans.length === 0 && <EmptyRow cols={8}>Aucun crédit en cours.</EmptyRow>}
             {netWorth.loans.map((l) => (
               <Tr key={l.loan.id} className="group">
                 <Td className="pl-5 font-medium">
@@ -71,8 +72,28 @@ export function Credits() {
                     {l.loan.propertyId ? ` · ${propertyName.get(l.loan.propertyId)}` : ""}
                   </div>
                 </Td>
-                <Td align="right">{formatPct(l.loan.rate)}</Td>
-                <Td align="right"><Amount value={l.monthly} /></Td>
+                <Td align="right">
+                  <Pct value={l.loan.rate} digits={2} />
+                  {l.loan.insuranceMode !== "montant" && (
+                    <div className="text-xs text-fg-faint">
+                      assurance <Pct value={l.loan.insuranceRate} digits={2} />
+                    </div>
+                  )}
+                </Td>
+                <Td align="right">
+                  <Amount value={l.monthly} />
+                  {l.insurance > 0 && (
+                    <div className="text-xs text-fg-faint">
+                      dont assurance <Amount value={l.insurance} />
+                    </div>
+                  )}
+                </Td>
+                <Td align="right">
+                  <Amount value={l.totalInterest + l.totalInsurance} compact />
+                  <div className="text-xs text-fg-faint">
+                    dont assurance <Amount value={l.totalInsurance} compact />
+                  </div>
+                </Td>
                 <Td align="right">
                   <span className="inline-flex items-center gap-2">
                     {l.fromManualBalance && <Badge>d'après relevé</Badge>}

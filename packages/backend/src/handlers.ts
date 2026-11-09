@@ -473,7 +473,10 @@ export const handlers: Handlers = {
       rate: input.rate,
       termMonths: input.termMonths,
       firstPayment: input.firstPayment,
-      insuranceCents: toCents(input.insurance),
+      insuranceMode: input.insuranceMode,
+      // Une seule valeur garde un sens selon le mode : pas de reste d'une saisie précédente.
+      insuranceCents: input.insuranceMode === "montant" ? toCents(input.insurance) : 0,
+      insuranceRate: input.insuranceMode === "montant" ? 0 : input.insuranceRate,
       manualPaymentCents: input.manualPayment == null ? null : toCents(input.manualPayment),
       manualBalanceCents: input.manualBalance == null ? null : toCents(input.manualBalance),
       manualBalanceDate: input.manualBalanceDate,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, LIVRET_TYPES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -173,7 +173,9 @@ export const LoanInput = z
     rate: z.number().min(0).max(1),
     termMonths: z.number().int().min(1).max(600),
     firstPayment: isoDate,
+    insuranceMode: z.enum(LOAN_INSURANCE_MODES).default("montant"),
     insurance: money.min(0).default(0),
+    insuranceRate: z.number().min(0).max(1).default(0),
     manualPayment: money.positive().nullable().default(null),
     manualBalance: money.min(0).nullable().default(null),
     manualBalanceDate: isoDate.nullable().default(null),

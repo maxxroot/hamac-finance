@@ -84,7 +84,7 @@ export function crowdProjectState(project: CrowdProject, asOf: string): CrowdPro
   const until = status === "retard" && project.statusDate && project.statusDate < asOf ? project.statusDate : asOf;
   const scheduled = (): number =>
     project.repayment === "amortissable" && project.rate != null && project.termMonths != null
-      ? project.amount - loanState({ id: project.id, kind: "autre", name: "", propertyId: null, principal: project.amount, rate: project.rate, termMonths: project.termMonths, firstPayment, insurance: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false }, until).balance
+      ? project.amount - loanState({ id: project.id, kind: "autre", name: "", propertyId: null, principal: project.amount, rate: project.rate, termMonths: project.termMonths, firstPayment, insuranceMode: "montant", insurance: 0, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false }, until).balance
       : 0;
   const repaid = roundCents(Math.min(project.amount, status === "rembourse" ? project.amount : (project.repaidCapital ?? (status === "defaut" ? 0 : scheduled()))));
   const outstanding = roundCents(project.amount - repaid);

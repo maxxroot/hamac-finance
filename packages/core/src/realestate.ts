@@ -42,6 +42,19 @@ export const LOAN_KIND_LABELS: Record<LoanKind, string> = {
 /** Types de crédit qui peuvent être rattachés à un bien. */
 export const loanHasProperty = (kind: LoanKind) => kind === "immobilier" || kind === "travaux";
 
+/**
+ * Assurance emprunteur : montant fixe, ou taux annuel appliqué au capital emprunté (prime constante)
+ * ou au capital restant dû (prime dégressive).
+ * Source : CCSF, glossaire et recommandation du 12 octobre 2021 sur l'assurance emprunteur (banque-france.fr).
+ */
+export const LOAN_INSURANCE_MODES = ["montant", "capital_initial", "capital_restant"] as const;
+export type LoanInsuranceMode = (typeof LOAN_INSURANCE_MODES)[number];
+export const LOAN_INSURANCE_MODE_LABELS: Record<LoanInsuranceMode, string> = {
+  montant: "Montant fixe",
+  capital_initial: "Capital emprunté",
+  capital_restant: "Capital restant dû",
+};
+
 export interface Loan {
   id: string;
   kind: LoanKind;
@@ -53,8 +66,11 @@ export interface Loan {
   termMonths: number;
   /** Date de la première échéance. */
   firstPayment: string;
-  /** Assurance par mois, en plus de l'échéance. */
+  insuranceMode: LoanInsuranceMode;
+  /** Assurance par mois, en plus de l'échéance (mode « montant »). */
   insurance: number;
+  /** Taux annuel de l'assurance (fraction), pour les autres modes. */
+  insuranceRate: number;
   /** Échéance saisie à la main (hors assurance) ; null = calculée. */
   manualPayment: number | null;
   /** Capital restant dû relevé sur un document, à la date indiquée ; null = calculé depuis le départ. */
@@ -84,10 +100,18 @@ const balanceAfter = (start: number, r: number, payment: number, k: number) => {
   return Math.max(0, balance);
 };
 
+/** Assurance d'un mois, avant l'échéance : `balance` est le capital restant dû à ce moment-là. */
+function insuranceFor(loan: Loan, balance: number): number {
+  if (loan.insuranceMode === "montant") return loan.insurance;
+  return ((loan.insuranceMode === "capital_initial" ? loan.principal : balance) * loan.insuranceRate) / 12;
+}
+
 export interface LoanState {
   loan: Loan;
   /** Échéance hors assurance. */
   payment: number;
+  /** Assurance du mois à venir ; 0 une fois le prêt remboursé. */
+  insurance: number;
   /** Échéance assurance comprise, tant que le prêt court. */
   monthly: number;
   /** Capital restant dû à la date demandée. */
@@ -98,6 +122,8 @@ export interface LoanState {
   endDate: string;
   /** Intérêts sur toute la durée, d'après l'échéance et le capital initial (hors assurance). */
   totalInterest: number;
+  /** Assurance sur toute la durée, d'après l'échéancier d'origine. */
+  totalInsurance: number;
   fromManualBalance: boolean;
 }
 
@@ -111,15 +137,20 @@ export function loanState(loan: Loan, asOf: string): LoanState {
   const balance = anchored
     ? balanceAfter(loan.manualBalance!, r, payment, paymentsDone - paymentsDue(loan.firstPayment, loan.termMonths, loan.manualBalanceDate!))
     : balanceAfter(loan.principal, r, payment, paymentsDone);
+  const insurance = paymentsLeft > 0 ? insuranceFor(loan, balance) : 0;
+  let totalInsurance = 0;
+  for (let k = 0; k < loan.termMonths; k++) totalInsurance += insuranceFor(loan, balanceAfter(loan.principal, r, payment, k));
   return {
     loan,
     payment: roundCents(payment),
-    monthly: roundCents(paymentsLeft > 0 ? payment + loan.insurance : 0),
+    insurance: roundCents(insurance),
+    monthly: roundCents(paymentsLeft > 0 ? payment + insurance : 0),
     balance: roundCents(paymentsLeft > 0 ? balance : 0),
     paymentsDone,
     paymentsLeft,
     endDate: addMonths(loan.firstPayment, loan.termMonths - 1),
     totalInterest: roundCents(Math.max(0, payment * loan.termMonths - loan.principal)),
+    totalInsurance: roundCents(totalInsurance),
     fromManualBalance: anchored,
   };
 }

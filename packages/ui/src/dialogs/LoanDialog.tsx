@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LOAN_KIND_LABELS, LOAN_KINDS, loanHasProperty, loanState, type Loan, type LoanKind, type Property } from "@hamac/core";
+import { LOAN_INSURANCE_MODE_LABELS, LOAN_INSURANCE_MODES, LOAN_KIND_LABELS, LOAN_KINDS, loanHasProperty, loanState, type Loan, type LoanInsuranceMode, type LoanKind, type Property } from "@hamac/core";
 import type { LoanInput } from "@hamac/api";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Amount } from "@/components/Amount";
@@ -9,7 +9,7 @@ import { useMutate } from "@/lib/workspace";
 
 type LoanDraft = Required<Omit<LoanInput, "id">> & { id?: string };
 
-const emptyLoan = (): LoanDraft => ({ kind: "immobilier", name: "", propertyId: null, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insurance: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false });
+const emptyLoan = (): LoanDraft => ({ kind: "immobilier", name: "", propertyId: null, principal: 0, rate: 0.03, termMonths: 240, firstPayment: todayIso(), insuranceMode: "montant", insurance: 0, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false });
 
 export function LoanDialog({ open, loan, properties, onClose }: { open: boolean; loan: Loan | null; properties: readonly Property[]; onClose: () => void }) {
   const [d, setD] = useState<LoanDraft>(emptyLoan());
@@ -68,12 +68,29 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
         </FormGrid>
         <FormGrid cols={3}>
           <Field label="Montant emprunté">{(id) => <MoneyInput id={id} value={d.principal} onChange={(v) => set("principal", v ?? 0)} />}</Field>
-          <Field label="Taux annuel">{(id) => <PercentInput id={id} value={d.rate} onChange={(v) => set("rate", v ?? 0)} />}</Field>
+          <Field label="Taux d'intérêt annuel" help="Taux nominal, hors assurance.">{(id) => <PercentInput id={id} value={d.rate} onChange={(v) => set("rate", v ?? 0)} />}</Field>
           <Field label="Durée (mois)" help={`Soit ${Math.round((d.termMonths / 12) * 10) / 10} ans.`}>{(id) => <NumberInput id={id} decimals={0} grouping={false} value={d.termMonths} onChange={(v) => set("termMonths", v == null ? 0 : Math.round(v))} />}</Field>
         </FormGrid>
-        <FormGrid>
+        <FormGrid cols={3}>
           <Field label="Première échéance">{(id) => <TextInput id={id} type="date" value={d.firstPayment} onChange={(e) => set("firstPayment", e.target.value)} />}</Field>
-          <Field label="Assurance par mois">{(id) => <MoneyInput id={id} value={d.insurance} onChange={(v) => set("insurance", v ?? 0)} />}</Field>
+          <Field label="Assurance basée sur">
+            {(id) => (
+              <Select id={id} value={d.insuranceMode} onChange={(e) => set("insuranceMode", e.target.value as LoanInsuranceMode)}>
+                {LOAN_INSURANCE_MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {LOAN_INSURANCE_MODE_LABELS[m]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          {d.insuranceMode === "montant" ? (
+            <Field label="Montant par mois">{(id) => <MoneyInput id={id} value={d.insurance} onChange={(v) => set("insurance", v ?? 0)} />}</Field>
+          ) : (
+            <Field label="Taux annuel de l'assurance" help="Multipliez-le par la quotité si elle n'est pas de 100 %.">
+              {(id) => <PercentInput id={id} value={d.insuranceRate} onChange={(v) => set("insuranceRate", v ?? 0)} />}
+            </Field>
+          )}
         </FormGrid>
 
         <div>
@@ -87,7 +104,7 @@ export function LoanDialog({ open, loan, properties, onClose }: { open: boolean;
 
         {preview && (
           <p className="text-sm text-fg-muted">
-            Échéance <b className="text-fg"><Amount value={preview.payment} /></b>, capital restant dû aujourd'hui <b className="text-fg"><Amount value={preview.balance} /></b>, dernière échéance le {formatDate(preview.endDate)}.
+            Échéance <b className="text-fg"><Amount value={preview.payment} /></b> + assurance <b className="text-fg"><Amount value={preview.insurance} /></b> ce mois-ci, capital restant dû aujourd'hui <b className="text-fg"><Amount value={preview.balance} /></b>, dernière échéance le {formatDate(preview.endDate)}. Coût total : <b className="text-fg"><Amount value={preview.totalInterest + preview.totalInsurance} /></b>, dont <Amount value={preview.totalInterest} /> d'intérêts et <Amount value={preview.totalInsurance} /> d'assurance.
           </p>
         )}
         {loan && <Checkbox checked={d.archived} onChange={(v) => set("archived", v)} label="Archivé (soldé : ne compte plus dans le patrimoine)" />}
