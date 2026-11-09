@@ -61,7 +61,7 @@ describe("HTTPS", () => {
     expect(res.headers.get("strict-transport-security")).toBe("max-age=31536000");
     expect(res.headers.get("cache-control")).toBe("no-store");
     const me = await s.app.request("http://hamac.exemple.fr/api/auth/me", { headers: { cookie: cookie.split(";")[0]!, "x-forwarded-proto": "https" } });
-    expect(await me.json()).toEqual({ email: "a@exemple.fr" });
+    expect(await me.json()).toMatchObject({ email: "a@exemple.fr" });
 
     const direct = await server("open", false);
     expect((await direct.app.request("http://hamac.exemple.fr/api/auth/signup", { ...SIGNUP, headers: { ...SIGNUP.headers, "x-forwarded-proto": "https" } })).status).toBe(403);
@@ -170,7 +170,7 @@ describe("serveur web", () => {
     expect((await c.req("GET", "/api/auth/me")).status).toBe(401);
     expect((await c.req("POST", "/api/auth/login", { email: "a@exemple.fr", password: "faux-mot-de-passe" })).status).toBe(401);
     expect((await c.req("POST", "/api/auth/login", { email: "A@Exemple.fr", password: "motdepasse-long" })).status).toBe(200);
-    expect((await c.req("GET", "/api/auth/me")).json).toEqual({ email: "a@exemple.fr" });
+    expect((await c.req("GET", "/api/auth/me")).json).toMatchObject({ email: "a@exemple.fr" });
   });
 
   it("changer son mot de passe vérifie l'ancien et ferme les autres sessions", async () => {

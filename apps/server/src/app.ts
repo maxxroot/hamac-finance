@@ -6,6 +6,8 @@ import { bodyLimit } from "hono/body-limit";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createBackend, SharedMarket, type Backend, type MarketConfig, type PgProvider } from "@hamac/backend";
+import { CHALLENGE_MAX_TRIES, ChallengeStore, TwoFactor } from "./twoFactor";
+import { KEY_FILE, loadTwoFactorKey } from "./twoFactorKey";
 import { sameSecret, UserStore, type User } from "./users";
 
 export type SignupMode = "invite" | "open" | "closed";
@@ -33,6 +35,10 @@ export interface ServerConfig {
   setupCode?: string;
   /** Perte de la connexion d'administration : sans elle, plus de comptes ni de sessions. */
   onAdminLost?: () => void;
+  /** Valeur de HAMAC_2FA_KEY ; vide, la clé vient du fichier du dossier de données. */
+  twoFactorKey?: string;
+  /** Horloge des codes et des défis, remplacée en test. */
+  now?: () => number;
 }
 
 const COOKIE = "hamac_session";
@@ -151,6 +157,15 @@ export async function createApp(cfg: ServerConfig) {
   const limiter = new RateLimiter(10, 15 * 60_000);
   // Par compte visé : freine une attaque répartie sur plusieurs adresses.
   const accountLimiter = new RateLimiter(20, 15 * 60_000);
+  // Propre aux codes et jamais remis à zéro par le mot de passe : connaître celui-ci ne donne pas d'essais illimités.
+  const codeLimiter = new RateLimiter(10, 15 * 60_000);
+  const now = cfg.now ?? Date.now;
+  const key = loadTwoFactorKey(cfg.twoFactorKey, cfg.dataDir);
+  if (!key.ok && (cfg.twoFactorKey || cfg.dataDir)) console.error(`[hamac] Double authentification indisponible : ${key.reason}`);
+  const twoFactor = new TwoFactor(users, key, now);
+  const challenges = new ChallengeStore(now);
+  const unreadable = await twoFactor.unreadableSecrets();
+  if (unreadable > 0) console.error(`[hamac] ${unreadable} compte(s) protégé(s) par la double authentification sont illisibles avec la clé actuelle : remettez la clé d'origine (HAMAC_2FA_KEY ou fichier ${KEY_FILE}), ou désactivez leur protection avec « node cli.mjs 2fa-reset <e-mail> ».`);
   const app = new Hono();
 
   /** HTTPS annoncé par le proxy de confiance (dernière entrée, celle qu'il a ajoutée), sinon protocole de la requête. */
@@ -200,6 +215,13 @@ export async function createApp(cfg: ServerConfig) {
     const { token, expiresAt } = await users.createSession(user.id);
     setCookie(c, cookieName(c), token, { httpOnly: true, sameSite: "Strict", secure: isHttps(c), path: "/", expires: expiresAt });
   };
+  const TOO_MANY = "Trop de tentatives : réessayez dans 15 minutes.";
+  const CHALLENGE_ENDED = "Cette étape a expiré : saisissez de nouveau votre mot de passe.";
+  /** Ni la clé ni aucun secret dans la réponse ou le journal : seulement de quoi comprendre et agir. */
+  const twoFactorUnavailable = (c: Context, userId: string) => {
+    console.error(`[hamac] Compte ${userId} : code impossible à vérifier, la clé de double authentification est absente ou n'est pas la bonne.`);
+    return c.json({ error: "Impossible de vérifier votre code : la clé de sécurité de ce serveur est absente ou a changé. Prévenez la personne qui gère cette instance." }, 503);
+  };
   const unauthorized = (c: Context) => c.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Session expirée : reconnectez-vous." } }, 401);
   // Protection CSRF : en plus du cookie SameSite=Strict, toute écriture exige un en-tête qu'un formulaire tiers ne peut pas envoyer.
   const csrfOk = (c: Context) => c.req.header("x-hamac") === "1";
@@ -218,7 +240,7 @@ export async function createApp(cfg: ServerConfig) {
 
   app.get("/api/auth/me", async (c) => {
     const user = await currentUser(c);
-    return user ? c.json({ email: user.email }) : unauthorized(c);
+    return user ? c.json({ email: user.email, isAdmin: user.isAdmin, twoFactor: await twoFactor.publicStatus(user.id) }) : unauthorized(c);
   });
 
   app.post("/api/auth/login", async (c) => {
@@ -231,10 +253,45 @@ export async function createApp(cfg: ServerConfig) {
     // Même réponse et même coût que l'e-mail existe ou non.
     const ok = await users.checkPassword(found, body.password ?? "");
     if (!found || !ok) return c.json({ error: "E-mail ou mot de passe incorrect." }, 401);
+    if (await twoFactor.isEnabled(found.id)) {
+      if (!(await twoFactor.canVerify(found.id))) return twoFactorUnavailable(c, found.id);
+      // Pas de session, et les compteurs restent : ils ne repartent de zéro qu'une fois le code accepté.
+      return c.json({ twoFactor: true, challenge: challenges.create(found.id, found.passwordHash) });
+    }
     limiter.reset(`login:${ip(c)}`);
     accountLimiter.reset(accountKey);
     await startSession(c, found);
     return c.json({ email: found.email });
+  });
+
+  // Deuxième étape de la connexion : la session n'est créée qu'ici.
+  app.post("/api/auth/login/code", async (c) => {
+    if (!csrfOk(c)) return c.json({ error: "Requête refusée." }, 403);
+    if (!limiter.allow(`code:${ip(c)}`)) return c.json({ error: TOO_MANY, restart: true }, 429);
+    const body = (await c.req.json().catch(() => ({}))) as { challenge?: unknown; code?: unknown; recovery?: unknown };
+    const token = typeof body.challenge === "string" ? body.challenge : "";
+    const challenge = challenges.attempt(token);
+    if (!challenge) return c.json({ error: CHALLENGE_ENDED, restart: true }, 401);
+    if (!codeLimiter.allow(challenge.userId)) {
+      challenges.remove(token);
+      return c.json({ error: TOO_MANY, restart: true }, 429);
+    }
+    const user = await users.findById(challenge.userId);
+    if (!user || user.passwordHash !== challenge.passwordHash) {
+      challenges.remove(token);
+      return c.json({ error: CHALLENGE_ENDED, restart: true }, 401);
+    }
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+    const result = body.recovery === true ? await twoFactor.verifyRecovery(user.id, code) : await twoFactor.verifyTotp(user.id, code);
+    if (result === "unavailable") return twoFactorUnavailable(c, user.id);
+    if (result === "invalid") return c.json({ error: challenge.last ? `${CHALLENGE_MAX_TRIES} essais incorrects : reconnectez-vous.` : "Code incorrect ou déjà utilisé. Vérifiez-le, ou attendez le code suivant.", restart: challenge.last }, 401);
+    challenges.remove(token);
+    codeLimiter.reset(user.id);
+    limiter.reset(`code:${ip(c)}`);
+    limiter.reset(`login:${ip(c)}`);
+    accountLimiter.reset(`login:${user.email}`);
+    await startSession(c, user);
+    return c.json({ email: user.email });
   });
 
   app.post("/api/auth/signup", async (c) => {
@@ -287,6 +344,68 @@ export async function createApp(cfg: ServerConfig) {
     limiter.reset(`password:${user.id}`);
     await startSession(c, user);
     return c.json({ email: user.email });
+  });
+
+  type AccountBody = { password?: unknown; code?: unknown };
+  const text = (v: unknown) => (typeof v === "string" ? v : "");
+  const WRONG_PROOF = "Mot de passe ou code incorrect.";
+
+  /** Gestion de la double authentification : même protection que le changement de mot de passe. */
+  const accountRoute = (path: string, handler: (c: Context, user: User, body: AccountBody) => Promise<Response>) =>
+    app.post(path, async (c) => {
+      if (!csrfOk(c)) return c.json({ error: "Requête refusée." }, 403);
+      const user = await currentUser(c);
+      if (!user) return unauthorized(c);
+      if (!limiter.allow(`2fa:${user.id}`)) return c.json({ error: TOO_MANY }, 429);
+      const body = (await c.req.json().catch(() => ({}))) as AccountBody;
+      return handler(c, user, body);
+    });
+
+  const passwordMatches = async (user: User, password: unknown) => users.checkPassword(await users.findById(user.id), text(password));
+
+  /** Le mot de passe d'abord : un mot de passe faux ne doit pas consommer de code. */
+  const proveAccount = async (c: Context, user: User, body: AccountBody): Promise<Response | null> => {
+    if (!(await passwordMatches(user, body.password))) return c.json({ error: WRONG_PROOF }, 400);
+    const result = await twoFactor.verifyAny(user.id, text(body.code));
+    if (result === "unavailable") return twoFactorUnavailable(c, user.id);
+    return result === "ok" ? null : c.json({ error: WRONG_PROOF }, 400);
+  };
+
+  accountRoute("/api/auth/2fa/setup", async (c, user, body) => {
+    if (!(await passwordMatches(user, body.password))) return c.json({ error: "Mot de passe incorrect." }, 400);
+    const started = await twoFactor.begin(user);
+    if (started === "unavailable") return twoFactorUnavailable(c, user.id);
+    if (started === "already") return c.json({ error: "La double authentification est déjà active sur ce compte." }, 409);
+    limiter.reset(`2fa:${user.id}`);
+    return c.json(started);
+  });
+
+  // Le premier code active tout, ferme les sessions du compte et en rouvre une pour cet appareil.
+  accountRoute("/api/auth/2fa/confirm", async (c, user, body) => {
+    const result = await twoFactor.confirm(user.id, text(body.code).trim());
+    if (result === "unavailable") return twoFactorUnavailable(c, user.id);
+    if (result === "expired") return c.json({ error: "Cette activation a expiré : recommencez depuis le début." }, 400);
+    if (result === "invalid") return c.json({ error: "Code incorrect. Vérifiez qu'il s'agit bien du code affiché pour Hamac, et que votre téléphone est à l'heure." }, 400);
+    limiter.reset(`2fa:${user.id}`);
+    await startSession(c, user);
+    return c.json(result);
+  });
+
+  accountRoute("/api/auth/2fa/disable", async (c, user, body) => {
+    const refused = await proveAccount(c, user, body);
+    if (refused) return refused;
+    await users.disableTwoFactor(user.id);
+    limiter.reset(`2fa:${user.id}`);
+    return c.json({ ok: true });
+  });
+
+  accountRoute("/api/auth/2fa/recovery-codes", async (c, user, body) => {
+    const refused = await proveAccount(c, user, body);
+    if (refused) return refused;
+    const recoveryCodes = await twoFactor.regenerate(user.id);
+    if (!recoveryCodes) return twoFactorUnavailable(c, user.id);
+    limiter.reset(`2fa:${user.id}`);
+    return c.json({ recoveryCodes });
   });
 
   app.post("/api/rpc/:name", async (c) => {
