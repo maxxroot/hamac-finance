@@ -203,6 +203,26 @@ describe("serveur web", () => {
     expect(rpc.status).toBe(413);
   });
 
+  it("deux inscriptions simultanées ne peuvent pas partager une invitation", async () => {
+    const s = await server();
+    await client(s).req("POST", "/api/auth/signup", { email: "admin@exemple.fr", password: "motdepasse-long" });
+    const code = await s.users.createInvite();
+    const results = await Promise.all(["b", "c", "d"].map((n, i) => client(s, `5.5.5.${i}`).req("POST", "/api/auth/signup", { email: `${n}@exemple.fr`, password: "motdepasse-long", invite: code })));
+    expect(results.map((r) => r.status).sort()).toEqual([200, 403, 403]);
+    expect(await s.users.count()).toBe(2);
+    expect((await s.users.list()).filter((u) => u.isAdmin)).toHaveLength(1);
+    const tenants = await rawFor(await testProvider().session()).get<{ n: number }>("SELECT COUNT(*)::int AS n FROM comptes.tenants");
+    expect(tenants?.n).toBe(2);
+  });
+
+  it("une adresse déjà prise ne consomme pas l'invitation", async () => {
+    const s = await server();
+    await client(s).req("POST", "/api/auth/signup", { email: "admin@exemple.fr", password: "motdepasse-long" });
+    const code = await s.users.createInvite();
+    expect((await client(s, "6.6.6.1").req("POST", "/api/auth/signup", { email: "admin@exemple.fr", password: "motdepasse-long", invite: code })).status).toBe(409);
+    expect((await client(s, "6.6.6.2").req("POST", "/api/auth/signup", { email: "ami@exemple.fr", password: "motdepasse-long", invite: code })).status).toBe(200);
+  });
+
   it("refuse un mot de passe trop court et limite les tentatives", async () => {
     const s = await server("open");
     const c = client(s);

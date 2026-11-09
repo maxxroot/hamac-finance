@@ -84,9 +84,31 @@ export class UserStore {
   async createUser(email: string, password: string): Promise<User> {
     const isAdmin = (await this.count()) === 0;
     const user: User = { id: crypto.randomUUID(), tenantId: crypto.randomUUID(), email: email.trim().toLowerCase(), isAdmin, createdAt: new Date().toISOString() };
+    const hash = await this.hasher.hash(password);
     await this.db.run("INSERT INTO comptes.tenants (id, created_at) VALUES (?, ?)", [user.tenantId, user.createdAt]);
-    await this.db.run("INSERT INTO comptes.users (id, tenant_id, email, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)", [user.id, user.tenantId, user.email, await this.hasher.hash(password), isAdmin, user.createdAt]);
+    await this.db.run("INSERT INTO comptes.users (id, tenant_id, email, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)", [user.id, user.tenantId, user.email, hash, isAdmin, user.createdAt]);
     return user;
+  }
+
+  /**
+   * Crée un compte avec une invitation, en une seule requête : le code n'est consommé que si le compte
+   * est créé, et deux inscriptions simultanées ne peuvent pas se partager le même code.
+   * Renvoie null si le code n'est plus valable.
+   */
+  async createInvitedUser(email: string, password: string, code: string): Promise<User | null> {
+    const user: User = { id: crypto.randomUUID(), tenantId: crypto.randomUUID(), email: email.trim().toLowerCase(), isAdmin: false, createdAt: new Date().toISOString() };
+    const hash = await this.hasher.hash(password);
+    const created = await this.db.get(
+      `WITH claimed AS (
+         UPDATE comptes.invites SET used_by = ?::text WHERE code = ? AND used_by IS NULL AND expires_at > ? RETURNING code
+       ), tenant AS (
+         INSERT INTO comptes.tenants (id, created_at) SELECT ?::text, ?::text FROM claimed RETURNING id
+       )
+       INSERT INTO comptes.users (id, tenant_id, email, password_hash, is_admin, created_at)
+       SELECT ?::text, tenant.id, ?::text, ?::text, FALSE, ?::text FROM tenant RETURNING id`,
+      [user.id, code, user.createdAt, user.tenantId, user.createdAt, user.id, user.email, hash, user.createdAt],
+    );
+    return created ? user : null;
   }
 
   async findByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
@@ -136,12 +158,6 @@ export class UserStore {
     const code = randomBytes(9).toString("base64url");
     await this.db.run("INSERT INTO comptes.invites (code, expires_at) VALUES (?, ?)", [code, new Date(Date.now() + days * 86_400_000).toISOString()]);
     return code;
-  }
-
-  /** Consomme une invitation valide ; false si inconnue, expirée ou déjà utilisée. */
-  async useInvite(code: string, userId: string): Promise<boolean> {
-    const used = await this.db.get("UPDATE comptes.invites SET used_by = ? WHERE code = ? AND used_by IS NULL AND expires_at > ? RETURNING code", [userId, code, new Date().toISOString()]);
-    return !!used;
   }
 
   async inviteIsValid(code: string): Promise<boolean> {

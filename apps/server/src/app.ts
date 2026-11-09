@@ -252,13 +252,13 @@ export async function createApp(cfg: ServerConfig) {
     if (await users.findByEmail(email)) return c.json({ error: "Un compte existe déjà avec cette adresse." }, 409);
     if (first && installing) return c.json({ error: "Installation déjà en cours." }, 409);
     installing = first;
-    let user: User;
+    let user: User | null;
     try {
-      user = await users.createUser(email, password);
+      user = !first && cfg.signup === "invite" ? await users.createInvitedUser(email, password, body.invite!) : await users.createUser(email, password);
     } finally {
       if (first) installing = false;
     }
-    if (!first && cfg.signup === "invite") await users.useInvite(body.invite!, user.id);
+    if (!user) return c.json({ error: "Code d'invitation invalide ou expiré." }, 403);
     await startSession(c, user);
     return c.json({ email: user.email });
   });
