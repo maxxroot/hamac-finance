@@ -43,7 +43,7 @@ describe("sources de cours", () => {
     expect(parseBondTicker("TTEFP V2 PERP")).toBeNull();
   });
 
-  const base = { id: "a", name: "x", isin: null, symbol: null, priceSource: "auto" as const, priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, issuer: null, bondKind: null, archived: false };
+  const base = { id: "a", name: "x", isin: null, symbol: null, priceSource: "auto" as const, priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false };
   const order = defaultProviderSettings();
 
   it("construit la chaîne de sources selon le titre", () => {

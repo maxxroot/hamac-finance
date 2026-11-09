@@ -4,7 +4,7 @@ import { bondName, findSameBond, maturityFromMonth } from "./bondnames";
 
 const bond = (o: Partial<Asset>): Asset => ({
   id: "x", kind: "obligation", name: "", isin: null, symbol: null, priceSource: "modele", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null,
-  couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 1, issuer: "République française", bondKind: "etat", archived: false, ...o,
+  couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 1, nextCouponDate: null, issuer: "République française", bondKind: "etat", archived: false, ...o,
 });
 
 describe("noms et doublons d'obligations", () => {

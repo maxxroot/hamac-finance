@@ -218,6 +218,8 @@ export interface Asset {
   couponRate: number | null;
   maturityDate: string | null;
   couponFrequency: number | null;
+  /** Une date de coupon connue ; null = déduite de l'échéance. */
+  nextCouponDate: string | null;
   issuer: string | null;
   /** Obligations : d'État (OAT…) ou d'entreprise. */
   bondKind: BondKind | null;

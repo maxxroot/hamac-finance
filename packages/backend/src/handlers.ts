@@ -240,6 +240,7 @@ export const handlers: Handlers = {
       couponRate: isBond ? input.couponRate : null,
       maturityDate: isBond ? input.maturityDate : null,
       couponFrequency: isBond ? (input.couponFrequency ?? 1) : null,
+      nextCouponDate: isBond ? input.nextCouponDate : null,
       issuer: input.issuer,
       bondKind: isBond ? (input.bondKind ?? null) : null,
       archived: input.archived,
@@ -247,6 +248,9 @@ export const handlers: Handlers = {
     };
     if (isBond && (row.couponRate == null || !row.maturityDate)) {
       throw new RpcError("VALIDATION", "Une obligation nécessite un taux de coupon et une date d'échéance.");
+    }
+    if (isBond && row.nextCouponDate && row.nextCouponDate > row.maturityDate!) {
+      throw new RpcError("VALIDATION", "La date du prochain coupon doit précéder l'échéance.");
     }
     if (input.id) {
       const current = await ctx.db.select().from(t.assets).where(eq(t.assets.id, id)).limit(1).then(one);

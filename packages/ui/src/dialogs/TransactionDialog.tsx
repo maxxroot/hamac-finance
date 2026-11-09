@@ -117,7 +117,7 @@ export function TransactionDialog({
   const terms: BondTerms | null = asset
     ? bondTerms(asset)
     : d?.newAsset?.kind === "obligation" && d.newAsset.couponRate != null && d.newAsset.maturityDate
-      ? { couponRate: d.newAsset.couponRate, maturityDate: d.newAsset.maturityDate, frequency: d.newAsset.couponFrequency }
+      ? { couponRate: d.newAsset.couponRate, maturityDate: d.newAsset.maturityDate, frequency: d.newAsset.couponFrequency, couponAnchor: d.newAsset.nextCouponDate || null }
       : null;
   const accrued = isBond && terms && d?.quantity ? roundCents(d.quantity * accruedFraction(terms, d.date)) : 0;
   const isTrade = d?.type === "achat" || d?.type === "vente";

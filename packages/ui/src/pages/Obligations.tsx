@@ -1,7 +1,7 @@
 import { ShoppingCart, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { BOND_KIND_LABELS, maturityLabel, type PositionState } from "@hamac/core";
+import { BOND_KIND_LABELS, maturityLabel, nextCoupon, type PositionState } from "@hamac/core";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, MoneyInput, NumberInput, TextInput } from "@/components/form";
@@ -56,6 +56,14 @@ export function Obligations() {
   const ytmAvg = costHeld > 0 ? held.reduce((s, p) => s + (p.bond?.ytm ?? 0) * p.cost, 0) / costHeld : null;
   const cto = ctos[0];
 
+  // Coupons qui tombent à la prochaine date : plusieurs lignes peuvent la partager.
+  const nextCoupons = heldBonds.flatMap((p) => {
+    const c = nextCoupon(p.bond!.terms, pf.today);
+    return c ? [{ date: c.date, amount: c.amount * p.bond!.nominal }] : [];
+  });
+  const firstDate = nextCoupons.map((c) => c.date).sort()[0];
+  const upcoming = firstDate ? { date: firstDate, amount: nextCoupons.filter((c) => c.date === firstDate).reduce((t, c) => t + c.amount, 0) } : null;
+
   return (
     <>
       <PageHeader
@@ -77,7 +85,18 @@ export function Obligations() {
         <Stat label="Coupons annuels bruts" sub={<>rendement à l'échéance moyen <Pct value={ytmAvg} /></>}>
           <Amount value={coupons} compact />
         </Stat>
-        <Stat label="Prochaine échéance">{next ? formatDate(next) : "—"}</Stat>
+        <Stat
+          label="Prochaine échéance"
+          sub={
+            upcoming && (
+              <>
+                coupon le {formatDate(upcoming.date)} : <Amount value={upcoming.amount} compact /> brut
+              </>
+            )
+          }
+        >
+          {next ? formatDate(next) : "—"}
+        </Stat>
         <Stat label="Espèces en attente" tone={cash >= data.params.alerts.ctoCashThreshold ? "warning" : undefined} sub={cash >= data.params.alerts.ctoCashThreshold ? "De quoi acheter une ligne" : "Compte-titres"}>
           <Amount value={cash} compact />
         </Stat>
@@ -116,6 +135,7 @@ export function Obligations() {
                 </Td>
                 <Td align="right">
                   <Pct value={p.bond!.terms.couponRate} digits={2} />
+                  <NextCouponLine p={p} today={pf.today} />
                 </Td>
                 <Td align="right">
                   <Amount value={p.bond!.nominal} compact />
@@ -225,5 +245,16 @@ export function Obligations() {
       {ctos.length > 0 && <Movements accountIds={ctos.map((c) => c.account.id)} limit={15} title="Mouvements (obligations et espèces)" type="achat" assetKinds={["obligation"]} accountKinds={["cto", "assurance_vie"]} />}
       <p className={cn("mt-2 text-xs text-fg-faint", !held.length && "hidden")}>Valeur « détenue jusqu'à l'échéance » : prix d'achat amorti linéairement vers 100 % + coupon couru. Un cours saisi à la main la remplace.</p>
     </>
+  );
+}
+
+/** Date et montant brut du prochain coupon d'une ligne. */
+function NextCouponLine({ p, today }: { p: PositionState; today: string }) {
+  const c = nextCoupon(p.bond!.terms, today);
+  if (!c) return null;
+  return (
+    <div className="text-[11px] whitespace-nowrap text-fg-faint">
+      le {formatDate(c.date)} · <Amount value={c.amount * p.bond!.nominal} /> brut
+    </div>
   );
 }

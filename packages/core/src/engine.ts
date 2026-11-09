@@ -212,7 +212,7 @@ const RANK: Record<TxType, number> = {
 
 export function bondTerms(asset: Asset): BondTerms | null {
   if (asset.kind !== "obligation" || asset.couponRate == null || !asset.maturityDate) return null;
-  return { couponRate: asset.couponRate, maturityDate: asset.maturityDate, frequency: asset.couponFrequency ?? 1 };
+  return { couponRate: asset.couponRate, maturityDate: asset.maturityDate, frequency: asset.couponFrequency ?? 1, couponAnchor: asset.nextCouponDate };
 }
 
 function newAcc(): AccAcc {

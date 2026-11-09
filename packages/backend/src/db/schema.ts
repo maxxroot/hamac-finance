@@ -76,6 +76,7 @@ export const assets = pgTable(
     couponRate: doublePrecision("coupon_rate"),
     maturityDate: text("maturity_date"),
     couponFrequency: bigint("coupon_frequency", { mode: "number" }),
+    nextCouponDate: text("next_coupon_date"),
     issuer: text("issuer"),
     bondKind: text("bond_kind"),
     archived: boolean("archived").notNull().default(false),

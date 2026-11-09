@@ -180,6 +180,7 @@ export function Notice() {
             Ajouter le titre dans Paramètres › Actifs : la recherche par ISIN pré-remplit le coupon et l'échéance.
           </li>
           <li>Saisir l'achat dans le Journal : nominal, prix en % du nominal (ex. 96,40) et frais. Le montant, le rendement à l'échéance et la valeur se calculent seuls.</li>
+          <li>Si le coupon ne tombe pas à la date anniversaire de l'échéance, indiquer sa date sur la fiche du titre : coupon couru, valeur et rendement en tiennent compte.</li>
           <li>Chaque année, noter le coupon reçu. À l'échéance, le nominal revient automatiquement dans les espèces du compte-titres.</li>
           <li>Pour une retraite : avant l'âge de sécurisation, racheter une ligne plus longue ; après, transférer le capital vers le fonds euros. Sinon, racheter ou placer le capital là où l'allocation est en retard.</li>
         </ol>

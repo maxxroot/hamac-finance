@@ -55,6 +55,7 @@ export const AssetInput = z.object({
   couponRate: rate.nullable().default(null),
   maturityDate: isoDate.nullable().default(null),
   couponFrequency: z.number().int().min(1).max(12).nullable().default(null),
+  nextCouponDate: isoDate.nullable().default(null),
   issuer: text(80).nullable().default(null),
   bondKind: z.enum(BOND_KINDS).nullable().default(null),
   archived: z.boolean().default(false),

@@ -31,6 +31,7 @@ export interface NewAsset {
   couponRate: number | null;
   maturityDate: string;
   couponFrequency: number;
+  nextCouponDate: string;
 }
 
 type Choice = { kind: AssetKind; bondKind: BondKind | null; label: string };
@@ -53,7 +54,7 @@ export function choicesFor(account: AccountKind, only?: readonly AssetKind[]): C
 export function newAssetFor(account: AccountKind, only?: readonly AssetKind[]): NewAsset {
   const first = choicesFor(account, only)[0] ?? { kind: "etf" as AssetKind, bondKind: null };
   return withChoice(
-    { kind: first.kind, bondKind: first.bondKind, name: "", nameAuto: true, isin: "", symbol: "", issuer: "", couponRate: null, maturityDate: "", couponFrequency: 1 },
+    { kind: first.kind, bondKind: first.bondKind, name: "", nameAuto: true, isin: "", symbol: "", issuer: "", couponRate: null, maturityDate: "", couponFrequency: 1, nextCouponDate: "" },
     first,
   );
 }
@@ -94,6 +95,7 @@ export function toAssetInput(n: NewAsset): AssetInput {
     couponRate: isBond ? n.couponRate : null,
     maturityDate: isBond ? n.maturityDate || null : null,
     couponFrequency: isBond ? n.couponFrequency : null,
+    nextCouponDate: isBond ? n.nextCouponDate || null : null,
     issuer: isBond ? n.issuer.trim() || null : null,
     bondKind: isBond ? n.bondKind : null,
   };
@@ -223,6 +225,9 @@ export function NewAssetPanel({
               </Select>
             )}
           </Field>
+        )}
+        {isBond && (
+          <Field label="Prochain coupon (facultatif)">{(id) => <TextInput id={id} type="date" value={value.nextCouponDate} onChange={(e) => set("nextCouponDate", e.target.value)} />}</Field>
         )}
       </FormGrid>
 

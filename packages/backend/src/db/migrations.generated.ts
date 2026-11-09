@@ -7,5 +7,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0001_silly_masked_marvel",
     "sql": "ALTER TABLE \"loans\" ADD COLUMN \"insurance_mode\" text DEFAULT 'montant' NOT NULL;--> statement-breakpoint\nALTER TABLE \"loans\" ADD COLUMN \"insurance_rate\" double precision DEFAULT 0 NOT NULL;"
+  },
+  {
+    "tag": "0002_calm_giant_girl",
+    "sql": "ALTER TABLE \"assets\" ADD COLUMN \"next_coupon_date\" text;"
   }
 ];

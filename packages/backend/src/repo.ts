@@ -82,6 +82,7 @@ export function mapAsset(r: typeof t.assets.$inferSelect): Asset {
     couponRate: r.couponRate,
     maturityDate: r.maturityDate,
     couponFrequency: r.couponFrequency,
+    nextCouponDate: r.nextCouponDate,
     issuer: r.issuer,
     bondKind: (r.bondKind as Asset["bondKind"]) ?? null,
     archived: r.archived,

@@ -37,6 +37,7 @@ function empty(kind: AssetKind): Draft {
     couponRate: null,
     maturityDate: null,
     couponFrequency: kind === "obligation" ? 1 : null,
+    nextCouponDate: null,
     issuer: null,
     bondKind: kind === "obligation" ? "etat" : null,
     archived: false,
@@ -225,6 +226,22 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
               )}
             </Field>
             <Field label="Émetteur">{(id) => <TextInput id={id} value={d.issuer ?? ""} onChange={(e) => set("issuer", e.target.value || null)} placeholder="République française" />}</Field>
+          </FormGrid>
+        )}
+        {isBond && (
+          <FormGrid>
+            <Field label="Coupons">
+              {(id) => (
+                <Select id={id} value={d.couponFrequency ?? 1} onChange={(e) => set("couponFrequency", Number(e.target.value))}>
+                  <option value={1}>Annuel</option>
+                  <option value={2}>Semestriel</option>
+                  <option value={4}>Trimestriel</option>
+                </Select>
+              )}
+            </Field>
+            <Field label="Prochain coupon (facultatif)" help="Vide : déduit de l'échéance. Inutile de la remettre à jour, les suivants s'en déduisent.">
+              {(id) => <TextInput id={id} type="date" value={d.nextCouponDate ?? ""} onChange={(e) => set("nextCouponDate", e.target.value || null)} />}
+            </Field>
           </FormGrid>
         )}
 
