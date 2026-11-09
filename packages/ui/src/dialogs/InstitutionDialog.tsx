@@ -7,6 +7,7 @@ import {
   INSTITUTION_KINDS,
   emptyOffer,
   formatEur,
+  formatPct,
   NO_INSTITUTION_TAX,
   orderFee,
   type AvOffer,
@@ -52,6 +53,9 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
     if (open) setD(institution ? structuredClone(institution) : blank());
   }, [open, institution]);
 
+  const planTax = idx?.ws.params.tax;
+  const defaultIncomeTax = planTax?.withholdingDispense ? 0 : (planTax?.pfuIncomeTax ?? 0);
+  const defaultSocial = planTax?.socialGeneral ?? 0;
   const linked = institution ? (idx?.ws.accounts.filter((a) => a.institutionId === institution.id) ?? []) : [];
   const setOffer = <K extends keyof Offers>(k: K, v: Offers[K] | undefined) =>
     setD((x) => {
@@ -184,10 +188,10 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
               <p className="mt-1.5 text-xs text-fg-faint">À cocher si l'établissement ne transmet rien au fisc. Sinon, ses montants sont seulement à contrôler avec son IFU, pour éviter de les déclarer deux fois.</p>
             </div>
             <FormGrid>
-              <Field label="Acompte d'impôt retenu sur les revenus" help="Vide si vous ne savez pas, 0 si rien n'est retenu.">
+              <Field label="Acompte d'impôt retenu sur les revenus" help={`Seulement s'il diffère. Vide : ${formatPct(defaultIncomeTax)} (Paramètres › Plan). 0 si rien n'est retenu.`}>
                 {(id) => <PercentInput id={id} value={d.tax.withheldIncomeTax} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldIncomeTax: v } })} />}
               </Field>
-              <Field label="Prélèvements sociaux retenus" help="Vide si vous ne savez pas, 0 si rien n'est retenu.">
+              <Field label="Prélèvements sociaux retenus" help={`Seulement s'ils diffèrent. Vide : ${formatPct(defaultSocial)} (Paramètres › Plan). 0 si rien n'est retenu.`}>
                 {(id) => <PercentInput id={id} value={d.tax.withheldSocial} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldSocial: v } })} />}
               </Field>
             </FormGrid>

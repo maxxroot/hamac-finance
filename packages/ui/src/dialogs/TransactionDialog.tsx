@@ -15,6 +15,7 @@ import {
   suggestOrderFee,
   suggestTradeFee,
   tradeFeeFor,
+  effectiveWithholding,
   formatEur,
   grossFromNet,
   NO_INSTITUTION_TAX,
@@ -407,7 +408,7 @@ export function TransactionDialog({
             draft={d}
             onChange={(patch) => setD((x) => (x ? { ...x, ...patch } : x))}
             error={err("gross")}
-            prefill={account?.institutionId && d.amount ? grossFromNet(d.amount, idx.institutionById.get(account.institutionId)?.tax ?? NO_INSTITUTION_TAX) : null}
+            prefill={account && d.amount ? grossFromNet(d.amount, effectiveWithholding((account.institutionId ? idx.institutionById.get(account.institutionId)?.tax : null) ?? NO_INSTITUTION_TAX, +d.date.slice(0, 4), idx.ws.params)) : null}
           />
         )}
 
@@ -437,7 +438,7 @@ function TaxDetailFields({ draft, onChange, error, prefill }: { draft: Draft; on
         </div>
         {prefill && (
           <Button type="button" variant="ghost" className="h-7 text-xs" onClick={() => onChange({ gross: prefill.gross, withheldIncomeTax: prefill.incomeTax, withheldSocial: prefill.social, withheldForeign: 0 })}>
-            Calculer d'après l'établissement
+            Calculer d'après les taux
           </Button>
         )}
       </div>

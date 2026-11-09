@@ -94,7 +94,7 @@ export type Offers = z.infer<typeof Offers>;
 export const InstitutionTax = z.object({
   /** Cochée : Hamac rédige le récapitulatif de cet établissement, ses lignes sont à saisir. Sinon, on attend son IFU. */
   report: z.boolean().default(false),
-  /** Taux habituellement retenus sur les revenus ; null = inconnu, 0 = rien n'est retenu. */
+  /** Taux retenus sur les revenus, seulement s'ils diffèrent : null = taux par défaut (Paramètres › Plan), 0 = rien n'est retenu. */
   withheldIncomeTax: z.number().min(0).max(0.9).nullable().default(null),
   withheldSocial: z.number().min(0).max(0.9).nullable().default(null),
 });
@@ -102,11 +102,10 @@ export type InstitutionTax = z.infer<typeof InstitutionTax>;
 
 export const NO_INSTITUTION_TAX: InstitutionTax = { report: false, withheldIncomeTax: null, withheldSocial: null };
 
-/** Brut et retenues d'un revenu d'après les taux de l'établissement ; null si l'un des taux est inconnu. */
-export function grossFromNet(net: number, tax: Pick<InstitutionTax, "withheldIncomeTax" | "withheldSocial">): { gross: number; incomeTax: number; social: number } | null {
-  if (tax.withheldIncomeTax == null || tax.withheldSocial == null) return null;
-  const gross = roundCents(net / (1 - tax.withheldIncomeTax - tax.withheldSocial));
-  return { gross, incomeTax: roundCents(gross * tax.withheldIncomeTax), social: roundCents(gross * tax.withheldSocial) };
+/** Brut et retenues d'un revenu d'après des taux de retenue. */
+export function grossFromNet(net: number, rates: { incomeTax: number; social: number }): { gross: number; incomeTax: number; social: number } {
+  const gross = roundCents(net / (1 - rates.incomeTax - rates.social));
+  return { gross, incomeTax: roundCents(gross * rates.incomeTax), social: roundCents(gross * rates.social) };
 }
 
 /** Impôts d'une plateforme de crowdlending, réglés sur la fiche de l'établissement. */

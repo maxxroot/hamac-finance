@@ -1,8 +1,9 @@
 import type { Account, Asset, Transaction } from "./domain";
 import { computePortfolio, type Disposal, type EngineData } from "./engine";
 import { fiscalRulesFor, LAST_VERIFIED_INCOME_YEAR, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
-import { crowdTaxOf, grossFromNet, NO_INSTITUTION_TAX, type Institution } from "./institutions";
+import { crowdTaxOf, grossFromNet, NO_INSTITUTION_TAX, type Institution, type InstitutionTax } from "./institutions";
 import { roundCents } from "./money";
+import type { PlanParams } from "./params";
 import { securitiesGains, type SecuritiesYear } from "./securitiesGains";
 import { type CryptoSale, type CryptoTaxReport, type CryptoYear } from "./taxes";
 
@@ -32,7 +33,15 @@ export interface ResolvedIncome {
   note: string | null;
 }
 
-/** Brut et retenues d'un dividende ou d'intérêts : ce qui est saisi, sinon ce que permet de déduire l'établissement. */
+/** Taux de retenue d'un établissement : le sien s'il en a un, sinon celui de Paramètres › Plan pour cette année. */
+export function effectiveWithholding(tax: Pick<InstitutionTax, "withheldIncomeTax" | "withheldSocial">, incomeYear: number, params: PlanParams): { incomeTax: number; social: number } {
+  return {
+    incomeTax: tax.withheldIncomeTax ?? (params.tax.withholdingDispense ? 0 : params.tax.pfuIncomeTax),
+    social: tax.withheldSocial ?? socialRateFor(incomeYear, "placement", params),
+  };
+}
+
+/** Brut et retenues d'un dividende ou d'intérêts : ce qui est saisi, sinon les taux de l'établissement ou ceux par défaut. */
 export function resolveIncome(tx: Transaction, account: Pick<Account, "kind" | "institutionId">, data: Pick<EngineData, "params" | "institutions">): ResolvedIncome {
   if (tx.gross != null) {
     const incomeTax = tx.withheldIncomeTax ?? 0;
@@ -49,14 +58,10 @@ export function resolveIncome(tx: Transaction, account: Pick<Account, "kind" | "
     return { gross, incomeTax, social: roundCents(gross - tx.amount - incomeTax), foreign: 0, status: "calcule", note: null };
   }
   const tax = data.institutions?.find((i) => i.id === account.institutionId)?.tax ?? NO_INSTITUTION_TAX;
-  const fromRates = grossFromNet(tx.amount, tax);
-  if (fromRates) return { ...fromRates, foreign: 0, status: "calcule", note: "Déduit des retenues réglées sur l'établissement." };
-  if (tax.report) return { gross: tx.amount, incomeTax: 0, social: 0, foreign: 0, status: "manquant", note: "Brut non renseigné : le montant reçu est repris tel quel." };
-  const year = +tx.date.slice(0, 4);
-  const rate = data.params.tax.withholdingDispense ? 0 : data.params.tax.pfuIncomeTax;
-  const socialRate = socialRateFor(year, "placement", data.params);
-  const gross = roundCents(tx.amount / (1 - socialRate - rate));
-  return { gross, incomeTax: roundCents(gross * rate), social: roundCents(gross * socialRate), foreign: 0, status: "a_verifier", note: "Hypothèse d'une retenue française, à contrôler avec l'IFU de l'établissement." };
+  const resolved = grossFromNet(tx.amount, effectiveWithholding(tax, +tx.date.slice(0, 4), data.params));
+  if (tax.withheldIncomeTax != null && tax.withheldSocial != null) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des retenues réglées sur l'établissement." };
+  if (tax.report) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des taux par défaut (Paramètres › Plan), ou de ceux de l'établissement s'il en a." };
+  return { ...resolved, foreign: 0, status: "a_verifier", note: "Hypothèse d'une retenue aux taux par défaut, à contrôler avec l'IFU de l'établissement." };
 }
 
 /** Cessions relevant des valeurs mobilières : les parts de SCPI suivent le régime des plus-values immobilières. */
@@ -384,8 +389,6 @@ export function taxReportAlerts(report: TaxReport, data: EngineData, disposals: 
   if (mismatches.length) alerts.push({ level: "erreur", message: `La somme des fiches ne correspond pas au récapitulatif (${mismatches.join(", ")}).`, sheetKey: null });
 
   for (const s of sheets) {
-    const missing = s.incomes.filter((i) => i.status === "manquant").length;
-    if (missing) alerts.push({ level: "erreur", message: `${s.name} : ${missing} ${plural(missing, "revenu", "revenus")} sans brut ni retenues. Complétez les opérations au Journal, ou réglez les retenues sur l'établissement.`, sheetKey: s.key });
     const incoherent = s.incomes.filter((i) => i.tx.gross != null && i.status === "a_verifier").length;
     if (incoherent) alerts.push({ level: "attention", message: `${s.name} : ${incoherent} ${plural(incoherent, "revenu dont", "revenus dont")} le brut moins les retenues diffère du montant reçu.`, sheetKey: s.key });
     for (const d of s.disposals.filter((x) => x.status === "manquant")) alerts.push({ level: "erreur", message: `${s.name} : ${d.assetName}, cession du ${d.date}. ${d.note}`, sheetKey: s.key });

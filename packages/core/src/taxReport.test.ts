@@ -34,9 +34,14 @@ describe("brut et retenues d'un revenu", () => {
     expect(resolveIncome(tx("2025-03-01", "dividende", "c", 87.2, { gross: 100, withheldIncomeTax: 12.8 }), cto, d)).toMatchObject({ gross: 100, incomeTax: 12.8, status: "calcule" });
     expect(resolveIncome(tx("2025-03-01", "dividende", "c", 80, { gross: 100, withheldIncomeTax: 12.8 }), cto, d).status).toBe("a_verifier");
   });
-  it("sans brut : les taux de l'établissement, sinon une donnée manquante si Hamac rédige la fiche", () => {
+  it("sans brut : le taux de l'établissement s'il en a un, sinon celui des paramètres, champ par champ", () => {
     expect(resolveIncome(tx("2025-03-01", "interets", "c", 87.2), cto, data({ institutions: [etab("e", { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 })] }))).toMatchObject({ gross: 100, incomeTax: 12.8, social: 0, status: "calcule" });
-    expect(resolveIncome(tx("2025-03-01", "interets", "c", 87.2), cto, data({ institutions: [etab("e", { report: true })] }))).toMatchObject({ gross: 87.2, status: "manquant" });
+    // Vide : 12,8 % et, pour un revenu versé en 2025, 17,2 % de prélèvements sociaux.
+    expect(resolveIncome(tx("2025-03-01", "interets", "c", 70), cto, data({ institutions: [etab("e", { report: true })] }))).toMatchObject({ gross: 100, incomeTax: 12.8, social: 17.2, status: "calcule" });
+    // Seuls les prélèvements sociaux diffèrent : l'acompte reste celui par défaut.
+    expect(resolveIncome(tx("2025-03-01", "interets", "c", 87.2), cto, data({ institutions: [etab("e", { report: true, withheldSocial: 0 })] }))).toMatchObject({ gross: 100, incomeTax: 12.8, social: 0, status: "calcule" });
+    // Un revenu 2026 suit le taux réglé dans les paramètres.
+    expect(resolveIncome(tx("2026-03-01", "interets", "c", 68.6), cto, data({ institutions: [etab("e", { report: true })] }))).toMatchObject({ gross: 100, social: 18.6 });
   });
   it("revenus 2025 d'un établissement sans fiche : retenue française à 17,2 % de prélèvements sociaux (LFSS 2026, art. 12)", () => {
     const r = resolveIncome(tx("2025-03-01", "interets", "c", 70), cto, data({ institutions: [etab("e")] }));
@@ -212,7 +217,7 @@ describe("contrôles de cohérence", () => {
     return taxReportAlerts(buildTaxReport(d, disposals, cryptoTax(d, asOf), year), d, disposals, statements).map((a) => a.message).join("\n");
   };
 
-  it("signale un revenu sans brut, une vente sans achat et un compte sans établissement", () => {
+  it("signale une vente sans achat et un compte sans établissement", () => {
     const d = data({
       accounts: [acc("c", "cto", "e"), acc("s", "cto")],
       assets: [asset("a", "action")],
@@ -220,7 +225,6 @@ describe("contrôles de cohérence", () => {
       transactions: [tx("2025-03-01", "dividende", "c", 50, { assetId: "a" }), tx("2025-04-01", "vente", "c", 100, { assetId: "a", quantity: 1 }), tx("2025-05-01", "interets", "s", 10)],
     });
     const m = alerts(d);
-    expect(m).toContain("1 revenu sans brut");
     expect(m).toContain("il manque un achat");
     expect(m).toContain("n'ont pas d'établissement");
   });

@@ -36,7 +36,7 @@ Hamac reprend la logique d'un Google Sheet de plan d'épargne retraite, en corri
 Calculé dans `@hamac/core` (`buildTaxReport`) : un seul calcul, une fiche par établissement et un récapitulatif complet.
 
 - La case « Hamac rédige le récapitulatif » de l'établissement (`institutions.tax`) rend ses lignes *à saisir*. Sans elle, elles sont *à contrôler* avec son IFU.
-- Brut d'un revenu : celui saisi, sinon les taux réglés sur l'établissement. Sans taux : donnée manquante si la fiche est rédigée par Hamac, hypothèse d'une retenue française sinon.
+- Brut d'un revenu : celui saisi, sinon les taux de retenue. Chaque taux vient de l'établissement s'il en a un, sinon de Paramètres › Plan pour l'année du revenu (vide = défaut, 0 = rien n'est retenu).
 - Les cases et les taux sont datés par année de revenus dans `fiscalRules.ts`, avec leur source et leur date de vérification. Une année absente est affichée comme non vérifiée.
 - Plus-values : prix de revient au coût moyen du compte, compensation entre établissements, moins-values reportables dix ans. La crypto se calcule sur le portefeuille global (art. 150 VH bis).
 

@@ -46,9 +46,8 @@ describe("frais d'ordre", () => {
 });
 
 describe("retenues d'un établissement", () => {
-  it("retrouve le brut à partir du net, et ne devine pas si un taux manque", () => {
-    expect(grossFromNet(87.2, { withheldIncomeTax: 0.128, withheldSocial: 0 })).toEqual({ gross: 100, incomeTax: 12.8, social: 0 });
-    expect(grossFromNet(100, { withheldIncomeTax: 0, withheldSocial: 0 })).toEqual({ gross: 100, incomeTax: 0, social: 0 });
-    expect(grossFromNet(100, { withheldIncomeTax: null, withheldSocial: 0 })).toBeNull();
+  it("retrouve le brut à partir du net", () => {
+    expect(grossFromNet(87.2, { incomeTax: 0.128, social: 0 })).toEqual({ gross: 100, incomeTax: 12.8, social: 0 });
+    expect(grossFromNet(100, { incomeTax: 0, social: 0 })).toEqual({ gross: 100, incomeTax: 0, social: 0 });
   });
 });
