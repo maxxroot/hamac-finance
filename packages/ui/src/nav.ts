@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ChartLine,
   ChartPie,
+  FileText,
   Gauge,
   HandCoins,
   History,
@@ -80,6 +81,7 @@ export const NAV: NavGroup[] = [
     label: "Fiscalité",
     items: [
       { path: "/impots", module: "impots", label: "Impôts", icon: Receipt, sheetTab: "Impôts", step: 3, description: "Impôt si tout était retiré aujourd'hui, rendements nets, impôt annuel." },
+      { path: "/declaration", module: "impots", label: "Aide à la déclaration", icon: FileText, sheetTab: "Impôts", step: 3, description: "Récapitulatif fiscal par établissement et récapitulatif complet." },
     ],
   },
   {

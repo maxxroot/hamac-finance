@@ -72,10 +72,10 @@ export function Shell() {
   };
 
   return (
-    <div className={cn("flex h-full", privacy.value && "privacy")}>
+    <div className={cn("print-flow flex h-full", privacy.value && "privacy")}>
       {overlay && <div className="fixed inset-0 z-30 bg-black/50" onClick={() => setPeek(false)} aria-hidden />}
       {/* La largeur réservée reste celle de la barre réduite quand elle passe par-dessus : le contenu ne bouge pas. */}
-      <div className={cn("relative shrink-0 transition-[width] duration-200", collapsed || overlay ? "w-16" : "w-60")}>
+      <div className={cn("no-print relative shrink-0 transition-[width] duration-200", collapsed || overlay ? "w-16" : "w-60")}>
         <aside className={cn("flex h-full flex-col border-r border-line bg-surface", overlay ? "absolute inset-y-0 left-0 z-40 w-60 shadow-2xl" : "w-full")}>
           <div className={cn("flex h-16 shrink-0 items-center gap-2.5", collapsed ? "justify-center" : "px-5")}>
             <HamacMark />
@@ -100,8 +100,8 @@ export function Shell() {
         </aside>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-16 shrink-0 items-center gap-2 border-b border-line px-4 lg:px-8">
+      <div className="print-flow flex min-w-0 flex-1 flex-col">
+        <div className="no-print flex h-16 shrink-0 items-center gap-2 border-b border-line px-4 lg:px-8">
           <button onClick={toggle} className="-ml-1 rounded-lg p-2 text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label={collapsed ? "Agrandir le menu" : "Réduire le menu"} aria-expanded={!collapsed} title={collapsed ? "Agrandir le menu" : "Réduire le menu"}>
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>

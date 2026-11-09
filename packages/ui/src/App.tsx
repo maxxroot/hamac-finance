@@ -10,6 +10,7 @@ import { Crypto } from "@/pages/Crypto";
 import { FondsEuros } from "@/pages/FondsEuros";
 import { Historique } from "@/pages/Historique";
 import { Immobilier } from "@/pages/Immobilier";
+import { Declaration } from "@/pages/Declaration";
 import { Impots } from "@/pages/Impots";
 import { Journal } from "@/pages/Journal";
 import { Livrets } from "@/pages/Livrets";
@@ -42,6 +43,7 @@ const PAGES: Record<string, ReactNode> = {
   "/credits": <Credits />,
   "/performance": <Performance />,
   "/impots": <Impots />,
+  "/declaration": <Declaration />,
   "/historique": <Historique />,
 };
 

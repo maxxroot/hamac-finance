@@ -15,6 +15,7 @@ import { makeXlsx } from "@/lib/xlsx.fixture";
 import { ToastProvider } from "@/lib/toast";
 import { useWorkspaceIndex } from "@/lib/workspace";
 import { Crowdlending } from "@/pages/Crowdlending";
+import { Declaration } from "@/pages/Declaration";
 import { Parametres } from "@/pages/Parametres";
 
 /** Parcours réels : l'interface parle au vrai backend, sur une base en mémoire. */
@@ -65,6 +66,30 @@ afterEach(() => {
 const fieldOf = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
 
 describe("parcours de l'interface", () => {
+  it("aide à la déclaration : une fiche pour l'établissement coché, l'année de validité et les cases", async () => {
+    const user = userEvent.setup();
+    const inst = await rpc<{ id: string }>("institutions.upsert", { name: "Courtier Fictif", kind: "courtier", tax: { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 } });
+    const cto = await rpc<{ id: string }>("accounts.upsert", { kind: "cto", name: "Compte-titres", institutionId: inst.id });
+    await rpc("transactions.upsert", { date: "2025-03-10", type: "interets", accountId: cto.id, amount: 87.2 });
+    show(<Declaration />);
+    await user.selectOptions(await screen.findByLabelText("Année de revenus"), "2025");
+    expect(await screen.findByText(/Revenus 2025 · Déclaration 2026/)).toBeTruthy();
+    expect(screen.getByText(/Règles vérifiées le 09\/11\/2026/)).toBeTruthy();
+    expect(screen.getByText("2TR")).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText("Document"), "Récapitulatif fiscal – Courtier Fictif");
+    expect(await screen.findByRole("heading", { name: "Récapitulatif fiscal – Courtier Fictif" })).toBeTruthy();
+    expect(screen.getByText("Détail des revenus")).toBeTruthy();
+  });
+
+  it("établissement : la case du récapitulatif fiscal est enregistrée", async () => {
+    const user = userEvent.setup();
+    show(<InstitutionDialog open onClose={() => undefined} />);
+    await user.type(fieldOf("Nom"), "Courtier Fictif");
+    await user.click(screen.getByLabelText("Hamac rédige le récapitulatif fiscal de cet établissement"));
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () => expect((await rpc<{ institutions: Array<{ tax: { report: boolean } }> }>("workspace.load")).institutions[0]?.tax.report).toBe(true));
+  });
+
   it("import d'un relevé : aperçu, import, confirmation, puis doublon au second passage", async () => {
     const user = userEvent.setup();
     await rpc("accounts.upsert", { kind: "cto", name: "Compte-titres" });

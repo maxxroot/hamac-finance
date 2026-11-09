@@ -3,7 +3,7 @@ import type { Account, Asset, Transaction } from "./domain";
 import { computePortfolio, type EngineData } from "./engine";
 import type { Institution, InstitutionTax } from "./institutions";
 import { defaultParams } from "./params";
-import { buildTaxReport, resolveIncome, taxReportYears, worstStatus } from "./taxReport";
+import { buildTaxReport, resolveIncome, rulesValidityLabel, taxReportCsvRows, taxReportYears, worstStatus } from "./taxReport";
 import { cryptoTax, yearlyTaxes } from "./taxes";
 
 const acc = (id: string, kind: Account["kind"], institutionId: string | null = null): Account => ({
@@ -156,6 +156,19 @@ describe("récapitulatif fiscal", () => {
     expect(r.sheets[0].lines).toEqual([]);
     expect(r.rules).toMatchObject({ incomeYear: 2025, declarationYear: 2026, covered: true });
     expect(report(d, 2026).rules.covered).toBe(false);
+  });
+
+  it("indique l'année de validité, et prévient quand les cases ne sont pas vérifiées", () => {
+    const d = data({ accounts: [acc("c", "cto", "e")], institutions: [etab("e", { report: true })] });
+    expect(rulesValidityLabel(report(d).rules)).toBe("Règles vérifiées le 09/11/2026 d'après : Brochure pratique IR 2026 (impots.gouv.fr).");
+    expect(rulesValidityLabel(report(d, 2026).rules)).toContain("à titre indicatif");
+  });
+
+  it("exporte le détail de chaque opération", () => {
+    const rows = taxReportCsvRows(report(scenario()));
+    expect(rows[0][0]).toBe("Établissement");
+    expect(rows.some((r) => r[4] === "Vente" && r[12] === 300)).toBe(true);
+    expect(rows.some((r) => r[4] === "Cession crypto" && r[12] === 2250)).toBe(true);
   });
 
   it("liste les autres comptes sans les chiffrer", () => {

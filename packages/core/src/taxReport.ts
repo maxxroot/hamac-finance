@@ -1,6 +1,6 @@
 import type { Account, Asset, Transaction } from "./domain";
 import type { Disposal, EngineData } from "./engine";
-import { fiscalRulesFor, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
+import { fiscalRulesFor, LAST_VERIFIED_INCOME_YEAR, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
 import { crowdTaxOf, grossFromNet, NO_INSTITUTION_TAX, type Institution } from "./institutions";
 import { roundCents } from "./money";
 import { securitiesGains, type SecuritiesYear } from "./securitiesGains";
@@ -294,3 +294,26 @@ export function taxReportYears(data: Pick<EngineData, "accounts" | "transactions
   for (let y = last; y >= first; y--) years.push(y);
   return years;
 }
+
+/** Année de validité, affichée sur chaque document. */
+export function rulesValidityLabel(rules: FiscalYearRules, lastVerifiedYear = LAST_VERIFIED_INCOME_YEAR): string {
+  if (!rules.covered) return `Aucune règle vérifiée pour les revenus ${rules.incomeYear} : numéros de case repris des revenus ${lastVerifiedYear}, à titre indicatif.`;
+  const [y, m, d] = rules.verifiedOn!.split("-");
+  return `Règles vérifiées le ${d}/${m}/${y} d'après : ${rules.source}.`;
+}
+
+export const STATUS_LABELS: Record<TaxStatus, string> = { calcule: "Calculé", a_verifier: "À vérifier", manquant: "Donnée manquante" };
+export const MODE_LABELS: Record<SheetMode, string> = { a_saisir: "À saisir", a_controler: "À contrôler avec l'IFU" };
+
+/** Détail des opérations, pour un tableur. */
+export function taxReportCsvRows(report: TaxReport): Array<Array<string | number | null>> {
+  const rows: Array<Array<string | number | null>> = [["Établissement", "Traitement", "Compte", "Date", "Nature", "Titre", "Reçu ou prix de cession", "Brut", "Acompte retenu", "Prélèvements sociaux retenus", "Retenue étrangère", "Prix de revient", "Gain", "Statut", "Remarque"]];
+  for (const s of report.sheets) {
+    const mode = MODE_LABELS[s.mode];
+    for (const i of s.incomes) rows.push([s.name, mode, i.accountName, i.tx.date, i.tx.type === "dividende" ? "Dividende" : "Intérêts", i.assetName, i.tx.amount, i.gross, i.incomeTax, i.social, i.foreign, null, null, STATUS_LABELS[i.status], i.note]);
+    for (const d of s.disposals) rows.push([s.name, mode, d.accountName, d.date, d.kind === "vente" ? "Vente" : "Remboursement", d.assetName, d.proceeds, null, null, null, null, d.cost, d.gain, STATUS_LABELS[d.status], d.note]);
+    for (const c of s.cryptoSales) rows.push([s.name, mode, c.accountName, c.sale.date, "Cession crypto", c.assetName, c.sale.net, null, null, null, null, c.sale.attributed, c.sale.gain, STATUS_LABELS[c.status], null]);
+  }
+  return rows;
+}
+

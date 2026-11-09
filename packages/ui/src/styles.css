@@ -69,3 +69,59 @@
 .privacy .amount:hover {
   filter: none;
 }
+
+/* Récapitulatif fiscal : impression sur fond clair, sans l'interface autour. */
+@media print {
+  :root {
+    --color-bg: #fff;
+    --color-surface: #fff;
+    --color-surface-2: #f3f4f6;
+    --color-surface-3: #e5e7eb;
+    --color-line: #d1d5db;
+    --color-line-strong: #9ca3af;
+    --color-fg: #111827;
+    --color-fg-muted: #374151;
+    --color-fg-faint: #4b5563;
+    --color-accent: #7a5a12;
+    --color-positive: #0f7a4f;
+    --color-negative: #b42318;
+    --color-warning: #92400e;
+  }
+  @page {
+    margin: 14mm;
+  }
+  html,
+  body,
+  #root {
+    height: auto;
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-flow,
+  main,
+  .overflow-x-auto {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .privacy .amount {
+    filter: none;
+  }
+  table {
+    font-size: 10px;
+  }
+  th {
+    position: static !important;
+    white-space: normal !important;
+  }
+  tr {
+    break-inside: avoid;
+  }
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+}
+
