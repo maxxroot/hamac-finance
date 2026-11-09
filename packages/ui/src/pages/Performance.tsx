@@ -1,86 +1,116 @@
+import { useMemo, useState } from "react";
+import { assetPerformance, envelopePerformance, scopePerformance, withdrawalTaxes } from "@hamac/core";
 import { Amount } from "@/components/Amount";
-import { Notice, Pct } from "@/components/Stat";
-import { Table, Td, Tr } from "@/components/table";
+import { PeriodSelector } from "@/components/EvolutionChart";
+import { Select } from "@/components/form";
+import { CalendarCard, CumulativeCard, EnvelopeTable, RankingCard, SourcesCard, YearsCard } from "@/components/PerformanceBlocks";
+import { PerformanceCompare } from "@/components/PerformanceCompare";
+import { Notice, Pct, Stat } from "@/components/Stat";
 import { PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
-import { usePortfolio } from "@/lib/portfolio";
-import { SortTh, useSortable } from "@/lib/sort";
-import type { PerformanceRow } from "@hamac/core";
+import { PERIODS, type PeriodKey } from "@/lib/dashboard";
+import { capitalize, formatMonth } from "@/lib/numbers";
+import { ALL_SCOPE, envelopesForScope, findScope, pctText, scopeOptions } from "@/lib/performance";
+import { useHistory, usePortfolio } from "@/lib/portfolio";
 
 export function Performance() {
   const pf = usePortfolio();
-  if (!pf) return null;
+  const history = useHistory();
+  const [period, setPeriod] = useState<PeriodKey>("Tout");
+  const [scopeKey, setScopeKey] = useState(ALL_SCOPE);
+  const monthsBack = PERIODS.find((p) => p.key === period)?.months ?? null;
+
+  const options = useMemo(() => (pf ? scopeOptions(pf.state) : null), [pf]);
+  const scope = options ? (findScope(options, scopeKey) ?? options.all) : null;
+
+  const view = useMemo(() => {
+    if (!pf || !history?.length || !scope) return null;
+    const taxes = withdrawalTaxes(pf.data, pf.state, pf.crypto);
+    return {
+      perf: scopePerformance(pf.data, pf.state, history, scope.accountIds, monthsBack),
+      ranking: assetPerformance(pf.data, pf.state, history, scope.accountIds, monthsBack),
+      envelopes: envelopePerformance(pf.data, pf.state, history, taxes, monthsBack),
+    };
+  }, [pf, history, scope, monthsBack]);
+
+  if (!pf || !history || !options || !scope) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
-  const rows = pf.state.performance;
+
+  const perf = view?.perf ?? null;
+  const rows = envelopesForScope(view?.envelopes ?? [], scope.key);
+  // Sur tout le patrimoine et depuis le début, même chiffre que le tableau de bord.
+  const total = scope.key === ALL_SCOPE && monthsBack == null ? rows.find((r) => r.key === "total") : undefined;
+  const annualized = total ? total.annualized : (perf?.summary.annualized ?? null);
+  const reason = total ? total.annualizedReason : (perf?.summary.annualizedReason ?? null);
+  const nameOf = (id: string) => pf.idx.assetById.get(id)?.name ?? id;
+
   return (
     <>
-      <PageHeader title="Performance" description="Ce que l'argent a réellement rapporté, enveloppe par enveloppe." />
-      <div className="mb-5">
-        <Notice>
-          Le <b className="text-fg">rendement annualisé</b> (TRI) tient compte de la date de chaque versement. Il s'affiche après un an d'historique : sur quelques jours, annualiser n'a pas de sens (+5 % en une semaine
-          ferait +1 000 % par an). Les transferts entre enveloppes comptent pour chaque enveloppe, mais pas pour le total.
-        </Notice>
+      <PageHeader title="Performance" description="Ce que l'argent a réellement rapporté, d'où ça vient, et comment ça se compare." />
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="w-full max-w-72">
+          <Select aria-label="Ce qui est analysé" value={scope.key} onChange={(e) => setScopeKey(e.target.value)}>
+            <option value={options.all.key}>{options.all.label}</option>
+            <optgroup label="Enveloppes">
+              {options.groups.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </optgroup>
+            <optgroup label="Comptes">
+              {options.accounts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </optgroup>
+          </Select>
+        </div>
+        <PeriodSelector value={period} onChange={setPeriod} />
       </div>
-      <PerfTable rows={rows} />
-    </>
-  );
-}
 
-function PerfTable({ rows }: { rows: PerformanceRow[] }) {
-  const total = rows.find((r) => r.key === "total");
-  const { sorted, by } = useSortable(
-    rows.filter((r) => r.key !== "total"),
-    {
-      label: (r) => r.label,
-      value: (r) => r.value,
-      net: (r) => r.netContrib,
-      gain: (r) => r.gain,
-      gainPct: (r) => r.gainPct,
-      irr: (r) => r.irr,
-      hyp: (r) => r.assumption,
-      ecart: (r) => (r.irr != null && r.assumption != null ? r.irr - r.assumption : null),
-    },
-  );
-  const line = (r: PerformanceRow) => (
-    <Tr key={r.key} className={r.key === "total" ? "bg-surface-2/60 font-medium" : undefined}>
-      <Td>{r.label}</Td>
-      <Td align="right">
-        <Amount value={r.value} />
-      </Td>
-      <Td align="right">
-        <Amount value={r.netContrib} />
-      </Td>
-      <Td align="right">
-        <Amount value={r.gain} signed />
-      </Td>
-      <Td align="right">
-        <Pct value={r.gainPct} signed />
-      </Td>
-      <Td align="right" title={r.irrReason ?? undefined}>
-        {r.irr != null ? <Pct value={r.irr} signed /> : <span className="text-xs text-fg-faint">{r.irrReason}</span>}
-      </Td>
-      <Td align="right">{r.assumption != null ? <Pct value={r.assumption} /> : "—"}</Td>
-      <Td align="right">{r.irr != null && r.assumption != null ? <Pct value={r.irr - r.assumption} signed /> : "—"}</Td>
-    </Tr>
-  );
-  return (
-    <Table>
-      <thead>
-        <tr>
-          <SortTh {...by("label")}>Enveloppe</SortTh>
-          <SortTh {...by("value")} align="right">Valeur</SortTh>
-          <SortTh {...by("net")} align="right">Versé net</SortTh>
-          <SortTh {...by("gain")} align="right">Gain (€)</SortTh>
-          <SortTh {...by("gainPct")} align="right">Gain (%)</SortTh>
-          <SortTh {...by("irr")} align="right">Rendement annualisé</SortTh>
-          <SortTh {...by("hyp")} align="right">Hypothèse du plan</SortTh>
-          <SortTh {...by("ecart")} align="right">Écart</SortTh>
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map(line)}
-        {total && line(total)}
-      </tbody>
-    </Table>
+      {!perf && <Notice>Aucune donnée pour le moment : ajoutez un versement pour voir la performance.</Notice>}
+      {perf && (
+        <div className="space-y-5">
+          {perf.unpricedMonths > 0 && (
+            <Notice tone="warning">
+              Sur {perf.unpricedMonths} des {perf.windowMonths} mois affichés, une partie des titres n'a aucun cours connu et compte à son prix de revient : la performance de ces mois paraît plus plate qu'elle ne l'a été.
+            </Notice>
+          )}
+
+          <div className="grid grid-cols-2 gap-4 @3xl:grid-cols-5">
+            <Stat label="Gain" sub={<Pct value={perf.summary.gainPct} signed />}>
+              <Amount value={perf.summary.gain} signed compact />
+            </Stat>
+            <Stat label="Rendement annualisé" sub={annualized != null ? "par an" : perf.summary.rate != null ? `${pctText(perf.summary.rate)} sur la période` : reason}>
+              {annualized != null ? <Pct value={annualized} signed /> : <span className="text-fg-faint">—</span>}
+            </Stat>
+            <Stat label="Dividendes et intérêts" sub={<>dont <Amount value={perf.sources.dividends} compact /> de dividendes</>}>
+              <Amount value={perf.sources.dividends + perf.sources.interests} compact />
+            </Stat>
+            <Stat label="Frais payés" sub={perf.sources.embeddedFees > 0.005 ? <>dont <Amount value={perf.sources.embeddedFees} compact /> dans les achats et ventes</> : undefined}>
+              <Amount value={perf.sources.allFees} compact />
+            </Stat>
+            <Stat label="Plus forte baisse" sub={perf.drawdown ? `${capitalize(formatMonth(perf.drawdown.troughMonth))} · ${perf.drawdown.recoveredMonth ? "rattrapée" : "pas encore rattrapée"}` : "aucune sur la période"}>
+              {perf.drawdown ? <Pct value={perf.drawdown.depth} signed /> : <span className="text-fg-faint">—</span>}
+            </Stat>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <CumulativeCard curve={perf.curve} />
+            <SourcesCard sources={perf.sources} />
+          </div>
+
+          <PerformanceCompare data={pf.data} state={pf.state} history={history} idx={pf.idx} options={options} monthsBack={monthsBack} />
+
+          <YearsCard years={perf.years} />
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <CalendarCard calendar={perf.calendar} stats={perf.stats} />
+            <RankingCard rows={view?.ranking ?? []} nameOf={nameOf} />
+          </div>
+
+          <EnvelopeTable rows={rows} wholeHistory={monthsBack == null} />
+
+          <p className="text-xs text-fg-faint">
+            Le <b>rendement annualisé</b> tient compte de la date de chaque versement. Il s'affiche à partir d'un an : sur quelques jours, annualiser n'a pas de sens. Le <b>rendement cumulé</b> et le calendrier mesurent seulement les placements, sans l'effet de l'argent ajouté, mois par mois. Une
+            baisse et sa remontée dans un même mois n'y apparaissent donc pas. Les transferts entre enveloppes comptent pour chaque enveloppe, mais pas pour le total. « Gain après impôts » : ce qui resterait si tout était retiré aujourd'hui.
+          </p>
+        </div>
+      )}
+    </>
   );
 }

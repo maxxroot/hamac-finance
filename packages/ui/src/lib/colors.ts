@@ -20,3 +20,9 @@ export const INK = {
   surface2: "#181b22",
   accent: "#f2c35b",
 };
+
+/** Gain et perte dans les graphiques (mêmes valeurs que le thème). */
+export const POLARITY = { positive: "#3ecf8e", negative: "#f2645a" };
+
+/** Les deux côtés d'une comparaison : validés sur fond sombre, daltonisme compris. */
+export const COMPARE_COLORS = ["#cf7a25", "#539ad3"] as const;
