@@ -10,6 +10,7 @@ import { useSearchParams } from "react-router";
 import { AllocationTargets } from "@/components/AllocationTargets";
 import { MarketSources } from "@/components/MarketSources";
 import { PasswordCard } from "@/components/PasswordCard";
+import { TwoFactorCard } from "@/components/TwoFactorCard";
 import { Etablissements } from "@/pages/Etablissements";
 import { RowActions } from "@/components/RowActions";
 import {
@@ -54,7 +55,12 @@ type Tab = (typeof TABS)[number];
 
 export function Parametres() {
   const [search] = useSearchParams();
-  const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t === search.get("onglet")) ?? "Plan");
+  const wantedTab = TABS.find((t) => t === search.get("onglet"));
+  const [tab, setTab] = useState<Tab>(wantedTab ?? "Plan");
+  // Un lien vers un onglet peut être suivi alors que la page est déjà ouverte (bandeau de double authentification).
+  useEffect(() => {
+    if (wantedTab) setTab(wantedTab);
+  }, [wantedTab, search]);
   const draft = usePlanDraft();
   return (
     <>
@@ -607,6 +613,7 @@ function AppTab() {
   return (
     <div className="max-w-3xl space-y-5">
       <PasswordCard />
+      <TwoFactorCard />
       <BackupCard />
       <AppInfo info={info} />
     </div>
