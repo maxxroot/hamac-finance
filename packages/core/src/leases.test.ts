@@ -127,6 +127,13 @@ describe("validation d'un bail", () => {
     expect(validateLease({ ...nouveau, startDate: "2025-12-06" }, [parti])).toBeNull();
     expect(validateLease({ ...nouveau, startDate: "2025-12-05" }, [parti])).toContain("déjà un bail");
   });
+  it("date de début vide ou incomplète, durée nulle : un message, jamais d'erreur ni de calcul sans fin", () => {
+    expect(validateLease({ ...vide, startDate: "" }, [])).toContain("date de début");
+    expect(validateLease({ ...vide, startDate: "0002-01-15" }, [])).toContain("date de début");
+    expect(validateLease({ ...vide, durationMonths: 0 }, [])).toContain("durée");
+    expect(validateLease({ ...vide, durationMonths: 0, noticeBy: "proprietaire", noticeDate: "2026-01-01" }, [])).toContain("durée");
+  });
+
   it("ignore le bail en cours de modification, contrôle congé et départ", () => {
     expect(validateLease(vide, [vide])).toBeNull();
     expect(validateLease({ ...vide, noticeBy: "locataire" }, [])).toContain("qui donne congé");

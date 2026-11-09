@@ -322,6 +322,16 @@ describe("parcours de l'interface", () => {
     }
   });
 
+  it("nouveau bail : effacer la date de début ou la durée affiche un message sans planter", async () => {
+    const bien = await rpc<Property>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
+    show(<LeaseDialog open property={bien} lease={null} others={[]} onClose={() => undefined} />);
+    fireEvent.change(fieldOf("Début du bail"), { target: { value: "" } });
+    expect(await screen.findByText(/Indiquez la date de début/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Ajouter" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(fieldOf("Début du bail"), { target: { value: "2026-03-01" } });
+    expect(await screen.findByText(/se reconduit automatiquement/)).toBeTruthy();
+  });
+
   it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

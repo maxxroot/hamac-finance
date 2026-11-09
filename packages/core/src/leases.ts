@@ -1,4 +1,4 @@
-import { addDays, addMonths } from "./dates";
+import { addDays, addMonths, isIsoDate } from "./dates";
 import { roundCents } from "./money";
 import type { PropertyOwnership } from "./realestate";
 import { daysBetween } from "./xirr";
@@ -211,6 +211,9 @@ const frDate = (iso: string) => iso.split("-").reverse().join("/");
 
 /** Contrôle partagé par le formulaire et le backend : message d'erreur, ou null si le bail est valide. */
 export function validateLease(lease: LeaseDates & { id?: string }, others: readonly (LeaseDates & { id: string })[]): string | null {
+  // Pendant la saisie : une date vide ou incomplète, ou une durée nulle, ne permettent aucun calcul d'échéance.
+  if (!isIsoDate(lease.startDate)) return "Indiquez la date de début du bail.";
+  if (lease.durationMonths < 1) return "Indiquez la durée du bail.";
   if ((lease.noticeBy == null) !== (lease.noticeDate == null)) return "Indiquez qui donne congé et à quelle date.";
   if (lease.noticeDate && lease.noticeDate < lease.startDate) return "Le congé ne peut pas précéder le début du bail.";
   if (lease.actualEnd && lease.actualEnd < lease.startDate) return "Le départ ne peut pas précéder le début du bail.";

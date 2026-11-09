@@ -32,7 +32,7 @@ export function LeaseDialog({ open, property, lease, others, onClose }: { open: 
   const changeNoticeBy = (by: LeaseNoticeBy | null) => update(by ? { noticeBy: by, noticeDate: d.noticeDate ?? todayIso(), noticeMonths: null } : { noticeBy: null, noticeDate: null, noticeMonths: null });
 
   const error = validateLease(d, others);
-  const end = leaseEnd(d);
+  const end = error ? null : leaseEnd(d);
   const depositCap = maxDeposit(d.kind, d.rent);
   const depositTooHigh = depositCap != null && d.deposit > depositCap;
   const noticeChoice = d.kind === "vide" || d.kind === "autre";
