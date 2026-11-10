@@ -106,6 +106,31 @@ export interface CrowdSummary {
   averageRate: number | null;
 }
 
+/**
+ * Nombre de projets par situation, en une ligne : « 12 projets investis · 8 en cours · 4 remboursés ».
+ * Mêmes catégories que les étiquettes du tableau : un projet « échéance dépassée » n'est donc pas compté en cours.
+ * Les situations sans aucun projet sont omises.
+ */
+export function crowdCountsLabel(states: readonly CrowdProjectState[]): string {
+  const count = (test: (s: CrowdProjectState) => boolean) => states.filter(test).length;
+  const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+  const onTime = count((s) => s.status === "en_cours" && !s.overdue);
+  const overdue = count((s) => s.overdue);
+  const late = count((s) => s.status === "retard");
+  const defaulted = count((s) => s.status === "defaut");
+  const repaid = count((s) => s.status === "rembourse");
+  return [
+    plural(states.length, "projet investi", "projets investis"),
+    onTime > 0 && `${onTime} en cours`,
+    overdue > 0 && plural(overdue, "échéance dépassée", "échéances dépassées"),
+    late > 0 && `${late} en retard`,
+    defaulted > 0 && `${defaulted} en défaut`,
+    repaid > 0 && plural(repaid, "remboursé", "remboursés"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function crowdSummary(states: readonly CrowdProjectState[]): CrowdSummary {
   const live = states.filter((s) => s.status === "en_cours" || s.status === "retard");
   const active = live.reduce((t, s) => t + s.outstanding, 0);

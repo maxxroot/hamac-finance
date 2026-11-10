@@ -498,6 +498,7 @@ describe("parcours de l'interface", () => {
     await user.click(screen.getByRole("button", { name: "Ajouter" }));
     const row = (await screen.findByText("Résidence Lyon")).closest("tr")!;
     expect(within(row).getByText("En cours")).toBeTruthy();
+    expect(screen.getByText("1 projet investi · 1 en cours")).toBeTruthy();
     await user.click(within(row).getByRole("button", { name: "Modifier" }));
     expect(screen.queryByLabelText("Montant espéré")).toBeNull();
     await user.selectOptions(fieldOf("Statut"), "rembourse");

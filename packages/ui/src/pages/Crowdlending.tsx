@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { Fragment, useState } from "react";
-import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdInitialEndDate, crowdSummary, crowdTaxOf, formatPct, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
+import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdCountsLabel, crowdInitialEndDate, crowdSummary, crowdTaxOf, formatPct, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
 import { AccountEvolution } from "@/components/AccountEvolution";
 import { AddAccountButton } from "@/components/AccountButtons";
 import { Amount } from "@/components/Amount";
@@ -62,6 +62,8 @@ export function Crowdlending() {
         </EmptyEnvelope>
       ) : (
         <>
+          {states.length > 0 && <p className="-mt-6 mb-6 text-xs text-fg-muted">{crowdCountsLabel(states)}</p>}
+
           <StatGrid>
             <Stat label="Capital en cours" sub={summary.averageRate != null ? `taux moyen ${formatPct(summary.averageRate)}` : undefined}>
               <span className="text-2xl">

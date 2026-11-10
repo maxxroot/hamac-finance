@@ -1,9 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { crowdExtensionError, crowdProjectState, crowdSummary, type CrowdProject } from "./crowdlending";
+import { crowdCountsLabel, crowdExtensionError, crowdProjectState, crowdSummary, type CrowdProject } from "./crowdlending";
 
 const p = (o: Partial<CrowdProject> = {}): CrowdProject => ({ id: "p", accountId: "c", name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", ...o });
 
 describe("crowdlending", () => {
+  it("compte les projets par situation et omet celles qui sont vides", () => {
+    const asOf = "2026-06-01";
+    const enCours = crowdProjectState(p(), asOf);
+    const depassee = crowdProjectState(p({ startDate: "2025-01-15" }), asOf);
+    const retard = crowdProjectState(p({ status: "retard" }), asOf);
+    const defaut = crowdProjectState(p({ status: "defaut" }), asOf);
+    const rembourse = crowdProjectState(p({ status: "rembourse" }), asOf);
+    expect(crowdCountsLabel([])).toBe("0 projet investi");
+    expect(crowdCountsLabel([enCours])).toBe("1 projet investi · 1 en cours");
+    expect(crowdCountsLabel([enCours, enCours, rembourse, rembourse])).toBe("4 projets investis · 2 en cours · 2 remboursés");
+    expect(crowdCountsLabel([enCours, depassee, depassee, retard, defaut, rembourse])).toBe("6 projets investis · 1 en cours · 2 échéances dépassées · 1 en retard · 1 en défaut · 1 remboursé");
+  });
+
   it("in fine : tout le capital reste dû jusqu'au remboursement", () => {
     expect(crowdProjectState(p(), "2026-06-01")).toMatchObject({ repaid: 0, outstanding: 1_000, value: 1_000, nextDate: "2027-01-15", overdue: false, endDate: "2027-01-15" });
   });
