@@ -12,6 +12,8 @@ export interface AccountHistoryDetail {
   fees: number;
   /** Frais compris dans les achats et les ventes : ils pèsent déjà sur les plus-values. */
   embeddedFees: number;
+  /** Impôts débités à part. */
+  taxes: number;
   realized: number;
   unrealized: number;
   /** Valeur des titres sans aucun cours connu à cette date, donc comptés à leur prix de revient. */
@@ -85,6 +87,7 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
             dividends: a.dividends,
             fees: a.fees,
             embeddedFees: a.positionTotals.reduce((t, p) => t + p.fees, 0),
+            taxes: a.taxes,
             realized: a.realizedGain,
             unrealized: a.positions.reduce((t, p) => t + p.gain, 0),
             unpriced: a.positions.reduce((t, p) => t + (p.priceUsed === "cout" ? p.value : 0), 0),

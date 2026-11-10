@@ -91,6 +91,19 @@ describe("page Performance sur un portefeuille", () => {
     expect(s.other).toBe(0);
   });
 
+  it("d'où vient le gain : les impôts débités à part ont leur ligne, distincte des frais", () => {
+    const d = base();
+    d.transactions = [...d.transactions, tx("2025-09-30", "impots", "cto", 9)];
+    const state = computePortfolio(d, ASOF);
+    const s = gainSources(null, buildHistory(d, ASOF).at(-1)!, ["pea", "cto"]);
+    expect(s.total).toBe(state.totals.gain);
+    expect(s.taxes).toBe(9);
+    expect(s.billedFees).toBe(10);
+    expect(s.other).toBe(0);
+    const cto = state.accounts.find((a) => a.account.id === "cto")!;
+    expect(cto).toMatchObject({ taxes: 9, fees: 0 });
+  });
+
   it("sur une période, seul ce qui s'est passé depuis le point de départ compte", () => {
     const d = base();
     const state = computePortfolio(d, ASOF);

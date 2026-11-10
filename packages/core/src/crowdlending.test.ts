@@ -92,12 +92,14 @@ describe("crowdlending", () => {
   });
 
   it("intérêts du mois : une ligne sans prélèvement, deux lignes avec, datées du dernier jour du mois", () => {
-    const base = { accountId: "c", month: "2026-02", monthLabel: "février 2026", gross: 100 };
+    const base = { accountId: "c", month: "2026-02", monthLabel: "février 2026", gross: 100, today: "2026-11-10" };
     expect(crowdInterestEntries({ ...base, withheld: null })).toEqual([{ date: "2026-02-28", type: "interets", accountId: "c", amount: 100, comment: "Intérêts de février 2026", gross: null, withheldIncomeTax: null, withheldSocial: null }]);
     expect(crowdInterestEntries({ ...base, withheld: { incomeTax: 12.8, social: 18.6 } })).toEqual([
       { date: "2026-02-28", type: "interets", accountId: "c", amount: 100, comment: "Intérêts bruts de février 2026", gross: 100, withheldIncomeTax: 12.8, withheldSocial: 18.6 },
-      { date: "2026-02-28", type: "frais", accountId: "c", amount: 31.4, comment: "Impôts prélevés sur les intérêts de février 2026", gross: null, withheldIncomeTax: null, withheldSocial: null },
+      { date: "2026-02-28", type: "impots", accountId: "c", amount: 31.4, comment: "Impôts prélevés sur les intérêts de février 2026", gross: null, withheldIncomeTax: null, withheldSocial: null },
     ]);
     expect(crowdInterestEntries({ ...base, withheld: { incomeTax: 0, social: 0 } })).toHaveLength(1);
+    // Mois en cours : datées d'aujourd'hui, sinon les intérêts n'entreraient dans les espèces qu'à la fin du mois.
+    expect(crowdInterestEntries({ ...base, month: "2026-11", withheld: { incomeTax: 12.8, social: 18.6 } }).map((l) => l.date)).toEqual(["2026-11-10", "2026-11-10"]);
   });
 });

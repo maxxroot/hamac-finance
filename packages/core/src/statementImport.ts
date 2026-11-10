@@ -205,7 +205,7 @@ export interface BuildImportInput {
   assetOverrides?: ReadonlyMap<string, string>;
 }
 
-const OUTFLOW_TYPES: readonly TxType[] = ["retrait", "frais", "achat"];
+const OUTFLOW_TYPES: readonly TxType[] = ["retrait", "frais", "impots", "achat"];
 const INFLOW_TYPES: readonly TxType[] = ["versement", "interets", "dividende", "vente"];
 
 /**
@@ -213,7 +213,7 @@ const INFLOW_TYPES: readonly TxType[] = ["versement", "interets", "dividende", "
  * Seul un relevé signé permet de trancher : beaucoup d'exports de courtiers donnent des montants tous positifs.
  */
 function matchSign(type: TxType, raw: number): TxType {
-  if (raw > 0 && OUTFLOW_TYPES.includes(type)) return type === "frais" ? "correction" : "versement";
+  if (raw > 0 && OUTFLOW_TYPES.includes(type)) return type === "frais" || type === "impots" ? "correction" : "versement";
   if (raw < 0 && INFLOW_TYPES.includes(type)) return type === "interets" || type === "dividende" ? "frais" : "retrait";
   return type;
 }

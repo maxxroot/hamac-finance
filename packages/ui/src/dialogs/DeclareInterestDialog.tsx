@@ -25,20 +25,22 @@ export function DeclareInterestDialog({
   const [accountId, setAccountId] = useState(platforms[0]?.id ?? "");
   const [month, setMonth] = useState(todayIso().slice(0, 7));
   const [gross, setGross] = useState<number | null>(null);
-  // null : impôts calculés d'après le taux de la plateforme ; sinon, le montant lu sur son relevé.
+  // null : impôts calculés d'après le taux de la plateforme (aucun si elle ne prélève pas) ; sinon, le montant lu sur son relevé.
   const [taxOverride, setTaxOverride] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const save = useMutate("transactions.bulkCreate", { success: "Intérêts enregistrés" });
 
   const tax = taxes.get(accountId);
-  const withholding = tax?.withheld && gross != null && gross > 0 ? crowdWithholding(gross, tax.rate, params, taxOverride ?? undefined) : null;
+  const platformWithholds = tax?.withheld ?? false;
+  const computed = gross != null && gross > 0 && tax ? crowdWithholding(gross, tax.rate, params, taxOverride ?? (platformWithholds ? undefined : 0)) : null;
+  const withholding = computed && computed.total > 0 ? computed : null;
   const net = withholding && gross != null ? gross - withholding.total : null;
   const already = journal.filter((t) => t.accountId === accountId && t.type === "interets" && t.date.startsWith(`${month}-`)).reduce((s, t) => s + (t.gross ?? t.amount), 0);
   const invalid = !accountId || !month || !gross || gross <= 0 || (withholding != null && withholding.total >= gross);
 
   const submit = () => {
     setError(null);
-    const items = crowdInterestEntries({ accountId, month, monthLabel: formatMonth(month), gross: gross!, withheld: withholding });
+    const items = crowdInterestEntries({ accountId, month, monthLabel: formatMonth(month), gross: gross!, withheld: withholding, today: todayIso() });
     save.mutate(
       { items },
       {
@@ -87,14 +89,19 @@ export function DeclareInterestDialog({
           )}
         </Field>
         <Field label="Mois">{(id) => <TextInput id={id} type="month" value={month} onChange={(e) => setMonth(e.target.value)} />}</Field>
-        <Field label="Intérêts bruts" help={tax?.withheld ? "Avant impôts, tels qu'affichés par la plateforme avant son prélèvement." : "Les impôts ne sont pas prélevés par la plateforme : ils seront à payer."}>
+        <Field label="Intérêts bruts" help="Avant impôts, tels qu'affichés par la plateforme avant son prélèvement.">
           {(id) => <MoneyInput id={id} value={gross} onChange={setGross} />}
         </Field>
-        {tax?.withheld && (
-          <Field label="Impôts prélevés" help={`Calculés au taux de la plateforme (${formatPct(tax.rate)}). Corrigez-les s'ils diffèrent de quelques centimes sur son relevé.`}>
-            {(id) => <MoneyInput id={id} value={withholding?.total ?? null} onChange={setTaxOverride} disabled={!gross} />}
-          </Field>
-        )}
+        <Field
+          label="Impôts prélevés"
+          help={
+            platformWithholds
+              ? `Calculés au taux de la plateforme (${formatPct(tax!.rate)}). Corrigez-les s'ils diffèrent de son relevé.`
+              : "Cette plateforme n'est pas réglée comme prélevant les impôts (case sur sa fiche, Paramètres › Établissements) : laissez vide s'ils restent à payer, sinon indiquez ce qu'elle a retenu."
+          }
+        >
+          {(id) => <MoneyInput id={id} value={taxOverride ?? withholding?.total ?? null} onChange={setTaxOverride} />}
+        </Field>
         {withholding && net != null && (
           <p className="text-sm text-fg-muted">
             Deux lignes au Journal : intérêts {formatEur(gross!)}, puis impôts {formatEur(withholding.total)} (acompte d'impôt {formatEur(withholding.incomeTax)}, prélèvements sociaux {formatEur(withholding.social)}). Reste crédité : {formatEur(net)}.

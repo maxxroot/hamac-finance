@@ -16,15 +16,15 @@ export const ALLOWED_ASSETS: Record<AccountKind, readonly AssetKind[]> = {
 
 /** Opérations possibles selon le type de compte. */
 export const ALLOWED_TYPES: Record<AccountKind, readonly TxType[]> = {
-  livret: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "correction"],
-  assurance_vie: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
-  pea: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
-  pea_pme: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
-  per: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
-  crowdlending: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "correction"],
-  epargne_salariale: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
-  cto: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "correction"],
-  crypto: ["apport_initial", "versement", "retrait", "interets", "achat", "vente", "transfert", "frais", "correction"],
+  livret: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "impots", "correction"],
+  assurance_vie: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  pea: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  pea_pme: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  per: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  crowdlending: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "impots", "correction"],
+  epargne_salariale: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  cto: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  crypto: ["apport_initial", "versement", "retrait", "interets", "achat", "vente", "transfert", "frais", "impots", "correction"],
 };
 
 export interface FieldError {

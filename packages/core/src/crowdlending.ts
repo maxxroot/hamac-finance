@@ -145,19 +145,21 @@ export function crowdSummary(states: readonly CrowdProjectState[]): CrowdSummary
 export type CrowdInterestEntry = Pick<Transaction, "date" | "type" | "accountId" | "amount" | "comment" | "gross" | "withheldIncomeTax" | "withheldSocial">;
 
 /**
- * Lignes du journal pour les intérêts d'un mois sur une plateforme, datées du dernier jour du mois.
+ * Lignes du journal pour les intérêts d'un mois sur une plateforme, datées du dernier jour du mois,
+ * ou d'aujourd'hui pour le mois en cours : une opération future ne compte pas encore dans les espèces.
  * Sans impôts prélevés : une seule ligne, les intérêts bruts. Avec : les intérêts bruts crédités, puis les impôts
- * débités à part, comme sur le relevé de la plateforme. La ligne d'intérêts garde le brut et les retenues,
+ * débités à part (opération « Impôts »), comme sur le relevé de la plateforme. La ligne d'intérêts garde le brut et les retenues,
  * pour que le récapitulatif fiscal sache que l'impôt est déjà payé.
  */
-export function crowdInterestEntries(input: { accountId: string; month: string; monthLabel: string; gross: number; withheld: { incomeTax: number; social: number } | null }): CrowdInterestEntry[] {
+export function crowdInterestEntries(input: { accountId: string; month: string; monthLabel: string; gross: number; withheld: { incomeTax: number; social: number } | null; today: string }): CrowdInterestEntry[] {
   const [y, m] = input.month.split("-").map(Number);
-  const date = `${input.month}-${String(new Date(Date.UTC(y!, m!, 0)).getUTCDate()).padStart(2, "0")}`;
+  const lastDay = `${input.month}-${String(new Date(Date.UTC(y!, m!, 0)).getUTCDate()).padStart(2, "0")}`;
+  const date = lastDay > input.today ? input.today : lastDay;
   const gross = roundCents(input.gross);
   const tax = input.withheld ? roundCents(input.withheld.incomeTax + input.withheld.social) : 0;
   if (!input.withheld || tax <= 0) return [{ date, type: "interets", accountId: input.accountId, amount: gross, comment: `Intérêts de ${input.monthLabel}`, gross: null, withheldIncomeTax: null, withheldSocial: null }];
   return [
     { date, type: "interets", accountId: input.accountId, amount: gross, comment: `Intérêts bruts de ${input.monthLabel}`, gross, withheldIncomeTax: roundCents(input.withheld.incomeTax), withheldSocial: roundCents(input.withheld.social) },
-    { date, type: "frais", accountId: input.accountId, amount: tax, comment: `Impôts prélevés sur les intérêts de ${input.monthLabel}`, gross: null, withheldIncomeTax: null, withheldSocial: null },
+    { date, type: "impots", accountId: input.accountId, amount: tax, comment: `Impôts prélevés sur les intérêts de ${input.monthLabel}`, gross: null, withheldIncomeTax: null, withheldSocial: null },
   ];
 }

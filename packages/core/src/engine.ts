@@ -120,6 +120,8 @@ export interface AccountState {
   interests: number;
   dividends: number;
   fees: number;
+  /** Impôts débités à part (opérations « Impôts »). */
+  taxes: number;
   corrections: number;
   realizedGain: number;
   /** Résultats cumulés par titre, y compris les titres entièrement vendus ou remboursés. */
@@ -228,6 +230,7 @@ interface AccAcc {
   interests: number;
   dividends: number;
   fees: number;
+  taxes: number;
   corrections: number;
   positions: Map<string, PosAcc>;
 }
@@ -247,6 +250,7 @@ const RANK: Record<TxType, number> = {
   achat: 7,
   retrait: 8,
   frais: 9,
+  impots: 10,
 };
 
 export function bondTerms(asset: Asset): BondTerms | null {
@@ -255,7 +259,7 @@ export function bondTerms(asset: Asset): BondTerms | null {
 }
 
 function newAcc(): AccAcc {
-  return { cash: 0, initial: 0, contrib: 0, interests: 0, dividends: 0, fees: 0, corrections: 0, positions: new Map() };
+  return { cash: 0, initial: 0, contrib: 0, interests: 0, dividends: 0, fees: 0, taxes: 0, corrections: 0, positions: new Map() };
 }
 
 function position(acc: AccAcc, asset: Asset): PosAcc {
@@ -348,6 +352,10 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       case "frais":
         acc.cash -= tx.amount;
         acc.fees += tx.amount;
+        break;
+      case "impots":
+        acc.cash -= tx.amount;
+        acc.taxes += tx.amount;
         break;
       case "correction":
         acc.cash += tx.amount;
@@ -458,6 +466,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       interests: roundCents(acc.interests),
       dividends: roundCents(acc.dividends),
       fees: roundCents(acc.fees),
+      taxes: roundCents(acc.taxes),
       corrections: roundCents(acc.corrections),
       realizedGain: roundCents([...acc.positions.values()].reduce((s, p) => s + p.realized, 0)),
       positionTotals: [...acc.positions.values()].map((p) => ({ assetId: p.asset.id, realized: roundCents(p.realized), income: roundCents(p.income), fees: roundCents(p.fees) })),

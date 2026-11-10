@@ -100,6 +100,8 @@ export interface GainSources {
   interests: number;
   /** Frais facturés à part, déduits du gain (positif). */
   billedFees: number;
+  /** Impôts débités à part, déduits du gain (positif). */
+  taxes: number;
   /** Corrections et pertes de crowdlending. */
   other: number;
   total: number;
@@ -216,6 +218,8 @@ function cumulated(h: HistoryPoint | null, ids: readonly string[]) {
     interests: pick((d) => d.interests),
     fees: pick((d) => d.fees),
     embeddedFees: pick((d) => d.embeddedFees),
+    // Historique antérieur au type « Impôts » : champ absent.
+    taxes: pick((d) => d.taxes ?? 0),
   };
 }
 
@@ -225,13 +229,14 @@ export function gainSources(start: HistoryPoint | null, end: HistoryPoint, ids: 
   const b = cumulated(end, ids);
   const d = (k: keyof typeof a) => b[k] - a[k];
   const billedFees = d("fees") - d("embeddedFees");
-  const known = d("unrealized") + d("realized") + d("dividends") + d("interests") - billedFees;
+  const known = d("unrealized") + d("realized") + d("dividends") + d("interests") - billedFees - d("taxes");
   return {
     unrealized: roundCents(d("unrealized")),
     realized: roundCents(d("realized")),
     dividends: roundCents(d("dividends")),
     interests: roundCents(d("interests")),
     billedFees: roundCents(billedFees),
+    taxes: roundCents(d("taxes")),
     other: roundCents(d("gain") - known),
     total: roundCents(d("gain")),
     allFees: roundCents(d("fees")),

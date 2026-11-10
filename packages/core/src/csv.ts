@@ -82,6 +82,8 @@ export function parseDate(s: string): string | null {
 /** Devine le type d'opération d'après le libellé d'un relevé. */
 export function guessType(label: string, amount: number): TxType {
   const l = label.toLowerCase();
+  // Débit seulement : « dividende net d'impôt » reste un dividende.
+  if (amount < 0 && /imp[ôo]ts?\b|pr[ée]l[èe]vements? sociaux|\bcsg\b/.test(l)) return "impots";
   if (/achat|buy|souscription/.test(l)) return "achat";
   if (/vente|sell|cession/.test(l)) return "vente";
   if (/dividende|dividend/.test(l)) return "dividende";

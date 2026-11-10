@@ -28,6 +28,7 @@ function direction(t: Transaction): 1 | -1 | 0 {
     case "retrait":
     case "achat":
     case "frais":
+    case "impots":
     case "transfert":
       return -1;
     case "correction":

@@ -325,7 +325,7 @@ describe("historique reconstruit", () => {
     const p = defaultParams(new Date(2026, 0, 1));
     const account = { id: "c", kind: "crowdlending", livretType: null, name: "c", institutionId: "e", openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false } as Account;
     const institution = { id: "e", name: "e", kind: "crowdlending", website: "", score: null, comment: "", offers: { crowdlending: { taxWithheld: true, taxRate: 0.314 } } } as Institution;
-    const lines = crowdInterestEntries({ accountId: "c", month: "2026-03", monthLabel: "mars 2026", gross: 100, withheld: crowdWithholding(100, 0.314, p) });
+    const lines = crowdInterestEntries({ accountId: "c", month: "2026-03", monthLabel: "mars 2026", gross: 100, withheld: crowdWithholding(100, 0.314, p), today: "2026-06-01" });
     const transactions = lines.map((l, i) => ({ id: `t${i}`, assetId: null, counterAccountId: null, quantity: null, fee: null, ...l }) as Transaction);
     const d: EngineData = { params: p, accounts: [account], assets: [], plans: [], skips: [], prices: [], institutions: [institution], transactions };
     const row = yearlyTaxes(d, cryptoTax(d, "2026-06-01"), "2026-06-01", []).find((y) => y.year === 2026)!;
@@ -336,6 +336,8 @@ describe("historique reconstruit", () => {
     const acc = computePortfolio(d, "2026-06-01").accounts[0]!;
     expect(acc.cash).toBeCloseTo(68.6, 2);
     expect(acc.interests).toBeCloseTo(100, 2);
+    expect(acc.taxes).toBeCloseTo(31.4, 2);
+    expect(acc.fees).toBe(0);
   });
 });
 

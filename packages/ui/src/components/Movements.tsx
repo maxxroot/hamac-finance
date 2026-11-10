@@ -10,7 +10,7 @@ import { formatDate, formatQty } from "@/lib/numbers";
 import { useJournal } from "@/lib/journal";
 import { useWorkspaceIndex } from "@/lib/workspace";
 
-const OUT: TxType[] = ["retrait", "achat", "frais"];
+const OUT: TxType[] = ["retrait", "achat", "frais", "impots"];
 
 /** Mouvements (repris du journal) d'un ensemble de comptes, du plus récent au plus ancien. */
 export function Movements({

@@ -127,6 +127,7 @@ export const TX_TYPES = [
   "vente",
   "transfert",
   "frais",
+  "impots",
   "correction",
 ] as const;
 export type TxType = (typeof TX_TYPES)[number];
@@ -141,6 +142,7 @@ export const TX_LABELS: Record<TxType, string> = {
   vente: "Vente",
   transfert: "Transfert",
   frais: "Frais",
+  impots: "Impôts",
   correction: "Correction",
 };
 
@@ -154,6 +156,7 @@ export const TX_HELP: Record<TxType, string> = {
   vente: "Montant = total reçu, frais déduits.",
   transfert: "D'un compte vers un autre, en une seule opération (ex. excédent des livrets vers le fonds euros).",
   frais: "Frais facturés à part (droits de garde, frais de gestion…).",
+  impots: "Impôts ou prélèvements sociaux débités à part, par exemple ceux qu'une plateforme de crowdlending retient sur ses intérêts.",
   correction: "Aligne le calcul sur la valeur réelle (relevé). Peut être négative.",
 };
 

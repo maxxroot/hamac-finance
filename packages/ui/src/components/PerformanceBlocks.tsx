@@ -48,6 +48,7 @@ export function SourcesCard({ sources: s }: { sources: GainSources }) {
     { label: "Dividendes", value: s.dividends },
     { label: "Intérêts", value: s.interests },
     { label: "Frais facturés à part", value: -s.billedFees },
+    { label: "Impôts prélevés", value: -s.taxes },
     { label: "Corrections et autres", value: s.other },
   ].filter((l) => Math.abs(l.value) >= 0.005);
   // Une seule échelle : l'axe se place selon la part des montants négatifs.

@@ -31,5 +31,8 @@ describe("CSV", () => {
     expect(guessType("Coupon OAT", 68)).toBe("interets");
     expect(guessType("Virement reçu", 100)).toBe("versement");
     expect(guessType("Prélèvement", -50)).toBe("retrait");
+    expect(guessType("Prélèvements sociaux sur intérêts", -17.2)).toBe("impots");
+    expect(guessType("Impôt retenu à la source", -12.8)).toBe("impots");
+    expect(guessType("Dividende net d'impôt", 50)).toBe("dividende");
   });
 });

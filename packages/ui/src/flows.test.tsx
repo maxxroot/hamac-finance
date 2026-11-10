@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testBackend } from "@hamac/backend/testkit";
 import type { Property } from "@hamac/core";
+import { todayIso } from "@/lib/numbers";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
 import { InstitutionDialog } from "@/dialogs/InstitutionDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
@@ -536,10 +537,27 @@ describe("parcours de l'interface", () => {
     expect(await screen.findByText("Rendement réel annualisé")).toBeTruthy();
     await user.type(await screen.findByLabelText("Intérêts bruts"), "42");
     await user.tab();
-    expect(screen.queryByLabelText("Impôts prélevés")).toBeNull();
+    // Plateforme non réglée pour prélever : le champ des impôts est visible mais vide.
+    expect(fieldOf("Impôts prélevés").value).toBe("");
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(async () => expect((await workspace()).transactions).toMatchObject([{ type: "interets", amount: 42 }]));
     expect((await rpc<{ transactions: Array<{ accountId: string }> }>("workspace.load")).transactions[0]!.accountId).toBe(c.id);
+  });
+
+  it("impôts saisis à la main sur une plateforme non réglée pour prélever : deux lignes au journal", async () => {
+    const user = userEvent.setup();
+    await rpc("accounts.upsert", { kind: "crowdlending", name: "Bricks" });
+    show(<Crowdlending />);
+    await user.click(await screen.findByRole("button", { name: "Déclarer les intérêts du mois" }));
+    await user.type(await screen.findByLabelText("Intérêts bruts"), "10");
+    await user.type(fieldOf("Impôts prélevés"), "3");
+    await user.tab();
+    expect(await screen.findByText(/Reste crédité : 7,00/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () => expect((await workspace()).transactions).toHaveLength(2));
+    const txs = (await workspace()).transactions;
+    expect(txs.find((t) => t.type === "interets")).toMatchObject({ amount: 10, gross: 10 });
+    expect(txs.find((t) => t.type === "impots")).toMatchObject({ amount: 3 });
   });
 
   it("plateforme qui prélève les impôts : intérêts bruts, impôts calculés, deux lignes au journal", async () => {
@@ -560,7 +578,10 @@ describe("parcours de l'interface", () => {
     await waitFor(async () => expect((await workspace()).transactions).toHaveLength(2));
     const txs = (await workspace()).transactions;
     expect(txs.find((t) => t.type === "interets")).toMatchObject({ amount: 50, gross: 50, withheldIncomeTax: 6.41, withheldSocial: 8.61 });
-    expect(txs.find((t) => t.type === "frais")).toMatchObject({ amount: 15.02 });
+    expect(txs.find((t) => t.type === "impots")).toMatchObject({ amount: 15.02 });
+    // Mois en cours : datées d'aujourd'hui, pour compter tout de suite dans les espèces à réinvestir.
+    const dates = (await rpc<{ transactions: Array<{ date: string }> }>("workspace.load")).transactions.map((t) => t.date);
+    expect(dates).toEqual([todayIso(), todayIso()]);
   });
 
   it("import Bricks : aperçu, application, puis rien de neuf au second passage", async () => {
