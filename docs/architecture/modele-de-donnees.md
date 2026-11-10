@@ -29,7 +29,7 @@ Hamac reprend la logique d'un Google Sheet de plan d'épargne retraite, en corri
 - Obligation : quantité = nominal en euros ; prix d'achat en % du nominal = (montant − frais) / nominal × 100.
 - Transfert : une seule opération, compte source → compte de destination.
 
-- Dividende ou intérêts : `amount` reste le net crédité. `gross` et les retenues (`withheld_income_tax`, `withheld_social`, `withheld_foreign`) sont facultatifs.
+- Dividende ou intérêts : `amount` reste le net crédité. `gross` et les retenues (`withheld_income_tax`, `withheld_social`, `withheld_foreign`) sont facultatifs. Exception : une plateforme de crowdlending qui prélève les impôts les débite par une opération à part ; la ligne d'intérêts porte alors `amount` = `gross`, ses retenues, et une ligne « frais » suit pour les impôts.
 
 ## Récapitulatif fiscal
 

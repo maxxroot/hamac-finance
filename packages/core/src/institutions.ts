@@ -114,6 +114,17 @@ export function crowdTaxOf(data: { params: PlanParams; institutions?: readonly I
   return { withheld: offer?.taxWithheld ?? false, rate: offer?.taxRate ?? data.params.tax.pfuIncomeTax + data.params.tax.socialGeneral };
 }
 
+/**
+ * Ce qu'une plateforme qui prélève les impôts retient sur des intérêts bruts, d'après son taux.
+ * L'acompte d'impôt passe d'abord (au plus le taux du PFU) et le reste du taux compte en prélèvements sociaux,
+ * comme pour des intérêts saisis nets (`resolveIncome`). Un total saisi à la main, pour coller aux centimes près
+ * au relevé de la plateforme, est réparti dans les mêmes proportions.
+ */
+export function crowdWithholding(gross: number, rate: number, params: PlanParams, total: number = roundCents(gross * rate)): { incomeTax: number; social: number; total: number } {
+  const incomeTax = rate > 0 ? roundCents((total * Math.min(rate, params.tax.pfuIncomeTax)) / rate) : 0;
+  return { incomeTax, social: roundCents(total - incomeTax), total: roundCents(total) };
+}
+
 export interface Institution {
   id: string;
   name: string;

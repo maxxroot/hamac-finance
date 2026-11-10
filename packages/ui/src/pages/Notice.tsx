@@ -413,7 +413,7 @@ export function Notice() {
           <li>
             Ajoutez chaque projet dans <L to="/crowdlending">Crowdlending</L> : montant, taux, durée, type de remboursement. Investir sort l'argent des espèces, et le capital remboursé y revient.
           </li>
-          <li>Déclarez les intérêts avec le bouton « Déclarer les intérêts du mois » : un seul montant pour toute la plateforme, paiements partiels compris.</li>
+          <li>Déclarez les intérêts avec le bouton « Déclarer les intérêts du mois » : un seul montant brut pour toute la plateforme, paiements partiels compris.</li>
         </ol>
         <p>
           <B>Avec Bricks :</B> le bouton « Importer un fichier Bricks » lit l'export des transactions (.xlsx) et propose seulement ce qui est nouveau ou a changé. Complétez le taux et la durée des projets importés pour obtenir le taux moyen et les échéances.
@@ -422,7 +422,7 @@ export function Notice() {
           <B>Si un projet dépasse son échéance,</B> une alerte apparaît. Indiquez s'il est remboursé, en retard ou en défaut, ou sa nouvelle date dans « Échéance prolongée au ». En retard, ses mensualités ne sont plus comptées comme remboursées. En défaut, il compte pour 0 € jusqu'à ce que vous saisissiez le montant espéré.
         </p>
         <p>
-          <B>Côté impôts :</B> sur la fiche de la plateforme, cochez « La plateforme prélève les impôts automatiquement » et indiquez le taux, puis déclarez les intérêts nets. Sans cette case, les intérêts sont considérés comme bruts et l'impôt est affiché à payer. La déduction des pertes n'est pas calculée.
+          <B>Côté impôts :</B> sur la fiche de la plateforme, cochez « La plateforme prélève les impôts automatiquement » et indiquez le taux. Les impôts sont alors calculés à la déclaration des intérêts bruts et notés sur une seconde ligne du Journal, comme sur le relevé de la plateforme : vous savez ce qui a déjà été payé. Sans cette case, l'impôt est affiché à payer. La déduction des pertes n'est pas calculée.
         </p>
         <p>La page affiche le rendement réel de chaque plateforme à partir d'un an d'historique, pertes et argent non investi compris. Le crowdlending reste hors répartition par défaut, et n'entre dans la projection que si sa classe est incluse avec un rendement attendu.</p>
       </Fold>

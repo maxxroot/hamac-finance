@@ -534,11 +534,33 @@ describe("parcours de l'interface", () => {
     show(<Crowdlending />);
     await user.click(await screen.findByRole("button", { name: "Déclarer les intérêts du mois" }));
     expect(await screen.findByText("Rendement réel annualisé")).toBeTruthy();
-    await user.type(await screen.findByLabelText("Intérêts reçus"), "42");
+    await user.type(await screen.findByLabelText("Intérêts bruts"), "42");
     await user.tab();
+    expect(screen.queryByLabelText("Impôts prélevés")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(async () => expect((await workspace()).transactions).toMatchObject([{ type: "interets", amount: 42 }]));
     expect((await rpc<{ transactions: Array<{ accountId: string }> }>("workspace.load")).transactions[0]!.accountId).toBe(c.id);
+  });
+
+  it("plateforme qui prélève les impôts : intérêts bruts, impôts calculés, deux lignes au journal", async () => {
+    const user = userEvent.setup();
+    const e = await rpc<{ id: string }>("institutions.upsert", { name: "Plateforme Fictive", kind: "crowdlending", offers: { crowdlending: { taxWithheld: true, taxRate: 0.3 } } });
+    await rpc("accounts.upsert", { kind: "crowdlending", name: "Plateforme Fictive", institutionId: e.id });
+    show(<Crowdlending />);
+    await user.click(await screen.findByRole("button", { name: "Déclarer les intérêts du mois" }));
+    await user.type(await screen.findByLabelText("Intérêts bruts"), "50");
+    await user.tab();
+    await waitFor(() => expect(fieldOf("Impôts prélevés").value).toMatch(/^15/));
+    // Relevé de la plateforme : 15,02 € prélevés.
+    await user.clear(fieldOf("Impôts prélevés"));
+    await user.type(fieldOf("Impôts prélevés"), "15,02");
+    await user.tab();
+    expect(await screen.findByText(/Reste crédité : 34,98/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () => expect((await workspace()).transactions).toHaveLength(2));
+    const txs = (await workspace()).transactions;
+    expect(txs.find((t) => t.type === "interets")).toMatchObject({ amount: 50, gross: 50, withheldIncomeTax: 6.41, withheldSocial: 8.61 });
+    expect(txs.find((t) => t.type === "frais")).toMatchObject({ amount: 15.02 });
   });
 
   it("import Bricks : aperçu, application, puis rien de neuf au second passage", async () => {

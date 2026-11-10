@@ -33,6 +33,8 @@ describe("brut et retenues d'un revenu", () => {
     const d = data({ institutions: [etab("e", { report: true })] });
     expect(resolveIncome(tx("2025-03-01", "dividende", "c", 87.2, { gross: 100, withheldIncomeTax: 12.8 }), cto, d)).toMatchObject({ gross: 100, incomeTax: 12.8, status: "calcule" });
     expect(resolveIncome(tx("2025-03-01", "dividende", "c", 80, { gross: 100, withheldIncomeTax: 12.8 }), cto, d).status).toBe("a_verifier");
+    // Retenues débitées par une opération à part : le montant reçu est le brut.
+    expect(resolveIncome(tx("2025-03-01", "interets", "c", 100, { gross: 100, withheldIncomeTax: 12.8, withheldSocial: 17.2 }), cto, d)).toMatchObject({ gross: 100, incomeTax: 12.8, social: 17.2, status: "calcule" });
   });
   it("sans brut : le taux de l'établissement s'il en a un, sinon celui des paramètres, champ par champ", () => {
     expect(resolveIncome(tx("2025-03-01", "interets", "c", 87.2), cto, data({ institutions: [etab("e", { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 })] }))).toMatchObject({ gross: 100, incomeTax: 12.8, social: 0, status: "calcule" });

@@ -47,7 +47,8 @@ export function resolveIncome(tx: Transaction, account: Pick<Account, "kind" | "
     const incomeTax = tx.withheldIncomeTax ?? 0;
     const social = tx.withheldSocial ?? 0;
     const foreign = tx.withheldForeign ?? 0;
-    const coherent = Math.abs(tx.gross - incomeTax - social - foreign - tx.amount) < 0.02;
+    // Le montant reçu est le net, ou le brut quand les retenues sont débitées par une opération à part (crowdlending).
+    const coherent = Math.abs(tx.gross - incomeTax - social - foreign - tx.amount) < 0.02 || Math.abs(tx.gross - tx.amount) < 0.02;
     return { gross: tx.gross, incomeTax, social, foreign, status: coherent ? "calcule" : "a_verifier", note: coherent ? null : "Le brut moins les retenues ne correspond pas au montant reçu." };
   }
   if (account.kind === "crowdlending") {

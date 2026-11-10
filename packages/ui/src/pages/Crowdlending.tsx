@@ -171,7 +171,7 @@ export function Crowdlending() {
       )}
 
       {importing && <BricksImportDialog platforms={platforms} onClose={() => setImporting(false)} />}
-      {declaring && <DeclareInterestDialog platforms={platforms} withheld={new Map(platforms.map((a) => [a.id, crowdTaxOf(pf.data, a).withheld]))} journal={pf.data.transactions} onClose={() => setDeclaring(false)} />}
+      {declaring && <DeclareInterestDialog platforms={platforms} taxes={new Map(platforms.map((a) => [a.id, crowdTaxOf(pf.data, a)]))} params={pf.data.params} journal={pf.data.transactions} onClose={() => setDeclaring(false)} />}
       <CrowdProjectDialog open={editing !== null} project={editing === "new" ? null : editing} platforms={platforms} onClose={() => setEditing(null)} />
     </>
   );

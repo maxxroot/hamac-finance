@@ -183,6 +183,14 @@ describe("sauvegarde et import", () => {
     expect(res.errors.map((e) => e.index)).toEqual([1]);
   });
 
+  it("import groupé : le brut et les retenues d'un revenu sont conservés", async () => {
+    const b = await memory();
+    const c = await call<{ id: string }>(b, "accounts.upsert", { kind: "crowdlending", name: "Plateforme" });
+    await call(b, "transactions.bulkCreate", { items: [{ date: "2026-03-31", type: "interets", accountId: c.id, amount: 100, gross: 100, withheldIncomeTax: 12.8, withheldSocial: 18.6 }] });
+    const ws = await call<{ transactions: Array<Record<string, unknown>> }>(b, "workspace.load");
+    expect(ws.transactions[0]).toMatchObject({ amount: 100, gross: 100, withheldIncomeTax: 12.8, withheldSocial: 18.6, withheldForeign: null });
+  });
+
   it("archiver un compte arrête ses versements programmés sans effacer le passé", async () => {
     const b = await memory();
     const pea = await call<Record<string, unknown> & { id: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA" });

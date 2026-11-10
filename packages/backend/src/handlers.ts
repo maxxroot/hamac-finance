@@ -799,9 +799,10 @@ export const handlers: Handlers = {
     });
     // Tout ou rien pour les lignes valides.
     await ctx.raw.transaction(async () => {
-      const insert = "INSERT INTO transactions (id, date, type, account_id, asset_id, counter_account_id, amount_cents, quantity, fee_cents, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      const insert = "INSERT INTO transactions (id, date, type, account_id, asset_id, counter_account_id, amount_cents, quantity, fee_cents, comment, gross_cents, withheld_income_tax_cents, withheld_social_cents, withheld_foreign_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      const cents = (v: number | null | undefined) => (v == null ? null : toCents(v));
       for (const tx of valid) {
-        await ctx.raw.run(insert, [newId(), tx.date, tx.type, tx.accountId, tx.assetId, tx.counterAccountId, toCents(tx.amount), tx.quantity, tx.fee == null ? null : toCents(tx.fee), tx.comment]);
+        await ctx.raw.run(insert, [newId(), tx.date, tx.type, tx.accountId, tx.assetId, tx.counterAccountId, toCents(tx.amount), tx.quantity, cents(tx.fee), tx.comment, cents(tx.gross), cents(tx.withheldIncomeTax), cents(tx.withheldSocial), cents(tx.withheldForeign)]);
       }
     });
     return { created: valid.length, errors };

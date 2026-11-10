@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { crowdCountsLabel, crowdExtensionError, crowdProjectState, crowdSummary, type CrowdProject } from "./crowdlending";
+import { crowdCountsLabel, crowdExtensionError, crowdInterestEntries, crowdProjectState, crowdSummary, type CrowdProject } from "./crowdlending";
+import { crowdWithholding } from "./institutions";
+import { defaultParams } from "./params";
 
 const p = (o: Partial<CrowdProject> = {}): CrowdProject => ({ id: "p", accountId: "c", name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", ...o });
 
@@ -77,5 +79,25 @@ describe("crowdlending", () => {
     const s = crowdSummary([crowdProjectState(p({ amount: 1_000, rate: 0.1 }), "2026-06-01"), crowdProjectState(p({ amount: 3_000, rate: 0.06, status: "retard" }), "2026-06-01"), crowdProjectState(p({ amount: 500, status: "defaut" }), "2026-06-01")]);
     expect(s).toMatchObject({ active: 4_000, atRisk: 3_500 });
     expect(s.averageRate).toBeCloseTo(0.07);
+  });
+
+  it("impôts prélevés sur des intérêts bruts : acompte d'abord, prélèvements sociaux pour le reste du taux", () => {
+    const params = defaultParams(new Date(2026, 0, 1));
+    expect(crowdWithholding(100, 0.314, params)).toEqual({ incomeTax: 12.8, social: 18.6, total: 31.4 });
+    // Taux sous le PFU : tout est compté en acompte, comme pour des intérêts saisis nets.
+    expect(crowdWithholding(100, 0.1, params)).toEqual({ incomeTax: 10, social: 0, total: 10 });
+    // Total lu sur le relevé : réparti dans les mêmes proportions.
+    expect(crowdWithholding(33.33, 0.314, params, 10.47)).toEqual({ incomeTax: 4.27, social: 6.2, total: 10.47 });
+    expect(crowdWithholding(50, 0, params)).toEqual({ incomeTax: 0, social: 0, total: 0 });
+  });
+
+  it("intérêts du mois : une ligne sans prélèvement, deux lignes avec, datées du dernier jour du mois", () => {
+    const base = { accountId: "c", month: "2026-02", monthLabel: "février 2026", gross: 100 };
+    expect(crowdInterestEntries({ ...base, withheld: null })).toEqual([{ date: "2026-02-28", type: "interets", accountId: "c", amount: 100, comment: "Intérêts de février 2026", gross: null, withheldIncomeTax: null, withheldSocial: null }]);
+    expect(crowdInterestEntries({ ...base, withheld: { incomeTax: 12.8, social: 18.6 } })).toEqual([
+      { date: "2026-02-28", type: "interets", accountId: "c", amount: 100, comment: "Intérêts bruts de février 2026", gross: 100, withheldIncomeTax: 12.8, withheldSocial: 18.6 },
+      { date: "2026-02-28", type: "frais", accountId: "c", amount: 31.4, comment: "Impôts prélevés sur les intérêts de février 2026", gross: null, withheldIncomeTax: null, withheldSocial: null },
+    ]);
+    expect(crowdInterestEntries({ ...base, withheld: { incomeTax: 0, social: 0 } })).toHaveLength(1);
   });
 });

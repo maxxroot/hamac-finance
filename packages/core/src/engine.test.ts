@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Account, Asset, ContributionPlan, PricePoint, Transaction } from "./domain";
 import { advisedMonthlyPurchase, computePortfolio, splitByTarget, type EngineData } from "./engine";
 import { embeddedFee } from "./fees";
-import type { Institution } from "./institutions";
+import { crowdInterestEntries } from "./crowdlending";
+import { crowdWithholding, type Institution } from "./institutions";
 import { defaultParams } from "./params";
 import { buildHistory } from "./history";
 import { NO_PROPERTY_DETAILS, type Loan, type Property } from "./realestate";
@@ -318,6 +319,23 @@ describe("historique reconstruit", () => {
     const regime = (id: string) => withdrawalTaxes(d, s, cryptoTax(d, "2026-06-01")).find((r) => r.accountId === id)!.regime;
     expect(regime("preleve")).toContain("30 %");
     expect(regime("adeclarer")).toContain("à déclarer");
+  });
+
+  it("crowdlending : intérêts bruts puis impôts débités à part, comme sur le relevé de la plateforme", () => {
+    const p = defaultParams(new Date(2026, 0, 1));
+    const account = { id: "c", kind: "crowdlending", livretType: null, name: "c", institutionId: "e", openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false } as Account;
+    const institution = { id: "e", name: "e", kind: "crowdlending", website: "", score: null, comment: "", offers: { crowdlending: { taxWithheld: true, taxRate: 0.314 } } } as Institution;
+    const lines = crowdInterestEntries({ accountId: "c", month: "2026-03", monthLabel: "mars 2026", gross: 100, withheld: crowdWithholding(100, 0.314, p) });
+    const transactions = lines.map((l, i) => ({ id: `t${i}`, assetId: null, counterAccountId: null, quantity: null, fee: null, ...l }) as Transaction);
+    const d: EngineData = { params: p, accounts: [account], assets: [], plans: [], skips: [], prices: [], institutions: [institution], transactions };
+    const row = yearlyTaxes(d, cryptoTax(d, "2026-06-01"), "2026-06-01", []).find((y) => y.year === 2026)!;
+    // Comme 68,60 € saisis nets : 31,40 € déjà payés, rien de plus à payer.
+    expect(row.crowdReceived).toBeCloseTo(68.6, 2);
+    expect(row.crowdWithheld).toBeCloseTo(31.4, 2);
+    expect(row.crowdDue).toBe(0);
+    const acc = computePortfolio(d, "2026-06-01").accounts[0]!;
+    expect(acc.cash).toBeCloseTo(68.6, 2);
+    expect(acc.interests).toBeCloseTo(100, 2);
   });
 });
 

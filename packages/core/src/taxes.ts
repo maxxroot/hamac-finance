@@ -270,14 +270,14 @@ export function yearlyTaxes(data: EngineData, crypto: CryptoTaxReport, asOf: str
     const coupons = inYear.filter((t) => (t.type === "interets" || t.type === "dividende") && kind.get(t.accountId) === "cto");
     const couponsNet = coupons.reduce((s, t) => s + t.amount, 0);
     const socialDue = socialRateFor(year, "patrimoine", p);
-    // Plateforme qui prélève : le journal contient le net crédité. Sinon, le brut reste à imposer.
+    // Plateforme qui prélève : impôts déjà payés (intérêts saisis nets, ou bruts avec les impôts débités à part). Sinon, le brut reste à imposer.
     let crowdReceived = 0;
     let crowdWithheld = 0;
     let crowdDue = 0;
     for (const t of inYear.filter((x) => x.type === "interets" && kind.get(x.accountId) === "crowdlending")) {
       const r = resolveIncome(t, accounts.get(t.accountId)!, data);
       const withheld = r.incomeTax + r.social + r.foreign;
-      crowdReceived += t.amount;
+      crowdReceived += r.gross - withheld;
       if (withheld > 0) crowdWithheld += withheld;
       else crowdDue += r.gross * (ir + socialDue);
     }

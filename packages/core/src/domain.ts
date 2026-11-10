@@ -242,7 +242,7 @@ export interface Transaction {
   comment: string;
   /** Identifiant dans un fichier importé : réimporter le même fichier ne crée pas de doublon. */
   externalId?: string | null;
-  /** Dividende ou intérêts : revenu brut avant toute retenue ; `amount` reste le net crédité. */
+  /** Dividende ou intérêts : revenu brut avant toute retenue ; `amount` reste le net crédité, sauf quand les retenues sont débitées à part (crowdlending). */
   gross?: number | null;
   /** Acompte d'impôt (prélèvement forfaitaire non libératoire) retenu à la source. */
   withheldIncomeTax?: number | null;
