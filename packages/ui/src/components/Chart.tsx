@@ -43,14 +43,20 @@ export function axisStyle(c: ChartColors) {
   };
 }
 
-export function Chart({ option, height = 300, className }: { option: ChartOption; height?: number; className?: string }) {
+/** Courbes affichées ou masquées par la légende, par nom de série. */
+export type LegendSelection = Record<string, boolean>;
+
+export function Chart({ option, height = 300, className, onLegendSelect }: { option: ChartOption; height?: number; className?: string; onLegendSelect?: (selected: LegendSelection) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const colors = useChartColors();
+  const onSelect = useRef(onLegendSelect);
+  onSelect.current = onLegendSelect;
 
   useEffect(() => {
     if (!ref.current) return;
     chart.current = echarts.init(ref.current, undefined, { renderer: "svg" });
+    chart.current.on("legendselectchanged", (e) => onSelect.current?.((e as { selected: LegendSelection }).selected));
     const ro = new ResizeObserver(() => chart.current?.resize());
     ro.observe(ref.current);
     return () => {

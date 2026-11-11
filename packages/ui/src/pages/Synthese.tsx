@@ -2,7 +2,7 @@ import { ACCOUNT_KIND_LABELS } from "@hamac/core";
 import { Fragment } from "react";
 import { SortTh, useSortable } from "@/lib/sort";
 import type { AccountState, PortfolioState } from "@hamac/core";
-import { AccountEvolution } from "@/components/AccountEvolution";
+import { AccountEvolution, EnvelopesEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Notice, Pct } from "@/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
@@ -25,6 +25,11 @@ export function Synthese() {
     <>
       <PageHeader title="Synthèse des enveloppes" description="Tout est calculé depuis le journal : apports, versements mensuels passés et mouvements." />
       <AccountsTable rows={rows} totals={state.totals} />
+
+      <Card className="mb-6">
+        <CardTitle hint="Cliquer sur la légende masque ou réaffiche une courbe">Évolution par enveloppe</CardTitle>
+        <EnvelopesEvolution className="p-0" />
+      </Card>
 
       <Card>
           <CardTitle hint={`Âge ${state.age} ans · alerte au-delà de ${Math.round(pf.data.params.livrets.driftAlert * 100)} % d'écart`}>Allocation de la partie investie</CardTitle>

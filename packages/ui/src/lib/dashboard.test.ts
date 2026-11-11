@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AccountState, Alert, AllocationRow, HistoryPoint } from "@hamac/core";
-import { accountHistory, assetLines, positionHistory, allocationBars, alertsToReview, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
+import { accountHistory, assetLines, envelopeLines, positionHistory, allocationBars, alertsToReview, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
 
 const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, realEstate: 0, debts: 0, netWorth: value, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {}, byPosition: {}, detailByAccount: {}, positionResults: {} });
 const history = Array.from({ length: 20 }, (_, i) => point(i + 1));
@@ -23,6 +23,20 @@ describe("tableau de bord", () => {
     ]);
     expect(accountHistory([at(1, 10, 8)], ["lep", "autre"])[0]).toMatchObject({ value: 1009, netContrib: 9, gain: 1000 });
     expect(accountHistory([at(1, 10, 8)], ["inconnu"])).toEqual([]);
+  });
+
+  it("une courbe par enveloppe : la plus grosse d'abord, sans compte toujours vide, noms en double numérotés", () => {
+    const at = (i: number, byAccount: Record<string, number>) => ({ ...point(i), byAccount });
+    const h = [at(1, { pea: 100, av: 0, vide: 0 }), at(2, { pea: 120, av: 300, vide: 0 })];
+    const accounts = [
+      { id: "pea", name: "Épargne" },
+      { id: "av", name: "Épargne" },
+      { id: "vide", name: "Vide" },
+    ];
+    expect(envelopeLines(h, accountHistory(h, ["pea", "av", "vide"]), accounts).map((l) => [l.key, l.name, l.values])).toEqual([
+      ["av", "Épargne", [0, 300]],
+      ["pea", "Épargne (2)", [100, 120]],
+    ]);
   });
 
   describe("titre par titre", () => {

@@ -78,6 +78,25 @@ export function assetLines(history: readonly HistoryPoint[], points: readonly Ev
   return lines;
 }
 
+/**
+ * Une courbe par enveloppe, la plus grosse d'abord : leur somme redonne la valeur totale.
+ * Les comptes restés vides sur tout l'historique sont omis ; deux comptes du même nom sont numérotés.
+ */
+export function envelopeLines(history: readonly HistoryPoint[], points: readonly EvolutionPoint[], accounts: readonly { id: string; name: string }[]): AssetLine[] {
+  const byMonth = new Map(history.map((h) => [h.month, h]));
+  const months = points.map((p) => byMonth.get(p.month));
+  const seen = new Map<string, number>();
+  return accounts
+    .map((a) => ({ key: a.id, name: a.name, values: months.map((h) => h?.byAccount[a.id] ?? 0) }))
+    .filter((l) => l.values.some((v) => Math.abs(v) >= 1))
+    .sort((a, b) => (b.values.at(-1) ?? 0) - (a.values.at(-1) ?? 0))
+    .map((l) => {
+      const n = (seen.get(l.name) ?? 0) + 1;
+      seen.set(l.name, n);
+      return n > 1 ? { ...l, name: `${l.name} (${n})` } : l;
+    });
+}
+
 /** Derniers points de la période ; un de plus que le nombre de mois, pour disposer du point de départ. */
 export function historyForPeriod<T>(history: readonly T[], period: PeriodKey): T[] {
   const months = PERIODS.find((p) => p.key === period)?.months ?? null;
