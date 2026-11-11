@@ -5,7 +5,7 @@ import { crowdTaxOf } from "./institutions";
 import { formatEur, roundCents } from "./money";
 import { incomeTaxRate } from "./params";
 import { securitiesGains } from "./securitiesGains";
-import { resolveIncome, securityDisposals } from "./taxReport";
+import { accountWithholds, resolveIncome, securityDisposals } from "./taxReport";
 import type { CryptoTaxReport } from "./taxes";
 
 /**
@@ -71,7 +71,7 @@ export function nextDeclarationYear(asOf: string): number {
   return declarationSettled(year - 1, asOf) ? year : year - 1;
 }
 
-/** Comptes dont Hamac calcule déjà les retenues : leurs opérations « Impôts » servent de contrôle, pas d'ajout. */
+/** Comptes dont Hamac calcule les retenues quand l'établissement prélève : leurs opérations « Impôts » servent alors de contrôle, pas d'ajout. */
 const WITHHOLDING_COMPUTED: ReadonlySet<string> = new Set(["assurance_vie", "cto", "crowdlending"]);
 
 interface YearAcc {
@@ -122,6 +122,9 @@ export function accountTaxDetails(data: EngineData, state: PortfolioState, crypt
     let foreign = 0;
     let journalTaxes = 0;
     let avSocial = 0;
+    const withholds = accountWithholds(a, data);
+    // Crowdlending : ses opérations « Impôts » sont toujours les débits des retenues notées sur les intérêts.
+    const computed = a.kind === "crowdlending" || (WITHHOLDING_COMPUTED.has(a.kind) && withholds);
 
     for (const t of data.transactions) {
       if (t.accountId !== a.id || t.date > asOf) continue;
@@ -129,17 +132,23 @@ export function accountTaxDetails(data: EngineData, state: PortfolioState, crypt
       const socialDue = socialRateFor(year, "patrimoine", p);
       if (t.type === "impots") {
         journalTaxes += t.amount;
-        if (!WITHHOLDING_COMPUTED.has(a.kind)) at(year).atSource += t.amount;
+        if (!computed) at(year).atSource += t.amount;
         continue;
       }
       if (t.type !== "interets" && t.type !== "dividende") continue;
       const y = at(year);
       if (a.kind === "assurance_vie" && t.type === "interets") {
-        // Intérêts du fonds euros saisis nets : l'assureur a retenu les prélèvements sociaux.
-        const ps = (t.amount * p.tax.socialAv) / (1 - p.tax.socialAv);
-        y.income += t.amount + ps;
-        y.atSource += ps;
-        avSocial += ps;
+        if (withholds) {
+          // Intérêts du fonds euros saisis nets : l'assureur a retenu les prélèvements sociaux.
+          const ps = (t.amount * p.tax.socialAv) / (1 - p.tax.socialAv);
+          y.income += t.amount + ps;
+          y.atSource += ps;
+          avSocial += ps;
+        } else {
+          // Assureur qui ne prélève rien : intérêts saisis bruts, prélèvements sociaux à la déclaration.
+          y.income += t.amount;
+          y.atDeclaration += t.amount * p.tax.socialAv;
+        }
       } else if (a.kind === "cto") {
         const r = resolveIncome(t, a, data);
         y.income += r.gross;
@@ -227,7 +236,8 @@ function kindFacts(s: AccountState, data: EngineData, crypto: CryptoTaxReport, c
     case "assurance_vie": {
       const allowance = p.profile.couple ? p.tax.avAllowanceCouple : p.tax.avAllowanceSingle;
       milestone(96, "8 ans du contrat", `Gains retirés imposés à ${pct(Math.min(p.tax.tmi, p.tax.avAfter8))} au-delà de ${formatEur(allowance)} par an`, `D'ici là, gains retirés imposés à ${pct(Math.min(p.tax.tmi, p.tax.avBefore8))}`);
-      facts.push({ label: "Prélèvements sociaux retenus sur le fonds euros", amount: c.avSocial, hint: `${pct(p.tax.socialAv)} des intérêts, chaque année` });
+      if (accountWithholds(a, data)) facts.push({ label: "Prélèvements sociaux retenus sur le fonds euros", amount: c.avSocial, hint: `${pct(p.tax.socialAv)} des intérêts, chaque année` });
+      else notes.push(`L'assureur ne prélève rien : les prélèvements sociaux du fonds euros (${pct(p.tax.socialAv)} des intérêts) sont à payer à la déclaration.`);
       const ucGain = roundCents(s.positions.reduce((t, x) => t + Math.max(0, x.gain), 0));
       if (s.positions.length) facts.push({ label: "Gains des unités de compte", amount: ucGain, hint: "Prélèvements sociaux dus au retrait" });
       facts.push({ label: "Abattement annuel après 8 ans", amount: allowance, hint: p.profile.couple ? "Couple" : "Personne seule" });
@@ -245,7 +255,12 @@ function kindFacts(s: AccountState, data: EngineData, crypto: CryptoTaxReport, c
       const carry = roundCents((last?.carryOut ?? []).reduce((t, x) => t + x.amount, 0));
       if (carry > 0) facts.push({ label: "Moins-values encore déductibles", amount: carry, hint: "Tous comptes-titres, pendant 10 ans" });
       if (c.foreign > 0) facts.push({ label: "Retenues à l'étranger", amount: c.foreign, hint: "Crédit d'impôt selon la convention du pays, non compté ici" });
-      if (s.positions.length > 0 || c.income > 0) notes.push("Coupons et dividendes : l'établissement retient un acompte et les prélèvements sociaux, l'impôt définitif est régularisé à la déclaration. Les plus-values sont réparties entre comptes-titres au prorata.");
+      if (s.positions.length > 0 || c.income > 0)
+        notes.push(
+          accountWithholds(a, data)
+            ? "Coupons et dividendes : l'établissement retient un acompte et les prélèvements sociaux, l'impôt définitif est régularisé à la déclaration. Les plus-values sont réparties entre comptes-titres au prorata."
+            : "Coupons et dividendes : l'établissement ne retient rien, l'impôt et les prélèvements sociaux sont à payer à la déclaration. Les plus-values sont réparties entre comptes-titres au prorata.",
+        );
       if (c.journalTaxes > 0) facts.push({ label: "Opérations « Impôts » au Journal", amount: c.journalTaxes, hint: "Pour contrôle : les retenues viennent des revenus saisis" });
       break;
     }
@@ -282,6 +297,6 @@ function kindFacts(s: AccountState, data: EngineData, crypto: CryptoTaxReport, c
       facts.push({ label: "Gain à ce jour", amount: roundCents(s.gain), hint: `Prélèvements sociaux (${pct(p.tax.socialGeneral)}) dus au retrait` });
       break;
   }
-  if (c.journalTaxes > 0 && !WITHHOLDING_COMPUTED.has(a.kind)) facts.push({ label: "Opérations « Impôts » au Journal", amount: c.journalTaxes, hint: "Comptées comme payées" });
+  if (c.journalTaxes > 0 && a.kind !== "crowdlending" && !(WITHHOLDING_COMPUTED.has(a.kind) && accountWithholds(a, data))) facts.push({ label: "Opérations « Impôts » au Journal", amount: c.journalTaxes, hint: "Comptées comme payées" });
   return { facts, notes };
 }

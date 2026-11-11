@@ -71,10 +71,11 @@ export const CryptoOffer = z.object({
 });
 export type CryptoOffer = z.infer<typeof CryptoOffer>;
 
+/** Anciens réglages d'impôts des plateformes, gardés pour les fiches d'avant le réglage commun (`InstitutionTax.withholds`). */
 export const CrowdOffer = z.object({
-  /** La plateforme prélève elle-même les impôts sur les intérêts. */
+  /** Ancien réglage : la plateforme prélève elle-même les impôts sur les intérêts. */
   taxWithheld: z.boolean().default(false),
-  /** Taux qu'elle prélève ; null = prélèvement forfaitaire des paramètres. */
+  /** Ancien taux prélevé ; null = prélèvement forfaitaire des paramètres. */
   taxRate: z.number().min(0).max(0.9).nullable().default(null),
 });
 export type CrowdOffer = z.infer<typeof CrowdOffer>;
@@ -95,13 +96,18 @@ export type Offers = z.infer<typeof Offers>;
 export const InstitutionTax = z.object({
   /** Cochée : Hamac rédige le récapitulatif de cet établissement, ses lignes sont à saisir. Sinon, on attend son IFU. */
   report: z.boolean().default(false),
+  /**
+   * L'établissement prélève les impôts sur les intérêts et dividendes (acompte et prélèvements sociaux).
+   * null : fiche enregistrée avant ce réglage, déduit par `institutionWithholds`.
+   */
+  withholds: z.boolean().nullable().default(null),
   /** Taux retenus sur les revenus, seulement s'ils diffèrent : null = taux par défaut (Paramètres › Plan), 0 = rien n'est retenu. */
   withheldIncomeTax: z.number().min(0).max(0.9).nullable().default(null),
   withheldSocial: z.number().min(0).max(0.9).nullable().default(null),
 });
 export type InstitutionTax = z.infer<typeof InstitutionTax>;
 
-export const NO_INSTITUTION_TAX: InstitutionTax = { report: false, withheldIncomeTax: null, withheldSocial: null };
+export const NO_INSTITUTION_TAX: InstitutionTax = { report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null };
 
 /** Brut et retenues d'un revenu d'après des taux de retenue. */
 export function grossFromNet(net: number, rates: { incomeTax: number; social: number }): { gross: number; incomeTax: number; social: number } {
@@ -109,10 +115,29 @@ export function grossFromNet(net: number, rates: { incomeTax: number; social: nu
   return { gross, incomeTax: roundCents(gross * rates.incomeTax), social: roundCents(gross * rates.social) };
 }
 
-/** Impôts d'une plateforme de crowdlending, réglés sur la fiche de l'établissement. */
+/**
+ * L'établissement prélève-t-il les impôts sur les revenus ? Le réglage de la fiche s'il existe ; sinon, pour une fiche
+ * plus ancienne, ce que Hamac supposait : la case de la plateforme de crowdlending, rien pour une plateforme crypto
+ * ou un établissement hors de France, rien quand les deux taux de retenue sont à 0, et oui dans les autres cas.
+ */
+export function institutionWithholds(inst: Pick<Institution, "kind" | "offers"> & { tax?: Partial<InstitutionTax>; protection?: { country: string } }): boolean {
+  const tax = inst.tax ?? {};
+  if (tax.withholds != null) return tax.withholds;
+  if (inst.kind === "crowdlending" || inst.offers.crowdlending) return inst.offers.crowdlending?.taxWithheld ?? false;
+  if (inst.kind === "crypto") return false;
+  if (inst.protection && inst.protection.country !== "france") return false;
+  return !(tax.withheldIncomeTax === 0 && tax.withheldSocial === 0);
+}
+
+/** Impôts d'une plateforme de crowdlending : prélevés ou non (fiche de l'établissement), et à quel taux total. */
 export function crowdTaxOf(data: { params: PlanParams; institutions?: readonly Institution[] }, account: Pick<Account, "institutionId">): { withheld: boolean; rate: number } {
-  const offer = data.institutions?.find((i) => i.id === account.institutionId)?.offers.crowdlending;
-  return { withheld: offer?.taxWithheld ?? false, rate: offer?.taxRate ?? data.params.tax.pfuIncomeTax + data.params.tax.socialGeneral };
+  const inst = data.institutions?.find((i) => i.id === account.institutionId);
+  const p = data.params.tax;
+  if (!inst) return { withheld: false, rate: p.pfuIncomeTax + p.socialGeneral };
+  const tax = inst.tax ?? NO_INSTITUTION_TAX;
+  // Taux de la fiche s'ils sont réglés, sinon l'ancien taux de la plateforme, sinon le prélèvement forfaitaire.
+  const rate = tax.withheldIncomeTax != null || tax.withheldSocial != null ? (tax.withheldIncomeTax ?? p.pfuIncomeTax) + (tax.withheldSocial ?? p.socialGeneral) : (inst.offers.crowdlending?.taxRate ?? p.pfuIncomeTax + p.socialGeneral);
+  return { withheld: institutionWithholds(inst), rate };
 }
 
 /**

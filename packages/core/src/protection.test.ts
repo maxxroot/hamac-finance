@@ -11,7 +11,7 @@ const inst = (id: string, name: string, extra: Partial<Institution> = {}): Insti
   score: null,
   comment: "",
   offers: {},
-  tax: { report: false, withheldIncomeTax: null, withheldSocial: null },
+  tax: { report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null },
   protection: { guarantor: "", country: "france" },
   ...extra,
 });

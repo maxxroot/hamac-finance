@@ -512,21 +512,21 @@ describe("parcours de l'interface", () => {
     expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText(/compté/)).toBeTruthy();
   });
 
-  it("établissement de crowdlending : prélèvement d'impôts et taux, proposé au forfait", async () => {
+  it("établissement : la case « prélève les impôts » commande les taux et s'enregistre", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     show(<InstitutionDialog open institution={null} onClose={onClose} />);
     await user.type(await screen.findByLabelText("Nom"), "Bricks");
     await user.selectOptions(fieldOf("Type"), "crowdlending");
-    const box = await screen.findByRole("checkbox", { name: "La plateforme prélève les impôts automatiquement" });
-    expect(screen.queryByLabelText("Taux prélevé")).toBeNull();
+    const box = await screen.findByRole("checkbox", { name: "L'établissement prélève les impôts sur les intérêts et dividendes" });
+    expect((box as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByLabelText("Acompte d'impôt retenu")).toBeTruthy();
     await user.click(box);
-    await waitFor(() => expect(fieldOf("Taux prélevé").value).toMatch(/31,4/));
+    expect(screen.queryByLabelText("Acompte d'impôt retenu")).toBeNull();
     await user.click(screen.getByRole("button", { name: /^(Ajouter|Créer|Enregistrer|Valider)/ }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const ws = await rpc<{ institutions: Array<{ kind: string; offers: { crowdlending?: { taxWithheld: boolean; taxRate: number } } }> }>("workspace.load");
-    expect(ws.institutions[0]).toMatchObject({ kind: "crowdlending", offers: { crowdlending: { taxWithheld: true } } });
-    expect(ws.institutions[0]!.offers.crowdlending!.taxRate).toBeCloseTo(0.314);
+    const ws = await rpc<{ institutions: Array<{ kind: string; tax: { withholds: boolean | null } }> }>("workspace.load");
+    expect(ws.institutions[0]).toMatchObject({ kind: "crowdlending", tax: { withholds: false } });
   });
 
   it("intérêts déclarés pour toute la plateforme : un montant par mois, rendement affiché", async () => {

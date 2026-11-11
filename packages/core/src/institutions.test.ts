@@ -37,7 +37,7 @@ describe("frais d'ordre", () => {
   it("utilise la grille de l'établissement du compte, sinon les frais par défaut", () => {
     const p = defaultParams();
     p.broker = { feeRate: 0.005, minFee: 0 };
-    const inst: Institution = { id: "b", name: "Courtier B", kind: "courtier", website: "", score: null, comment: "", offers: { pea: { orderFees: tiered, custodyFixed: 0, custodyRate: 0, etfWorld: null, directBonds: null, programmed: null, reachableSupport: null } }, tax: { report: false, withheldIncomeTax: null, withheldSocial: null }, protection: { guarantor: "", country: "france" } };
+    const inst: Institution = { id: "b", name: "Courtier B", kind: "courtier", website: "", score: null, comment: "", offers: { pea: { orderFees: tiered, custodyFixed: 0, custodyRate: 0, etfWorld: null, directBonds: null, programmed: null, reachableSupport: null } }, tax: { report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null }, protection: { guarantor: "", country: "france" } };
     const account = { id: "pea", kind: "pea", institutionId: "b" } as Account;
     const map = new Map([["b", inst]]);
     expect(suggestTradeFee(account, map, p, "achat", 301.99)).toBe(1.99);

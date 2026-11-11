@@ -15,10 +15,9 @@ import {
   suggestOrderFee,
   suggestTradeFee,
   tradeFeeFor,
-  effectiveWithholding,
+  institutionWithholding,
   formatEur,
   grossFromNet,
-  NO_INSTITUTION_TAX,
   roundCents,
   validateTransaction,
   type Account,
@@ -408,7 +407,7 @@ export function TransactionDialog({
             draft={d}
             onChange={(patch) => setD((x) => (x ? { ...x, ...patch } : x))}
             error={err("gross")}
-            prefill={account && d.amount ? grossFromNet(d.amount, effectiveWithholding((account.institutionId ? idx.institutionById.get(account.institutionId)?.tax : null) ?? NO_INSTITUTION_TAX, +d.date.slice(0, 4), idx.ws.params)) : null}
+            prefill={account && d.amount ? grossFromNet(d.amount, institutionWithholding(account.institutionId ? idx.institutionById.get(account.institutionId) : null, +d.date.slice(0, 4), idx.ws.params)) : null}
           />
         )}
 

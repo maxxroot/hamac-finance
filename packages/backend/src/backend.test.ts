@@ -332,7 +332,7 @@ describe("établissements", () => {
   it("conserve la case du récapitulatif fiscal et le détail fiscal d'un dividende", async () => {
     const b = await memory();
     const inst = await call<{ id: string; tax: { report: boolean; withheldIncomeTax: number | null } }>(b, "institutions.upsert", { name: "Courtier", kind: "courtier", tax: { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 } });
-    expect(inst.tax).toEqual({ report: true, withheldIncomeTax: 0.128, withheldSocial: 0 });
+    expect(inst.tax).toEqual({ report: true, withholds: null, withheldIncomeTax: 0.128, withheldSocial: 0 });
     const defaut = await call<{ tax: { report: boolean } }>(b, "institutions.upsert", { name: "Autre", kind: "banque" });
     expect(defaut.tax.report).toBe(false);
     const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO", institutionId: inst.id });

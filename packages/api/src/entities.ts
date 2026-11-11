@@ -412,7 +412,7 @@ export const InstitutionInput = z.object({
   score: z.number().min(0).max(10).nullable().default(null),
   comment: text(1000).default(""),
   offers: Offers.default({}),
-  tax: InstitutionTax.default({ report: false, withheldIncomeTax: null, withheldSocial: null }),
+  tax: InstitutionTax.default({ report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null }),
   protection: InstitutionProtection.default({ guarantor: "", country: "france" }),
 });
 export type InstitutionInput = z.input<typeof InstitutionInput>;

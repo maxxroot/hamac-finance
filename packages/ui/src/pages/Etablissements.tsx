@@ -6,6 +6,7 @@ import {
   INSTITUTION_KIND_LABELS,
   describeOrderFees,
   formatEur,
+  institutionWithholds,
   orderFee,
   type Institution,
   type PlanParams, type OfferKind,
@@ -90,7 +91,8 @@ function InstitutionCard({ inst, onEdit, onDelete }: { inst: Institution; onEdit
   }
   const av = inst.offers.assurance_vie;
   if (av) lines.push(["Assurance-vie", `versements ${pct(av.entryFee)} · gestion fonds euros ${pct(av.euroFee)} · UC ${pct(av.ucFee)}`]);
-  if (inst.offers.crowdlending) lines.push(["Impôts", inst.offers.crowdlending.taxWithheld ? `prélevés par la plateforme : ${pct(inst.offers.crowdlending.taxRate ?? 0)}` : "à déclarer soi-même"]);
+  // Seulement là où des revenus sont imposés chaque année (pas pour un PEA ni des livrets réglementés seuls).
+  if (inst.kind === "banque" || inst.offers.cto || inst.offers.assurance_vie || inst.offers.crowdlending || inst.offers.crypto) lines.push(["Impôts", institutionWithholds(inst) ? "prélevés à la source par l'établissement" : "rien n'est prélevé : à déclarer soi-même"]);
   if (inst.offers.crypto) lines.push(["Crypto", `${pct(inst.offers.crypto.tradeFee)} par opération · spread ${pct(inst.offers.crypto.spread)}`]);
 
   return (

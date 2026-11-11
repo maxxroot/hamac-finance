@@ -8,6 +8,7 @@ import {
   emptyOffer,
   formatEur,
   formatPct,
+  institutionWithholds,
   NO_INSTITUTION_TAX,
   NO_PROTECTION,
   PROTECTION_COUNTRIES,
@@ -15,7 +16,6 @@ import {
   orderFee,
   type AvOffer,
   type BrokerOffer,
-  type CrowdOffer,
   type CryptoOffer,
   type Institution,
   type InstitutionKind,
@@ -48,7 +48,8 @@ interface Draft {
 function blank(kind: InstitutionKind = "courtier"): Draft {
   const offers: Offers = {};
   for (const k of DEFAULT_OFFER_KINDS[kind]) (offers as Record<string, unknown>)[k] = emptyOffer(k);
-  return { name: "", kind, website: "", score: null, comment: "", offers, tax: NO_INSTITUTION_TAX, protection: NO_PROTECTION };
+  // Une plateforme crypto ne prélève en général rien ; les établissements français, si.
+  return { name: "", kind, website: "", score: null, comment: "", offers, tax: { ...NO_INSTITUTION_TAX, withholds: kind !== "crypto" }, protection: NO_PROTECTION };
 }
 
 export function InstitutionDialog({ open, onClose, institution }: { open: boolean; onClose: () => void; institution?: Institution | null }) {
@@ -56,7 +57,21 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
   const save = useMutate("institutions.upsert", { success: institution ? "Établissement mis à jour" : "Établissement ajouté" });
   const [d, setD] = useState<Draft>(blank());
   useEffect(() => {
-    if (open) setD(institution ? structuredClone(institution) : blank());
+    if (!open) return;
+    if (!institution) {
+      setD(blank());
+      return;
+    }
+    // Fiche d'avant le réglage commun : la case reprend ce que Hamac supposait, et l'ancien taux d'une plateforme passe dans les taux de la fiche.
+    const d = structuredClone(institution) as Draft;
+    const legacyRate = d.offers.crowdlending?.taxRate;
+    if (legacyRate != null && d.tax.withheldIncomeTax == null && d.tax.withheldSocial == null) {
+      const incomeTax = Math.min(legacyRate, idx?.ws.params.tax.pfuIncomeTax ?? 0.128);
+      d.tax = { ...d.tax, withheldIncomeTax: incomeTax, withheldSocial: Math.round((legacyRate - incomeTax) * 1e6) / 1e6 };
+    }
+    d.tax = { ...d.tax, withholds: institutionWithholds(institution) };
+    setD(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, institution]);
 
   const planTax = idx?.ws.params.tax;
@@ -178,7 +193,7 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
         )}
         {d.offers.crowdlending && (
           <Section title="Crowdlending">
-            <CrowdEditor offer={d.offers.crowdlending} forfait={(idx?.ws.params.tax.pfuIncomeTax ?? 0) + (idx?.ws.params.tax.socialGeneral ?? 0)} onChange={(v) => setOffer("crowdlending", v)} />
+            <p className="text-sm text-fg-muted">Pas de frais à régler ici. Les impôts sur les intérêts se règlent dans la rubrique Fiscalité ci-dessous.</p>
           </Section>
         )}
         {d.offers.crypto && (
@@ -190,17 +205,27 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
         <Section title="Fiscalité">
           <div className="space-y-4">
             <div>
+              <Checkbox checked={d.tax.withholds ?? true} onChange={(v) => setD({ ...d, tax: { ...d.tax, withholds: v } })} label="L'établissement prélève les impôts sur les intérêts et dividendes" />
+              <p className="mt-1.5 text-xs text-fg-faint">
+                {(d.tax.withholds ?? true)
+                  ? "Coché : vous notez au Journal ce qui arrive sur le compte, Hamac retrouve le brut et les retenues ; il ne reste que la régularisation à la déclaration."
+                  : "Décoché : le montant reçu est le brut ; l'impôt et les prélèvements sociaux sont entièrement à payer à la déclaration."}
+              </p>
+            </div>
+            {(d.tax.withholds ?? true) && (
+              <FormGrid>
+                <Field label="Acompte d'impôt retenu" help={`Seulement s'il diffère. Vide : ${formatPct(defaultIncomeTax)} (Paramètres › Plan).`}>
+                  {(id) => <PercentInput id={id} value={d.tax.withheldIncomeTax} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldIncomeTax: v } })} />}
+                </Field>
+                <Field label="Prélèvements sociaux retenus" help={`Seulement s'ils diffèrent. Vide : ${formatPct(defaultSocial)} (Paramètres › Plan).`}>
+                  {(id) => <PercentInput id={id} value={d.tax.withheldSocial} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldSocial: v } })} />}
+                </Field>
+              </FormGrid>
+            )}
+            <div>
               <Checkbox checked={d.tax.report} onChange={(v) => setD({ ...d, tax: { ...d.tax, report: v } })} label="Hamac rédige le récapitulatif fiscal de cet établissement" />
               <p className="mt-1.5 text-xs text-fg-faint">À cocher si l'établissement ne transmet rien au fisc. Sinon, ses montants sont seulement à contrôler avec son IFU, pour éviter de les déclarer deux fois.</p>
             </div>
-            <FormGrid>
-              <Field label="Acompte d'impôt retenu sur les revenus" help={`Seulement s'il diffère. Vide : ${formatPct(defaultIncomeTax)} (Paramètres › Plan). 0 si rien n'est retenu.`}>
-                {(id) => <PercentInput id={id} value={d.tax.withheldIncomeTax} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldIncomeTax: v } })} />}
-              </Field>
-              <Field label="Prélèvements sociaux retenus" help={`Seulement s'ils diffèrent. Vide : ${formatPct(defaultSocial)} (Paramètres › Plan). 0 si rien n'est retenu.`}>
-                {(id) => <PercentInput id={id} value={d.tax.withheldSocial} onChange={(v) => setD({ ...d, tax: { ...d.tax, withheldSocial: v } })} />}
-              </Field>
-            </FormGrid>
           </div>
         </Section>
 
@@ -375,19 +400,6 @@ function AvEditor({ offer, onChange }: { offer: AvOffer; onChange: (o: AvOffer) 
         <YesNo label="ETF monde disponible" value={offer.etfWorld} onChange={(v) => set("etfWorld", v)} target />
         <YesNo label="Fonds datés" value={offer.datedFunds} onChange={(v) => set("datedFunds", v)} target />
       </FormGrid>
-    </div>
-  );
-}
-
-function CrowdEditor({ offer, forfait, onChange }: { offer: CrowdOffer; forfait: number; onChange: (o: CrowdOffer) => void }) {
-  return (
-    <div className="space-y-3">
-      <Checkbox checked={offer.taxWithheld} onChange={(v) => onChange({ ...offer, taxWithheld: v, taxRate: v ? (offer.taxRate ?? forfait) : null })} label="La plateforme prélève les impôts automatiquement" />
-      {offer.taxWithheld && (
-        <Field label="Taux prélevé" help="Notez alors au Journal les intérêts nets, tels que crédités sur la plateforme.">
-          {(id) => <PercentInput id={id} value={offer.taxRate} onChange={(v) => onChange({ ...offer, taxRate: v })} />}
-        </Field>
-      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import type { Account, Asset, Transaction } from "./domain";
 import { computePortfolio, type Disposal, type EngineData } from "./engine";
 import { fiscalRulesFor, LAST_VERIFIED_INCOME_YEAR, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
-import { crowdTaxOf, grossFromNet, NO_INSTITUTION_TAX, type Institution, type InstitutionTax } from "./institutions";
+import { crowdTaxOf, grossFromNet, institutionWithholds, NO_INSTITUTION_TAX, type Institution, type InstitutionTax } from "./institutions";
 import { roundCents } from "./money";
 import type { PlanParams } from "./params";
 import { securitiesGains, type SecuritiesYear } from "./securitiesGains";
@@ -41,6 +41,18 @@ export function effectiveWithholding(tax: Pick<InstitutionTax, "withheldIncomeTa
   };
 }
 
+/** Retenues d'un établissement sur les revenus d'une année : rien s'il ne prélève pas, sinon ses taux ou ceux du plan. */
+export function institutionWithholding(inst: Institution | null | undefined, incomeYear: number, params: PlanParams): { incomeTax: number; social: number } {
+  if (inst && !institutionWithholds(inst)) return { incomeTax: 0, social: 0 };
+  return effectiveWithholding(inst?.tax ?? NO_INSTITUTION_TAX, incomeYear, params);
+}
+
+/** L'établissement du compte prélève-t-il les impôts ? Sans établissement : oui, sauf crowdlending et crypto. */
+export function accountWithholds(account: Pick<Account, "kind" | "institutionId">, data: Pick<EngineData, "institutions">): boolean {
+  const inst = data.institutions?.find((i) => i.id === account.institutionId);
+  return inst ? institutionWithholds(inst) : account.kind !== "crowdlending" && account.kind !== "crypto";
+}
+
 /** Brut et retenues d'un dividende ou d'intérêts : ce qui est saisi, sinon les taux de l'établissement ou ceux par défaut. */
 export function resolveIncome(tx: Transaction, account: Pick<Account, "kind" | "institutionId">, data: Pick<EngineData, "params" | "institutions">): ResolvedIncome {
   if (tx.gross != null) {
@@ -58,7 +70,9 @@ export function resolveIncome(tx: Transaction, account: Pick<Account, "kind" | "
     const incomeTax = roundCents(gross * Math.min(rate, data.params.tax.pfuIncomeTax));
     return { gross, incomeTax, social: roundCents(gross - tx.amount - incomeTax), foreign: 0, status: "calcule", note: null };
   }
-  const tax = data.institutions?.find((i) => i.id === account.institutionId)?.tax ?? NO_INSTITUTION_TAX;
+  const inst = data.institutions?.find((i) => i.id === account.institutionId);
+  if (inst && !institutionWithholds(inst)) return { gross: tx.amount, incomeTax: 0, social: 0, foreign: 0, status: "calcule", note: "L'établissement ne prélève rien : le montant reçu est le brut, tout est à déclarer." };
+  const tax = inst?.tax ?? NO_INSTITUTION_TAX;
   const resolved = grossFromNet(tx.amount, effectiveWithholding(tax, +tx.date.slice(0, 4), data.params));
   if (tax.withheldIncomeTax != null && tax.withheldSocial != null) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des retenues réglées sur l'établissement." };
   if (tax.report) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des taux par défaut (Paramètres › Plan), ou de ceux de l'établissement s'il en a." };

@@ -227,6 +227,9 @@ export function Notice() {
             <p>
               Dans <L to="/parametres?onglet=Établissements">Paramètres › Établissements</L>, créez votre banque, votre courtier, votre assureur. Indiquez leurs frais : Hamac les appliquera tout seul à vos achats et ventes. Vous les trouvez dans leur grille tarifaire, par exemple « jusqu'à 500 € : 1,99 €, au-delà : 0,5 % ».
             </p>
+            <p>
+              Dans la rubrique Fiscalité de la fiche, indiquez si l'établissement <B>prélève les impôts</B> sur les intérêts et dividendes. C'est le cas en général des banques, courtiers et assureurs français, rarement d'un établissement étranger ou d'une plateforme crypto. S'il ne prélève rien, notez au Journal le montant reçu : Hamac le compte comme brut et affiche l'impôt à payer à la déclaration.
+            </p>
           </Step>
           <Step n={3} title="Créez vos comptes">
             <p>
@@ -427,7 +430,7 @@ export function Notice() {
           <B>Si un projet dépasse son échéance,</B> une alerte apparaît. Indiquez s'il est remboursé, en retard ou en défaut, ou sa nouvelle date dans « Échéance prolongée au ». En retard, ses mensualités ne sont plus comptées comme remboursées. En défaut, il compte pour 0 € jusqu'à ce que vous saisissiez le montant espéré.
         </p>
         <p>
-          <B>Côté impôts :</B> sur la fiche de la plateforme, cochez « La plateforme prélève les impôts automatiquement » et indiquez le taux. Les impôts sont alors calculés à la déclaration des intérêts bruts et notés sur une seconde ligne du Journal, comme sur le relevé de la plateforme : vous savez ce qui a déjà été payé. Sans cette case, l'impôt est affiché à payer. La déduction des pertes n'est pas calculée.
+          <B>Côté impôts :</B> sur la fiche de la plateforme (rubrique Fiscalité), cochez « L'établissement prélève les impôts sur les intérêts et dividendes » et, s'ils diffèrent du prélèvement forfaitaire, indiquez les taux. Les impôts sont alors calculés à la déclaration des intérêts bruts et notés sur une seconde ligne du Journal, comme sur le relevé de la plateforme : vous savez ce qui a déjà été payé. Sans cette case, l'impôt est affiché à payer. La déduction des pertes n'est pas calculée.
         </p>
         <p>La page affiche le rendement réel de chaque plateforme à partir d'un an d'historique, pertes et argent non investi compris. Le crowdlending reste hors répartition par défaut, et n'entre dans la projection que si sa classe est incluse avec un rendement attendu.</p>
       </Fold>

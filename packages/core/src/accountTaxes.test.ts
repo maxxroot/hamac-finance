@@ -3,7 +3,7 @@ import { accountTaxDetails, declarationSettled, nextDeclarationYear } from "./ac
 import { crowdInterestEntries } from "./crowdlending";
 import type { Account, Asset, Transaction } from "./domain";
 import { computePortfolio, type EngineData } from "./engine";
-import { crowdWithholding, type Institution } from "./institutions";
+import { crowdWithholding, institutionWithholds, type Institution } from "./institutions";
 import { socialRateFor } from "./fiscalRules";
 import { defaultParams } from "./params";
 import { cryptoTax, yearlyTaxes } from "./taxes";
@@ -35,6 +35,34 @@ const details = (d: EngineData, asOf: string) => {
   const crypto = cryptoTax(d, asOf);
   return { rows: accountTaxDetails(d, state, crypto), years: yearlyTaxes(d, crypto, asOf, state.disposals) };
 };
+
+const courtier = (id: string, withholds: boolean | null, extra: Partial<Institution> = {}): Institution => ({
+  id, name: id, kind: "courtier", website: "", score: null, comment: "", offers: {}, tax: { report: false, withholds, withheldIncomeTax: null, withheldSocial: null }, protection: { guarantor: "", country: "france" }, ...extra,
+});
+
+describe("l'établissement prélève-t-il les impôts ?", () => {
+  it("suit la case de la fiche, sinon ce que Hamac supposait", () => {
+    expect(institutionWithholds(courtier("a", false))).toBe(false);
+    expect(institutionWithholds(courtier("b", null))).toBe(true);
+    expect(institutionWithholds(courtier("c", null, { protection: { guarantor: "", country: "ue" } }))).toBe(false);
+    expect(institutionWithholds(courtier("d", null, { kind: "crypto" }))).toBe(false);
+    expect(institutionWithholds(courtier("e", null, { tax: { report: false, withholds: null, withheldIncomeTax: 0, withheldSocial: 0 } }))).toBe(false);
+    expect(institutionWithholds(etab("f", { taxWithheld: true, taxRate: 0.3 }))).toBe(true);
+  });
+
+  it("compte-titres chez un établissement qui ne prélève rien : dividende brut, tout à la déclaration", () => {
+    const d = data({
+      accounts: [acc("cto", "cto", { institutionId: "etranger" })],
+      institutions: [courtier("etranger", false)],
+      transactions: [tx("2026-01-02", "versement", "cto", 1000), tx("2026-03-10", "dividende", "cto", 100)],
+    });
+    const row = details(d, "2026-06-01").rows.find((r) => r.accountId === "cto")!.years.find((y) => y.year === 2026)!;
+    expect(row.income).toBe(100);
+    expect(row.atSource).toBe(0);
+    // Prélèvement forfaitaire de 12,8 % et prélèvements sociaux de l'année, tout à la déclaration.
+    expect(row.atDeclaration).toBeCloseTo(100 * (0.128 + socialRateFor(2026, "patrimoine", d.params)), 2);
+  });
+});
 
 describe("impôts compte par compte", () => {
   it("impôt des revenus N payé dès la sortie de l'avis, début août N+1", () => {
