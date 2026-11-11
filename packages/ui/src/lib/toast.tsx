@@ -8,12 +8,14 @@ interface Toast {
   message: string;
 }
 
+let lastId = 0;
+
 const Ctx = createContext<(tone: Toast["tone"], message: string) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const push = useCallback((tone: Toast["tone"], message: string) => {
-    const id = Date.now() + Math.random();
+    const id = ++lastId;
     setToasts((t) => [...t, { id, tone, message }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 7000 : 3000);
   }, []);

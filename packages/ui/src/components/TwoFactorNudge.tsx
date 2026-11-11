@@ -46,7 +46,7 @@ export function TwoFactorPrompt() {
             autoFocus
             onClick={() => {
               later();
-              navigate(TWO_FACTOR_SETUP_LINK);
+              void navigate(TWO_FACTOR_SETUP_LINK);
             }}
           >
             Activer maintenant

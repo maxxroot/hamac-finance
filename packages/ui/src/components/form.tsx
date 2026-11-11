@@ -35,7 +35,8 @@ export function Modal({
   }, [open, onClose]);
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#08120e]/55 p-6 pt-[8vh]" onMouseDown={onClose}>
+    // Fond cliquable : un raccourci à la souris, Échap et le bouton de fermeture restent les vrais moyens de fermer.
+    <div role="presentation" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#08120e]/55 p-6 pt-[8vh]" onMouseDown={onClose}>
       <div
         ref={dialogRef}
         role="dialog"

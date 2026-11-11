@@ -306,7 +306,7 @@ function calendarOf(months: readonly MonthReturn[]): CalendarYear[] {
 function statsOf(months: readonly MonthReturn[]): MonthStats | null {
   const rated = months.flatMap((m) => (m.rate == null ? [] : [{ month: m.month, rate: m.rate }]));
   if (!rated.length) return null;
-  const by = (cmp: (a: number, b: number) => boolean) => rated.reduce((x, m) => (cmp(m.rate, x.rate) ? m : x));
+  const by = (cmp: (a: number, b: number) => boolean) => rated.reduce((x, m) => (cmp(m.rate, x.rate) ? m : x), rated[0]!);
   return { best: by((a, b) => a > b), worst: by((a, b) => a < b), positive: rated.filter((m) => m.rate > 0).length, counted: rated.length };
 }
 
@@ -584,7 +584,7 @@ function comparePrices(book: PriceBook, leftId: string, rightId: string, asOf: s
   const firstCommon = l[0]!.date > r[0]!.date ? l[0]!.date : r[0]!.date;
   const windowFrom = monthsBack == null ? firstCommon : addMonths(asOf, -monthsBack);
   const from = windowFrom > firstCommon ? windowFrom : firstCommon;
-  const all = [from, ...[...new Set([...l, ...r].map((p) => p.date))].filter((d) => d > from).sort()];
+  const all = [from, ...[...new Set([...l, ...r].map((p) => p.date))].filter((d) => d > from).sort((a, b) => a.localeCompare(b))];
   if (all.length < 2) return null;
   const step = Math.ceil(all.length / MAX_COMPARE_POINTS);
   const dates = all.filter((_, i) => i % step === 0 || i === all.length - 1);

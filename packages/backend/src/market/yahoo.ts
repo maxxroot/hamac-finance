@@ -38,7 +38,7 @@ export async function yahooHistory(fetcher: Fetcher, symbol: string, range: "5d"
   if (!r) throw new MarketError(j.chart?.error?.description ?? `Yahoo ne connaît pas le symbole ${symbol}.`);
   if (r.meta?.currency && r.meta.currency !== "EUR") throw new MarketError(`Cotation en ${r.meta.currency} : choisissez la cotation en euros (ex. suffixe .PA).`);
   const closes = r.indicators?.quote?.[0]?.close ?? [];
-  const points = (r.timestamp ?? []).map((t, i) => ({ date: isoDay(t * 1000), price: closes[i] ?? NaN })).filter((p) => Number.isFinite(p.price));
+  const points = (r.timestamp ?? []).map((t, i) => ({ date: isoDay(t * 1000), price: closes[i] ?? Number.NaN })).filter((p) => Number.isFinite(p.price));
   if (r.meta?.regularMarketPrice && r.meta.regularMarketTime) points.push({ date: isoDay(r.meta.regularMarketTime * 1000), price: r.meta.regularMarketPrice });
   return points;
 }

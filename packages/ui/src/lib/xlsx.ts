@@ -74,7 +74,7 @@ const unescapeXml = (s: string) =>
     if (k === "quot") return '"';
     if (k === "apos") return "'";
     if (k === "amp") return "&";
-    return String.fromCodePoint(k.startsWith("#x") ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10));
+    return String.fromCodePoint(k.startsWith("#x") ? Number.parseInt(k.slice(2), 16) : Number.parseInt(k.slice(1), 10));
   });
 
 const attr = (s: string, name: string) => new RegExp(`\\b${name}="([^"]*)"`).exec(s)?.[1] ?? null;

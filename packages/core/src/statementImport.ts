@@ -30,7 +30,7 @@ export function detectFormat(text: string, fileName = ""): StatementFormat {
   const name = fileName.toLowerCase();
   const head = text.slice(0, 2000);
   if (/\.(ofx|qfx)$/.test(name) || /<OFX>|OFXHEADER/i.test(head)) return "ofx";
-  if (/\.qif$/.test(name) || /^\s*!Type:/im.test(head)) return "qif";
+  if (/\.qif$/.test(name) || /^[ \t]*!Type:/im.test(head)) return "qif";
   return "csv";
 }
 

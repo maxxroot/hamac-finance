@@ -99,7 +99,7 @@ export function cryptoTax(data: EngineData, asOf: string): CryptoTaxReport {
   }
 
   const ir = incomeTaxRate(params);
-  const yearsSet = [...new Set(sales.map((s) => s.year))].sort();
+  const yearsSet = [...new Set(sales.map((s) => s.year))].sort((a, b) => a - b);
   const years: CryptoYear[] = yearsSet.map((year) => {
     const ys = sales.filter((s) => s.year === year);
     const grossSales = roundCents(ys.reduce((s, x) => s + x.gross, 0));

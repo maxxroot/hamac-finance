@@ -72,7 +72,7 @@ export function Journal() {
   const [importing, setImporting] = useState(false);
   const [q, setQ] = useState("");
 
-  const years = useMemo(() => [...new Set(all.map((t) => t.date.slice(0, 4)))].sort().reverse(), [all]);
+  const years = useMemo(() => [...new Set(all.map((t) => t.date.slice(0, 4)))].sort((a, b) => b.localeCompare(a)), [all]);
 
   const rows = useMemo(() => {
     if (!idx) return [];

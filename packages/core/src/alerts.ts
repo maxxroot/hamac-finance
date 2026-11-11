@@ -177,7 +177,7 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   const since = addMonths(today, -6);
   const costly = data.transactions.filter((t) => (t.type === "achat" || t.type === "vente") && t.date >= since && t.date <= today && t.fee != null && t.amount > 0 && t.fee / t.amount > 0.01);
   if (costly.length) {
-    const worst = costly.reduce((m, t) => (t.fee! / t.amount > m.fee! / m.amount ? t : m));
+    const worst = costly.reduce((m, t) => (t.fee! / t.amount > m.fee! / m.amount ? t : m), costly[0]!);
     out.push({
       id: "petits-ordres",
       level: "attention",

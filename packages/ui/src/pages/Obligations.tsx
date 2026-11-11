@@ -54,7 +54,7 @@ export function Obligations() {
   const nominalHeld = held.reduce((s, p) => s + (p.bond?.nominal ?? 0), 0);
   const costHeld = held.reduce((s, p) => s + p.cost, 0);
   const coupons = held.reduce((s, p) => s + (p.bond?.annualCoupon ?? 0), 0);
-  const next = held.map((p) => p.bond!.terms.maturityDate).sort()[0];
+  const next = held.map((p) => p.bond!.terms.maturityDate).sort((a, b) => a.localeCompare(b))[0];
   const ytmAvg = costHeld > 0 ? held.reduce((s, p) => s + (p.bond?.ytm ?? 0) * p.cost, 0) / costHeld : null;
   const cto = ctos[0];
 
@@ -63,7 +63,7 @@ export function Obligations() {
     const c = nextCoupon(p.bond!.terms, pf.today);
     return c ? [{ date: c.date, amount: c.amount * p.bond!.nominal }] : [];
   });
-  const firstDate = nextCoupons.map((c) => c.date).sort()[0];
+  const firstDate = nextCoupons.map((c) => c.date).sort((a, b) => a.localeCompare(b))[0];
   const upcoming = firstDate ? { date: firstDate, amount: nextCoupons.filter((c) => c.date === firstDate).reduce((t, c) => t + c.amount, 0) } : null;
 
   return (

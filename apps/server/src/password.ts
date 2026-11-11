@@ -15,7 +15,7 @@ const ARGON2_FORMAT = /^\$argon2id\$v=19\$m=(\d+),t=(\d+),p=(\d+)\$([^$]+)\$([^$
 /** Paramètres des comptes créés avant Argon2id : conservés pour les vérifier, puis les convertir. */
 const LEGACY_SCRYPT = { N: 16384, r: 8, p: 1 } as const;
 
-const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64").replace(/=+$/, "");
+const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64").replace(/={1,2}$/, "");
 
 async function derive(password: string, salt: Uint8Array, cost: Argon2Cost, hashLength: number): Promise<Buffer> {
   return Buffer.from(await argon2id({ password, salt, ...cost, hashLength, outputType: "binary" }));

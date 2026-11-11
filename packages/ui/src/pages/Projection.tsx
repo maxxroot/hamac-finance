@@ -57,7 +57,7 @@ function ProjectionPage() {
       { name: "Fourchette basse (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p10)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: c.ink.muted }, itemStyle: { color: c.ink.muted } },
       { name: "Fourchette haute (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p90)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: c.ink.fg }, itemStyle: { color: c.ink.fg } },
     ];
-    if (alt) series.push({ name: "Scénario", type: "line", data: base.rows.map((r) => Math.round(alt.rows.find((x) => x.year === r.year)?.total ?? NaN)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.primary }, itemStyle: { color: c.primary } });
+    if (alt) series.push({ name: "Scénario", type: "line", data: base.rows.map((r) => Math.round(alt.rows.find((x) => x.year === r.year)?.total ?? Number.NaN)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.primary }, itemStyle: { color: c.primary } });
     return {
       tooltip: { trigger: "axis", ...tooltipStyle(c), valueFormatter: (v: unknown) => formatEur(Number(v), { compact: true }) },
       xAxis: { type: "category", data: years, ...axisStyle(c), splitLine: { show: false } },

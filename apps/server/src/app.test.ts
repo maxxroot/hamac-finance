@@ -2,7 +2,7 @@ import { randomBytes, scryptSync } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { rawFor } from "@hamac/backend";
 import { testProvider } from "@hamac/backend/testkit";
-import { createApp, type SignupMode } from "./app";
+import { createApp, isEmail, type SignupMode } from "./app";
 
 type App = Awaited<ReturnType<typeof createApp>>;
 const SETUP = "code-installation-test";
@@ -39,6 +39,17 @@ function client(s: App, ipAddr = "1.1.1.1") {
 }
 
 const SIGNUP = { method: "POST", headers: { "content-type": "application/json", "x-hamac": "1" }, body: JSON.stringify({ email: "a@exemple.fr", password: "motdepasse-long", invite: SETUP }) };
+
+describe("adresse e-mail", () => {
+  it("accepte une forme minimale et refuse le reste", () => {
+    for (const ok of ["a@exemple.fr", "prenom.nom@sous.domaine.fr", "a@b.c"]) expect(isEmail(ok)).toBe(true);
+    for (const ko of ["", "@exemple.fr", "a@", "a@exemple", "a@.fr", "a@exemple.", "a@@exemple.fr", "a@b@exemple.fr", "a b@exemple.fr", "a@exemple.fr "]) expect(isEmail(ko)).toBe(false);
+  });
+
+  it("reste rapide sur une saisie très longue", () => {
+    expect(isEmail(`a@${"a".repeat(200_000)}`)).toBe(false);
+  });
+});
 
 describe("HTTPS", () => {
   it("refuse le HTTP simple hors de cette machine, sauf autorisation explicite", async () => {

@@ -47,6 +47,14 @@ const SECURE_COOKIE = "__Host-hamac_session";
 const HTTPS_ONLY = "Connexion refusée : ouvrez Hamac en HTTPS.";
 const IDLE_MS = 15 * 60_000;
 const MIN_PASSWORD = 10;
+
+/** Forme minimale d'une adresse e-mail : un seul « @ », aucun espace, un point à l'intérieur du domaine.
+ *  Écrit sans expression régulière pour rester linéaire quelle que soit la saisie. */
+export function isEmail(value: string): boolean {
+  const at = value.indexOf("@");
+  if (at < 1 || at !== value.lastIndexOf("@") || /\s/.test(value)) return false;
+  return value.slice(at + 2, -1).includes(".");
+}
 /** Sans session, rien ne justifie un corps volumineux. */
 const MAX_AUTH_BODY = 16 * 1024;
 /** Assez pour restaurer une sauvegarde complète. */
@@ -304,7 +312,7 @@ export async function createApp(cfg: ServerConfig) {
     if (first && !sameSecret(body.invite ?? "", setupCode)) return c.json({ error: "Code d'installation invalide : il est affiché dans les journaux du serveur." }, 403);
     if (!first && cfg.signup === "closed") return c.json({ error: "Les inscriptions sont fermées sur cette instance." }, 403);
     if (!first && cfg.signup === "invite" && !(body.invite && (await users.inviteIsValid(body.invite)))) return c.json({ error: "Code d'invitation invalide ou expiré." }, 403);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return c.json({ error: "Adresse e-mail invalide." }, 400);
+    if (!isEmail(email)) return c.json({ error: "Adresse e-mail invalide." }, 400);
     if (password.length < MIN_PASSWORD) return c.json({ error: `Mot de passe trop court (${MIN_PASSWORD} caractères minimum).` }, 400);
     if (await users.findByEmail(email)) return c.json({ error: "Un compte existe déjà avec cette adresse." }, 409);
     if (first && installing) return c.json({ error: "Installation déjà en cours." }, 409);

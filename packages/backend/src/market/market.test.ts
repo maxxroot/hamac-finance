@@ -6,6 +6,7 @@ import { SharedMarket } from "./shared";
 import type { Fetcher } from "./http";
 import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./custom";
 import { euronextHistory, parseEuronextCsv } from "./euronext";
+import { withoutBondSuffix } from "./openfigi";
 import { chainFor, defaultProviderSettings, instrumentKey, parseBondTicker, searchAssets } from "./index";
 import { assertPlausible } from "./plausible";
 import { yahooRange } from "./yahoo";
@@ -41,6 +42,13 @@ describe("sources de cours", () => {
     expect(parseBondTicker("FRTR 3 05/25/33 OAT")).toEqual({ couponRate: 0.03, maturityDate: "2033-05-25" });
     expect(parseBondTicker("TTEFP 1.491 04/08/27 EMTN")).toEqual({ couponRate: 0.01491, maturityDate: "2027-04-08" });
     expect(parseBondTicker("TTEFP V2 PERP")).toBeNull();
+  });
+
+  it("retire le suffixe de place d'un code obligataire, en temps linéaire", () => {
+    expect(withoutBondSuffix("FRTR 3 05/25/33 OAT")).toBe("FRTR 3 05/25/33");
+    expect(withoutBondSuffix("TTEFP 1.491 04/08/27  emtn")).toBe("TTEFP 1.491 04/08/27");
+    expect(withoutBondSuffix("TTEFP V2 PERP")).toBe("TTEFP V2 PERP");
+    expect(withoutBondSuffix(`X${" ".repeat(100_000)}FP`)).toBe("X");
   });
 
   const base = { id: "a", name: "x", isin: null, symbol: null, priceSource: "auto" as const, priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false };

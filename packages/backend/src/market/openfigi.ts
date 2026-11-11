@@ -36,6 +36,12 @@ export function parseBondTicker(ticker: string): { couponRate: number; maturityD
   return { couponRate: Number((Number(c) / 100).toFixed(8)), maturityDate: `${year}-${mm}-${dd}` };
 }
 
+/** Retire le suffixe de place d'un ticker obligataire (« FRTR 3 05/25/34 OAT » → « FRTR 3 05/25/34 »). */
+export function withoutBondSuffix(ticker: string): string {
+  const m = /\s(?:OAT|EMTN|FP|MTN)$/i.exec(ticker);
+  return m ? ticker.slice(0, m.index).trimEnd() : ticker;
+}
+
 function kindOf(r: FigiRecord): AssetKind | null {
   const t2 = r.securityType2 ?? "";
   const t = r.securityType ?? "";
@@ -55,7 +61,7 @@ function toCandidate(r: FigiRecord, isin: string | null): Candidate | null {
   return {
     source: "openfigi",
     kind,
-    name: bond && r.ticker ? r.ticker.replace(/\s+(OAT|EMTN|FP|MTN)$/i, "") : r.name,
+    name: bond && r.ticker ? withoutBondSuffix(r.ticker) : r.name,
     isin,
     symbol,
     exchange: r.exchCode ?? null,

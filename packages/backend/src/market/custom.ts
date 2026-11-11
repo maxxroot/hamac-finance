@@ -9,8 +9,9 @@ import { MarketError, UA, type Fetcher, type Quote } from "./http";
 const MAX_BYTES = 2_000_000;
 
 const privateRanges = new BlockList();
-for (const [net, bits] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.168.0.0", 16], ["224.0.0.0", 4], ["240.0.0.0", 4]] as const) privateRanges.addSubnet(net, bits, "ipv4");
-for (const [net, bits] of [["::1", 128], ["::", 128], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8]] as const) privateRanges.addSubnet(net, bits, "ipv6");
+// Adresses écrites en dur volontairement : ce sont les réseaux privés et réservés interdits aux URL personnalisées (protection SSRF).
+for (const [net, bits] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.168.0.0", 16], ["224.0.0.0", 4], ["240.0.0.0", 4]] as const) privateRanges.addSubnet(net, bits, "ipv4"); // NOSONAR
+for (const [net, bits] of [["::1", 128], ["::", 128], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8]] as const) privateRanges.addSubnet(net, bits, "ipv6"); // NOSONAR
 
 function isPrivate(address: string): boolean {
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address);
@@ -48,7 +49,7 @@ export function readPath(json: unknown, path: string): unknown {
 }
 
 export function toPrice(v: unknown): number | null {
-  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.replace(/[\s  ]/g, "").replace(",", ".")) : NaN;
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.replace(/[\s  ]/g, "").replace(",", ".")) : Number.NaN;
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 

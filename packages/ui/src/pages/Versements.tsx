@@ -33,7 +33,7 @@ export function Versements() {
   const columns = idx.ws.accounts.filter((a) => withPlans.some((p) => p.id === a.id) || withOneOffs.has(a.id));
   // Calendrier jusqu'au départ en retraite, ou sur dix ans en gestion de patrimoine ; depuis le premier versement ponctuel s'il précède le plan.
   const endMonth = isRetirementPlan(params) ? `${retirementYear(params)}-12` : `${Math.max(+current.slice(0, 4), +params.profile.startMonth.slice(0, 4)) + 10}-12`;
-  const firstOneOff = [...oneOffs.keys()].sort()[0];
+  const firstOneOff = [...oneOffs.keys()].sort((a, b) => a.localeCompare(b))[0];
   const startMonth = firstOneOff && firstOneOff < params.profile.startMonth ? firstOneOff : params.profile.startMonth;
   const allMonths = monthsBetweenInclusive(startMonth, endMonth);
   const months = showAll ? allMonths : allMonths.filter((m) => m >= addMonth(current, -3) && m <= addMonth(current, 14));

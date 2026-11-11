@@ -126,7 +126,7 @@ export function StatementImportDialog({ open, onClose }: { open: boolean; onClos
   }, [file, roles, accountId, defaultType, assetOverrides, idx]);
 
   const isIncluded = (p: ImportProposal, i: number) => p.status !== "erreur" && (toggled.get(i) ?? p.status === "ok");
-  const selected = proposals.filter(isIncluded);
+  const selected = proposals.filter((p, i) => isIncluded(p, i));
   const count = (s: ImportProposal["status"]) => proposals.filter((p) => p.status === s).length;
   const unknown = [...new Map(proposals.filter((p) => p.unknownAsset).map((p) => [p.unknownAsset!.key, p.unknownAsset!])).values()];
   const account = idx?.accountById.get(accountId);

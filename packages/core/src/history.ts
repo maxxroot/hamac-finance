@@ -58,7 +58,7 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
   const firstTx = data.transactions.reduce<string | null>((m, t) => (m == null || t.date < m ? t.date : m), null);
   const startCandidates = [data.params.profile.startMonth, firstTx ? monthOf(firstTx) : null].filter(Boolean) as string[];
   if (!startCandidates.length) return [];
-  let month = startCandidates.sort()[0];
+  let month = startCandidates.sort((a, b) => a.localeCompare(b))[0];
   const last = monthOf(asOf);
   const points: HistoryPoint[] = [];
   while (month <= last) {

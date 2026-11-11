@@ -66,7 +66,7 @@ export function milestones(data: EngineData, history: readonly HistoryPoint[], a
 
   // Enveloppes : ouverture (date saisie, sinon première opération) et clôture (dernière opération d'un compte archivé).
   for (const a of data.accounts) {
-    const dates = [...txs.filter((t) => t.accountId === a.id || t.counterAccountId === a.id).map((t) => t.date), ...schedule.paidFlows(a.id, asOf).map((f) => f.date)].sort();
+    const dates = [...txs.filter((t) => t.accountId === a.id || t.counterAccountId === a.id).map((t) => t.date), ...schedule.paidFlows(a.id, asOf).map((f) => f.date)].sort((x, y) => x.localeCompare(y));
     const opened = a.openedOn ?? dates[0];
     if (opened) push({ id: `ouverture:${a.id}`, date: opened, category: "enveloppes", title: `Ouverture de ${quoted(a.name)}`, detail: ACCOUNT_KIND_LABELS[a.kind], accountId: a.id });
     const last = dates.at(-1);

@@ -139,7 +139,7 @@ export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: bo
     const tick = async () => {
       const res = await refresh();
       if (closed) return;
-      const next = res.ok ? Date.parse((res.data as { nextAt?: string }).nextAt ?? "") : NaN;
+      const next = res.ok ? Date.parse((res.data as { nextAt?: string }).nextAt ?? "") : Number.NaN;
       priceTimer = setTimeout(() => void tick(), Number.isFinite(next) ? Math.max(60_000, next - Date.now()) : ctx.market.intervalMinutes(0) * 60_000);
       priceTimer.unref?.();
     };

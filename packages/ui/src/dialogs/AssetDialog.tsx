@@ -103,7 +103,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
       id: x.id,
       name: c.kind === "obligation" && c.couponRate != null ? c.name : titleCase(c.name),
       isin: c.isin ?? x.isin,
-      symbol: c.kind === "crypto" ? c.symbol : c.symbol,
+      symbol: c.symbol,
       couponRate: c.couponRate,
       maturityDate: c.maturityDate,
       issuer: c.kind === "obligation" ? (c.detail.split(" · ")[0] ?? null) : null,
