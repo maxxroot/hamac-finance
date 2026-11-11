@@ -15,6 +15,8 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 - **Liste de fin d'année (proposition 10)** : repliée en bas de la page Impôts, moins-values à réaliser, abattement de l'assurance-vie, versement PER, plafonds libres et préparation de la déclaration, chiffrés, avec une case par geste ; alerte au tableau de bord en novembre et décembre.
 - **Autres biens (proposition 4)** : page « Autres biens », en dernier des enveloppes ; or, objets, véhicules, parts de société (démembrables), compte courant d'associé et argent prêté, avec décote, délai de vente et impôt estimé à la vente.
 
+- **Concentration et risque (proposition 6)** : carte « Concentration » sur la Synthèse (titres tous comptes confondus, émetteurs d'obligations, plateformes de crowdlending et projets en difficulté, établissements), alerte au-delà de 20 %, volatilité ajoutée à la page Performance.
+
 Hors propositions, ajouté pendant le même travail :
 
 - **Prélèvement des impôts réglé par établissement** (commit `877a9a7`) : une case « L'établissement prélève les impôts sur les intérêts et dividendes » sur la fiche de chaque établissement remplace ce que Hamac supposait selon le type de compte. Décochée, le montant reçu compte comme brut et tout est à payer à la déclaration (compte-titres, assurance-vie, livret bancaire, crowdlending). Les fiches existantes reprennent l'ancien comportement (oui en France pour une banque, un courtier ou un assureur ; non pour une plateforme crypto, un établissement étranger ou des taux de retenue à 0 ; l'ancienne case des plateformes de crowdlending). Calcul dans `institutionWithholds` (`core/src/institutions.ts`).
@@ -31,7 +33,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 3 | Qui possède quoi | Fait le 11 novembre 2026 (commit `c92ceb0`) |
 | 4 | Biens qui ne sont pas des placements | Fait le 11 novembre 2026, sans les actions de l'employeur (commit `adc3eb5`) |
 | 5 | Exposition réelle derrière les ETF | À étudier : faisabilité des données incertaine |
-| 6 | Concentration et risque | À faire, à détailler |
+| 6 | Concentration et risque | Fait le 11 novembre 2026 |
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
 | 8 | Poids des crédits et aide à la décision | Fait le 11 novembre 2026 |
 | 9 | Compteurs d'ancienneté et plafonds | Fait le 11 novembre 2026 |
@@ -169,7 +171,7 @@ Pour chaque bien :
 
 ## 6. Concentration et risque
 
-**Statut :** à faire, à détailler avant de coder.
+**Statut :** fait le 11 novembre 2026. Calculs dans `core/src/concentration.ts` et `volatility` (`core/src/performance.ts`), carte « Concentration » sur la Synthèse, réglage « Concentration maximale » (Paramètres › Plan, 20 % par défaut, 0 = pas d'alerte), alertes au tableau de bord. Décisions : parts du patrimoine financier, pour la part détenue des comptes joints ; les ETF et fonds sont jugés comme les autres lignes ; une obligation se juge par son émetteur (pas d'alerte en double sur sa ligne) et les OAT ne déclenchent pas d'alerte ; les établissements sont montrés sans alerte (la protection en cas de faillite a la sienne). La plus forte baisse existait déjà sur la page Performance ; la volatilité (écart-type des rendements mensuels × √12, à partir de 12 mois) y est ajoutée. Non fait : exposition par devise (proposition 5).
 
 **Pourquoi.** Voir d'un coup d'œil si le patrimoine dépend trop d'une seule ligne, d'un seul établissement ou d'un seul émetteur.
 
@@ -336,7 +338,7 @@ Pour chaque bien :
 2. ~~**Propositions 3 et 4**, qui possède quoi et autres biens~~ : faites.
 3. ~~**Proposition 12 a**, rapprochement~~ : abandonné.
 4. **Proposition 7**, disponibilité de l'argent.
-5. **Proposition 6**, concentration et risque.
+5. ~~**Proposition 6**, concentration et risque~~ : fait.
 6. ~~**Proposition 8**, crédits~~ : fait.
 7. ~~**Propositions 9 puis 10**, compteurs puis liste de fin d'année~~ : faites.
 8. **Proposition 11**, objectifs par projet.

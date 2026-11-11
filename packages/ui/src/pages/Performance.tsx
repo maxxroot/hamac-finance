@@ -80,7 +80,7 @@ export function Performance() {
             </Notice>
           )}
 
-          <div className="grid grid-cols-2 gap-4 @3xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 @3xl:grid-cols-3 @6xl:grid-cols-6">
             <Stat label="Gain" sub={<Pct value={perf.summary.gainPct} signed />}>
               <Amount value={perf.summary.gain} signed compact />
             </Stat>
@@ -95,6 +95,9 @@ export function Performance() {
             </Stat>
             <Stat label="Plus forte baisse" sub={perf.drawdown ? `${capitalize(formatMonth(perf.drawdown.troughMonth))} · ${perf.drawdown.recoveredMonth ? "rattrapée" : "pas encore rattrapée"}` : "aucune sur la période"}>
               {perf.drawdown ? <Pct value={perf.drawdown.depth} signed /> : <span className="text-fg-faint">—</span>}
+            </Stat>
+            <Stat label="Volatilité" sub={perf.volatility != null ? `la valeur varie d'environ ${pctText(perf.volatility, 1, false)} par an` : "il faut au moins 12 mois"}>
+              {perf.volatility != null ? <Pct value={perf.volatility} /> : <span className="text-fg-faint">—</span>}
             </Stat>
           </div>
 

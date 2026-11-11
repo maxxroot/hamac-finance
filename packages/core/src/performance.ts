@@ -96,6 +96,18 @@ export function maxDrawdown(months: readonly MonthReturn[]): Drawdown | null {
   return { depth: w.depth, troughMonth: months[w.at]!.month, recoveredMonth: back >= 0 ? months[back]!.month : null };
 }
 
+/**
+ * Volatilité annualisée : écart-type des rendements mensuels × √12 (convention usuelle, AMF « indicateur de risque »).
+ * Null sous 12 mois de rendements connus : trop peu de points pour qu'elle ait un sens.
+ */
+export function volatility(months: readonly MonthReturn[]): number | null {
+  const rates = months.map((m) => m.rate).filter((r): r is number => r != null);
+  if (rates.length < 12) return null;
+  const mean = rates.reduce((s, r) => s + r, 0) / rates.length;
+  const variance = rates.reduce((s, r) => s + (r - mean) ** 2, 0) / (rates.length - 1);
+  return Math.sqrt(variance) * Math.sqrt(12);
+}
+
 export interface GainSources {
   unrealized: number;
   realized: number;
@@ -183,6 +195,8 @@ export interface ScopePerformance {
   sources: GainSources;
   byClass: ClassBreakdown;
   drawdown: Drawdown | null;
+  /** Volatilité annualisée sur la période ; null sous 12 mois. */
+  volatility: number | null;
   curve: CurvePoint[];
   years: YearPerformance[];
   /** Les mêmes chiffres, mois par mois, sur tout l'historique. */
@@ -460,6 +474,7 @@ export function scopePerformance(data: EngineData, state: PortfolioState, histor
     sources: gainSources(start == null ? null : kept[start]!, kept.at(-1)!, accountIds),
     byClass: classBreakdown(data, kept, accountIds, start),
     drawdown: maxDrawdown(window),
+    volatility: volatility(window),
     curve,
     years: yearsOf(months, kept, accountIds),
     monthly: monthlyOf(months, kept, accountIds),

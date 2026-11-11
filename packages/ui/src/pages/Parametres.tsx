@@ -291,6 +291,7 @@ function PlanTab({ draft }: { draft: PlanDraft }) {
           {eurField("Espèces du compte-titres à investir", ["alerts", "ctoCashThreshold"], "Alerte quand de quoi acheter une obligation attend.")}
           {eurField("Espèces du PEA à investir", ["alerts", "peaCashThreshold"])}
           {eurField("Garantie des assureurs (FGAP)", ["alerts", "fgapGuarantee"], "Par personne et par assureur.")}
+          {pctField("Concentration maximale", ["alerts", "concentrationMax"], "Part du patrimoine financier sur un seul titre, émetteur ou plateforme. 0 : pas d'alerte.")}
         </FormGrid>
       </Section>
     </div>

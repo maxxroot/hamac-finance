@@ -5,6 +5,7 @@ import type { AccountState, PortfolioState } from "@hamac/core";
 import { AccountEvolution, EnvelopesEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { ProtectionCard } from "@/components/ProtectionCard";
+import { ConcentrationCard } from "@/components/ConcentrationCard";
 import { Notice, Pct } from "@/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
@@ -32,6 +33,7 @@ export function Synthese() {
         <EnvelopesEvolution className="p-0" />
       </Card>
 
+      <ConcentrationCard />
       <ProtectionCard />
 
       <Card>

@@ -117,6 +117,8 @@ export const PlanParams = z
       ctoCashThreshold: eur,
       peaCashThreshold: eur,
       fgapGuarantee: eur,
+      /** Part du patrimoine financier au-delà de laquelle un titre, un émetteur ou une plateforme est signalé ; 0 = pas d'alerte. */
+      concentrationMax: pct,
       stressEquity: z.tuple([pct, pct]),
       stressCrypto: z.tuple([pct, pct]),
     }),
@@ -195,6 +197,7 @@ export function defaultParams(today = new Date()): PlanParams {
       ctoCashThreshold: 1000,
       peaCashThreshold: 50,
       fgapGuarantee: 70000,
+      concentrationMax: 0.2,
       stressEquity: [0.3, 0.5],
       stressCrypto: [0.5, 0.8],
     },

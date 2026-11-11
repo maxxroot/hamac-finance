@@ -10,6 +10,7 @@ import { GUARANTEE_LABELS, protectionOf } from "./protection";
 import { reconcile } from "./reconciliation";
 import { MAX_EFFORT_RATE } from "./debt";
 import { yearEndChecklist, yearEndSeason } from "./yearEnd";
+import { concentrationReport } from "./concentration";
 import { daysBetween } from "./xirr";
 
 /** Niveaux réservés : toujours affichés avec une icône et un libellé, jamais par la couleur seule. */
@@ -159,6 +160,11 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   if (yearEndSeason(today)) {
     const chiffres = yearEndChecklist(data, state).filter((x) => x.saving != null && x.saving > 0);
     if (chiffres.length) out.push({ id: "fin-annee", level: "info", title: `Liste de fin d'année : ${chiffres.length} geste${chiffres.length > 1 ? "s" : ""} avant le 31 décembre`, detail: chiffres.map((x) => x.title).join(" · "), link: "/impots" });
+  }
+
+  // Concentration : un titre, un émetteur ou une plateforme qui pèse trop lourd.
+  for (const c of concentrationReport(data, state).alerts) {
+    out.push({ id: `concentration-${c.key}`, level: "info", title: `${c.label} : ${Math.round(c.share * 100)} % du patrimoine financier`, detail: `Au-delà du seuil de ${Math.round(p.alerts.concentrationMax * 100)} % (Paramètres › Plan). Pensez à orienter les prochains versements ailleurs.`, link: "/enveloppes" });
   }
 
   // Crédits : taux d'effort au-delà de ce que prêtent les banques.
