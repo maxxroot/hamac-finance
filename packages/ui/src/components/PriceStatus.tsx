@@ -36,7 +36,7 @@ export function PriceStatus() {
         {refresh.isPending ? "Actualisation…" : status ? `Cours ${ago(status.at, now)}` : "Actualiser les cours"}
       </button>
       {open && errors.length > 0 && (
-        <div className="absolute top-full right-0 z-40 mt-2 w-[420px] rounded-xl border border-line-strong bg-surface-2 p-4 text-sm shadow-2xl">
+        <div className="absolute top-full right-0 z-40 mt-2 w-[420px] rounded-xl border border-line bg-surface p-4 text-sm shadow-float">
           <div className="mb-2 font-medium">Cours non actualisés</div>
           <ul className="mb-3 space-y-1.5 text-xs text-fg-muted">
             {errors.map((e) => (

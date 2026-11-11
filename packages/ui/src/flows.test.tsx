@@ -631,7 +631,7 @@ describe("parcours de l'interface", () => {
     const user = userEvent.setup();
     await rpc("accounts.upsert", { kind: "livret", livretType: "LEP", name: "LEP" });
     show(<Parametres />);
-    await user.click(await screen.findByRole("button", { name: "Répartition" }));
+    await user.click(await screen.findByRole("tab", { name: "Répartition" }));
     const cible = await screen.findByLabelText("Cible de Actions");
     expect(screen.getByLabelText("Cible de Livrets")).toBeTruthy();
     expect((screen.getByLabelText("Cible de Livrets") as HTMLInputElement).disabled).toBe(true);
@@ -640,9 +640,9 @@ describe("parcours de l'interface", () => {
     await user.tab();
     expect((await screen.findAllByText(/reste .* à répartir/)).length).toBeGreaterThan(0);
     // Le brouillon survit au changement d'onglet.
-    await user.click(screen.getByRole("button", { name: "Plan" }));
+    await user.click(screen.getByRole("tab", { name: "Plan" }));
     expect(screen.queryByLabelText("Cible de Actions")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Répartition" }));
+    await user.click(screen.getByRole("tab", { name: "Répartition" }));
     expect((await screen.findAllByText(/reste .* à répartir/)).length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Ajouter une classe" }));
     await user.type(await screen.findByLabelText("Nom de la classe"), "Métaux précieux");
@@ -658,7 +658,7 @@ describe("parcours de l'interface", () => {
     const user = userEvent.setup();
     const a = await rpc<{ id: string }>("assets.upsert", { kind: "etf", name: "ETF Monde", priceSource: "manuel" });
     show(<Parametres />);
-    await user.click(await screen.findByRole("button", { name: "Actifs" }));
+    await user.click(await screen.findByRole("tab", { name: "Actifs" }));
     const row = (await screen.findByText("ETF Monde")).closest("tr")!;
     await user.selectOptions(within(row).getByLabelText("Allocation de ETF Monde"), "out");
     await waitFor(async () => expect((await workspace()).assets.find((x) => x.id === a.id)?.inAllocation).toBe(false));

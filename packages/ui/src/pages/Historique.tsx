@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { BUCKET_LABELS, BUCKETS, formatEur } from "@hamac/core";
 import { Amount } from "@/components/Amount";
-import { Chart, axisStyle, type ChartOption } from "@/components/Chart";
+import { Chart, axisStyle, tooltipStyle, type ChartOption } from "@/components/Chart";
 import { Table, Td, Tr } from "@/components/table";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
-import { BUCKET_COLORS, INK } from "@/lib/colors";
+import { useChartColors } from "@/lib/colors";
 import { capitalize, formatMonth } from "@/lib/numbers";
 import { useHistory } from "@/lib/portfolio";
 import { useWorkspaceIndex } from "@/lib/workspace";
@@ -20,39 +20,40 @@ export function Historique() {
   const history = useHistory();
   const [showTable, setShowTable] = useState(false);
 
+  const c = useChartColors();
   const charts = useMemo(() => {
     if (!history?.length) return null;
     const months = history.map((h) => capitalize(formatMonth(h.month)));
     const line: ChartOption = {
-      tooltip: { trigger: "axis", backgroundColor: INK.surface2, borderColor: INK.line, textStyle: { color: INK.fg }, valueFormatter: tooltipEur },
-      xAxis: { type: "category", data: months, boundaryGap: false, ...axisStyle, splitLine: { show: false } },
-      yAxis: { type: "value", ...axisStyle, axisLabel: { color: INK.faint, formatter: eurAxis } },
+      tooltip: { trigger: "axis", ...tooltipStyle(c), valueFormatter: tooltipEur },
+      xAxis: { type: "category", data: months, boundaryGap: false, ...axisStyle(c), splitLine: { show: false } },
+      yAxis: { type: "value", ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxis } },
       series: [
-        { name: "Patrimoine", type: "line", data: history.map((h) => h.value), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: INK.accent }, itemStyle: { color: INK.accent } },
-        { name: "Versé net", type: "line", data: history.map((h) => h.netContrib), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dashed", color: INK.muted }, itemStyle: { color: INK.muted } },
+        { name: "Patrimoine", type: "line", data: history.map((h) => h.value), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.primary }, itemStyle: { color: c.primary } },
+        { name: "Versé net", type: "line", data: history.map((h) => h.netContrib), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dashed", color: c.ink.muted }, itemStyle: { color: c.ink.muted } },
       ],
     };
     if (history.some((h) => h.realEstate !== 0 || h.debts !== 0)) {
-      (line.series as unknown[]).push({ name: "Patrimoine net (biens et crédits compris)", type: "line", data: history.map((h) => h.netWorth), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: BUCKET_COLORS.immobilier }, itemStyle: { color: BUCKET_COLORS.immobilier } });
+      (line.series as unknown[]).push({ name: "Patrimoine net (biens et crédits compris)", type: "line", data: history.map((h) => h.netWorth), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.buckets.immobilier }, itemStyle: { color: c.buckets.immobilier } });
     }
     const used = BUCKETS.filter((b) => history.some((h) => h.buckets[b] !== 0));
     const area: ChartOption = {
-      tooltip: { trigger: "axis", backgroundColor: INK.surface2, borderColor: INK.line, textStyle: { color: INK.fg }, valueFormatter: tooltipEur },
-      xAxis: { type: "category", data: months, boundaryGap: false, ...axisStyle, splitLine: { show: false } },
-      yAxis: { type: "value", ...axisStyle, axisLabel: { color: INK.faint, formatter: eurAxis } },
+      tooltip: { trigger: "axis", ...tooltipStyle(c), valueFormatter: tooltipEur },
+      xAxis: { type: "category", data: months, boundaryGap: false, ...axisStyle(c), splitLine: { show: false } },
+      yAxis: { type: "value", ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxis } },
       series: used.map((b) => ({
         name: BUCKET_LABELS[b],
         type: "line",
         stack: "total",
         data: history.map((h) => Math.max(0, h.buckets[b])),
         showSymbol: false,
-        lineStyle: { width: 2, color: INK.surface },
-        areaStyle: { color: BUCKET_COLORS[b], opacity: 0.9 },
-        itemStyle: { color: BUCKET_COLORS[b] },
+        lineStyle: { width: 2, color: c.ink.surface },
+        areaStyle: { color: c.buckets[b], opacity: 0.9 },
+        itemStyle: { color: c.buckets[b] },
       })),
     };
     return { line, area };
-  }, [history]);
+  }, [history, c]);
 
   const reversed = useMemo(() => [...(history ?? [])].reverse(), [history]);
   const { sorted, by } = useSortable(

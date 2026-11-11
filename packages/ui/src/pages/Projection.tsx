@@ -2,13 +2,13 @@ import { RotateCcw, Trash2 } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import { BUCKET_LABELS, formatEur, retirementYear, type Flows, type PlanParams, type ProjectionRow } from "@hamac/core";
 import { Amount } from "@/components/Amount";
-import { Chart, axisStyle, type ChartOption } from "@/components/Chart";
+import { Chart, axisStyle, tooltipStyle, type ChartOption } from "@/components/Chart";
 import { Field, MoneyInput, NumberInput, PercentInput, TextInput } from "@/components/form";
 import { Notice, Pct } from "@/components/Stat";
 import { Table, Td, Th, Tr } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
-import { BUCKET_COLORS, INK } from "@/lib/colors";
+import { useChartColors } from "@/lib/colors";
 import { cn } from "@/lib/cn";
 import { useProjection } from "@/lib/projection";
 import { Link } from "react-router";
@@ -42,30 +42,31 @@ function ProjectionPage() {
   const proj = useProjection(scenario);
   const [showTable, setShowTable] = useState(false);
 
+  const c = useChartColors();
   const chart = useMemo<ChartOption | null>(() => {
     if (!proj) return null;
     const { base, bands, alt } = proj;
     const years = base.rows.map((r) => String(r.year));
-    const stack = (name: string, color: string, values: number[]) => ({ name, type: "bar", stack: "plan", barMaxWidth: 18, itemStyle: { color, borderColor: INK.surface, borderWidth: 1 }, emphasis: { focus: "series" }, data: values.map((v) => Math.round(v)) });
+    const stack = (name: string, color: string, values: number[]) => ({ name, type: "bar", stack: "plan", barMaxWidth: 18, itemStyle: { color, borderColor: c.ink.surface, borderWidth: 1 }, emphasis: { focus: "series" }, data: values.map((v) => Math.round(v)) });
     const series: object[] = [
-      stack(BUCKET_LABELS.precaution, BUCKET_COLORS.precaution, base.rows.map((r) => r.livrets)),
-      stack(BUCKET_LABELS.garanti, BUCKET_COLORS.garanti, base.rows.map((r) => r.fondsEuros)),
-      stack(BUCKET_LABELS.obligations, BUCKET_COLORS.obligations, base.rows.map((r) => r.obligations)),
-      stack(BUCKET_LABELS.croissance, BUCKET_COLORS.croissance, base.rows.map((r) => r.actions)),
-      ...(base.rows.some((r) => r.others > 0) ? [stack("Autres classes", INK.muted, base.rows.map((r) => r.others))] : []),
-      { name: "Fourchette basse (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p10)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: INK.muted }, itemStyle: { color: INK.muted } },
-      { name: "Fourchette haute (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p90)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: INK.fg }, itemStyle: { color: INK.fg } },
+      stack(BUCKET_LABELS.precaution, c.buckets.precaution, base.rows.map((r) => r.livrets)),
+      stack(BUCKET_LABELS.garanti, c.buckets.garanti, base.rows.map((r) => r.fondsEuros)),
+      stack(BUCKET_LABELS.obligations, c.buckets.obligations, base.rows.map((r) => r.obligations)),
+      stack(BUCKET_LABELS.croissance, c.buckets.croissance, base.rows.map((r) => r.actions)),
+      ...(base.rows.some((r) => r.others > 0) ? [stack("Autres classes", c.ink.muted, base.rows.map((r) => r.others))] : []),
+      { name: "Fourchette basse (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p10)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: c.ink.muted }, itemStyle: { color: c.ink.muted } },
+      { name: "Fourchette haute (1 chance sur 10)", type: "line", data: bands.map((b) => Math.round(b.p90)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dotted", color: c.ink.fg }, itemStyle: { color: c.ink.fg } },
     ];
-    if (alt) series.push({ name: "Scénario", type: "line", data: base.rows.map((r) => Math.round(alt.rows.find((x) => x.year === r.year)?.total ?? NaN)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: INK.accent }, itemStyle: { color: INK.accent } });
+    if (alt) series.push({ name: "Scénario", type: "line", data: base.rows.map((r) => Math.round(alt.rows.find((x) => x.year === r.year)?.total ?? NaN)), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.primary }, itemStyle: { color: c.primary } });
     return {
-      tooltip: { trigger: "axis", backgroundColor: INK.surface2, borderColor: INK.line, textStyle: { color: INK.fg }, valueFormatter: (v: unknown) => formatEur(Number(v), { compact: true }) },
-      xAxis: { type: "category", data: years, ...axisStyle, splitLine: { show: false } },
-      yAxis: { type: "value", ...axisStyle, axisLabel: { color: INK.faint, formatter: eurAxis } },
-      legend: { bottom: 0, icon: "roundRect", itemWidth: 12, itemHeight: 4, textStyle: { color: INK.muted } },
+      tooltip: { trigger: "axis", ...tooltipStyle(c), valueFormatter: (v: unknown) => formatEur(Number(v), { compact: true }) },
+      xAxis: { type: "category", data: years, ...axisStyle(c), splitLine: { show: false } },
+      yAxis: { type: "value", ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxis } },
+      legend: { bottom: 0, icon: "roundRect", itemWidth: 12, itemHeight: 4, textStyle: { color: c.ink.muted } },
       grid: { left: 8, right: 24, top: 16, bottom: 64, containLabel: true },
       series,
     };
-  }, [proj]);
+  }, [proj, c]);
 
   if (!proj) return null;
   if (proj.pf.idx.ws.accounts.length === 0) return <Onboarding />;
@@ -181,7 +182,7 @@ const ProjectionTable = memo(function ProjectionTable({ rows, highlightYear }: {
       </thead>
       <tbody>
         {rows.map((r) => (
-          <Tr key={r.year} className={cn(r.year === highlightYear && "bg-accent/10 font-medium")}>
+          <Tr key={r.year} className={cn(r.year === highlightYear && "bg-gold/10 font-medium")}>
             <Td>{r.year}</Td>
             <Td align="right">{r.age}</Td>
             <Td align="right">

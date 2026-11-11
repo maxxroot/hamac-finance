@@ -6,7 +6,7 @@ import { ContributionSplitCard } from "@/components/CustomAllocationCards";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
 import { Field, MoneyInput, Select, TextInput } from "@/components/form";
 import { Table, Td, Th, Tr } from "@/components/table";
-import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, CardTitle, PageHeader, tabClass, tabListClass } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { cn } from "@/lib/cn";
 import { capitalize, formatMonth, todayIso } from "@/lib/numbers";
@@ -44,7 +44,7 @@ export function Versements() {
         description="Versements mensuels programmés, compte par compte. Un mois écoulé est considéré comme versé, sauf s'il est déclaré manqué."
       />
 
-      <div className="mb-6 flex gap-1 border-b border-line" role="tablist">
+      <div className={tabListClass} role="tablist">
         {(
           [
             ["libre", "Gestion libre", "Vous fixez le montant de chaque compte."],
@@ -57,7 +57,7 @@ export function Versements() {
             aria-selected={mode === m}
             title={title}
             onClick={() => setMode(m)}
-            className={cn("-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors", mode === m ? "border-accent text-fg" : "border-transparent text-fg-muted hover:text-fg")}
+            className={tabClass(mode === m)}
           >
             {label}
           </button>
@@ -130,7 +130,7 @@ export function Versements() {
                   const past = m < current;
                   const isCurrent = m === current;
                   return (
-                    <Tr key={m} className={cn(isCurrent && "bg-accent/10", !past && !isCurrent && "text-fg-muted")}>
+                    <Tr key={m} className={cn(isCurrent && "bg-gold/10", !past && !isCurrent && "text-fg-muted")}>
                       <Td className={cn("pl-5 whitespace-nowrap", isCurrent && "font-semibold text-accent")}>{capitalize(formatMonth(m))}</Td>
                       <Td align="right">{Number(m.slice(0, 4)) - params.profile.birthYear}</Td>
                       {withPlans.map((a) => {

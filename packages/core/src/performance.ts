@@ -1,5 +1,5 @@
 import { addMonths } from "./dates";
-import type { PricePoint } from "./domain";
+import { ASSET_BUCKET, BUCKET_LABELS, BUCKETS, CASH_BUCKET, type AccountKind, type Bucket, type PricePoint } from "./domain";
 import { accountIrr, contributionFlows, irrOf, PERF_GROUPS, type EngineData, type PortfolioState } from "./engine";
 import type { HistoryPoint } from "./history";
 import { endOfMonth } from "./history";
@@ -64,7 +64,10 @@ export function chainRates(rates: ReadonlyArray<number | null>): number | null {
 
 export interface CurvePoint {
   month: Month;
+  /** Rendement cumulé depuis le départ, sans l'effet des versements (0,05 = +5 %). */
   cumulative: number;
+  /** Gain cumulé en euros depuis le départ : variation de valeur moins l'argent versé. Le dernier point vaut le gain de la période. */
+  gain: number;
 }
 
 export interface Drawdown {
@@ -148,9 +151,29 @@ export interface PeriodSummary {
   annualizedReason: string | null;
 }
 
+/** Résultat d'une classe d'actifs sur la période. */
+export interface ClassPerformance {
+  bucket: Bucket;
+  label: string;
+  /** Valeur de la classe en fin de période. */
+  value: number;
+  /** Plus-values (encaissées ou non), dividendes et intérêts de la période. */
+  gain: number;
+  /** Rendement de la période, sans l'effet de l'argent ajouté ou retiré ; null si la classe était trop petite pour en donner un. */
+  rate: number | null;
+}
+
+export interface ClassBreakdown {
+  /** Dans l'ordre fixe des classes. */
+  rows: ClassPerformance[];
+  /** Frais facturés à part et impôts prélevés (négatif) : ils ne se rattachent à aucune classe. Avec les lignes, redonne le gain. */
+  charges: number;
+}
+
 export interface ScopePerformance {
   summary: PeriodSummary;
   sources: GainSources;
+  byClass: ClassBreakdown;
   drawdown: Drawdown | null;
   curve: CurvePoint[];
   years: YearPerformance[];
@@ -287,6 +310,88 @@ function statsOf(months: readonly MonthReturn[]): MonthStats | null {
   return { best: by((a, b) => a > b), worst: by((a, b) => a < b), positive: rated.filter((m) => m.rate > 0).length, counted: rated.length };
 }
 
+// ——— Par classe d'actifs ———
+
+interface ClassSnapshot {
+  value: Record<Bucket, number>;
+  /** Résultat cumulé : plus-values, revenus et intérêts, hors frais facturés à part et impôts. */
+  result: Record<Bucket, number>;
+  /** Frais facturés à part et impôts cumulés (positif). */
+  charges: number;
+}
+
+const zeroBuckets = () => Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<Bucket, number>;
+
+/**
+ * Valeur et résultat cumulé de chaque classe à une date. Un titre compte dans la classe de son type
+ * (comme dans la répartition) ; les espèces et les projets de crowdlending, dans celle du compte.
+ * Le reste du gain d'un compte, hors titres, revient à la classe de ses espèces (intérêts d'un livret, d'un fonds euros…).
+ */
+function classSnapshot(h: HistoryPoint, ids: ReadonlySet<string>, kindOf: ReadonlyMap<string, AccountKind>, bucketOf: ReadonlyMap<string, Bucket>): ClassSnapshot {
+  const value = zeroBuckets();
+  const result = zeroBuckets();
+  const posValue = new Map<string, number>();
+  const posResult = new Map<string, number>();
+  for (const key of new Set([...Object.keys(h.byPosition), ...Object.keys(h.positionResults)])) {
+    const [accountId, assetId] = key.split(":") as [string, string];
+    const kind = kindOf.get(accountId);
+    if (!ids.has(accountId) || !kind) continue;
+    const pos = h.byPosition[key];
+    const res = h.positionResults[key];
+    const b = bucketOf.get(assetId) ?? CASH_BUCKET[kind];
+    const v = pos?.value ?? 0;
+    const r = (pos ? pos.value - pos.cost : 0) + (res?.realized ?? 0) + (res?.income ?? 0);
+    value[b] += v;
+    result[b] += r;
+    posValue.set(accountId, (posValue.get(accountId) ?? 0) + v);
+    posResult.set(accountId, (posResult.get(accountId) ?? 0) + r);
+  }
+  let charges = 0;
+  for (const id of ids) {
+    const kind = kindOf.get(id);
+    if (!kind) continue;
+    const d = h.detailByAccount[id];
+    const accountCharges = d ? d.fees - d.embeddedFees + (d.taxes ?? 0) : 0;
+    const cash = CASH_BUCKET[kind];
+    value[cash] += (h.byAccount[id] ?? 0) - (posValue.get(id) ?? 0);
+    result[cash] += (h.byAccount[id] ?? 0) - (h.contribByAccount[id] ?? 0) - (posResult.get(id) ?? 0) + accountCharges;
+    charges += accountCharges;
+  }
+  return { value, result, charges };
+}
+
+/**
+ * Gain et rendement de chaque classe sur la période. Le rendement d'un mois suit la méthode de Dietz
+ * simple : gain du mois ÷ (valeur de départ + moitié de l'argent entré dans la classe pendant le mois),
+ * l'argent entré étant ce qui reste de la variation de valeur une fois le gain retiré (versements, achats, ventes).
+ * Source : GIPS (CFA Institute), Guidance Statement on Calculation Methodology.
+ */
+function classBreakdown(data: EngineData, kept: readonly HistoryPoint[], accountIds: readonly string[], start: number | null): ClassBreakdown {
+  const ids = new Set(accountIds);
+  const kindOf = new Map(data.accounts.map((a) => [a.id, a.kind]));
+  const bucketOf = new Map(data.assets.map((a) => [a.id, ASSET_BUCKET[a.kind]]));
+  const snaps = kept.map((h) => classSnapshot(h, ids, kindOf, bucketOf));
+  const zero: ClassSnapshot = { value: zeroBuckets(), result: zeroBuckets(), charges: 0 };
+  const from = start == null ? zero : snaps[start]!;
+  const end = snaps.at(-1) ?? zero;
+  const rows: ClassPerformance[] = [];
+  for (const b of BUCKETS) {
+    const gain = end.result[b] - from.result[b];
+    if (Math.abs(end.value[b]) < 0.005 && Math.abs(gain) < 0.005) continue;
+    const rates: Array<number | null> = [];
+    for (let i = start == null ? 0 : start + 1; i < snaps.length; i++) {
+      const prev = i === 0 ? zero : snaps[i - 1]!;
+      const g = snaps[i]!.result[b] - prev.result[b];
+      const inflow = snaps[i]!.value[b] - prev.value[b] - g;
+      const base = prev.value[b] + inflow / 2;
+      const floor = Math.max(1, MIN_BASE_SHARE * Math.max(Math.abs(prev.value[b]), Math.abs(snaps[i]!.value[b])));
+      rates.push(base >= floor && g / base >= -1 ? g / base : null);
+    }
+    rows.push({ bucket: b, label: BUCKET_LABELS[b], value: roundCents(end.value[b]), gain: roundCents(gain), rate: chainRates(rates) });
+  }
+  return { rows, charges: roundCents(from.charges - end.charges) };
+}
+
 /** Tout ce que la page montre pour un ensemble de comptes ; `monthsBack` null = depuis le début. */
 export function scopePerformance(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], accountIds: readonly string[], monthsBack: number | null): ScopePerformance | null {
   const flows = accountFlows(data, accountIds, state.asOf);
@@ -298,11 +403,13 @@ export function scopePerformance(data: EngineData, state: PortfolioState, histor
   const months = monthlyReturns(points, flows);
   const start = windowStart(points.length, monthsBack);
   const window = start == null ? months : months.slice(start + 1);
-  const curve: CurvePoint[] = start == null ? [] : [{ month: points[start]!.month, cumulative: 0 }];
+  const curve: CurvePoint[] = start == null ? [] : [{ month: points[start]!.month, cumulative: 0, gain: 0 }];
   let idx = 1;
+  let gain = 0;
   for (const m of window) {
     idx *= 1 + (m.rate ?? 0);
-    curve.push({ month: m.month, cumulative: idx - 1 });
+    gain += m.gain;
+    curve.push({ month: m.month, cumulative: idx - 1, gain: roundCents(gain) });
   }
   const unpricedMonths = kept.slice(start == null ? 0 : start + 1).filter((h) => {
     const value = sum(accountIds, (id) => h.byAccount[id] ?? 0);
@@ -311,6 +418,7 @@ export function scopePerformance(data: EngineData, state: PortfolioState, histor
   return {
     summary: summarize(points, months, start, flows, state.asOf),
     sources: gainSources(start == null ? null : kept[start]!, kept.at(-1)!, accountIds),
+    byClass: classBreakdown(data, kept, accountIds, start),
     drawdown: maxDrawdown(window),
     curve,
     years: yearsOf(months, kept, accountIds),

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { AllocationTargets } from "@/components/AllocationTargets";
 import { MarketSources } from "@/components/MarketSources";
+import { AppearanceCard } from "@/components/AppearanceCard";
 import { PasswordCard } from "@/components/PasswordCard";
 import { TwoFactorCard } from "@/components/TwoFactorCard";
 import { Etablissements } from "@/pages/Etablissements";
@@ -37,7 +38,7 @@ import {
 import { Amount } from "@/components/Amount";
 import { Checkbox, Field, FormGrid, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
-import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, CardTitle, PageHeader, tabClass, tabListClass } from "@/components/ui";
 import { AccountDialog } from "@/dialogs/AccountDialog";
 import { AllocationDialog } from "@/dialogs/AllocationDialog";
 import { AssetDialog } from "@/dialogs/AssetDialog";
@@ -65,12 +66,14 @@ export function Parametres() {
   return (
     <>
       <PageHeader title="Paramètres" description={SETTINGS_ITEM.description} />
-      <div className="mb-6 flex gap-1 border-b border-line">
+      <div className={tabListClass} role="tablist">
         {TABS.map((t) => (
           <button
             key={t}
+            role="tab"
+            aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={cn("-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors", tab === t ? "border-accent text-fg" : "border-transparent text-fg-muted hover:text-fg")}
+            className={tabClass(tab === t)}
           >
             {t}
           </button>
@@ -153,7 +156,7 @@ function SaveBar({ draft }: { draft: PlanDraft }) {
   return (
     <div
       className={cn(
-        "fixed right-8 bottom-6 z-40 flex items-center gap-3 rounded-xl border border-line-strong bg-surface-2 px-4 py-3 shadow-2xl transition-all",
+        "fixed right-8 bottom-6 z-40 flex items-center gap-3 rounded-xl border border-line-strong bg-surface px-4 py-3 shadow-float transition-all",
         dirty ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
       )}
     >
@@ -612,6 +615,7 @@ function AppTab() {
   const info = useSystemInfo();
   return (
     <div className="max-w-3xl space-y-5">
+      <AppearanceCard />
       <PasswordCard />
       <TwoFactorCard />
       <BackupCard />

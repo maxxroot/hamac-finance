@@ -96,7 +96,7 @@ export function Impots() {
           </thead>
           <tbody>
             {years.map((y) => (
-              <Tr key={y.year} className={cn(y.year === year && "bg-accent/10")}>
+              <Tr key={y.year} className={cn(y.year === year && "bg-gold/10")}>
                 <Td className={cn(y.year === year && "font-semibold text-accent")}>{y.year}</Td>
                 <Td align="right">
                   <Amount value={y.avInterestNet} />
@@ -411,7 +411,7 @@ function AccountTaxPanel({ detail, gain, withdrawalTax, today }: { detail: Accou
               </thead>
               <tbody>
                 {detail.years.map((y) => (
-                  <tr key={y.year} className={cn(y.year === year && "bg-accent/10")}>
+                  <tr key={y.year} className={cn(y.year === year && "bg-gold/10")}>
                     <Td className={cn(y.year === year && "font-semibold text-accent")}>{y.year}</Td>
                     <Td align="right">
                       <Amount value={y.income} />

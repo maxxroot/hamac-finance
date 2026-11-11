@@ -5,7 +5,7 @@ import { AlertList } from "@/components/Alerts";
 import { Amount } from "@/components/Amount";
 import { EvolutionChart, PeriodSelector } from "@/components/EvolutionChart";
 import { Pct, Stat } from "@/components/Stat";
-import { Badge, Card, CardTitle } from "@/components/ui";
+import { Badge, Card, CardTitle, PageTitle } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS } from "@/lib/colors";
 import { cn } from "@/lib/cn";
@@ -38,53 +38,59 @@ export function TableauDeBord() {
 
   return (
     <>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
-        <p className="mt-1.5 text-sm text-fg-muted">
-          {retraite ? (
-            <>
-              {state.age} ans · départ visé à {p.profile.retirementAge} ans ({ry}) · {yearsLeft} an{yearsLeft > 1 ? "s" : ""} de versements restants
-            </>
-          ) : (
-            "Gestion de patrimoine"
-          )}
-        </p>
+      <header className="mb-7">
+        <PageTitle
+          description={
+            retraite ? (
+              <>
+                {state.age} ans, départ visé à {p.profile.retirementAge} ans ({ry}), {yearsLeft} an{yearsLeft > 1 ? "s" : ""} de versements restants
+              </>
+            ) : (
+              "Gestion de patrimoine"
+            )
+          }
+        >
+          Tableau de bord
+        </PageTitle>
       </header>
 
-      <div className="mb-5 grid grid-cols-2 gap-4 @3xl:grid-cols-6">
+      {/* Le patrimoine sur deux rangées à gauche, les quatre autres chiffres en carré à droite. */}
+      <div className="mb-5 grid grid-cols-2 gap-4 @3xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <Stat
           label={hasRealEstate ? "Patrimoine net" : "Patrimoine financier"}
-          className="col-span-2"
+          className="col-span-2 @3xl:col-span-1 @3xl:row-span-2"
+          hero
           sub={
             <>
-              {hasRealEstate ? (
-                <span className="flex flex-wrap gap-x-1.5">
-                  <span className="whitespace-nowrap">
-                    financier <Amount value={state.netWorth.financial} compact /> ·
-                  </span>
-                  <span className="whitespace-nowrap">
-                    immobilier <Amount value={state.netWorth.realEstate} compact /> ·
-                  </span>
-                  <span className="whitespace-nowrap">
-                    crédits <Amount value={-state.netWorth.debts} compact />
-                  </span>
-                </span>
-              ) : (
-                <span className="block">
-                  précaution <Amount value={state.buckets.precaution} compact /> · investi <Amount value={state.totals.value - state.buckets.precaution} compact />
-                </span>
-              )}
+              <dl className="mt-1 grid grid-cols-[repeat(3,auto)] justify-start gap-x-6 gap-y-0.5">
+                {(hasRealEstate
+                  ? [
+                      ["Financier", state.netWorth.financial],
+                      ["Immobilier", state.netWorth.realEstate],
+                      ["Crédits", -state.netWorth.debts],
+                    ]
+                  : [
+                      ["Précaution", state.buckets.precaution],
+                      ["Investi", state.totals.value - state.buckets.precaution],
+                    ]
+                ).map(([label, value]) => (
+                  <div key={label as string} className="contents">
+                    <dt className="row-start-1 text-fg-faint">{label}</dt>
+                    <dd className="row-start-2 text-[0.8125rem] font-medium text-fg-muted">
+                      <Amount value={value as number} compact />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
               {change && (
-                <span className="mt-0.5 block">
+                <span className="mt-3 block">
                   <Amount value={change.gain} signed compact /> de gain depuis fin {formatMonth(change.since)}
                 </span>
               )}
             </>
           }
         >
-          <span className="text-3xl">
-            <Amount value={hasRealEstate ? state.netWorth.net : state.totals.value} compact />
-          </span>
+          <Amount value={hasRealEstate ? state.netWorth.net : state.totals.value} compact />
         </Stat>
         <Stat label="Versé net">
           <Amount value={state.totals.netContrib} compact />

@@ -83,7 +83,7 @@ export function AddressInput({ id, value, onChange, onSelect, autoFocus }: { id:
         }}
       />
       {open && (
-        <ul id={listId} role="listbox" className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line-strong bg-surface-2 shadow-xl">
+        <ul id={listId} role="listbox" className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line bg-surface shadow-float">
           {suggestions.map((s, i) => (
             <li
               key={s.label}

@@ -18,7 +18,7 @@ vi.mock("@/lib/transport", () => ({
   },
 }));
 // Le dessin SVG demande un navigateur ; on vérifie ici les données et les textes autour des graphiques.
-vi.mock("@/components/Chart", () => ({ Chart: () => <div data-testid="graphique" />, axisStyle: {}, baseOption: {} }));
+vi.mock("@/components/Chart", () => ({ Chart: () => <div data-testid="graphique" />, axisStyle: () => ({}), tooltipStyle: () => ({}) }));
 
 async function rpc<T = unknown>(name: string, input?: unknown): Promise<T> {
   const r = await h.backend.dispatch(name, input);

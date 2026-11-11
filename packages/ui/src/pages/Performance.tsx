@@ -91,10 +91,8 @@ export function Performance() {
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <CumulativeCard curve={perf.curve} />
-            <SourcesCard sources={perf.sources} />
+            <SourcesCard sources={perf.sources} byClass={perf.byClass} />
           </div>
-
-          <PerformanceCompare data={pf.data} state={pf.state} history={history} idx={pf.idx} options={options} />
 
           <YearsCard years={perf.years} />
 
@@ -105,8 +103,11 @@ export function Performance() {
 
           <EnvelopeTable rows={rows} wholeHistory={monthsBack == null} />
 
+          {/* Servi plus rarement : en bas de page. */}
+          <PerformanceCompare data={pf.data} state={pf.state} history={history} idx={pf.idx} options={options} />
+
           <p className="text-xs text-fg-faint">
-            Le <b>rendement annualisé</b> tient compte de la date de chaque versement. Il s'affiche à partir d'un an : sur quelques jours, annualiser n'a pas de sens. Le <b>rendement cumulé</b> et le calendrier mesurent seulement les placements, sans l'effet de l'argent ajouté, mois par mois. Une
+            Le <b>rendement annualisé</b> tient compte de la date de chaque versement. Il s'affiche à partir d'un an : sur quelques jours, annualiser n'a pas de sens. Le <b>rendement cumulé</b> et le calendrier mesurent seulement les placements, sans l'effet de l'argent ajouté, mois par mois. Le <b>gain cumulé</b>, en euros, est ce que les placements ont rapporté depuis le début de la période, versements déduits. Une
             baisse et sa remontée dans un même mois n'y apparaissent donc pas. Les transferts entre enveloppes comptent pour chaque enveloppe, mais pas pour le total. « Gain après impôts » : ce qui resterait si tout était retiré aujourd'hui.
           </p>
         </div>

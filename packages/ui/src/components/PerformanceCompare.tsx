@@ -11,7 +11,7 @@ import { percentAxis, percentTooltip } from "./PerformanceBlocks";
 import { Pct } from "./Stat";
 import { Button, Card, CardTitle } from "./ui";
 import { ReferenceDialog } from "@/dialogs/ReferenceDialog";
-import { COMPARE_COLORS } from "@/lib/colors";
+import { useChartColors } from "@/lib/colors";
 import { PERIODS, type PeriodKey } from "@/lib/dashboard";
 import { capitalize, formatDate, formatMonth } from "@/lib/numbers";
 import { ALL_SCOPE, assetKey, compareSide, findScope, loadCompareChoice, ownedAssetIds, referenceKey, saveCompareChoice, seriesRequest, withReference, type CompareChoice, type Reference, type ScopeOptions } from "@/lib/performance";
@@ -25,6 +25,7 @@ type Side = "left" | "right";
 const useSeries = (request: MarketSeriesInput | null) => useQuery({ queryKey: ["market.series", request], queryFn: () => call("market.series", request!), enabled: request != null, staleTime: 6 * 3_600_000, retry: false });
 
 export function PerformanceCompare({ data, state, history, idx, options }: { data: EngineData; state: PortfolioState; history: readonly HistoryPoint[]; idx: Index; options: ScopeOptions }) {
+  const c = useChartColors();
   const comparable = useMemo(() => {
     const owned = ownedAssetIds(data);
     return comparableAssetIds(data).filter((id) => owned.has(id));
@@ -100,19 +101,19 @@ export function PerformanceCompare({ data, state, history, idx, options }: { dat
   const option = useMemo<ChartOption | null>(() => {
     if (!result) return null;
     const series = [
-      { name: labelOf(left), data: result.left, color: COMPARE_COLORS[0], type: "solid" },
-      { name: labelOf(right), data: result.right, color: COMPARE_COLORS[1], type: "dashed" },
+      { name: labelOf(left), data: result.left, color: c.compare[0], type: "solid" },
+      { name: labelOf(right), data: result.right, color: c.compare[1], type: "dashed" },
     ];
     return {
-      tooltip: percentTooltip,
+      tooltip: percentTooltip(c),
       // La ligne au-dessus du graphique sert de légende, avec le résultat de chacun.
       legend: { show: false },
       grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
-      xAxis: { type: "category", boundaryGap: false, data: result.dates.map(dateLabel), ...axisStyle, splitLine: { show: false } },
-      yAxis: percentAxis([0, ...result.left, ...result.right]),
+      xAxis: { type: "category", boundaryGap: false, data: result.dates.map(dateLabel), ...axisStyle(c), splitLine: { show: false } },
+      yAxis: percentAxis(c, [0, ...result.left, ...result.right]),
       series: series.map((s) => ({ name: s.name, type: "line", data: s.data, showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: s.color, type: s.type }, itemStyle: { color: s.color } })),
     };
-  }, [result, left, right, options, idx, references]);
+  }, [result, left, right, options, idx, references, c]);
 
   const sides = [
     { key: left, series: leftSeries },
@@ -162,7 +163,7 @@ export function PerformanceCompare({ data, state, history, idx, options }: { dat
       {result && option && (
         <>
           <div className="mb-3 flex flex-wrap gap-x-8 gap-y-1 text-sm text-fg-muted">
-            {[{ key: left, rate: result.leftRate, color: COMPARE_COLORS[0] }, { key: right, rate: result.rightRate, color: COMPARE_COLORS[1] }].map((x) => (
+            {[{ key: left, rate: result.leftRate, color: c.compare[0] }, { key: right, rate: result.rightRate, color: c.compare[1] }].map((x) => (
               <span key={x.key}>
                 <span className="mr-1.5 inline-block size-2 rounded-full" style={{ backgroundColor: x.color }} aria-hidden />
                 {labelOf(x.key)} : <b><Pct value={x.rate} signed /></b>

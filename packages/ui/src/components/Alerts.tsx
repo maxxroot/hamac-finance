@@ -23,7 +23,7 @@ export function AlertList({ alerts, compact = false }: { alerts: Alert[]; compac
             <Icon size={17} className={cn("mt-0.5 shrink-0", L.className)} aria-hidden />
             <div className="min-w-0 flex-1">
               <div className="text-sm">
-                <span className={cn("mr-2 text-[11px] font-medium tracking-wide uppercase", L.className)}>{L.label}</span>
+                <span className={cn("mr-2 text-xs font-semibold", L.className)}>{L.label}</span>
                 {a.title}
               </div>
               {a.detail && !compact && <div className="mt-0.5 text-xs text-fg-faint">{a.detail}</div>}

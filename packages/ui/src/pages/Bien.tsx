@@ -14,10 +14,9 @@ import { RentsCard } from "@/components/RentsCard";
 import { ValuesCard } from "@/components/ValuesCard";
 import { Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
-import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, CardTitle, PageHeader, tabClass, tabListClass } from "@/components/ui";
 import { PropertyDialog } from "@/dialogs/PropertyDialog";
 import { SaleDialog } from "@/dialogs/SaleDialog";
-import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
 import { useMutate } from "@/lib/workspace";
@@ -109,14 +108,14 @@ export function Bien() {
       </StatGrid>
       )}
 
-      {tabs.length > 1 && <div className="mb-6 flex gap-1 border-b border-line" role="tablist">
+      {tabs.length > 1 && <div className={tabListClass} role="tablist">
         {tabs.map(([key, label]) => (
           <button
             key={key}
             role="tab"
             aria-selected={tab === key}
             onClick={() => setSearch({ onglet: key }, { replace: true })}
-            className={cn("-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors", tab === key ? "border-accent text-fg" : "border-transparent text-fg-muted hover:text-fg")}
+            className={tabClass(tab === key)}
           >
             {label}
           </button>

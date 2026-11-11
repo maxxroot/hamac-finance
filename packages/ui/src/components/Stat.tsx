@@ -1,12 +1,18 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { HamacCurve } from "./Brand";
 import { Card } from "./ui";
 
-export function Stat({ label, children, sub, className, tone }: { label: string; children: ReactNode; sub?: ReactNode; className?: string; tone?: "warning" | "negative" }) {
+/**
+ * Chiffre clé. `hero` : le chiffre principal de la page, en serif, avec la signature du thème
+ * (courbe du hamac le jour, guilloché la nuit).
+ */
+export function Stat({ label, children, sub, className, tone, hero = false }: { label: string; children: ReactNode; sub?: ReactNode; className?: string; tone?: "warning" | "negative"; hero?: boolean }) {
   return (
-    <Card className={cn("flex flex-col gap-1.5 p-4", tone === "warning" && "border-warning/40", tone === "negative" && "border-negative/40", className)}>
-      <span className="text-xs text-fg-muted">{label}</span>
-      <span className="text-xl font-semibold tracking-tight">{children}</span>
+    <Card className={cn("flex flex-col gap-1.5 p-4", hero && "guilloche p-5", tone === "warning" && "border-warning/45", tone === "negative" && "border-negative/45", className)}>
+      <span className="text-[0.8125rem] font-medium text-fg-muted">{label}</span>
+      <span className={cn("num", hero ? "font-display text-[2.6rem] leading-[1.05] font-medium tracking-[-0.015em]" : "text-xl font-semibold tracking-tight")}>{children}</span>
+      {hero && <HamacCurve className="my-0.5" />}
       {sub && <span className="text-xs text-fg-faint">{sub}</span>}
     </Card>
   );
@@ -28,8 +34,8 @@ export function Notice({ tone = "info", children }: { tone?: "info" | "warning" 
     <div
       className={cn(
         "rounded-xl border px-4 py-3 text-sm",
-        tone === "warning" && "border-warning/40 bg-warning/10 text-fg",
-        tone === "ok" && "border-positive/30 bg-positive/10 text-fg",
+        tone === "warning" && "border-warning/40 bg-warning/8 text-fg",
+        tone === "ok" && "border-positive/30 bg-positive/8 text-fg",
         tone === "info" && "border-line bg-surface-2 text-fg-muted",
       )}
     >

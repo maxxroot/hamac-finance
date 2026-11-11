@@ -1,118 +1,214 @@
-import { Fragment, useMemo, type CSSProperties } from "react";
-import type { AssetPerformance, CalendarYear, CurvePoint, EnvelopePerformance, GainSources, MonthStats, YearPerformance } from "@hamac/core";
+import { Fragment, useMemo, useState, type CSSProperties } from "react";
+import { formatEur, type AssetPerformance, type ClassBreakdown, type CalendarYear, type CurvePoint, type EnvelopePerformance, type GainSources, type MonthStats, type YearPerformance } from "@hamac/core";
 import { Amount } from "./Amount";
-import { Chart, axisStyle, type ChartOption } from "./Chart";
+import { Chart, axisStyle, tooltipStyle, type ChartOption } from "./Chart";
 import { Pct } from "./Stat";
 import { ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "./table";
 import { Card, CardTitle } from "./ui";
-import { INK, POLARITY } from "@/lib/colors";
+import { BUCKET_COLORS, useChartColors, type ChartColors } from "@/lib/colors";
 import { cn } from "@/lib/cn";
 import { capitalize, formatMonth } from "@/lib/numbers";
 import { heatShare, pctText, rankingView } from "@/lib/performance";
 import { SortTh, useSortable } from "@/lib/sort";
 
-const tooltip = (valueFormatter: (v: unknown) => string) => ({ trigger: "axis", backgroundColor: INK.surface2, borderColor: INK.line, textStyle: { color: INK.fg, fontSize: 12 }, valueFormatter });
+const tooltip = (c: ChartColors, valueFormatter: (v: unknown) => string) => ({ trigger: "axis", ...tooltipStyle(c), valueFormatter });
 
 /** Graduations en % : une décimale seulement quand les variations sont faibles. */
-export function percentAxis(values: readonly number[]) {
+export function percentAxis(c: ChartColors, values: readonly number[]) {
   const digits = Math.max(...values) - Math.min(...values) < 0.1 ? 1 : 0;
-  return { type: "value", scale: true, ...axisStyle, axisLabel: { color: INK.faint, formatter: (v: number) => pctText(v, digits, false) } };
+  return { type: "value", scale: true, ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: (v: number) => pctText(v, digits, false) } };
 }
 
-export const percentTooltip = tooltip((v) => pctText(Number(v)));
+export const percentTooltip = (c: ChartColors) => tooltip(c, (v) => pctText(Number(v)));
 
+export type CurveUnit = "pct" | "eur";
+
+const signedEur = (v: number) => `${v > 0.5 ? "+" : ""}${formatEur(v, { compact: true })}`;
+const eurAxisLabel = (v: number) => (Math.abs(v) >= 10_000 ? `${Math.round(v / 1000)} k€` : formatEur(v, { compact: true }));
+
+/** Petit sélecteur à deux ou trois choix, dans l'en-tête d'une carte. */
+function Segmented<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: ReadonlyArray<readonly [T, string]>; label: string }) {
+  return (
+    <span className="flex rounded-md bg-surface-2 p-0.5 text-xs" role="group" aria-label={label}>
+      {options.map(([key, text]) => (
+        <button key={key} type="button" aria-pressed={value === key} onClick={() => onChange(key)} className={cn("min-w-7 cursor-pointer rounded px-2 py-0.5", value === key ? "bg-surface-3 font-medium text-fg" : "text-fg-muted hover:text-fg")}>
+          {text}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+const UNIT_OPTIONS = [
+  ["pct", "%"],
+  ["eur", "€"],
+] as const;
+
+function UnitToggle({ value, onChange }: { value: CurveUnit; onChange: (u: CurveUnit) => void }) {
+  return <Segmented value={value} onChange={onChange} options={UNIT_OPTIONS} label="Unité" />;
+}
+
+/**
+ * La performance au fil du temps. En % : rendement cumulé, sans l'effet des versements.
+ * En € : gain cumulé (variation de valeur moins l'argent versé), qui finit sur le gain affiché en haut de page.
+ */
 export function CumulativeCard({ curve }: { curve: readonly CurvePoint[] }) {
+  const c = useChartColors();
+  const [unit, setUnit] = useState<CurveUnit>("pct");
   const option = useMemo<ChartOption>(() => {
-    const values = curve.map((c) => c.cumulative);
+    const eur = unit === "eur";
+    const values = curve.map((p) => (eur ? p.gain : p.cumulative));
     return {
-      tooltip: percentTooltip,
+      tooltip: eur ? tooltip(c, (v) => signedEur(Number(v))) : percentTooltip(c),
       legend: { show: false },
       grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
-      xAxis: { type: "category", boundaryGap: false, data: curve.map((c) => capitalize(formatMonth(c.month))), ...axisStyle, splitLine: { show: false } },
-      yAxis: percentAxis([0, ...values]),
-      series: [{ name: "Rendement cumulé", type: "line", data: values, showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: INK.accent }, itemStyle: { color: INK.accent }, markLine: { silent: true, symbol: "none", label: { show: false }, lineStyle: { color: INK.faint, type: "solid", width: 1 }, data: [{ yAxis: 0 }] } }],
+      xAxis: { type: "category", boundaryGap: false, data: curve.map((p) => capitalize(formatMonth(p.month))), ...axisStyle(c), splitLine: { show: false } },
+      yAxis: eur ? { type: "value", scale: true, ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxisLabel } } : percentAxis(c, [0, ...values]),
+      series: [{ name: eur ? "Gain cumulé" : "Rendement cumulé", type: "line", data: values, showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.primary }, itemStyle: { color: c.primary }, markLine: { silent: true, symbol: "none", label: { show: false }, lineStyle: { color: c.ink.faint, type: "solid", width: 1 }, data: [{ yAxis: 0 }] } }],
     };
-  }, [curve]);
+  }, [curve, c, unit]);
   return (
     <Card>
-      <CardTitle hint="hors versements">Rendement cumulé</CardTitle>
+      <CardTitle
+        hint={
+          <span className="flex items-center gap-3">
+            {unit === "eur" ? "versements déduits" : "hors versements"}
+            <UnitToggle value={unit} onChange={setUnit} />
+          </span>
+        }
+      >
+        {unit === "eur" ? "Gain cumulé" : "Rendement cumulé"}
+      </CardTitle>
       {curve.length < 2 ? <p className="py-16 text-center text-sm text-fg-muted">La courbe apparaîtra après un mois d'historique.</p> : <Chart option={option} height={300} />}
     </Card>
   );
 }
 
-export function SourcesCard({ sources: s }: { sources: GainSources }) {
-  const lines = [
-    { label: "Plus-values pas encore encaissées", value: s.unrealized },
-    { label: "Plus-values encaissées", value: s.realized },
-    { label: "Dividendes", value: s.dividends },
-    { label: "Intérêts", value: s.interests },
-    { label: "Frais facturés à part", value: -s.billedFees },
-    { label: "Impôts prélevés", value: -s.taxes },
-    { label: "Corrections et autres", value: s.other },
-  ].filter((l) => Math.abs(l.value) >= 0.005);
-  // Une seule échelle : l'axe se place selon la part des montants négatifs.
+type SourceLine = { key: string; label: string; value: number; rate?: number | null; color?: string };
+
+/** Barres sur une seule échelle : l'axe se place selon la part des montants négatifs. */
+function GainBars({ lines }: { lines: readonly SourceLine[] }) {
   const maxPos = Math.max(0, ...lines.map((l) => l.value));
   const maxNeg = Math.max(0, ...lines.map((l) => -l.value));
   const range = maxPos + maxNeg || 1;
   const origin = (maxNeg / range) * 100;
   return (
-    <Card>
-      <CardTitle>D'où vient le gain</CardTitle>
-      {lines.length === 0 && <p className="py-16 text-center text-sm text-fg-muted">Rien sur cette période.</p>}
-      <ul className="space-y-3">
-        {lines.map((l) => {
-          const width = (Math.abs(l.value) / range) * 100;
-          return (
-            <li key={l.label} className="text-sm">
-              <div className="mb-1 flex items-baseline justify-between gap-3">
-                <span className="text-fg-muted">{l.label}</span>
+    <ul className="space-y-3">
+      {lines.map((l) => {
+        const width = (Math.abs(l.value) / range) * 100;
+        return (
+          <li key={l.key} className="text-sm">
+            <div className="mb-1 flex items-baseline justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2 text-fg-muted">
+                {l.color && <span className="size-2.5 shrink-0 rounded-sm" style={{ background: l.color }} aria-hidden />}
+                <span className="truncate">{l.label}</span>
+              </span>
+              <span className="flex shrink-0 items-baseline gap-3">
                 <Amount value={l.value} signed compact />
-              </div>
-              <div className="relative h-2 rounded-full bg-surface-3" aria-hidden>
-                <div className={cn("absolute top-0 h-2", l.value >= 0 ? "rounded-r bg-positive" : "rounded-l bg-negative")} style={{ left: `${l.value >= 0 ? origin : origin - width}%`, width: `${width}%` }} />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                {l.rate !== undefined && <span className="w-14 text-right text-xs">{l.rate == null ? <span className="text-fg-faint">—</span> : <Pct value={l.rate} signed />}</span>}
+              </span>
+            </div>
+            <div className="relative h-2 rounded-full bg-surface-3" aria-hidden>
+              <div className={cn("absolute top-0 h-2", l.value >= 0 ? "rounded-r bg-positive" : "rounded-l bg-negative")} style={{ left: `${l.value >= 0 ? origin : origin - width}%`, width: `${width}%` }} />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+type SourcesView = "classe" | "nature";
+const SOURCES_OPTIONS = [
+  ["classe", "Par classe"],
+  ["nature", "Par nature"],
+] as const;
+
+/**
+ * D'où vient le gain de la période. Par classe : obligations, actions, crowdlending…, avec le rendement de chacune
+ * hors versements. Par nature : plus-values, dividendes, intérêts, frais. Les deux redonnent le gain de la période.
+ */
+export function SourcesCard({ sources: s, byClass }: { sources: GainSources; byClass: ClassBreakdown }) {
+  const [view, setView] = useState<SourcesView>("classe");
+  const byNature: SourceLine[] = [
+    { key: "unrealized", label: "Plus-values pas encore encaissées", value: s.unrealized },
+    { key: "realized", label: "Plus-values encaissées", value: s.realized },
+    { key: "dividends", label: "Dividendes", value: s.dividends },
+    { key: "interests", label: "Intérêts", value: s.interests },
+    { key: "billed", label: "Frais facturés à part", value: -s.billedFees },
+    { key: "taxes", label: "Impôts prélevés", value: -s.taxes },
+    { key: "other", label: "Corrections et autres", value: s.other },
+  ];
+  const classLines: SourceLine[] = [
+    ...byClass.rows.map((r) => ({ key: r.bucket, label: r.label, value: r.gain, rate: r.rate, color: BUCKET_COLORS[r.bucket] })),
+    { key: "charges", label: "Frais facturés à part et impôts", value: byClass.charges },
+  ];
+  const lines = (view === "classe" ? classLines : byNature).filter((l) => Math.abs(l.value) >= 0.005 || (view === "classe" && l.key !== "charges"));
+  return (
+    <Card>
+      <CardTitle hint={<Segmented value={view} onChange={setView} options={SOURCES_OPTIONS} label="Répartir le gain" />}>D'où vient le gain</CardTitle>
+      {view === "classe" && byClass.rows.length > 0 && (
+        <p className="-mt-2 mb-3 flex justify-end gap-3 text-xs text-fg-faint">
+          <span>gain</span>
+          <span className="w-14 text-right">rendement</span>
+        </p>
+      )}
+      {lines.length === 0 ? <p className="py-16 text-center text-sm text-fg-muted">Rien sur cette période.</p> : <GainBars lines={lines} />}
       <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3 text-sm font-medium">
         <span>Gain de la période</span>
         <Amount value={s.total} signed compact />
       </div>
-      {s.embeddedFees > 0.005 && (
-        <p className="mt-2 text-xs text-fg-faint">
-          Les frais compris dans les achats et les ventes (<Amount value={s.embeddedFees} compact />) pèsent déjà sur les plus-values.
-        </p>
+      {view === "classe" ? (
+        <p className="mt-2 text-xs text-fg-faint">Rendement de chaque classe sur la période, sans l'effet de l'argent ajouté. Les espèces d'un compte comptent dans sa classe, comme dans la répartition.</p>
+      ) : (
+        s.embeddedFees > 0.005 && (
+          <p className="mt-2 text-xs text-fg-faint">
+            Les frais compris dans les achats et les ventes (<Amount value={s.embeddedFees} compact />) pèsent déjà sur les plus-values.
+          </p>
+        )
       )}
     </Card>
   );
 }
 
+/** Chaque année : rendement en %, ou gain en euros (variation de valeur moins l'argent versé). */
 export function YearsCard({ years }: { years: readonly YearPerformance[] }) {
+  const c = useChartColors();
+  const [unit, setUnit] = useState<CurveUnit>("pct");
   const option = useMemo<ChartOption>(() => {
-    const rated = years.filter((y) => y.rate != null);
+    const eur = unit === "eur";
+    const shown = eur ? years : years.filter((y) => y.rate != null);
+    const values = shown.map((y) => (eur ? y.gain : y.rate!));
     return {
-      tooltip: { ...percentTooltip, axisPointer: { type: "none" } },
+      tooltip: { ...(eur ? tooltip(c, (v) => signedEur(Number(v))) : percentTooltip(c)), axisPointer: { type: "none" } },
       legend: { show: false },
       grid: { left: 8, right: 16, top: 12, bottom: 8, containLabel: true },
-      xAxis: { type: "category", data: rated.map((y) => String(y.year)), ...axisStyle, splitLine: { show: false } },
+      xAxis: { type: "category", data: shown.map((y) => String(y.year)), ...axisStyle(c), splitLine: { show: false } },
       // Des barres se lisent à leur longueur : l'axe part toujours de zéro.
-      yAxis: { ...percentAxis([0, ...rated.map((y) => y.rate!)]), scale: false },
+      yAxis: eur ? { type: "value", scale: false, ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxisLabel } } : { ...percentAxis(c, [0, ...values]), scale: false },
       series: [
         {
-          name: "Rendement",
+          name: eur ? "Gain" : "Rendement",
           type: "bar",
           barMaxWidth: 36,
-          data: rated.map((y) => ({ value: y.rate, itemStyle: { color: y.rate! >= 0 ? POLARITY.positive : POLARITY.negative, borderRadius: y.rate! >= 0 ? [4, 4, 0, 0] : [0, 0, 4, 4] } })),
+          data: values.map((v) => ({ value: v, itemStyle: { color: v >= 0 ? c.polarity.positive : c.polarity.negative, borderRadius: v >= 0 ? [4, 4, 0, 0] : [0, 0, 4, 4] } })),
         },
       ],
     };
-  }, [years]);
+  }, [years, c, unit]);
   const rows = [...years].reverse();
   return (
     <Card>
-      <CardTitle hint="toujours sur tout l'historique">Année par année</CardTitle>
+      <CardTitle
+        hint={
+          <span className="flex items-center gap-3">
+            toujours sur tout l'historique
+            {years.length > 1 && <UnitToggle value={unit} onChange={setUnit} />}
+          </span>
+        }
+      >
+        Année par année
+      </CardTitle>
       {years.length > 1 && <Chart option={option} height={180} className="mb-4" />}
       <Table>
         <thead>

@@ -1,41 +1,157 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/hanken-grotesk";
+@import "@fontsource-variable/newsreader/opsz.css";
+
+/* « dark: » suit la classe posée par public/theme-1.js et lib/theme.ts, pas seulement le système. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Thème Hamac : sombre et sobre. Un seul accent doré pour l'action et l'essentiel,
- * vert/rouge réservés aux gains et pertes, et le code couleur des supports repris du sheet.
+ * Charte Hamac : vert, or, ivoire.
+ * — « Maison » (clair) : fond ivoire, menu vert bouteille, or en filets.
+ * — « Nocturne » (sombre) : vert presque noir, texte ivoire, or pour l'action.
+ * L'or reste rare (logo, page active, repères). Vert et rouge des gains et pertes restent distincts du vert
+ * de la marque, et un montant signé garde toujours son « + » ou son « − ».
+ * Pas de dégradé ni de verre ; une seule ombre, pour les fenêtres.
+ * « static » : toutes ces variables sont émises, même celles qu'aucune classe n'utilise (graphiques, styles en ligne).
  */
-@theme {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+@theme static {
+  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Titres de page et grands montants seulement. */
+  --font-display: "Newsreader Variable", Georgia, "Times New Roman", serif;
 
-  --color-bg: #0b0c10;
-  --color-surface: #121419;
-  --color-surface-2: #181b22;
-  --color-surface-3: #20242d;
-  --color-line: #262a33;
-  --color-line-strong: #343944;
+  /* Arrondis selon le rôle : champs et boutons (lg) < tableaux (xl) < cartes (2xl). */
+  --radius-sm: 0.1875rem;
+  --radius-md: 0.3125rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
 
-  --color-fg: #eceef2;
-  --color-fg-muted: #9aa1ae;
-  --color-fg-faint: #6b7280;
+  /* La seule ombre : pour ce qui passe devant la page (fenêtres, menus, notifications). */
+  --shadow-float: 0 18px 48px -12px rgb(8 18 14 / 0.32), 0 2px 6px rgb(8 18 14 / 0.06);
 
-  --color-accent: #f2c35b;
-  --color-accent-strong: #ffd479;
-  --color-accent-fg: #1a1406;
+  /* Maison (clair) */
+  --color-bg: #f4efe3;
+  --color-surface: #fbf8f1;
+  --color-surface-2: #f2ecdf;
+  --color-surface-3: #e8e0cf;
+  --color-field: #fffdf8;
+  --color-line: #e2d9c6;
+  --color-line-strong: #cbbfa7;
 
-  --color-positive: #3ecf8e;
-  --color-negative: #f2645a;
-  --color-warning: #f5a524;
+  --color-fg: #1a2b23;
+  --color-fg-muted: #4f5e55;
+  --color-fg-faint: #66726a;
 
-  /* Classes d'actifs : palette catégorielle validée (fond sombre, OKLCH L 0,48–0,67, daltonisme ΔE ≥ 16). Ordre fixe. */
-  --color-livrets: #539ad3;
-  --color-fonds-euros: #1b895f;
-  --color-obligations: #597af7;
-  --color-actions: #cf7a25;
-  --color-crypto: #8f63d8;
+  /* Action : vert bouteille le jour, or la nuit. */
+  --color-accent: #1f4a3a;
+  --color-accent-strong: #163628;
+  --color-accent-fg: #f7f2e6;
+
+  /* Or de la marque (décor), et sa version lisible en texte. */
+  --color-gold: #b08d4c;
+  --color-gold-ink: #8c6a2a;
+
+  --color-positive: #2f7d55;
+  --color-negative: #a8432f;
+  --color-warning: #9a5a06;
+
+  /* Menu latéral */
+  --color-side: #173a2e;
+  --color-side-fg: #efe8d6;
+  --color-side-muted: #b6c2b6;
+  --color-side-line: #24493b;
+  --color-side-active: #21503f;
+
+  /* Classes d'actifs, ordre fixe. Validées sur l'ivoire (daltonisme ΔE ≥ 8, contraste ≥ 3:1). */
+  --color-precaution: #1c69aa;
+  --color-garanti: #189546;
+  --color-obligations: #5f61b4;
+  --color-croissance: #d3791f;
+  --color-immobilier: #7d4f00;
+  --color-crowdlending: #e06693;
+  --color-speculatif: #715898;
+
+  /* Chevron des listes déroulantes, à la couleur du texte secondaire. */
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234f5e55' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
+/* Nocturne (sombre) : choisi explicitement, ou suivi du système quand aucun choix n'est posé. */
 @layer base {
+  :root.dark {
+    --color-bg: #0e1a15;
+    --color-surface: #142420;
+    --color-surface-2: #1a2d27;
+    --color-surface-3: #22382f;
+    --color-field: #0f1d18;
+    --color-line: #263b33;
+    --color-line-strong: #355042;
+    --color-fg: #ede6d6;
+    --color-fg-muted: #a9b3a8;
+    --color-fg-faint: #7e8c83;
+    --color-accent: #d0ae6a;
+    --color-accent-strong: #e0c283;
+    --color-accent-fg: #1a1408;
+    --color-gold: #d0ae6a;
+    --color-gold-ink: #d9bb7d;
+    --color-positive: #6cc08b;
+    --color-negative: #e07a5f;
+    --color-warning: #e3a84e;
+    --color-side: #0b1511;
+    --color-side-fg: #ede6d6;
+    --color-side-muted: #94a197;
+    --color-side-line: #1c2b25;
+    --color-side-active: #172820;
+    /* Validées sur le vert nuit. */
+    --color-precaution: #0f7dc3;
+    --color-garanti: #3f9465;
+    --color-obligations: #7d83e0;
+    --color-croissance: #dc750d;
+    --color-immobilier: #8f6401;
+    --color-crowdlending: #ce548b;
+    --color-speculatif: #a171e4;
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a9b3a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light):not(.dark) {
+      --color-bg: #0e1a15;
+      --color-surface: #142420;
+      --color-surface-2: #1a2d27;
+      --color-surface-3: #22382f;
+      --color-field: #0f1d18;
+      --color-line: #263b33;
+      --color-line-strong: #355042;
+      --color-fg: #ede6d6;
+      --color-fg-muted: #a9b3a8;
+      --color-fg-faint: #7e8c83;
+      --color-accent: #d0ae6a;
+      --color-accent-strong: #e0c283;
+      --color-accent-fg: #1a1408;
+      --color-gold: #d0ae6a;
+      --color-gold-ink: #d9bb7d;
+      --color-positive: #6cc08b;
+      --color-negative: #e07a5f;
+      --color-warning: #e3a84e;
+      --color-side: #0b1511;
+      --color-side-fg: #ede6d6;
+      --color-side-muted: #94a197;
+      --color-side-line: #1c2b25;
+      --color-side-active: #172820;
+      --color-precaution: #0f7dc3;
+      --color-garanti: #3f9465;
+      --color-obligations: #7d83e0;
+      --color-croissance: #dc750d;
+      --color-immobilier: #8f6401;
+      --color-crowdlending: #ce548b;
+      --color-speculatif: #a171e4;
+      --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a9b3a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      color-scheme: dark;
+    }
+  }
+  :root {
+    color-scheme: light;
+  }
+
   html,
   body,
   #root {
@@ -45,20 +161,42 @@
     background: var(--color-bg);
     color: var(--color-fg);
     font-family: var(--font-sans);
+    font-size: 0.9375rem;
     -webkit-font-smoothing: antialiased;
-    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
   /* Montants alignés en colonnes */
   .num {
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums lining-nums;
   }
   ::selection {
-    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+    background: color-mix(in srgb, var(--color-gold) 35%, transparent);
+  }
+  :focus-visible {
+    outline-color: var(--color-accent);
   }
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-line-strong) transparent;
   }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Signature de nuit : un guilloché très discret, comme sur un titre au porteur. Seulement derrière le patrimoine. */
+.dark .guilloche {
+  background-image: repeating-radial-gradient(circle at 104% -12%, transparent 0 7px, color-mix(in srgb, var(--color-gold) 7%, transparent) 7px 8px);
 }
 
 /* Mode discret : masque les montants (partage d'écran, lieux publics). */
@@ -70,22 +208,26 @@
   filter: none;
 }
 
-/* Récapitulatif fiscal : impression sur fond clair, sans l'interface autour. */
+/* Impression : toujours sur fond clair, sans l'interface autour, quel que soit le thème. */
 @media print {
-  :root {
+  :root,
+  :root.dark {
     --color-bg: #fff;
     --color-surface: #fff;
-    --color-surface-2: #f3f4f6;
-    --color-surface-3: #e5e7eb;
-    --color-line: #d1d5db;
-    --color-line-strong: #9ca3af;
-    --color-fg: #111827;
-    --color-fg-muted: #374151;
-    --color-fg-faint: #4b5563;
-    --color-accent: #7a5a12;
-    --color-positive: #0f7a4f;
-    --color-negative: #b42318;
-    --color-warning: #92400e;
+    --color-surface-2: #f4f1ea;
+    --color-surface-3: #e7e2d6;
+    --color-field: #fff;
+    --color-line: #d6cfbf;
+    --color-line-strong: #a8a08e;
+    --color-fg: #14201a;
+    --color-fg-muted: #34433b;
+    --color-fg-faint: #4b574f;
+    --color-accent: #1f4a3a;
+    --color-gold-ink: #6f5320;
+    --color-positive: #1f6b45;
+    --color-negative: #9a3523;
+    --color-warning: #7a4504;
+    color-scheme: light;
   }
   @page {
     margin: 14mm;
@@ -109,6 +251,9 @@
   .privacy .amount {
     filter: none;
   }
+  .guilloche {
+    background-image: none !important;
+  }
   table {
     font-size: 10px;
   }
@@ -131,4 +276,3 @@
     break-after: avoid;
   }
 }
-

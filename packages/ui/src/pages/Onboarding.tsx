@@ -11,7 +11,7 @@ export function Onboarding() {
   const hasInstitutions = (idx?.ws.institutions.length ?? 0) > 0;
   return (
     <div className="mx-auto max-w-3xl py-8">
-      <h1 className="text-3xl font-semibold tracking-tight">Bienvenue dans Hamac</h1>
+      <h1 className="font-display text-[2.4rem] leading-tight font-medium tracking-[-0.01em]">Bienvenue dans Hamac</h1>
       <p className="mt-3 text-fg-muted">
         Hamac part d'une page blanche : vous créez vos établissements et vos comptes, puis vous saisissez ce qui s'y trouve. Tout le reste se calcule. Vos données restent sur cet ordinateur.
       </p>

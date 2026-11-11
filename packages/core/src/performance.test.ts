@@ -112,9 +112,51 @@ describe("page Performance sur un portefeuille", () => {
     expect(p.sources.total).toBe(150);
     expect(p.sources.interests).toBe(0);
     expect(p.summary.inflow).toBe(0);
-    expect(p.curve[0]!.cumulative).toBe(0);
+    expect(p.curve[0]).toMatchObject({ cumulative: 0, gain: 0 });
+    // En euros, la courbe finit sur le gain de la période : 150 € de hausse de A, aucun versement.
+    expect(p.curve.at(-1)!.gain).toBe(p.summary.gain);
+    expect(p.curve.at(-1)!.gain).toBe(150);
     expect(p.windowMonths).toBe(3);
     expect(p.summary.annualized).toBeNull();
+  });
+
+  it("par classe d'actifs : les lignes et les frais redonnent le gain", () => {
+    const b = base();
+    const d = {
+      ...b,
+      assets: [...b.assets, asset("oat", "obligation")],
+      transactions: [...b.transactions, tx("2025-03-01", "achat", "cto", 1000, { assetId: "oat", quantity: 10 })],
+      prices: [...b.prices, price("oat", "2025-03-01", 100), price("oat", "2025-12-31", 104)],
+    };
+    const state = computePortfolio(d, ASOF);
+    const p = scopePerformance(d, state, buildHistory(d, ASOF), ["pea", "cto"], null)!;
+    const of = (b: string) => p.byClass.rows.find((r) => r.bucket === b)!;
+    // Ordre fixe des classes ; les espèces du compte-titres comptent en obligations, comme dans la répartition.
+    expect(p.byClass.rows.map((r) => r.bucket)).toEqual(["obligations", "croissance"]);
+    // Obligations : +40 € sur l'OAT (100 → 104 × 10) et 30 € d'intérêts sur les espèces du compte-titres.
+    expect(of("obligations").gain).toBe(70);
+    // Les 10 € de frais facturés à part ne vont dans aucune classe.
+    expect(p.byClass.charges).toBe(-10);
+    const total = p.byClass.rows.reduce((t, r) => t + r.gain, 0) + p.byClass.charges;
+    expect(total).toBeCloseTo(p.summary.gain, 2);
+    expect(p.byClass.rows.reduce((t, r) => t + r.value, 0)).toBeCloseTo(p.summary.endValue, 2);
+    // Actions : ETF A (+ dividende) et ETF B vendu avec 300 € de plus-value.
+    expect(of("croissance").gain).toBeGreaterThan(300);
+    expect(of("croissance").rate).toBeGreaterThan(0);
+    expect(of("obligations").rate).toBeGreaterThan(0);
+    expect(of("obligations").rate).toBeLessThan(0.05);
+  });
+
+  it("par classe d'actifs, sur une période : seulement ce qui s'est passé depuis le départ", () => {
+    const d = base();
+    const p = scopePerformance(d, computePortfolio(d, ASOF), buildHistory(d, ASOF), ["pea", "cto"], 3)!;
+    const of = (b: string) => p.byClass.rows.find((r) => r.bucket === b)!;
+    // A passe de 12 € à 15 € (50 parts) ; rien sur les espèces ni en frais depuis fin septembre.
+    expect(of("croissance").gain).toBe(150);
+    // Les espèces du PEA (1 000 − 500 + 20 − 10 = 510 €) comptent aussi en actions : 150 ÷ (600 + 510).
+    expect(of("croissance").rate).toBeCloseTo(150 / 1110, 6);
+    expect(of("obligations").gain).toBe(0);
+    expect(p.byClass.charges).toBe(0);
   });
 
   it("année par année et calendrier", () => {
@@ -123,6 +165,8 @@ describe("page Performance sur un portefeuille", () => {
     expect(p.years).toHaveLength(1);
     expect(p.years[0]).toMatchObject({ year: 2025, startValue: 0, inflow: 1000, income: 20, fees: 15 });
     expect(p.years[0]!.gain).toBe(p.summary.gain);
+    // Depuis le début : la courbe en euros part du premier mois et finit sur le gain total.
+    expect(p.curve.at(-1)!.gain).toBe(p.summary.gain);
     expect(p.calendar[0]!.months).toHaveLength(12);
     expect(p.stats!.counted).toBeGreaterThan(0);
   });

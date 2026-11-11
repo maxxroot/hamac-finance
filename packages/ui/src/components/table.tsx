@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("@container overflow-x-auto rounded-xl border border-line", className)}>
+    <div className={cn("@container overflow-x-auto rounded-xl border border-line bg-surface", className)}>
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   );
@@ -15,7 +15,7 @@ export function Th({ className, align, ...props }: ThHTMLAttributes<HTMLTableCel
     <th
       {...props}
       className={cn(
-        "sticky top-0 border-b border-line bg-surface-2 px-3 py-2.5 text-left text-xs font-medium whitespace-nowrap text-fg-muted",
+        "sticky top-0 border-b border-line bg-surface-2 px-3 py-2.5 text-left text-xs font-semibold whitespace-nowrap text-fg-muted",
         align === "right" && "text-right",
         align === "center" && "text-center",
         className,
@@ -34,7 +34,7 @@ export function Td({ className, align, ...props }: TdHTMLAttributes<HTMLTableCel
 }
 
 export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr {...props} className={cn("transition-colors hover:bg-surface-2/60", className)} />;
+  return <tr {...props} className={cn("transition-colors duration-150 hover:bg-surface-2/70", className)} />;
 }
 
 export function EmptyRow({ cols, children }: { cols: number; children: ReactNode }) {

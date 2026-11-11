@@ -3,11 +3,9 @@ import { formatPct, targetRows, targetsTotal, type PlanParams, type TargetData, 
 import { Checkbox, PercentInput, TextInput } from "./form";
 import { Table, Td, Th, Tr } from "./table";
 import { Button } from "./ui";
-import { BUCKET_COLORS } from "@/lib/colors";
+import { BUCKET_COLORS, CUSTOM_CLASS_COLORS } from "@/lib/colors";
 import { cn } from "@/lib/cn";
 import type { Bucket } from "@hamac/core";
-
-const CLASS_COLORS = ["#e0a458", "#7aa2f7", "#9ece6a", "#f7768e", "#bb9af7", "#2ac3de"];
 
 /** Ma répartition cible : une ligne par classe détenue, chacune dans ou hors de l'allocation. */
 export function AllocationTargets({ params, data, onChange, labelErrors, returnHints }: { params: PlanParams; data: TargetData; onChange: (p: PlanParams) => void; labelErrors: Map<string, string>; returnHints?: Partial<Record<string, string>> }) {
@@ -18,7 +16,7 @@ export function AllocationTargets({ params, data, onChange, labelErrors, returnH
   const renameClass = (key: string, change: { label?: string; color?: string }) => onChange({ ...params, customClasses: params.customClasses.map((c) => (c.id === key ? { ...c, ...change } : c)) });
   const add = () => {
     const id = crypto.randomUUID();
-    onChange({ ...params, customClasses: [...params.customClasses, { id, label: "", color: CLASS_COLORS[params.customClasses.length % CLASS_COLORS.length]! }], targets: [...params.targets, { key: id, inAllocation: true, target: 0, expectedReturn: null }] });
+    onChange({ ...params, customClasses: [...params.customClasses, { id, label: "", color: CUSTOM_CLASS_COLORS[params.customClasses.length % CUSTOM_CLASS_COLORS.length]! }], targets: [...params.targets, { key: id, inAllocation: true, target: 0, expectedReturn: null }] });
   };
   const remove = (key: string) => onChange({ ...params, customClasses: params.customClasses.filter((c) => c.id !== key), targets: params.targets.filter((l) => l.key !== key) });
   const setReturn = (r: TargetRow, v: number | null) => {

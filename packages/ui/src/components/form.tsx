@@ -5,8 +5,8 @@ import { cn } from "@/lib/cn";
 import { formatNumber, parseNumber } from "@/lib/numbers";
 
 const inputBase =
-  "h-9 w-full rounded-lg border border-line-strong bg-surface-2 px-3 text-sm text-fg placeholder:text-fg-faint " +
-  "focus:border-accent focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-negative";
+  "h-9 w-full rounded-lg border border-line-strong bg-field px-3 text-sm text-fg placeholder:text-fg-faint transition-[border-color,box-shadow] duration-150 " +
+  "focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/15 disabled:opacity-60 aria-[invalid=true]:border-negative";
 
 // ——— Fenêtre modale ———
 
@@ -35,17 +35,17 @@ export function Modal({
   }, [open, onClose]);
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-6 pt-[8vh] backdrop-blur-[2px]" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#08120e]/55 p-6 pt-[8vh]" onMouseDown={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cn("w-full rounded-2xl border border-line-strong bg-surface shadow-2xl", width)}
+        className={cn("w-full rounded-2xl border border-line bg-surface shadow-float", width)}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
-          <h2 className="text-base font-semibold">{title}</h2>
+          <h2 className="font-display text-xl font-medium">{title}</h2>
           <button onClick={onClose} className="rounded-md p-1 text-fg-muted hover:bg-surface-3 hover:text-fg" aria-label="Fermer">
             <X size={18} />
           </button>
@@ -76,7 +76,7 @@ export function Field({
   const id = useId();
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={id} className="text-xs font-medium text-fg-muted">
+      <label htmlFor={id} className="text-[0.8125rem] font-medium text-fg-muted">
         {label}
       </label>
       {children(id)}
@@ -95,7 +95,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export function Select({ children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} className={cn(inputBase, "appearance-auto pr-2", props.className)}>
+    <select {...props} className={cn(inputBase, "cursor-pointer appearance-none bg-(image:--chevron) bg-size-[16px] bg-position-[right_0.6rem_center] bg-no-repeat pr-8", props.className)}>
       {children}
     </select>
   );

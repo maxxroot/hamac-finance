@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Field, TextInput } from "@/components/form";
-import { Button, Card } from "@/components/ui";
+import { HamacCurve, HamacMark, Wordmark } from "@/components/Brand";
+import { Button, PageTitle } from "@/components/ui";
 import { AccountContext, type Account } from "@/lib/account";
 import { auth, AuthError, type Me } from "@/lib/auth";
 import { cn } from "@/lib/cn";
@@ -80,6 +81,9 @@ function Login({ onDone }: { onDone: () => Promise<void> }) {
   if (challenge)
     return (
       <LoginCard>
+        <div className="mb-6">
+          <PageTitle>Vérification</PageTitle>
+        </div>
         <CodeStep
           challenge={challenge}
           onDone={onDone}
@@ -94,11 +98,14 @@ function Login({ onDone }: { onDone: () => Promise<void> }) {
 
   return (
     <LoginCard>
+        <div className="mb-6">
+          <PageTitle>{mode === "login" ? "Connexion" : cfg?.firstUser ? "Première connexion" : "Créer un compte"}</PageTitle>
+        </div>
         {cfg?.firstUser && <p className="mb-4 text-sm text-fg-muted">Première connexion : créez le compte administrateur de cette instance.</p>}
         {canSignup && !cfg?.firstUser && (
-          <div className="mb-5 grid grid-cols-2 rounded-lg bg-surface-2 p-1 text-sm">
+          <div className="mb-5 grid grid-cols-2 rounded-lg border border-line bg-surface-2 p-1 text-sm">
             {(["login", "signup"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setMode(m)} className={cn("rounded-md py-1.5", mode === m ? "bg-surface-3 text-fg" : "text-fg-muted")}>
+              <button key={m} type="button" onClick={() => setMode(m)} className={cn("rounded-md py-1.5 transition-colors", mode === m ? "bg-surface font-medium text-fg ring-1 ring-line" : "text-fg-muted hover:text-fg")}>
                 {m === "login" ? "Connexion" : "Créer un compte"}
               </button>
             ))}
@@ -125,18 +132,24 @@ function Login({ onDone }: { onDone: () => Promise<void> }) {
 
 function LoginCard({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-full items-center justify-center p-6">
-      <Card className="w-full max-w-sm p-7">
-        <div className="mb-6 flex items-center gap-2.5">
-          <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-            <rect width="32" height="32" rx="8" fill="var(--color-accent)" />
-            <path d="M6 10 C 10 23, 22 23, 26 10" fill="none" stroke="var(--color-accent-fg)" strokeWidth="2.6" strokeLinecap="round" />
-          </svg>
-          <span className="text-xl font-semibold">Hamac</span>
+    <div className="flex min-h-full flex-col md:flex-row">
+      <aside className="flex shrink-0 flex-col justify-between gap-10 bg-side px-8 py-8 text-side-fg md:w-[42%] md:max-w-xl md:px-12 md:py-12">
+        <div className="flex items-center gap-3">
+          <HamacMark size={36} />
+          <Wordmark className="text-[1.75rem]" />
         </div>
-        {children}
-        <p className="mt-5 text-xs text-fg-faint">Vos données sont stockées dans une base personnelle sur ce serveur, séparée de celle des autres utilisateurs.</p>
-      </Card>
+        <div className="hidden max-w-sm md:block">
+          <p className="font-display text-[2.1rem] leading-[1.15] font-medium">Votre épargne et votre retraite, suivies au même endroit.</p>
+          <HamacCurve always className="mt-6 w-44" />
+        </div>
+        <p className="hidden text-xs text-side-muted md:block">Logiciel libre, sous licence AGPL.</p>
+      </aside>
+      <main className="flex flex-1 items-center justify-center px-6 py-10">
+        <div className="w-full max-w-sm">
+          {children}
+          <p className="mt-6 text-xs leading-relaxed text-fg-faint">Vos données sont stockées dans une base personnelle sur ce serveur, séparée de celle des autres utilisateurs.</p>
+        </div>
+      </main>
     </div>
   );
 }

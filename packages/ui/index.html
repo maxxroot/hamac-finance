@@ -1,13 +1,17 @@
 <!doctype html>
-<html lang="fr" class="dark">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://data.geopf.fr ws://localhost:5173; base-uri 'none'; object-src 'none'; form-action 'self'"
     />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>Hamac</title>
+    <!-- Avant tout le reste : le thème est posé avant le premier affichage. -->
+    <script src="./theme-1.js"></script>
   </head>
   <body>
     <div id="root"></div>
