@@ -9,6 +9,7 @@ export * from "./debt";
 export * from "./counters";
 export * from "./yearEnd";
 export * from "./concentration";
+export * from "./goals";
 export * from "./realestate";
 export * from "./leases";
 export * from "./irl";

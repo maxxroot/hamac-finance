@@ -250,6 +250,36 @@ export const crowdProjects = pgTable(
   (t) => [uniqueIndex("crowd_external_uq").on(t.accountId, t.externalId)],
 );
 
+/** Projets : une somme à réunir pour une date. */
+export const goals = pgTable("goals", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  targetCents: bigint("target_cents", { mode: "number" }).notNull(),
+  targetDate: text("target_date").notNull(),
+  startDate: text("start_date").notNull(),
+  rate: doublePrecision("rate").notNull().default(0),
+  comment: text("comment").notNull().default(""),
+  archived: boolean("archived").notNull().default(false),
+  ...timestamps,
+});
+
+/** Comptes qui financent un projet : une part de leur valeur ou un montant réservé. */
+export const goalAllocations = pgTable(
+  "goal_allocations",
+  {
+    goalId: text("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull(),
+    /** Fraction (pourcentage) ou montant en euros (montant réservé). */
+    value: doublePrecision("value").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.goalId, t.accountId] })],
+);
+
 /** Donations faites et reçues, pour suivre les abattements renouvelés tous les 15 ans. */
 export const gifts = pgTable("gifts", {
   id: text("id").primaryKey(),

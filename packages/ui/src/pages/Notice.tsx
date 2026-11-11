@@ -334,7 +334,8 @@ export function Notice() {
             ["Février et août", "Mettre à jour le taux des livrets s'il a changé", "Paramètres › Comptes"],
             ["À chaque coupon", "Noter le coupon reçu", "Journal"],
             ["Quand ça arrive", "Changement de virement, mois manqué, retrait, versement exceptionnel", "Versements, Journal"],
-            ["Quand c'est prévu", "Grosse dépense à venir (voiture, travaux), si vous préparez votre retraite", "Projection"],
+            ["Quand c'est prévu", "Projet à financer (voiture, apport, travaux) : sa somme, sa date et les comptes qui le financent", "Projets"],
+            ["Si vous préparez votre retraite", "Dépense imprévue à provisionner dans la projection (réparation, santé)", "Projection"],
             ["De temps en temps", "Actualiser l'estimation de vos biens et le capital restant dû d'après un relevé", "Immobilier, Crédits"],
             ["Si besoin", "Saisir le cours d'un titre non récupéré automatiquement", "Actions & ETF (cliquer sur le cours)"],
           ]}
@@ -350,11 +351,15 @@ export function Notice() {
             [<L to="/performance" key="p">Performance</L>, "Ce que votre argent a réellement rapporté, enveloppe par enveloppe, sa plus forte baisse et ses variations (volatilité), et sa comparaison avec un ETF ou un autre titre, même sans le détenir."],
             [<L to="/projection" key="j">Projection</L>, "Votre patrimoine à la retraite et le revenu mensuel possible."],
             [<L to="/historique" key="h">Historique</L>, "Où en était votre patrimoine à une date, ce qui a changé depuis, et si vous êtes en avance sur votre plan."],
+            [<L to="/projets" key="o">Projets</L>, "Ce que vous préparez : la somme réunie pour chaque projet, l'avance ou le retard, et ce qu'il faut mettre de côté chaque mois."],
             [<L to="/simulateurs" key="m">Simulateurs</L>, "Avant d'investir : ce qu'un placement rapporterait avant et après impôts, et plusieurs placements côte à côte."],
             [<L to="/enveloppes" key="s">Synthèse</L>, "Tous vos comptes côte à côte, et ce qui est garanti si un établissement fait faillite."],
           ]}
         />
         <p>Pour voir l'évolution d'un compte, cliquez sur sa ligne (Synthèse, Livrets, Crowdlending) ou sur « Évolution » dans les blocs Fonds euros, Actions et Crypto. Pour un titre seul, cliquez sur sa ligne. Sur le graphique, cliquez sur un nom de la légende pour masquer sa courbe.</p>
+        <p>
+          <B>Projets.</B> Dans <L to="/projets">Projets</L>, notez ce que vous préparez : la somme, la date, et les comptes où vous mettez l'argent de côté, soit en pourcentage du compte (la somme suit sa valeur), soit en montant réservé. Hamac montre la somme réunie, si vous êtes en avance ou en retard, et ce qu'il faut mettre de côté chaque mois, au rendement que vous indiquez sur le projet (0 % par défaut). Il prévient si l'échéance approche alors que l'argent est en actions ou en crypto, et si un compte est affecté à plus que ce qu'il contient.
+        </p>
         <p>
           <B>Concentration.</B> La Synthèse montre aussi ce qui pèse le plus dans votre patrimoine financier : chaque titre (tous comptes confondus), chaque émetteur d'obligations, chaque plateforme de crowdlending avec ses projets en retard ou en défaut, et chaque établissement. Au-delà de 20 % sur un seul titre, émetteur ou plateforme, le tableau de bord vous le signale ; le seuil se règle dans Paramètres › Plan. Les obligations de l'État français ne déclenchent pas d'alerte.
         </p>

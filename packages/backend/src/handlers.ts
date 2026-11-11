@@ -24,7 +24,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapGift, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -519,6 +519,26 @@ export const handlers: Handlers = {
 
   async "otherAssetValues.delete"({ id }, ctx) {
     await ctx.db.delete(t.otherAssetValues).where(eq(t.otherAssetValues.id, id));
+    return OK;
+  },
+
+  async "goals.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const row = { name: input.name, targetCents: toCents(input.target), targetDate: input.targetDate, startDate: input.startDate, rate: input.rate, comment: input.comment, archived: input.archived, updatedAt: nowIso() };
+    const allocations = input.allocations.map((a) => ({ goalId: id, accountId: a.accountId, mode: a.mode, value: a.value }));
+    await ctx.raw.transaction(async () => {
+      if (input.id) {
+        const res = await ctx.db.update(t.goals).set(row).where(eq(t.goals.id, id)).returning({ id: t.goals.id });
+        if (!res.length) throw new RpcError("NOT_FOUND", "Projet introuvable.");
+      } else await ctx.db.insert(t.goals).values({ id, ...row });
+      await ctx.db.delete(t.goalAllocations).where(eq(t.goalAllocations.goalId, id));
+      if (allocations.length) await ctx.db.insert(t.goalAllocations).values(allocations);
+    });
+    return mapGoal((await ctx.db.select().from(t.goals).where(eq(t.goals.id, id)).limit(1).then(one))!, input.allocations.map((a) => ({ accountId: a.accountId, mode: a.mode, value: a.value })));
+  },
+
+  async "goals.delete"({ id }, ctx) {
+    await ctx.db.delete(t.goals).where(eq(t.goals.id, id));
     return OK;
   },
 

@@ -11,12 +11,13 @@ const pctSigned = z.number().min(-1).max(1);
 const eur = z.number().min(0);
 
 /** Parties de l'application que l'on peut masquer. */
-export const MODULES = ["performance", "historique", "simulateurs", "livrets", "fondsEuros", "obligations", "actions", "crypto", "immobilier", "crowdlending", "autresBiens", "credits", "impots"] as const;
+export const MODULES = ["performance", "historique", "simulateurs", "projets", "livrets", "fondsEuros", "obligations", "actions", "crypto", "immobilier", "crowdlending", "autresBiens", "credits", "impots"] as const;
 export type ModuleKey = (typeof MODULES)[number];
 export const MODULE_LABELS: Record<ModuleKey, string> = {
   performance: "Performance",
   historique: "Historique",
   simulateurs: "Simulateurs",
+  projets: "Projets",
   livrets: "Livrets",
   fondsEuros: "Fonds euros",
   obligations: "Obligations",

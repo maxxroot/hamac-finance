@@ -141,6 +141,13 @@
       "when": 1794429916078,
       "tag": "0019_burly_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794431680613,
+      "tag": "0020_yielding_hulk",
+      "breakpoints": true
     }
   ]
 }

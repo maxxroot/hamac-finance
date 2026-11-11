@@ -27,7 +27,7 @@ export interface ProjectionInput {
   startContributed: number;
   /** Versements annuels prévus par classe d'actifs pour une année donnée. */
   contributions: (year: number) => Flows;
-  /** Dépenses prévues payées par les livrets. */
+  /** Dépenses imprévues provisionnées, payées par les livrets (les projets prévus sont à part). */
   expenses: (year: number) => number;
   /** Frais payés sur les versements de l'année (déjà retirés de `contributions`). */
   contributionFees?: (year: number) => number;

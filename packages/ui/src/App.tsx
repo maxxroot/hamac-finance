@@ -31,6 +31,7 @@ import type { ReactNode } from "react";
 import { Placeholder } from "@/pages/Placeholder";
 import { AutresBiens } from "@/pages/AutresBiens";
 import { Compteurs } from "@/pages/Compteurs";
+import { Projets } from "@/pages/Projets";
 
 const PAGES: Record<string, ReactNode> = {
   "/": <TableauDeBord />,
@@ -53,6 +54,7 @@ const PAGES: Record<string, ReactNode> = {
   "/impots": <Impots />,
   "/declaration": <Declaration />,
   "/compteurs": <Compteurs />,
+  "/projets": <Projets />,
   "/historique": <Historique />,
   "/simulateurs": <Simulateurs />,
 };

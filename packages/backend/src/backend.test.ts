@@ -268,6 +268,23 @@ describe("établissements", () => {
     expect(ws.accounts[0].institutionId).toBeNull();
   });
 
+  it("enregistre un projet et remplace ses comptes à la modification", async () => {
+    const b = await memory();
+    const livret = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", livretType: "AUTRE", name: "Livret" });
+    const pea = await call<{ id: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA" });
+    const g = await call<{ id: string; allocations: unknown[] }>(b, "goals.upsert", { name: "Voiture", target: 20_000, targetDate: "2028-06-01", startDate: "2026-01-01", allocations: [{ accountId: livret.id, mode: "pourcentage", value: 0.5 }, { accountId: pea.id, mode: "montant", value: 3_000 }] });
+    expect(g.allocations).toHaveLength(2);
+    await call(b, "goals.upsert", { id: g.id, name: "Voiture", target: 20_000, targetDate: "2028-06-01", startDate: "2026-01-01", rate: 0.02, allocations: [{ accountId: livret.id, mode: "montant", value: 8_000 }] });
+    const ws = await call<{ goals: Array<{ rate: number; allocations: Array<{ mode: string; value: number }> }> }>(b, "workspace.load");
+    expect(ws.goals[0]).toMatchObject({ rate: 0.02, allocations: [{ mode: "montant", value: 8_000 }] });
+    await expect(call(b, "goals.upsert", { name: "Faux", target: 1, targetDate: "2026-01-01", startDate: "2026-06-01" })).rejects.toThrow(/VALIDATION/);
+    await expect(call(b, "goals.upsert", { name: "Faux", target: 1, targetDate: "2027-01-01", startDate: "2026-06-01", allocations: [{ accountId: livret.id, mode: "pourcentage", value: 1.5 }] })).rejects.toThrow(/VALIDATION/);
+    // Supprimer un compte retire sa part des projets.
+    await call(b, "accounts.delete", { id: livret.id });
+    const after = await call<{ goals: Array<{ allocations: unknown[] }> }>(b, "workspace.load");
+    expect(after.goals[0].allocations).toHaveLength(0);
+  });
+
   it("enregistre, modifie et supprime une donation", async () => {
     const b = await memory();
     const g = await call<{ id: string; amount: number; kind: string }>(b, "gifts.upsert", { date: "2025-06-01", direction: "faite", person: "Camille", relation: "enfant", amount: 20_000 });

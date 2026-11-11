@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GOAL_ALLOCATION_MODES, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -382,6 +382,26 @@ export const OtherAssetValueInput = z.object({
   date: isoDate,
   value: money.min(0),
 });
+
+export const GoalInput = z
+  .object({
+    id: id.optional(),
+    name: text(120).min(1, "Nom requis"),
+    target: money.positive("Montant requis"),
+    targetDate: isoDate,
+    startDate: isoDate,
+    rate: z.number().min(-0.5).max(0.5).default(0),
+    allocations: z
+      .array(z.object({ accountId: id, mode: z.enum(GOAL_ALLOCATION_MODES), value: z.number().min(0).max(1e12) }))
+      .max(50)
+      .default([])
+      .refine((list) => list.every((a) => a.mode !== "pourcentage" || a.value <= 1), "Un pourcentage ne peut pas dépasser 100 %.")
+      .refine((list) => new Set(list.map((a) => a.accountId)).size === list.length, "Un compte ne peut servir qu'une fois par projet."),
+    comment: text(500).default(""),
+    archived: z.boolean().default(false),
+  })
+  .refine((g) => g.startDate <= g.targetDate, { path: ["targetDate"], message: "La date du projet doit suivre son début." });
+export type GoalInput = z.input<typeof GoalInput>;
 
 export const GiftInput = z.object({
   id: id.optional(),

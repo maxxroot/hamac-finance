@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { computeAlerts, isRetirementPlan, retirementYear, type Alert, type HistoryPoint, type PlanParams, type PortfolioState } from "@hamac/core";
+import { computeAlerts, goalProgress, isRetirementPlan, retirementYear, type Alert, type HistoryPoint, type PlanParams, type PortfolioState } from "@hamac/core";
 import { AlertList } from "@/components/Alerts";
 import { Amount } from "@/components/Amount";
 import { EvolutionChart, PeriodSelector } from "@/components/EvolutionChart";
@@ -10,7 +10,7 @@ import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS } from "@/lib/colors";
 import { cn } from "@/lib/cn";
 import { allocationBars, alertsToReview, envelopeRows, gainSinceLastMonth, type PeriodKey } from "@/lib/dashboard";
-import { formatMonth } from "@/lib/numbers";
+import { formatDate, formatMonth } from "@/lib/numbers";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
 import { useProjection } from "@/lib/projection";
 
@@ -120,7 +120,49 @@ export function TableauDeBord() {
           <ReviewCard alerts={alerts} />
         </div>
       </div>
+
+      {p.modules.projets && <GoalsCard />}
     </>
+  );
+}
+
+/** Avancement des projets en cours, les plus proches d'abord. */
+function GoalsCard() {
+  const pf = usePortfolio();
+  const rows = useMemo(() => (pf ? pf.idx.ws.goals.filter((g) => !g.archived).map((g) => goalProgress(g, pf.state)) : []), [pf]);
+  if (rows.length === 0) return null;
+  return (
+    <Card className="mt-5">
+      <CardTitle
+        hint={
+          <Link to="/projets" className="text-accent hover:underline">
+            Projets
+          </Link>
+        }
+      >
+        Projets en cours
+      </CardTitle>
+      <ul className="grid gap-x-8 gap-y-3 text-sm @3xl:grid-cols-2">
+        {rows.slice(0, 6).map((p) => (
+          <li key={p.goal.id}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate font-medium">{p.goal.name}</span>
+              <span className="shrink-0 text-xs text-fg-muted">
+                <Amount value={p.saved} compact /> / <Amount value={p.goal.target} compact /> · {formatDate(p.goal.targetDate)}
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 rounded-full bg-surface-3" role="img" aria-label={`${Math.round(p.progress * 100)} % réunis`}>
+              <div className={cn("h-full rounded-full", p.status === "atteint" ? "bg-positive" : p.status === "en_retard" ? "bg-warning" : "bg-accent")} style={{ width: `${Math.round(p.progress * 100)}%` }} />
+            </div>
+            {p.status !== "atteint" && p.monthsLeft > 0 && (
+              <div className="mt-0.5 text-xs text-fg-faint">
+                <Amount value={p.monthlyNeeded} compact /> par mois · {p.status === "en_retard" ? "en retard" : "en avance"}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

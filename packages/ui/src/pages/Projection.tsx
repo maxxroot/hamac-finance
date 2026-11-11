@@ -334,7 +334,7 @@ function Simulator({ params, onChange, active }: { params: PlanParams; onChange:
 
 function Expenses() {
   const proj = useProjection(null);
-  const add = useMutate("plannedExpenses.upsert", { success: "Dépense prévue ajoutée" });
+  const add = useMutate("plannedExpenses.upsert", { success: "Dépense imprévue ajoutée" });
   const del = useMutate("plannedExpenses.delete");
   const [label, setLabel] = useState("");
   const [year, setYear] = useState<number | null>(null);
@@ -342,7 +342,7 @@ function Expenses() {
   const expenses = proj?.pf.idx.ws.plannedExpenses ?? [];
   return (
     <Card>
-      <CardTitle hint="payées par les livrets">Grosses dépenses prévues</CardTitle>
+      <CardTitle hint="retirées des livrets dans la projection ; les dépenses prévues sont dans Projets">Dépenses imprévues</CardTitle>
       {expenses.length > 0 && (
         <ul className="mb-4 space-y-1.5 text-sm">
           {expenses.map((e) => (
@@ -361,7 +361,7 @@ function Expenses() {
         </ul>
       )}
       <div className="grid items-end gap-2 sm:grid-cols-[2fr_1fr_1fr_auto]">
-        <Field label="Quoi">{(id) => <TextInput id={id} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Voiture, travaux…" />}</Field>
+        <Field label="Quoi">{(id) => <TextInput id={id} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Réparation, santé…" />}</Field>
         <Field label="Année">{(id) => <NumberInput id={id} decimals={0} grouping={false} value={year} onChange={setYear} />}</Field>
         <Field label="Montant">{(id) => <MoneyInput id={id} value={amount} onChange={setAmount} />}</Field>
         <Button disabled={!label.trim() || !year || !amount} onClick={() => year && amount && add.mutate({ label, year, amount }, { onSuccess: () => (setLabel(""), setYear(null), setAmount(null)) })}>

@@ -17,6 +17,8 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 
 - **Concentration et risque (proposition 6)** : carte « Concentration » sur la Synthèse (titres tous comptes confondus, émetteurs d'obligations, plateformes de crowdlending et projets en difficulté, établissements), alerte au-delà de 20 %, volatilité ajoutée à la page Performance.
 
+- **Objectifs par projet (proposition 11)** : page « Projets » (Vue d'ensemble) et carte « Projets en cours » au tableau de bord ; somme, date, comptes affectés en pourcentage ou en montant réservé, avancement, avance ou retard, versement mensuel nécessaire au taux du projet.
+
 Hors propositions, ajouté pendant le même travail :
 
 - **Prélèvement des impôts réglé par établissement** (commit `877a9a7`) : une case « L'établissement prélève les impôts sur les intérêts et dividendes » sur la fiche de chaque établissement remplace ce que Hamac supposait selon le type de compte. Décochée, le montant reçu compte comme brut et tout est à payer à la déclaration (compte-titres, assurance-vie, livret bancaire, crowdlending). Les fiches existantes reprennent l'ancien comportement (oui en France pour une banque, un courtier ou un assureur ; non pour une plateforme crypto, un établissement étranger ou des taux de retenue à 0 ; l'ancienne case des plateformes de crowdlending). Calcul dans `institutionWithholds` (`core/src/institutions.ts`).
@@ -38,7 +40,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 8 | Poids des crédits et aide à la décision | Fait le 11 novembre 2026 |
 | 9 | Compteurs d'ancienneté et plafonds | Fait le 11 novembre 2026 |
 | 10 | Liste de fin d'année | Fait le 11 novembre 2026 |
-| 11 | Objectifs par projet | À faire |
+| 11 | Objectifs par projet | Fait le 11 novembre 2026 |
 | 12 | Rapprochement avec les relevés et journal des décisions | 12 a abandonné le 11 novembre 2026 ; 12 b à faire |
 
 ---
@@ -285,7 +287,7 @@ Pour chaque bien :
 
 ## 11. Objectifs par projet
 
-**Statut :** à faire.
+**Statut :** fait le 11 novembre 2026. Calculs dans `core/src/goals.ts`, tables `goals` et `goal_allocations`, page « Projets » (`/projets`, module Projets) et carte au tableau de bord. Décisions : les projets et les dépenses prévues restent deux notions ; la liste de la projection de retraite est renommée « Dépenses imprévues » (provisions pour l'imprévu), les projets étant ce qui est prévu ; un compte sert un projet au choix en pourcentage de sa valeur ou en montant réservé (plafonné à ce que contient le compte), et peut servir plusieurs projets avec une alerte s'il est affecté à plus que sa valeur ; le versement mensuel nécessaire suit un taux saisi par projet, 0 % par défaut ; l'avance ou le retard se juge par rapport à une progression régulière depuis la date de début ; un avertissement apparaît à moins de 3 ans de l'échéance si plus de 30 % de l'argent est en actions ou en crypto. Non fait : les projets n'entrent pas dans la projection de retraite, et un projet atteint ne crée pas tout seul la dépense au journal.
 
 **Pourquoi.** Donner du sens à l'épargne : on n'investit pas « pour investir », mais pour acheter un logement, payer des études, faire des travaux.
 
@@ -341,6 +343,6 @@ Pour chaque bien :
 5. ~~**Proposition 6**, concentration et risque~~ : fait.
 6. ~~**Proposition 8**, crédits~~ : fait.
 7. ~~**Propositions 9 puis 10**, compteurs puis liste de fin d'année~~ : faites.
-8. **Proposition 11**, objectifs par projet.
+8. ~~**Proposition 11**, objectifs par projet~~ : fait.
 9. **Proposition 12 b**, journal des décisions.
 10. **Proposition 5**, exposition réelle, après une étude de faisabilité.
