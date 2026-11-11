@@ -5,6 +5,7 @@ export * from "./params";
 export * from "./ownership";
 export * from "./otherAssets";
 export * from "./reconciliation";
+export * from "./debt";
 export * from "./realestate";
 export * from "./leases";
 export * from "./irl";

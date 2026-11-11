@@ -75,11 +75,20 @@ describe("page Performance", () => {
     // Année par année, puis mois par mois : une ligne par mois de l'année choisie.
     const periods = within(screen.getByText("Année par année").closest("div.rounded-2xl") as HTMLElement);
     expect(periods.getByRole("cell", { name: "2024" })).toBeTruthy();
+    // Une année se déplie sur les enveloppes.
+    expect(periods.queryByRole("cell", { name: "PEA" })).toBeNull();
+    await user.click(periods.getByRole("button", { name: "Afficher le détail : 2024" }));
+    expect(periods.getByRole("cell", { name: "PEA" })).toBeTruthy();
+    expect(periods.getByRole("cell", { name: "Compte-titres" })).toBeTruthy();
+    await user.click(periods.getByRole("button", { name: "Masquer le détail : 2024" }));
+    expect(periods.queryByRole("cell", { name: "PEA" })).toBeNull();
     await user.click(periods.getByRole("button", { name: "Mois" }));
     expect(periods.getByText("Mois par mois")).toBeTruthy();
     await user.selectOptions(periods.getByLabelText("Année affichée"), "2024");
     expect(periods.getByRole("cell", { name: /^Janvier 2024$/i })).toBeTruthy();
     expect(periods.getByRole("cell", { name: /^Décembre 2024$/i })).toBeTruthy();
+    await user.click(periods.getByRole("button", { name: /Afficher le détail : juin 2024/i }));
+    expect(periods.getByRole("cell", { name: "PEA" })).toBeTruthy();
     await user.click(periods.getByRole("button", { name: "Années" }));
     expect(periods.getByText("Année par année")).toBeTruthy();
 

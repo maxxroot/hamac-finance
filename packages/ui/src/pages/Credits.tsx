@@ -9,6 +9,7 @@ import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, stopRowClick, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { LoanDialog } from "@/dialogs/LoanDialog";
+import { DebtWeightCard, PrepaymentCard } from "@/components/DebtCards";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
 import { useMutate } from "@/lib/workspace";
@@ -134,6 +135,9 @@ export function Credits() {
           </tbody>
         </Table>
       </Card>
+
+      <DebtWeightCard />
+      <PrepaymentCard />
 
       {archivedLoans.length > 0 && (
         <Card className="mt-5">

@@ -11,6 +11,7 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 - **Protection en cas de faillite (proposition 1)** : carte sur la Synthèse, part garantie et non garantie par établissement garant, alerte au-delà d'un plafond, champs « Établissement garant » et « Pays » sur la fiche de l'établissement.
 - **Qui possède quoi (proposition 3)** : usufruit et nue-propriété d'un bien immobilier au barème fiscal, sociétés (SCI) avec la part des parts détenue, part détenue sur les comptes joints.
 - **Rapprochement avec les relevés (proposition 12 a)** : page « Rapprochement » (groupe Saisie), relevé avec valeur, espèces et quantités, comparé au calcul à sa date, correction en un clic, rappel au-delà de 12 mois sans relevé.
+- **Poids des crédits (proposition 8)** : sur la page Crédits, part du patrimoine financée à crédit, part de chaque bien encore due, taux d'effort, taux assurance comprise et coût restant de chaque crédit, et comparateur « rembourser par avance ou placer ».
 - **Autres biens (proposition 4)** : page « Autres biens », en dernier des enveloppes ; or, objets, véhicules, parts de société (démembrables), compte courant d'associé et argent prêté, avec décote, délai de vente et impôt estimé à la vente.
 
 Le détail, les décisions prises et ce qui reste hors de chaque version sont dans la section de chaque proposition.
@@ -26,7 +27,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 5 | Exposition réelle derrière les ETF | À étudier : faisabilité des données incertaine |
 | 6 | Concentration et risque | À faire, à détailler |
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
-| 8 | Poids des crédits et aide à la décision | À faire |
+| 8 | Poids des crédits et aide à la décision | Fait le 11 novembre 2026 |
 | 9 | Compteurs d'ancienneté et plafonds | À faire, en partie existant |
 | 10 | Liste de fin d'année | À faire, dans la partie Impôts |
 | 11 | Objectifs par projet | À faire |
@@ -209,7 +210,7 @@ Pour chaque bien :
 
 ## 8. Poids des crédits et aide à la décision
 
-**Statut :** à faire.
+**Statut :** fait le 11 novembre 2026. Calculs dans `core/src/debt.ts`, cartes « Poids des crédits » et « Rembourser par avance ou placer ? » sur la page Crédits, nouveau réglage « Revenus nets par mois » (Paramètres › Plan), alerte au-delà de 35 % de taux d'effort. Décisions : comparaison avec un taux net saisi, prérempli d'après les hypothèses du plan (livret, fonds euros, obligations, actions sur PEA, impôts estimés) ; les deux options sont comparées à la fin prévue du crédit, les échéances libérées étant placées au même rendement ; l'indemnité est préremplie au plafond légal et modifiable ; le taux d'équilibre est affiché. Non fait : déduction des intérêts d'un bien loué, alerte de renégociation (il faudrait une source de taux du marché). Règles vérifiées sur des sources secondaires : plafond des indemnités (R313-25), crédit à la consommation (L312-34), 35 % du HCSF.
 
 **Pourquoi.** Savoir où en sont les crédits, et décider s'il vaut mieux rembourser par avance ou placer l'argent.
 
@@ -330,7 +331,7 @@ Pour chaque bien :
 3. ~~**Proposition 12 a**, rapprochement~~ : fait.
 4. **Proposition 7**, disponibilité de l'argent.
 5. **Proposition 6**, concentration et risque.
-6. **Proposition 8**, crédits.
+6. ~~**Proposition 8**, crédits~~ : fait.
 7. **Propositions 9 puis 10**, compteurs puis liste de fin d'année, qui s'appuie sur les compteurs.
 8. **Proposition 11**, objectifs par projet.
 9. **Proposition 12 b**, journal des décisions.

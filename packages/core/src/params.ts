@@ -62,6 +62,8 @@ export const PlanParams = z
       /** Jour du mois où les versements programmés sont prélevés (dernier jour du mois s'il est plus court). */
       contributionDay: z.number().int().min(1).max(31),
       couple: z.boolean(),
+      /** Revenus nets du foyer par mois, pour le taux d'effort des crédits ; 0 = non renseignés. */
+      netMonthlyIncome: eur,
     }),
     returns: z.object({
       livrets: pctSigned,
@@ -155,6 +157,7 @@ export function defaultParams(today = new Date()): PlanParams {
       startMonth: `${y}-${String(today.getMonth() + 1).padStart(2, "0")}`,
       contributionDay: 1,
       couple: false,
+      netMonthlyIncome: 0,
     },
     returns: { livrets: 0.02, fondsEuros: 0.03, obligations: 0.035, actions: 0.06, inflation: 0.02, realReturnRetirement: 0.01 },
     allocation: { etfAtRetirement: 0.15 },

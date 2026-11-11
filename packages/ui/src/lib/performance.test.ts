@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AssetPerformance, EnvelopePerformance } from "@hamac/core";
-import { envelopesForScope, heatShare, pctText, rankingView } from "./performance";
+import { ALL_SCOPE, breakdownParts, envelopesForScope, heatShare, pctText, rankingView, type ScopeOptions } from "./performance";
 
 const row = (key: string, accounts: string[] = []): EnvelopePerformance => ({ key, label: key, value: 0, inflow: 0, gain: 0, gainPct: null, annualized: null, annualizedReason: null, assumption: null, afterTax: null, accounts: accounts.map((a) => row(a)) });
 const asset = (assetId: string, gain: number): AssetPerformance => ({ assetId, value: 0, gain, income: 0, rate: null });
@@ -15,6 +15,27 @@ describe("tableau par enveloppe selon le filtre", () => {
     const [r] = envelopesForScope(rows, "account:p2");
     expect(r!.key).toBe("pea");
     expect(r!.accounts.map((a) => a.key)).toEqual(["p2"]);
+  });
+});
+
+describe("détail du tableau année par année", () => {
+  const options: ScopeOptions = {
+    all: { key: ALL_SCOPE, label: "Tout", accountIds: ["p1", "p2", "c"] },
+    groups: [
+      { key: "group:pea", label: "PEA", accountIds: ["p1", "p2"] },
+      { key: "group:cto", label: "Compte-titres", accountIds: ["c"] },
+    ],
+    accounts: [
+      { key: "account:p1", label: "PEA 1", accountIds: ["p1"] },
+      { key: "account:p2", label: "PEA 2", accountIds: ["p2"] },
+      { key: "account:c", label: "CTO", accountIds: ["c"] },
+    ],
+  };
+  it("par enveloppe sur tout le patrimoine, par compte dans une enveloppe, rien pour un compte seul", () => {
+    expect(breakdownParts(options, options.all).map((o) => o.label)).toEqual(["PEA", "Compte-titres"]);
+    expect(breakdownParts(options, options.groups[0]!).map((o) => o.label)).toEqual(["PEA 1", "PEA 2"]);
+    expect(breakdownParts(options, options.groups[1]!)).toEqual([]);
+    expect(breakdownParts(options, options.accounts[0]!)).toEqual([]);
   });
 });
 

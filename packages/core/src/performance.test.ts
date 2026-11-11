@@ -180,18 +180,21 @@ describe("page Performance sur un portefeuille", () => {
     expect(p.stats!.counted).toBeGreaterThan(0);
   });
 
-  it("détail par enveloppe : les mêmes chiffres que l'analyse complète", () => {
-    const d = base();
+  it("détail par enveloppe : les mêmes chiffres que l'analyse complète, et les parts se recomposent", () => {
+    // Un transfert entre les deux : versé pour l'un, retiré pour l'autre, sans effet sur l'ensemble.
+    const d = { ...base(), transactions: [...base().transactions, tx("2025-08-05", "transfert", "cto", 300, { counterAccountId: "pea" })] };
     const state = computePortfolio(d, ASOF);
     const history = buildHistory(d, ASOF);
     const full = scopePerformance(d, state, history, ["pea"], null)!;
     const t = periodTables(d, state, history, ["pea"])!;
     expect(t.years).toEqual(full.years);
     expect(t.monthly).toEqual(full.monthly);
-    // Les parts se recomposent : la somme des gains de chaque enveloppe redonne le gain de l'ensemble.
+    // Gain, argent versé et valeur de chaque enveloppe s'additionnent pour redonner l'ensemble.
     const both = scopePerformance(d, state, history, ["pea", "cto"], null)!;
     const cto = periodTables(d, state, history, ["cto"])!;
     const of = (x: PeriodTables, y: number, k: "gain" | "inflow" | "endValue") => x.years.find((r) => r.year === y)?.[k] ?? 0;
+    expect(of(cto, 2025, "inflow")).toBe(1700);
+    expect(of(both, 2025, "inflow")).toBe(3000);
     for (const y of both.years) for (const k of ["gain", "inflow", "endValue"] as const) expect(of(t, y.year, k) + of(cto, y.year, k)).toBeCloseTo(y[k], 2);
     expect(periodTables(d, state, history, ["inconnu"])).toBeNull();
   });

@@ -8,6 +8,7 @@ import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
 import { GUARANTEE_LABELS, protectionOf } from "./protection";
 import { reconcile, staleAccounts } from "./reconciliation";
+import { MAX_EFFORT_RATE } from "./debt";
 import { daysBetween } from "./xirr";
 
 /** Niveaux réservés : toujours affichés avec une icône et un libellé, jamais par la couleur seule. */
@@ -163,6 +164,11 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
       detail: "Comparer la valeur et les titres avec le site de l'établissement fiabilise tous les calculs.",
       link: "/rapprochement",
     });
+
+  // Crédits : taux d'effort au-delà de ce que prêtent les banques.
+  if (p.profile.netMonthlyIncome > 0 && state.netWorth.monthlyLoans / p.profile.netMonthlyIncome > MAX_EFFORT_RATE) {
+    out.push({ id: "taux-effort", level: "info", title: `Mensualités à ${Math.round((state.netWorth.monthlyLoans / p.profile.netMonthlyIncome) * 100)} % des revenus nets`, detail: "Au-delà de 35 %, les banques refusent en général un nouveau crédit immobilier.", link: "/credits" });
+  }
 
   // Protection en cas de faillite : sommes au-delà d'un plafond légal, par établissement garant.
   for (const line of protectionOf(active, data.institutions ?? [], p.alerts.fgapGuarantee).lines) {

@@ -282,6 +282,14 @@ function loanSteps(loan: Loan): LoanStep[] {
   return steps;
 }
 
+/** Une échéance de l'échéancier : date, échéance hors assurance, assurance, intérêts et capital restant dû après paiement. */
+export type LoanScheduleStep = Readonly<LoanStep>;
+
+/** Échéancier complet, mois par mois (remboursements anticipés et relevé compris). L'indemnité d'un remboursement anticipé est comptée dans les intérêts du mois. */
+export function loanSchedule(loan: Loan): LoanScheduleStep[] {
+  return loanSteps(loan);
+}
+
 export interface LoanYear {
   year: number;
   capital: number;

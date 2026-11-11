@@ -501,6 +501,12 @@ export function Notice() {
         <p>L'assurance se saisit en montant fixe par mois, ou en taux annuel appliqué au capital emprunté ou au capital restant dû. Seuls les crédits immobiliers et travaux peuvent être rattachés à un bien.</p>
         <p>Si vous remboursez à plusieurs et que le montant saisi est le crédit entier, indiquez votre « Part à ma charge » : le patrimoine net et les mensualités ne comptent que cette part.</p>
         <p>Un différé se saisit dans le crédit. Pour un remboursement anticipé, ouvrez le détail du crédit : indiquez le montant, l'indemnité éventuelle, et si vous réduisez la durée ou la mensualité. Les crédits archivés restent listés sous le tableau, pour pouvoir les rétablir. Si la banque indique d'autres chiffres, saisissez la mensualité ou le capital restant dû d'un relevé, avec sa date : le calcul repart de là. Un crédit renouvelable, sans échéancier fixe, se saisit en « autre » et se corrige à la main.</p>
+              <p>
+          <B>Poids des crédits.</B> Sous la liste, Hamac montre la part du patrimoine financée à crédit, la part de chaque bien encore due à la banque, le taux réel de chaque crédit assurance comprise et ce qu'il reste à payer en intérêts et en assurance. Indiquez vos revenus nets dans Paramètres › Plan pour voir votre taux d'effort : les banques prêtent en général jusqu'à 35 % des revenus, assurance comprise.
+        </p>
+        <p>
+          <B>Rembourser par avance ou placer ?</B> Choisissez un crédit, la somme disponible et un placement de comparaison (prérempli d'après vos hypothèses, après impôts). Hamac compare, à la fin prévue du crédit, ce que vous aurez dans les deux cas : en remboursant, les échéances économisées sont placées au même rendement ; en plaçant, la somme travaille d'un coup. L'indemnité de la banque est préremplie au plafond légal (crédit immobilier : 6 mois d'intérêts, au plus 3 % du capital restant dû) ; mettez 0 si votre contrat l'exclut. Rembourser rapporte un taux certain, placer un rendement espéré : gardez une épargne de précaution.
+        </p>
       </Fold>
 
       <Fold id="autres" title="PEA-PME, PER, épargne salariale">

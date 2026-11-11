@@ -228,6 +228,7 @@ function PlanTab({ draft }: { draft: PlanDraft }) {
             {(id) => <TextInput id={id} type="month" value={p.profile.startMonth} onChange={(e) => set(["profile", "startMonth"], e.target.value)} />}
           </Field>
           {intField("Jour des versements", ["profile", "contributionDay"], "Jour du mois où les versements programmés sont prélevés (dernier jour du mois s'il est plus court).")}
+          {eurField("Revenus nets par mois", ["profile", "netMonthlyIncome"], "Du foyer, avant impôt sur le revenu : sert au taux d'effort des crédits. Les banques retiennent en général 70 % des loyers perçus.")}
           <div className="self-end pb-2">
             <Checkbox checked={p.profile.couple} onChange={(v) => set(["profile", "couple"], v)} label="Imposition en couple" />
           </div>
