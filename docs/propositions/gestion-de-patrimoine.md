@@ -15,6 +15,11 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 - **Liste de fin d'année (proposition 10)** : repliée en bas de la page Impôts, moins-values à réaliser, abattement de l'assurance-vie, versement PER, plafonds libres et préparation de la déclaration, chiffrés, avec une case par geste ; alerte au tableau de bord en novembre et décembre.
 - **Autres biens (proposition 4)** : page « Autres biens », en dernier des enveloppes ; or, objets, véhicules, parts de société (démembrables), compte courant d'associé et argent prêté, avec décote, délai de vente et impôt estimé à la vente.
 
+Hors propositions, ajouté pendant le même travail :
+
+- **Prélèvement des impôts réglé par établissement** (commit `877a9a7`) : une case « L'établissement prélève les impôts sur les intérêts et dividendes » sur la fiche de chaque établissement remplace ce que Hamac supposait selon le type de compte. Décochée, le montant reçu compte comme brut et tout est à payer à la déclaration (compte-titres, assurance-vie, livret bancaire, crowdlending). Les fiches existantes reprennent l'ancien comportement (oui en France pour une banque, un courtier ou un assureur ; non pour une plateforme crypto, un établissement étranger ou des taux de retenue à 0 ; l'ancienne case des plateformes de crowdlending). Calcul dans `institutionWithholds` (`core/src/institutions.ts`).
+- **Liste de fin d'année repliée** (commit `7a0a331`) et **rapprochement retiré** (commit `3e259b5`) : voir les propositions 10 et 12 a.
+
 Le détail, les décisions prises et ce qui reste hors de chaque version sont dans la section de chaque proposition.
 
 ## Suivi
