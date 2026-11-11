@@ -9,6 +9,9 @@ import {
   formatEur,
   formatPct,
   NO_INSTITUTION_TAX,
+  NO_PROTECTION,
+  PROTECTION_COUNTRIES,
+  PROTECTION_COUNTRY_LABELS,
   orderFee,
   type AvOffer,
   type BrokerOffer,
@@ -17,6 +20,8 @@ import {
   type Institution,
   type InstitutionKind,
   type InstitutionTax,
+  type InstitutionProtection,
+  type ProtectionCountry,
   type Offers,
   type OrderFeeTier, type OfferKind,
 } from "@hamac/core";
@@ -37,12 +42,13 @@ interface Draft {
   comment: string;
   offers: Offers;
   tax: InstitutionTax;
+  protection: InstitutionProtection;
 }
 
 function blank(kind: InstitutionKind = "courtier"): Draft {
   const offers: Offers = {};
   for (const k of DEFAULT_OFFER_KINDS[kind]) (offers as Record<string, unknown>)[k] = emptyOffer(k);
-  return { name: "", kind, website: "", score: null, comment: "", offers, tax: NO_INSTITUTION_TAX };
+  return { name: "", kind, website: "", score: null, comment: "", offers, tax: NO_INSTITUTION_TAX, protection: NO_PROTECTION };
 }
 
 export function InstitutionDialog({ open, onClose, institution }: { open: boolean; onClose: () => void; institution?: Institution | null }) {
@@ -100,7 +106,7 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
                 onChange={(e) => {
                   const kind = e.target.value as InstitutionKind;
                   // À la création, le type pré-coche les comptes habituels ; ensuite on ne touche plus aux offres.
-                  setD((x) => (institution ? { ...x, kind } : { ...blank(kind), name: x.name, website: x.website, score: x.score, comment: x.comment, tax: x.tax }));
+                  setD((x) => (institution ? { ...x, kind } : { ...blank(kind), name: x.name, website: x.website, score: x.score, comment: x.comment, tax: x.tax, protection: x.protection }));
                 }}
               >
                 {INSTITUTION_KINDS.map((k) => (
@@ -198,9 +204,53 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
           </div>
         </Section>
 
+        <Section title="Protection en cas de faillite">
+          <ProtectionEditor value={d.protection} name={d.name} insurer={d.offers.assurance_vie?.insurer ?? ""} self={institution?.id} onChange={(protection) => setD({ ...d, protection })} />
+        </Section>
+
         <Field label="Commentaire">{(id) => <Textarea id={id} value={d.comment} onChange={(e) => setD({ ...d, comment: e.target.value })} placeholder="Points forts, points faibles, date de la grille tarifaire…" />}</Field>
       </div>
     </Modal>
+  );
+}
+
+/** Établissement garant et pays : sert à regrouper les comptes sous un même plafond de garantie. */
+function ProtectionEditor({ value, name, insurer, self, onChange }: { value: InstitutionProtection; name: string; insurer: string; self?: string; onChange: (v: InstitutionProtection) => void }) {
+  const idx = useWorkspaceIndex();
+  // Noms déjà saisis ailleurs : choisir le même regroupe les établissements sous un seul plafond.
+  const known = [...new Set((idx?.ws.institutions ?? []).filter((i) => i.id !== self).flatMap((i) => [i.protection.guarantor.trim() || i.name, i.offers.assurance_vie?.insurer?.trim() ?? ""]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+  return (
+    <div className="space-y-3">
+      <FormGrid cols={2}>
+        <Field label="Établissement garant" help={`Seulement s'il diffère : la banque ou l'entreprise agréée derrière la marque. Vide : ${name.trim() || "le nom ci-dessus"}.`}>
+          {(id) => (
+            <>
+              <TextInput id={id} list={`${id}-garants`} value={value.guarantor} onChange={(e) => onChange({ ...value, guarantor: e.target.value })} placeholder="même établissement" />
+              <datalist id={`${id}-garants`}>
+                {known.map((k) => (
+                  <option key={k} value={k} />
+                ))}
+              </datalist>
+            </>
+          )}
+        </Field>
+        <Field label="Pays de l'établissement">
+          {(id) => (
+            <Select id={id} value={value.country} onChange={(e) => onChange({ ...value, country: e.target.value as ProtectionCountry })}>
+              {PROTECTION_COUNTRIES.map((c) => (
+                <option key={c} value={c}>
+                  {PROTECTION_COUNTRY_LABELS[c]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      </FormGrid>
+      <p className="text-xs text-fg-faint">
+        Les garanties s'appliquent par établissement agréé, pas par marque : deux marques d'un même établissement partagent un seul plafond.
+        {insurer.trim() ? ` Pour l'assurance-vie, c'est l'assureur (${insurer.trim()}) qui compte.` : " Pour l'assurance-vie, c'est l'assureur qui compte : renseignez-le dans l'offre ci-dessus."}
+      </p>
+    </div>
   );
 }
 

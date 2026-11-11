@@ -29,6 +29,7 @@ export * from "./projection";
 export * from "./alerts";
 export * from "./csv";
 export * from "./institutions";
+export * from "./protection";
 export * from "./rates";
 export * from "./bondnames";
 export * from "./allocations";

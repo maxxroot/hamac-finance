@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -351,6 +351,7 @@ export const InstitutionInput = z.object({
   comment: text(1000).default(""),
   offers: Offers.default({}),
   tax: InstitutionTax.default({ report: false, withheldIncomeTax: null, withheldSocial: null }),
+  protection: InstitutionProtection.default({ guarantor: "", country: "france" }),
 });
 export type InstitutionInput = z.input<typeof InstitutionInput>;
 export const AccountRateInput = z.object({

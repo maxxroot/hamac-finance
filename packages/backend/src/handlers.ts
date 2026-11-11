@@ -764,7 +764,7 @@ export const handlers: Handlers = {
 
   async "institutions.upsert"(input, ctx) {
     const id = input.id ?? newId();
-    const row = { name: input.name, kind: input.kind, website: input.website, score: input.score, comment: input.comment, offers: JSON.stringify(input.offers), tax: JSON.stringify(input.tax), updatedAt: nowIso() };
+    const row = { name: input.name, kind: input.kind, website: input.website, score: input.score, comment: input.comment, offers: JSON.stringify(input.offers), tax: JSON.stringify(input.tax), protection: JSON.stringify(input.protection), updatedAt: nowIso() };
     if (input.id) {
       const res = await ctx.db.update(t.institutions).set(row).where(eq(t.institutions.id, id)).returning({ id: t.institutions.id });
       if (!res.length) throw new RpcError("NOT_FOUND", "Établissement introuvable.");

@@ -14,7 +14,7 @@ const asset = (id: string, kind: Asset["kind"]): Asset => ({
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number, extra: Partial<Transaction> = {}): Transaction => ({ id: `t${n++}`, date, type, accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "", ...extra });
-const etab = (id: string, tax: Partial<InstitutionTax> = {}, offers: Institution["offers"] = {}): Institution => ({ id, name: id, kind: "courtier", website: "", score: null, comment: "", offers, tax: { report: false, withheldIncomeTax: null, withheldSocial: null, ...tax } });
+const etab = (id: string, tax: Partial<InstitutionTax> = {}, offers: Institution["offers"] = {}): Institution => ({ id, name: id, kind: "courtier", website: "", score: null, comment: "", offers, tax: { report: false, withheldIncomeTax: null, withheldSocial: null, ...tax }, protection: { guarantor: "", country: "france" } });
 
 function data(over: Partial<EngineData>): EngineData {
   const params = defaultParams(new Date(2026, 10, 7));

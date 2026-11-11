@@ -32,7 +32,7 @@ import type {
   Transaction,
   TxType,
 } from "@hamac/core";
-import { InstitutionTax, NO_INSTITUTION_TAX, normalizeParams, Offers, type PlanParams } from "@hamac/core";
+import { InstitutionProtection, InstitutionTax, NO_INSTITUTION_TAX, NO_PROTECTION, normalizeParams, Offers, type PlanParams } from "@hamac/core";
 import type { Workspace } from "@hamac/api";
 import { eq } from "drizzle-orm";
 import * as t from "./db/schema";
@@ -314,10 +314,15 @@ function parseInstitutionTax(raw: string): InstitutionTax {
   return parsed.success ? parsed.data : NO_INSTITUTION_TAX;
 }
 
+function parseProtection(raw: string): InstitutionProtection {
+  const parsed = InstitutionProtection.safeParse(JSON.parse(raw));
+  return parsed.success ? parsed.data : NO_PROTECTION;
+}
+
 export function mapInstitution(r: typeof t.institutions.$inferSelect): Institution {
   // Offres validées à la lecture : une donnée ancienne ou incomplète reçoit ses valeurs par défaut.
   const parsed = Offers.safeParse(JSON.parse(r.offers));
-  return { id: r.id, name: r.name, kind: r.kind as InstitutionKind, website: r.website, score: r.score, comment: r.comment, offers: parsed.success ? parsed.data : {}, tax: parseInstitutionTax(r.tax) };
+  return { id: r.id, name: r.name, kind: r.kind as InstitutionKind, website: r.website, score: r.score, comment: r.comment, offers: parsed.success ? parsed.data : {}, tax: parseInstitutionTax(r.tax), protection: parseProtection(r.protection) };
 }
 
 export async function loadParams(db: Db): Promise<PlanParams> {

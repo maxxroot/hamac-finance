@@ -347,10 +347,13 @@ export function Notice() {
             [<L to="/projection" key="j">Projection</L>, "Votre patrimoine à la retraite et le revenu mensuel possible."],
             [<L to="/historique" key="h">Historique</L>, "Où en était votre patrimoine à une date, ce qui a changé depuis, et si vous êtes en avance sur votre plan."],
             [<L to="/simulateurs" key="m">Simulateurs</L>, "Avant d'investir : ce qu'un placement rapporterait avant et après impôts, et plusieurs placements côte à côte."],
-            [<L to="/enveloppes" key="s">Synthèse</L>, "Tous vos comptes côte à côte."],
+            [<L to="/enveloppes" key="s">Synthèse</L>, "Tous vos comptes côte à côte, et ce qui est garanti si un établissement fait faillite."],
           ]}
         />
         <p>Pour voir l'évolution d'un compte, cliquez sur sa ligne (Synthèse, Livrets, Crowdlending) ou sur « Évolution » dans les blocs Fonds euros, Actions et Crypto. Pour un titre seul, cliquez sur sa ligne. Sur le graphique, cliquez sur un nom de la légende pour masquer sa courbe.</p>
+        <p>
+          <B>Protection en cas de faillite.</B> La Synthèse compare ce que vous avez chez chaque établissement aux garanties légales : 100 000 € de dépôts par banque, 100 000 € de plus pour Livret A, LDDS et LEP, 70 000 € de titres, 70 000 € par assureur pour l'assurance-vie et le PER. Le plafond vaut par établissement agréé, pas par marque : sur la fiche d'un établissement (Paramètres › Établissements), indiquez l'établissement garant s'il diffère, et son pays. Pour l'assurance-vie, c'est l'assureur de l'offre qui compte.
+        </p>
       </Section>
 
       <Part title="Selon ce que vous possédez" intro="Ouvrez seulement ce qui vous concerne." />

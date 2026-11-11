@@ -55,5 +55,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0013_harsh_lightspeed",
     "sql": "ALTER TABLE \"lease_rents\" ADD COLUMN \"revision_anniversary\" text;--> statement-breakpoint\nALTER TABLE \"lease_rents\" ADD COLUMN \"revision_demand_date\" text;--> statement-breakpoint\nALTER TABLE \"lease_rents\" ADD COLUMN \"revision_previous_rent_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"lease_rents\" ADD COLUMN \"revision_quarter_new\" text;--> statement-breakpoint\nALTER TABLE \"lease_rents\" ADD COLUMN \"revision_quarter_old\" text;--> statement-breakpoint\nALTER TABLE \"lease_rents\" ADD COLUMN \"revision_index_new\" double precision;--> statement-breakpoint\nALTER TABLE \"lease_rents\" ADD COLUMN \"revision_index_old\" double precision;--> statement-breakpoint\nALTER TABLE \"leases\" ADD COLUMN \"revisable\" boolean DEFAULT true NOT NULL;--> statement-breakpoint\nALTER TABLE \"leases\" ADD COLUMN \"irl_quarter\" bigint;--> statement-breakpoint\nALTER TABLE \"leases\" ADD COLUMN \"landlord_address\" text DEFAULT '' NOT NULL;"
+  },
+  {
+    "tag": "0014_absent_brood",
+    "sql": "ALTER TABLE \"institutions\" ADD COLUMN \"protection\" text DEFAULT '{}' NOT NULL;"
   }
 ];

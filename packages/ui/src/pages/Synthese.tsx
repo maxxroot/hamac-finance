@@ -4,6 +4,7 @@ import { SortTh, useSortable } from "@/lib/sort";
 import type { AccountState, PortfolioState } from "@hamac/core";
 import { AccountEvolution, EnvelopesEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
+import { ProtectionCard } from "@/components/ProtectionCard";
 import { Notice, Pct } from "@/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Card, CardTitle, PageHeader } from "@/components/ui";
@@ -30,6 +31,8 @@ export function Synthese() {
         <CardTitle hint="Cliquer sur la légende masque ou réaffiche une courbe">Évolution par enveloppe</CardTitle>
         <EnvelopesEvolution className="p-0" />
       </Card>
+
+      <ProtectionCard />
 
       <Card>
           <CardTitle hint={`Âge ${state.age} ans · alerte au-delà de ${Math.round(pf.data.params.livrets.driftAlert * 100)} % d'écart`}>Allocation de la partie investie</CardTitle>

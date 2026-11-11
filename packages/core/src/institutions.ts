@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Account, AccountKind } from "./domain";
 import { roundCents } from "./money";
 import type { PlanParams } from "./params";
+import type { InstitutionProtection } from "./protection";
 
 /**
  * Établissements (banques, courtiers, assureurs, plateformes crypto) et leurs grilles de frais,
@@ -134,6 +135,8 @@ export interface Institution {
   comment: string;
   offers: Offers;
   tax: InstitutionTax;
+  /** Établissement garant et pays, pour la protection en cas de faillite. */
+  protection: InstitutionProtection;
 }
 
 /** Offres proposées par défaut selon le type d'établissement. */

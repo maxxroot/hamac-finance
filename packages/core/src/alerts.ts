@@ -6,6 +6,7 @@ import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioS
 import { currentLease, leaseRevisionDue, leaseState, rentMonths } from "./leases";
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
+import { GUARANTEE_LABELS, protectionOf } from "./protection";
 import { daysBetween } from "./xirr";
 
 /** Niveaux réservés : toujours affichés avec une icône et un libellé, jamais par la couleur seule. */
@@ -144,8 +145,21 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   // Assurance-vie.
   for (const a of active.filter((x) => x.account.kind === "assurance_vie")) {
     if (!a.account.beneficiaryClause && a.value > 0) out.push({ id: `clause-${a.account.id}`, level: "attention", title: `Clause bénéficiaire à rédiger : ${a.account.name}`, link: "/fonds-euros" });
-    if (a.value > p.alerts.fgapGuarantee) out.push({ id: `fgap-${a.account.id}`, level: "attention", title: `${a.account.name} dépasse la garantie FGAP (${eur(p.alerts.fgapGuarantee)})`, detail: "Envisager un second assureur.", link: "/fonds-euros" });
     if (a.statementGap != null && Math.abs(a.statementGap) >= 1) out.push({ id: `releve-${a.account.id}`, level: "attention", title: `Écart de ${eur(a.statementGap)} avec le relevé de ${a.account.name}`, detail: "Saisir une correction dans le journal.", link: "/fonds-euros" });
+  }
+
+  // Protection en cas de faillite : sommes au-delà d'un plafond légal, par établissement garant.
+  for (const line of protectionOf(active, data.institutions ?? [], p.alerts.fgapGuarantee).lines) {
+    if (line.uncovered <= 0) continue;
+    const who = line.guarantor ?? "un établissement";
+    const titres = line.guarantee === "titres";
+    out.push({
+      id: `protection-${line.key}`,
+      level: titres ? "info" : "attention",
+      title: `${eur(line.uncovered)} au-delà de la garantie chez ${who} (${GUARANTEE_LABELS[line.guarantee].toLowerCase()})`,
+      detail: titres ? "Les titres restent à vous en cas de faillite : la garantie ne joue que s'ils ne peuvent pas être restitués." : line.guarantee === "assurance" ? "Plafond par assureur, tous contrats confondus : envisager un second assureur." : "Envisager de répartir ces sommes entre plusieurs établissements.",
+      link: "/enveloppes",
+    });
   }
 
   // Dates d'ouverture et anniversaires fiscaux.

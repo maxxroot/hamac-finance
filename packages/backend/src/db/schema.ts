@@ -34,6 +34,8 @@ export const institutions = pgTable("institutions", {
   offers: text("offers").notNull().default("{}"),
   /** Récapitulatif fiscal et retenues habituelles (JSON validé par InstitutionTax dans @hamac/core). */
   tax: text("tax").notNull().default("{}"),
+  /** Établissement garant et pays (JSON validé par InstitutionProtection dans @hamac/core). */
+  protection: text("protection").notNull().default("{}"),
   ...timestamps,
 });
 

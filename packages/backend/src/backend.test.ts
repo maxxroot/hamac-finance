@@ -268,6 +268,15 @@ describe("établissements", () => {
     expect(ws.accounts[0].institutionId).toBeNull();
   });
 
+  it("conserve l'établissement garant et le pays d'un établissement", async () => {
+    const b = await memory();
+    const defaut = await call<{ protection: { guarantor: string; country: string } }>(b, "institutions.upsert", { name: "Banque", kind: "banque" });
+    expect(defaut.protection).toEqual({ guarantor: "", country: "france" });
+    const marque = await call<{ id: string }>(b, "institutions.upsert", { name: "Marque en ligne", kind: "banque", protection: { guarantor: "Groupe Fictif", country: "ue" } });
+    const ws = await call<{ institutions: Array<{ id: string; protection: { guarantor: string; country: string } }> }>(b, "workspace.load");
+    expect(ws.institutions.find((i) => i.id === marque.id)?.protection).toEqual({ guarantor: "Groupe Fictif", country: "ue" });
+  });
+
   it("conserve la case du récapitulatif fiscal et le détail fiscal d'un dividende", async () => {
     const b = await memory();
     const inst = await call<{ id: string; tax: { report: boolean; withheldIncomeTax: number | null } }>(b, "institutions.upsert", { name: "Courtier", kind: "courtier", tax: { report: true, withheldIncomeTax: 0.128, withheldSocial: 0 } });
