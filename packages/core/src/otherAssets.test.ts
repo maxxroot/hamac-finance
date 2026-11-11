@@ -51,7 +51,10 @@ describe("valeur des autres biens", () => {
 
   it("compte la part détenue, le droit détenu, et rien pour un bien archivé", () => {
     expect(otherAssetHeldValueAt(bien({ share: 0.5 }), [], "2026-06-01")).toBe(10_000);
-    expect(otherAssetHeldValueAt(bien({ dismemberment: "usufruit", usufructBirthDate: "1980-01-01" }), [], "2026-06-01")).toBe(12_000);
+    // Usufruit de parts de société, usufruitier de 46 ans : 60 %.
+    expect(otherAssetHeldValueAt(bien({ kind: "societe", dismemberment: "usufruit", usufructBirthDate: "1980-01-01" }), [], "2026-06-01")).toBe(12_000);
+    // L'or se détient en pleine propriété : un démembrement saisi par erreur est ignoré.
+    expect(otherAssetHeldValueAt(bien({ dismemberment: "nue_propriete", usufructBirthDate: "1980-01-01" }), [], "2026-06-01")).toBe(20_000);
     expect(otherAssetHeldValueAt(bien({ archived: true }), [], "2026-06-01")).toBe(0);
     expect(quickSaleValue(10_000, { quickSaleDiscount: 0.3 })).toBe(7_000);
   });

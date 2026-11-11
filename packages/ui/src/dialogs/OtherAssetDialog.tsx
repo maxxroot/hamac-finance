@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { OTHER_ASSET_KIND_LABELS, OTHER_ASSET_KINDS, type OtherAsset, type OtherAssetKind } from "@hamac/core";
+import { FULL_OWNERSHIP, OTHER_ASSET_KIND_LABELS, OTHER_ASSET_KINDS, canBeDismembered, type OtherAsset, type OtherAssetKind } from "@hamac/core";
 import type { OtherAssetInput } from "@hamac/api";
 import { DismembermentFields, dismembermentComplete } from "@/components/DismembermentFields";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, Textarea, TextInput } from "@/components/form";
@@ -53,7 +53,7 @@ export function OtherAssetDialog({ open, asset, onClose }: Readonly<{ open: bool
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
   const pret = d.kind === "pret";
   const schedule = pret && d.loanPrincipal != null && d.loanTermMonths != null && d.loanFirstPayment != null;
-  const valid = d.name.trim() && d.share > 0 && dismembermentComplete(d);
+  const valid = d.name.trim() && d.share > 0 && (!canBeDismembered(d.kind) || dismembermentComplete(d));
 
   return (
     <Modal
@@ -82,7 +82,9 @@ export function OtherAssetDialog({ open, asset, onClose }: Readonly<{ open: bool
                 onChange={(e) => {
                   const kind = e.target.value as OtherAssetKind;
                   // À la création, le type propose sa décote et son délai habituels.
-                  setD((x) => (asset ? { ...x, kind } : { ...x, kind, ...DEFAULTS[kind] }));
+                  // Hors parts de société, le bien est en pleine propriété.
+                  const ownership = canBeDismembered(kind) ? {} : FULL_OWNERSHIP;
+                  setD((x) => (asset ? { ...x, kind, ...ownership } : { ...x, kind, ...DEFAULTS[kind], ...ownership }));
                 }}
               >
                 {OTHER_ASSET_KINDS.map((k) => (
@@ -131,7 +133,7 @@ export function OtherAssetDialog({ open, asset, onClose }: Readonly<{ open: bool
           <Field label="Part détenue" help="50 % pour un bien à deux.">{(id) => <PercentInput id={id} value={d.share} onChange={(v) => set("share", v == null ? 1 : Math.min(1, Math.max(0.01, v)))} />}</Field>
         </FormGrid>
 
-        {d.kind !== "pret" && d.kind !== "compte_courant" && <DismembermentFields value={d} onChange={(v) => setD((x) => ({ ...x, ...v }))} />}
+        {canBeDismembered(d.kind) && <DismembermentFields value={d} onChange={(v) => setD((x) => ({ ...x, ...v }))} />}
 
         <FormGrid cols={2}>
           <Field label="Décote en cas de vente rapide" help="Ce qu'on perd en vendant vite.">

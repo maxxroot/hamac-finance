@@ -20,6 +20,14 @@ export const OTHER_ASSET_KIND_LABELS: Record<OtherAssetKind, string> = {
   autre: "Autre bien",
 };
 
+/**
+ * Seules les parts de société se démembrent couramment (usufruit et nue-propriété de parts sociales).
+ * L'or, les objets, les véhicules et les sommes prêtées se détiennent en pleine propriété.
+ */
+export function canBeDismembered(kind: OtherAssetKind): boolean {
+  return kind === "societe";
+}
+
 export interface OtherAsset extends DismembermentFields {
   id: string;
   kind: OtherAssetKind;
@@ -99,7 +107,8 @@ export function otherAssetValueAt(a: OtherAsset, estimates: readonly OtherAssetV
 /** Valeur de la part détenue à une date (droit détenu compris) ; 0 pour un bien archivé. */
 export function otherAssetHeldValueAt(a: OtherAsset, estimates: readonly OtherAssetValue[], date: string): number {
   if (a.archived) return 0;
-  return roundCents(otherAssetValueAt(a, estimates, date) * a.share * dismembermentRatio(a, date));
+  const ratio = canBeDismembered(a.kind) ? dismembermentRatio(a, date) : 1;
+  return roundCents(otherAssetValueAt(a, estimates, date) * a.share * ratio);
 }
 
 /** Ce que rapporterait une vente rapide, pour la part détenue. */

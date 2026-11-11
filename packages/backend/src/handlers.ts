@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from "drizzle-orm";
 import { one } from "./db/driver";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, type EnergyLetter, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeDismembered, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, type EnergyLetter, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -460,7 +460,9 @@ export const handlers: Handlers = {
 
   async "otherAssets.upsert"(input, ctx) {
     const id = input.id ?? newId();
-    const pleine = input.dismemberment === "pleine";
+    // Usufruit et nue-propriété : seulement pour des parts de société.
+    const dismemberment = canBeDismembered(input.kind) ? input.dismemberment : "pleine";
+    const pleine = dismemberment === "pleine";
     const loan = input.kind === "pret";
     const row = {
       kind: input.kind,
@@ -470,7 +472,7 @@ export const handlers: Handlers = {
       purchasePriceCents: input.purchasePrice == null ? null : toCents(input.purchasePrice),
       purchaseDate: input.purchaseDate,
       share: input.share,
-      dismemberment: input.dismemberment,
+      dismemberment,
       usufructBirthDate: pleine ? null : input.usufructBirthDate,
       usufructEnd: pleine ? null : input.usufructEnd,
       depreciation: input.depreciation,

@@ -473,7 +473,7 @@ export function Notice() {
 
       <Fold id="biens" title="Or, objets, véhicules, argent prêté">
         <p>
-          Dans <L to="/autres-biens">Autres biens</L>, ajoutez ce qui n'est ni un compte ni de l'immobilier : pièces et lingots, bijoux et objets d'art, véhicules, parts d'une société non cotée, compte courant d'associé, argent prêté à un proche. Chacun a sa valeur estimée, la part que vous détenez et, si besoin, l'usufruit ou la nue-propriété. Ils s'ajoutent au patrimoine net ; ils n'entrent dans la répartition que si vous leur donnez une classe d'actifs.
+          Dans <L to="/autres-biens">Autres biens</L>, ajoutez ce qui n'est ni un compte ni de l'immobilier : pièces et lingots, bijoux et objets d'art, véhicules, parts d'une société non cotée, compte courant d'associé, argent prêté à un proche. Chacun a sa valeur estimée et la part que vous détenez ; des parts de société peuvent aussi être détenues en usufruit ou en nue-propriété. Ils s'ajoutent au patrimoine net ; ils n'entrent dans la répartition que si vous leur donnez une classe d'actifs.
         </p>
         <p>
           Pour une voiture, une <B>baisse de valeur par an</B> fait vieillir l'estimation toute seule. Pour une somme prêtée avec un échéancier, la somme encore due se calcule comme le capital restant d'un crédit. La <B>décote en cas de vente rapide</B> et le <B>délai</B> montrent ce que vous récupéreriez vite. Une nouvelle estimation se note en dépliant la ligne : les précédentes restent dans l'historique.

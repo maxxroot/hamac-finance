@@ -1,7 +1,9 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Fragment, useState } from "react";
 import {
+  FULL_OWNERSHIP,
   OTHER_ASSET_KIND_LABELS,
+  canBeDismembered,
   SALE_TAX_SOURCES,
   SALE_TAX_VERIFIED_ON,
   heldShareLabel,
@@ -84,7 +86,7 @@ export function AutresBiens() {
               {rows.length === 0 && <EmptyRow cols={6}>Aucun bien. Ajoutez vos pièces d'or, une voiture, des parts de société ou une somme prêtée.</EmptyRow>}
               {rows.map((r) => {
                 const a = r.asset;
-                const label = heldShareLabel(a, today);
+                const label = heldShareLabel(canBeDismembered(a.kind) ? a : { ...a, ...FULL_OWNERSHIP }, today);
                 const delay = loanMonthsLeft(a, today) ?? a.saleDelayMonths;
                 return (
                   <Fragment key={a.id}>

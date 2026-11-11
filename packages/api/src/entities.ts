@@ -374,7 +374,7 @@ export const OtherAssetInput = z
     comment: text(500).default(""),
     archived: z.boolean().default(false),
   })
-  .refine((a) => a.dismemberment === "pleine" || a.usufructBirthDate != null || a.usufructEnd != null, { path: ["usufructBirthDate"], message: "Indiquez la date de naissance de l'usufruitier, ou la fin de l'usufruit s'il est à durée fixe." });
+  .refine((a) => a.kind !== "societe" || a.dismemberment === "pleine" || a.usufructBirthDate != null || a.usufructEnd != null, { path: ["usufructBirthDate"], message: "Indiquez la date de naissance de l'usufruitier, ou la fin de l'usufruit s'il est à durée fixe." });
 export type OtherAssetInput = z.input<typeof OtherAssetInput>;
 
 export const OtherAssetValueInput = z.object({
