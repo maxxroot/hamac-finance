@@ -1,14 +1,15 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { yearEndChecklist, yearEndSeason, type YearEndKey } from "@hamac/core";
+import { ChevronRight } from "lucide-react";
+import { yearEndChecklist, type YearEndKey } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Checkbox } from "@/components/form";
-import { Badge, Card, CardTitle } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { usePortfolio } from "@/lib/portfolio";
 import { useSetSetting, useSetting } from "@/lib/queries";
 
-/** Gestes fiscaux à faire avant le 31 décembre, avec une case par geste, gardée année par année. */
+/** Gestes fiscaux à faire avant le 31 décembre, repliés en une ligne en bas de la page Impôts ; une case par geste, gardée année par année. */
 export function YearEndCard() {
   const pf = usePortfolio();
   const items = useMemo(() => (pf ? yearEndChecklist(pf.data, pf.state) : []), [pf]);
@@ -23,11 +24,25 @@ export function YearEndCard() {
     else next.delete(key);
     setDone.mutate({ ...done.value, [year]: [...next] });
   };
-  const total = items.filter((i) => !checked.has(i.key)).reduce((s, i) => s + (i.saving ?? 0), 0);
+  const open = items.filter((i) => !checked.has(i.key));
+  const total = open.reduce((s, i) => s + (i.saving ?? 0), 0);
 
   return (
-    <Card className={cn("mb-6", yearEndSeason(pf.today) && "border-accent")}>
-      <CardTitle hint={total > 0 ? <>jusqu'à <Amount value={total} compact /> d'impôt en moins ou évité</> : undefined}>Liste de fin d'année {year}</CardTitle>
+    <details className="group mb-6 rounded-2xl border border-line bg-surface">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 p-4 [&::-webkit-details-marker]:hidden">
+        <ChevronRight size={16} className="shrink-0 text-accent transition-transform group-open:rotate-90" aria-hidden />
+        <span className="font-medium">Liste de fin d'année {year}</span>
+        <span className="text-sm text-fg-muted">
+          {open.length} geste{open.length > 1 ? "s" : ""} à faire avant le 31 décembre
+          {total > 0 && (
+            <>
+              {" "}
+              · jusqu'à <Amount value={total} compact /> d'impôt en moins ou évité
+            </>
+          )}
+        </span>
+      </summary>
+      <div className="px-4 pb-4">
       <p className="mb-4 text-sm text-fg-muted">Ce qui ne se fait que jusqu'au 31 décembre, chiffré avec vos données et les taux de Paramètres › Plan. Cochez ce qui est fait : la liste repart à zéro chaque année.</p>
       <ul className="space-y-4">
         {items.map((item) => {
@@ -64,6 +79,7 @@ export function YearEndCard() {
         })}
       </ul>
       <p className="mt-3 text-xs text-fg-faint">Estimations sans valeur officielle, à adapter à votre situation.</p>
-    </Card>
+      </div>
+    </details>
   );
 }

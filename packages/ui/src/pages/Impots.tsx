@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { accountTaxDetails, netYields, nextDeclarationYear, withdrawalTaxes, yearEndSeason, yearlyTaxes } from "@hamac/core";
+import { accountTaxDetails, netYields, nextDeclarationYear, withdrawalTaxes, yearlyTaxes } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Notice, Pct } from "@/components/Stat";
 import { DetailLine } from "@/components/DetailLine";
@@ -35,9 +35,6 @@ export function Impots() {
       <div className="mb-6">
         <Notice>Les intérêts se saisissent tels qu'ils arrivent sur le compte (après prélèvements) : Hamac retrouve le brut et les impôts.</Notice>
       </div>
-
-      {/* Mise en avant en fin d'année, en bas de page le reste du temps. */}
-      {yearEndSeason(today) && <YearEndCard />}
 
       <Section title={`1. À payer à la prochaine déclaration (revenus ${nextYear})`}>
         <NextDeclaration details={taxDetails} names={new Map(state.accounts.map((a) => [a.account.id, { name: a.account.name, kind: a.account.kind }]))} year={nextYear} current={nextYear === year} />
@@ -163,7 +160,7 @@ export function Impots() {
         </Table>
       </Section>
 
-      {!yearEndSeason(today) && <YearEndCard />}
+      <YearEndCard />
     </>
   );
 }
