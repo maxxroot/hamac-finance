@@ -29,6 +29,7 @@ import { Parametres } from "@/pages/Parametres";
 import { Versements } from "@/pages/Versements";
 import type { ReactNode } from "react";
 import { Placeholder } from "@/pages/Placeholder";
+import { AutresBiens } from "@/pages/AutresBiens";
 
 const PAGES: Record<string, ReactNode> = {
   "/": <TableauDeBord />,
@@ -45,6 +46,7 @@ const PAGES: Record<string, ReactNode> = {
   "/crypto": <Crypto />,
   "/crowdlending": <Crowdlending />,
   "/immobilier": <Immobilier />,
+  "/autres-biens": <AutresBiens />,
   "/credits": <Credits />,
   "/performance": <Performance />,
   "/impots": <Impots />,

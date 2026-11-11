@@ -205,6 +205,7 @@ export interface SnapshotTotals {
   netContrib: number;
   gain: number;
   realEstate: number;
+  otherAssets: number;
   debts: number;
   netWorth: number;
 }
@@ -260,7 +261,7 @@ const COST_EPS_SHARE = 0.001;
 /** Les comptes clôturés comptent : leur argent versé et leur gain font partie de l'histoire. */
 function totalsOf(h: HistoryPoint): SnapshotTotals {
   const netContrib = Object.values(h.contribByAccount).reduce((t, v) => t + v, 0);
-  return { value: h.value, netContrib: roundCents(netContrib), gain: roundCents(h.value - netContrib), realEstate: h.realEstate, debts: h.debts, netWorth: h.netWorth };
+  return { value: h.value, netContrib: roundCents(netContrib), gain: roundCents(h.value - netContrib), realEstate: h.realEstate, otherAssets: h.otherAssets, debts: h.debts, netWorth: h.netWorth };
 }
 
 export function positionMove(start: { cost: number } | null, end: { cost: number } | null): PositionMove {

@@ -20,6 +20,8 @@ const TABLES = [
   "prices",
   "planned_expenses",
   "companies",
+  "other_assets",
+  "other_asset_values",
   "properties",
   "leases",
   "lease_rents",

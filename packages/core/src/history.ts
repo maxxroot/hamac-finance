@@ -1,6 +1,7 @@
 import { BUCKETS, type Bucket } from "./domain";
 import { computePortfolio, type EngineData } from "./engine";
 import { roundCents } from "./money";
+import { otherAssetHeldValueAt } from "./otherAssets";
 import { loanHeldBalanceAt, propertyHeldValueAt } from "./realestate";
 import { addMonth, monthOf, type Month } from "./schedule";
 
@@ -29,6 +30,8 @@ export interface HistoryPoint {
   gain: number;
   /** Part détenue des biens et part à charge du capital restant dû, à cette date. */
   realEstate: number;
+  /** Autres biens (or, objets, véhicules…), part détenue. */
+  otherAssets: number;
   debts: number;
   /** Patrimoine financier + biens − crédits. */
   netWorth: number;
@@ -66,6 +69,7 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
     const s = computePortfolio(data, date);
     const realEstate = roundCents((data.properties ?? []).reduce((sum, p) => sum + propertyHeldValueAt(p, data.propertyValues ?? [], date), 0));
     const debts = roundCents((data.loans ?? []).reduce((sum, l) => sum + loanHeldBalanceAt(l, date), 0));
+    const otherAssets = roundCents((data.otherAssets ?? []).reduce((sum, a) => sum + otherAssetHeldValueAt(a, data.otherAssetValues ?? [], date), 0));
     points.push({
       date,
       month,
@@ -73,8 +77,9 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
       netContrib: s.totals.netContrib,
       gain: s.totals.gain,
       realEstate,
+      otherAssets,
       debts,
-      netWorth: roundCents(s.netWorth.financial + realEstate - debts),
+      netWorth: roundCents(s.netWorth.financial + realEstate + otherAssets - debts),
       buckets: Object.fromEntries(BUCKETS.map((b) => [b, s.buckets[b]])) as Record<Bucket, number>,
       byAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.value])),
       contribByAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.netContrib])),

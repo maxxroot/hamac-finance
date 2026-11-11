@@ -24,7 +24,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -44,6 +44,11 @@ async function setRate(ctx: BackendContext, r: { accountId: string; fromDate: st
 async function keepPastValue(ctx: BackendContext, propertyId: string, date: string, valueCents: number) {
   const set = { valueCents, updatedAt: nowIso() };
   await ctx.db.insert(t.propertyValues).values({ id: newId(), propertyId, date, ...set }).onConflictDoUpdate({ target: [t.propertyValues.propertyId, t.propertyValues.date], set });
+}
+
+async function keepPastOtherValue(ctx: BackendContext, assetId: string, date: string, valueCents: number) {
+  const set = { valueCents, updatedAt: nowIso() };
+  await ctx.db.insert(t.otherAssetValues).values({ id: newId(), assetId, date, ...set }).onConflictDoUpdate({ target: [t.otherAssetValues.assetId, t.otherAssetValues.date], set });
 }
 
 async function syncCurrentRate(ctx: BackendContext, accountId: string) {
@@ -450,6 +455,68 @@ export const handlers: Handlers = {
 
   async "crowdProjects.delete"({ id }, ctx) {
     await ctx.db.delete(t.crowdProjects).where(eq(t.crowdProjects.id, id));
+    return OK;
+  },
+
+  async "otherAssets.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const pleine = input.dismemberment === "pleine";
+    const loan = input.kind === "pret";
+    const row = {
+      kind: input.kind,
+      name: input.name,
+      valueCents: toCents(input.value),
+      valueDate: input.valueDate,
+      purchasePriceCents: input.purchasePrice == null ? null : toCents(input.purchasePrice),
+      purchaseDate: input.purchaseDate,
+      share: input.share,
+      dismemberment: input.dismemberment,
+      usufructBirthDate: pleine ? null : input.usufructBirthDate,
+      usufructEnd: pleine ? null : input.usufructEnd,
+      depreciation: input.depreciation,
+      quickSaleDiscount: input.quickSaleDiscount,
+      saleDelayMonths: input.saleDelayMonths,
+      // L'échéancier ne concerne que l'argent prêté.
+      loanPrincipalCents: loan && input.loanPrincipal != null ? toCents(input.loanPrincipal) : null,
+      loanRate: loan ? input.loanRate : null,
+      loanTermMonths: loan ? input.loanTermMonths : null,
+      loanFirstPayment: loan ? input.loanFirstPayment : null,
+      classId: input.classId,
+      inAllocation: input.inAllocation,
+      comment: input.comment,
+      archived: input.archived,
+      updatedAt: nowIso(),
+    };
+    if (input.id) {
+      const before = await ctx.db.select().from(t.otherAssets).where(eq(t.otherAssets.id, id)).limit(1).then(one);
+      if (!before) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+      // Une nouvelle date d'estimation : l'ancienne valeur rejoint l'historique.
+      if (before.valueDate && before.valueDate !== input.valueDate) await keepPastOtherValue(ctx, id, before.valueDate, before.valueCents);
+      await ctx.db.update(t.otherAssets).set(row).where(eq(t.otherAssets.id, id));
+    } else await ctx.db.insert(t.otherAssets).values({ id, ...row });
+    return mapOtherAsset((await ctx.db.select().from(t.otherAssets).where(eq(t.otherAssets.id, id)).limit(1).then(one))!);
+  },
+
+  async "otherAssets.delete"({ id }, ctx) {
+    await ctx.db.delete(t.otherAssets).where(eq(t.otherAssets.id, id));
+    return OK;
+  },
+
+  async "otherAssetValues.add"(input, ctx) {
+    const asset = await ctx.db.select().from(t.otherAssets).where(eq(t.otherAssets.id, input.assetId)).limit(1).then(one);
+    if (!asset) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    // Une estimation plus ancienne rejoint l'historique ; une plus récente devient la valeur du bien.
+    if (asset.valueDate != null && input.date < asset.valueDate) {
+      await keepPastOtherValue(ctx, input.assetId, input.date, toCents(input.value));
+      return OK;
+    }
+    if (asset.valueDate != null && input.date !== asset.valueDate) await keepPastOtherValue(ctx, input.assetId, asset.valueDate, asset.valueCents);
+    await ctx.db.update(t.otherAssets).set({ valueCents: toCents(input.value), valueDate: input.date, updatedAt: nowIso() }).where(eq(t.otherAssets.id, input.assetId));
+    return OK;
+  },
+
+  async "otherAssetValues.delete"({ id }, ctx) {
+    await ctx.db.delete(t.otherAssetValues).where(eq(t.otherAssetValues.id, id));
     return OK;
   },
 

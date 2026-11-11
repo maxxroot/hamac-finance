@@ -26,6 +26,7 @@ import { ageInYear, classEnabled, classLabel, classTargets, type PlanParams } fr
 import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
 import type { Lease, LeaseRent, RentException } from "./leases";
 import type { PropertyDocument, PropertyExpense } from "./rental";
+import { otherAssetHeldValueAt, type OtherAsset, type OtherAssetValue } from "./otherAssets";
 import { loanState, propertyValue, type Loan, type LoanState, type Property, type PropertyValue } from "./realestate";
 import { PriceBook } from "./prices";
 import { Schedule, monthOf } from "./schedule";
@@ -45,6 +46,9 @@ export interface EngineData {
   properties?: readonly Property[];
   crowdProjects?: readonly CrowdProject[];
   loans?: readonly Loan[];
+  /** Or, objets de valeur, véhicules, parts de société, sommes prêtées. */
+  otherAssets?: readonly OtherAsset[];
+  otherAssetValues?: readonly OtherAssetValue[];
   leases?: readonly Lease[];
   leaseRents?: readonly LeaseRent[];
   rentExceptions?: readonly RentException[];
@@ -190,8 +194,8 @@ export interface PortfolioState {
   disposals: Disposal[];
   buckets: Record<Bucket, number>;
   allocation: { invested: number; rows: AllocationRow[] };
-  /** Patrimoine financier (part détenue des comptes joints) + biens immobiliers (part détenue) − capital restant dû des crédits. */
-  netWorth: { financial: number; realEstate: number; debts: number; net: number; monthlyLoans: number; loans: LoanState[] };
+  /** Patrimoine financier (part détenue des comptes joints) + biens immobiliers et autres biens (part détenue) − capital restant dû des crédits. */
+  netWorth: { financial: number; realEstate: number; otherAssets: number; debts: number; net: number; monthlyLoans: number; loans: LoanState[] };
   livrets: {
     total: number;
     floor: number;
@@ -486,6 +490,12 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const key = params.customClasses.find((c) => c.id === x.classId)?.id ?? "immobilier";
     if (x.inAllocation ?? enabled(key)) allocate(key, propertyValue(x, asOf));
   }
+  // Autres biens : dans la répartition seulement s'ils ont une classe personnalisée.
+  const otherHeld = (data.otherAssets ?? []).map((x) => ({ asset: x, value: otherAssetHeldValueAt(x, data.otherAssetValues ?? [], asOf) }));
+  for (const { asset: x, value } of otherHeld) {
+    const key = params.customClasses.find((c) => c.id === x.classId)?.id;
+    if (key && (x.inAllocation ?? enabled(key))) allocate(key, value);
+  }
   const invested = [...allocated.values()].reduce((s, v) => s + v, 0);
   const targetsNow = classTargets(params, age);
   // Une classe hors allocation apparaît quand même si un de ses éléments y est inclus.
@@ -519,6 +529,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const realEstate = roundCents(properties.reduce((s, x) => s + propertyValue(x, asOf), 0));
   // Comptes joints : le patrimoine ne compte que la part détenue ; les totaux des comptes restent entiers.
   const financial = roundCents(active.reduce((s, a) => s + a.value * (a.account.share ?? 1), 0));
+  const otherAssets = roundCents(otherHeld.reduce((s, x) => s + x.value, 0));
   const loans = (data.loans ?? []).filter((l) => !l.archived).map((l) => loanState(l, asOf));
   const debts = roundCents(loans.reduce((s, l) => s + l.heldBalance, 0));
 
@@ -530,7 +541,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     totals,
     buckets,
     allocation: { invested: roundCents(invested), rows },
-    netWorth: { financial, realEstate, debts, net: roundCents(financial + realEstate - debts), monthlyLoans: roundCents(loans.reduce((s, l) => s + l.heldMonthly, 0)), loans },
+    netWorth: { financial, realEstate, otherAssets, debts, net: roundCents(financial + realEstate + otherAssets - debts), monthlyLoans: roundCents(loans.reduce((s, l) => s + l.heldMonthly, 0)), loans },
     livrets: {
       total: livretsTotal,
       floor,

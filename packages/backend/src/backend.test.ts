@@ -268,6 +268,23 @@ describe("établissements", () => {
     expect(ws.accounts[0].institutionId).toBeNull();
   });
 
+  it("enregistre un autre bien, garde ses estimations passées et ne garde l'échéancier que pour un prêt", async () => {
+    const b = await memory();
+    const or = await call<{ id: string; loanPrincipal: number | null }>(b, "otherAssets.upsert", { kind: "metal", name: "Pièces", value: 18_000, valueDate: "2025-01-10", purchasePrice: 12_000, purchaseDate: "2016-03-01", loanPrincipal: 5_000 });
+    expect(or.loanPrincipal).toBeNull();
+    await call(b, "otherAssetValues.add", { assetId: or.id, date: "2026-02-01", value: 21_000 });
+    await call(b, "otherAssetValues.add", { assetId: or.id, date: "2024-01-01", value: 15_000 });
+    let ws = await call<{ otherAssets: Array<{ value: number; valueDate: string }>; otherAssetValues: Array<{ date: string; value: number }> }>(b, "workspace.load");
+    expect(ws.otherAssets[0]).toMatchObject({ value: 21_000, valueDate: "2026-02-01" });
+    expect(ws.otherAssetValues.map((v) => [v.date, v.value])).toEqual([["2024-01-01", 15_000], ["2025-01-10", 18_000]]);
+    const pret = await call<{ loanPrincipal: number; loanTermMonths: number }>(b, "otherAssets.upsert", { kind: "pret", name: "Prêt", value: 0, loanPrincipal: 6_000, loanTermMonths: 12, loanFirstPayment: "2026-01-05" });
+    expect(pret).toMatchObject({ loanPrincipal: 6_000, loanTermMonths: 12 });
+    await call(b, "otherAssets.delete", { id: or.id });
+    ws = await call(b, "workspace.load");
+    expect(ws.otherAssets).toHaveLength(1);
+    expect(ws.otherAssetValues).toHaveLength(0);
+  });
+
   it("enregistre une SCI, le démembrement d'un bien et la part d'un compte joint", async () => {
     const b = await memory();
     const sci = await call<{ id: string; share: number }>(b, "companies.upsert", { name: "SCI Fictive", share: 0.4 });

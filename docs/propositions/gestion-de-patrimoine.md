@@ -9,7 +9,7 @@ Chaque proposition indique son statut, ce qui existe déjà dans Hamac, ce qu'il
 | 1 | Ce qui est protégé si un établissement fait faillite | Fait le 11 novembre 2026 |
 | 2 | Calcul de l'IFI | Reporté |
 | 3 | Qui possède quoi | Fait le 11 novembre 2026 |
-| 4 | Biens qui ne sont pas des placements | À faire (sans les actions de l'employeur) |
+| 4 | Biens qui ne sont pas des placements | Fait le 11 novembre 2026 (sans les actions de l'employeur) |
 | 5 | Exposition réelle derrière les ETF | À étudier : faisabilité des données incertaine |
 | 6 | Concentration et risque | À faire, à détailler |
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
@@ -94,7 +94,7 @@ Pas de calcul pour le moment. La proposition 3 (qui possède quoi) et la proposi
 
 ## 4. Biens qui ne sont pas des placements
 
-**Statut :** à faire. Les actions gratuites, BSPCE et stock-options de l'employeur sont écartés pour le moment.
+**Statut :** fait le 11 novembre 2026. Les actions gratuites, BSPCE et stock-options de l'employeur sont écartés pour le moment. Module « Autres biens » (page `/autres-biens`, tables `other_assets` et `other_asset_values`, calculs dans `core/src/otherAssets.ts`) : valeur et estimations passées, baisse annuelle facultative, échéancier pour l'argent prêté, part détenue et démembrement, décote et délai de vente, impôt estimé à la vente au régime le plus avantageux. Dans la répartition seulement avec une classe personnalisée. Cours de l'or saisi à la main pour l'instant. À confirmer : le taux des prélèvements sociaux sur les plus-values de meubles (17,2 % retenu, articles 150 U à 150 UC non relevés en 2026). Un bien archivé sort aussi de l'historique : une date de vente serait à ajouter si besoin.
 
 **Pourquoi.** Sans eux, le patrimoine net affiché est incomplet.
 

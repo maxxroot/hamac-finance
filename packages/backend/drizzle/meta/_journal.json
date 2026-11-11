@@ -113,6 +113,13 @@
       "when": 1794422693358,
       "tag": "0015_powerful_silver_samurai",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794423221895,
+      "tag": "0016_fat_sunfire",
+      "breakpoints": true
     }
   ]
 }

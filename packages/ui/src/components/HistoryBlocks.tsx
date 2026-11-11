@@ -350,6 +350,7 @@ export function SituationCard({ cmp, startLabel, endLabel, withRealEstate }: { c
     ...(withRealEstate
       ? [
           { label: "Biens (part détenue)", pick: (t: SnapshotTotals) => t.realEstate },
+          ...((cmp.start?.otherAssets ?? 0) !== 0 || cmp.end.otherAssets !== 0 ? [{ label: "Autres biens", pick: (t: SnapshotTotals) => t.otherAssets }] : []),
           { label: "Crédits restant dus", pick: (t: SnapshotTotals) => t.debts, inverse: true },
           { label: "Patrimoine net", pick: (t: SnapshotTotals) => t.netWorth, strong: true },
         ]
@@ -635,7 +636,7 @@ export function PositionsCard({ rows, assetName, accountName }: { rows: readonly
 
 export function MonthlyTable({ history }: { history: readonly HistoryPoint[] }) {
   const reversed = useMemo(() => [...history].reverse(), [history]);
-  const withRealEstate = history.some((h) => h.realEstate !== 0 || h.debts !== 0);
+  const withRealEstate = history.some((h) => h.realEstate !== 0 || h.debts !== 0 || h.otherAssets !== 0);
   const used = BUCKETS.filter((b) => history.some((h) => h.buckets[b] !== 0));
   const { sorted, by } = useSortable(
     reversed,

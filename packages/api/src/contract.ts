@@ -14,6 +14,8 @@ import type {
   IrlData,
   Lease,
   LeaseRent,
+  OtherAsset,
+  OtherAssetValue,
   Loan,
   PlannedExpense,
   LoanPrepayment,
@@ -42,6 +44,8 @@ import {
   CrowdImportInput,
   CrowdProjectInput,
   LeaseInput,
+  OtherAssetInput,
+  OtherAssetValueInput,
   LeaseRentInput,
   LoanInput,
   PlannedExpenseInput,
@@ -91,6 +95,9 @@ export interface Workspace {
   properties: Property[];
   /** Sociétés (SCI) qui détiennent des biens. */
   companies: Company[];
+  /** Or, objets de valeur, véhicules, parts de société, sommes prêtées, et leurs estimations passées. */
+  otherAssets: OtherAsset[];
+  otherAssetValues: OtherAssetValue[];
   leases: Lease[];
   leaseRents: LeaseRent[];
   rentExceptions: RentException[];
@@ -211,6 +218,10 @@ export const procedures = {
   "crowdProjects.upsert": { input: CrowdProjectInput, output: entity<CrowdProject>() },
   "crowdProjects.delete": { input: byId, output: ok },
   "crowdProjects.applyImport": { input: CrowdImportInput, output: entity<{ transactions: number; projects: number }>() },
+  "otherAssets.upsert": { input: OtherAssetInput, output: entity<OtherAsset>() },
+  "otherAssets.delete": { input: byId, output: ok },
+  "otherAssetValues.add": { input: OtherAssetValueInput, output: ok },
+  "otherAssetValues.delete": { input: byId, output: ok },
   "companies.upsert": { input: CompanyInput, output: entity<Company>() },
   "companies.delete": { input: byId, output: ok },
   "properties.upsert": { input: PropertyInput, output: entity<Property>() },

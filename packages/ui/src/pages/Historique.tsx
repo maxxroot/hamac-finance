@@ -71,7 +71,7 @@ export function Historique() {
   const last = months.at(-1)!;
   const startLabel = pointLabel(range.from, last);
   const endLabel = pointLabel(range.to, last);
-  const withRealEstate = history.some((h) => h.realEstate !== 0 || h.debts !== 0);
+  const withRealEstate = history.some((h) => h.realEstate !== 0 || h.debts !== 0 || h.otherAssets !== 0);
   const accountName = (id: string) => pf.idx.accountById.get(id)?.name ?? "Compte supprimé";
   const assetName = (id: string) => pf.idx.assetById.get(id)?.name ?? "Titre supprimé";
   const pick = (m: Milestone) => setRange(rangeFromMilestone(m, range, months));

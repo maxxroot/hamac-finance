@@ -33,7 +33,7 @@ export function TableauDeBord() {
   const yearsLeft = Math.max(0, ry - +pf.today.slice(0, 4));
   const total = state.performance.find((r) => r.key === "total");
   // Biens, crédits ou comptes joints : le patrimoine net diffère du total des comptes.
-  const hasRealEstate = state.netWorth.realEstate !== 0 || state.netWorth.debts !== 0 || state.netWorth.financial !== state.totals.value;
+  const hasRealEstate = state.netWorth.realEstate !== 0 || state.netWorth.otherAssets !== 0 || state.netWorth.debts !== 0 || state.netWorth.financial !== state.totals.value;
   const change = history ? gainSinceLastMonth(history) : null;
   const middle = retraite && proj ? <RetirementCard proj={proj} p={p} /> : !retraite && hasRealEstate ? <NetWorthCard netWorth={state.netWorth} /> : null;
 
@@ -68,6 +68,7 @@ export function TableauDeBord() {
                   ? [
                       ["Financier", state.netWorth.financial],
                       ["Immobilier", state.netWorth.realEstate],
+                      ...(state.netWorth.otherAssets !== 0 ? [["Autres biens", state.netWorth.otherAssets]] : []),
                       ["Crédits", -state.netWorth.debts],
                     ]
                   : [
@@ -233,6 +234,11 @@ function NetWorthCard({ netWorth: n }: { netWorth: PortfolioState["netWorth"] })
         <Line label="Immobilier">
           <Amount value={n.realEstate} compact />
         </Line>
+        {n.otherAssets !== 0 && (
+          <Line label="Autres biens">
+            <Amount value={n.otherAssets} compact />
+          </Line>
+        )}
         <Line label="Crédits restant dus">
           <Amount value={-n.debts} compact />
         </Line>

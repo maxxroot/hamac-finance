@@ -32,6 +32,7 @@ export const NOTICE_PLAN: ReadonlyArray<{ part: string; items: ReadonlyArray<[id
       ["crypto", "Crypto"],
       ["crowdlending", "Crowdlending"],
       ["immobilier", "Immobilier et SCPI"],
+      ["biens", "Or, objets, véhicules, argent prêté"],
       ["credits", "Crédits"],
       ["autres", "PEA-PME, PER, épargne salariale"],
     ],
@@ -467,6 +468,18 @@ export function Notice() {
         </p>
         <p>
           <B>Une SCPI</B> se crée comme un actif (type SCPI), puis s'achète dans le Journal sur un compte-titres, une assurance-vie ou un PER. Les loyers se notent en <B>Dividende</B>, et son prix se saisit à la main. Elle compte dans le patrimoine financier, reste hors répartition par défaut, et n'entre dans la projection que si sa classe est incluse avec un rendement attendu. L'impôt sur ses revenus n'est pas calculé.
+        </p>
+      </Fold>
+
+      <Fold id="biens" title="Or, objets, véhicules, argent prêté">
+        <p>
+          Dans <L to="/autres-biens">Autres biens</L>, ajoutez ce qui n'est ni un compte ni de l'immobilier : pièces et lingots, bijoux et objets d'art, véhicules, parts d'une société non cotée, compte courant d'associé, argent prêté à un proche. Chacun a sa valeur estimée, la part que vous détenez et, si besoin, l'usufruit ou la nue-propriété. Ils s'ajoutent au patrimoine net ; ils n'entrent dans la répartition que si vous leur donnez une classe d'actifs.
+        </p>
+        <p>
+          Pour une voiture, une <B>baisse de valeur par an</B> fait vieillir l'estimation toute seule. Pour une somme prêtée avec un échéancier, la somme encore due se calcule comme le capital restant d'un crédit. La <B>décote en cas de vente rapide</B> et le <B>délai</B> montrent ce que vous récupéreriez vite. Une nouvelle estimation se note en dépliant la ligne : les précédentes restent dans l'historique.
+        </p>
+        <p>
+          <B>L'impôt à la vente</B> est estimé au régime le plus avantageux : pour l'or, la taxe forfaitaire de 11,5 % du prix, ou l'impôt sur la plus-value (19 % plus les prélèvements sociaux, avec un abattement de 5 % par an au-delà de deux ans, rien après 22 ans) si vous pouvez prouver le prix et la date d'achat ; pour les bijoux et objets d'art, 6,5 % du prix, rien en dessous de 5 000 €. Les voitures sont exonérées. C'est une estimation, sans valeur officielle.
         </p>
       </Fold>
 
