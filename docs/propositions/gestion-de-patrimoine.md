@@ -13,6 +13,7 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 - **Rapprochement avec les relevés (proposition 12 a)** : page « Rapprochement » (groupe Saisie), relevé avec valeur, espèces et quantités, comparé au calcul à sa date, correction en un clic, rappel au-delà de 12 mois sans relevé.
 - **Poids des crédits (proposition 8)** : sur la page Crédits, part du patrimoine financée à crédit, part de chaque bien encore due, taux d'effort, taux assurance comprise et coût restant de chaque crédit, et comparateur « rembourser par avance ou placer ».
 - **Compteurs et plafonds (proposition 9)** : page « Compteurs et plafonds » (groupe Fiscalité) : ancienneté du PEA et des assurances-vie, plafonds du PEA, du PEA-PME, des livrets et du PER, abattement annuel de l'assurance-vie, versements avant et après 70 ans, donations faites et reçues avec leurs abattements.
+- **Liste de fin d'année (proposition 10)** : sur la page Impôts, moins-values à réaliser, abattement de l'assurance-vie, versement PER, plafonds libres et préparation de la déclaration, chiffrés, avec une case par geste ; mise en avant et alerte en novembre et décembre.
 - **Autres biens (proposition 4)** : page « Autres biens », en dernier des enveloppes ; or, objets, véhicules, parts de société (démembrables), compte courant d'associé et argent prêté, avec décote, délai de vente et impôt estimé à la vente.
 
 Le détail, les décisions prises et ce qui reste hors de chaque version sont dans la section de chaque proposition.
@@ -30,7 +31,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
 | 8 | Poids des crédits et aide à la décision | Fait le 11 novembre 2026 |
 | 9 | Compteurs d'ancienneté et plafonds | Fait le 11 novembre 2026 |
-| 10 | Liste de fin d'année | À faire, dans la partie Impôts |
+| 10 | Liste de fin d'année | Fait le 11 novembre 2026 |
 | 11 | Objectifs par projet | À faire |
 | 12 | Rapprochement avec les relevés et journal des décisions | 12 a fait le 11 novembre 2026 ; 12 b à faire |
 
@@ -258,7 +259,7 @@ Pour chaque bien :
 
 ## 10. Liste de fin d'année
 
-**Statut :** à faire, dans la partie Impôts.
+**Statut :** fait le 11 novembre 2026. Calculs dans `core/src/yearEnd.ts`, carte « Liste de fin d'année » sur la page Impôts (en tête en novembre et décembre, en bas sinon), alerte au tableau de bord en novembre et décembre, cases cochées gardées par année (réglage `taxes.yearEnd`). Décisions : les moins-values ne sont proposées que s'il y a des plus-values imposables cette année (après report des moins-values antérieures), l'économie est chiffrée au taux du plan (prélèvement forfaitaire ou barème) plus les prélèvements sociaux ; le retrait d'assurance-vie proposé est celui qui sort tout l'abattement restant, contrat par contrat ; le PER n'apparaît que si le plafond de déduction est renseigné. Le rachat immédiat d'un titre vendu à perte n'est pas interdit par une règle française connue, mais peut être contesté pour abus de droit : la liste le dit. Non fait : dons aux associations, crypto.
 
 **Pourquoi.** Plusieurs gestes fiscaux ne se font que jusqu'au 31 décembre. Hamac a déjà les chiffres pour les calculer.
 
@@ -333,7 +334,7 @@ Pour chaque bien :
 4. **Proposition 7**, disponibilité de l'argent.
 5. **Proposition 6**, concentration et risque.
 6. ~~**Proposition 8**, crédits~~ : fait.
-7. ~~**Proposition 9**, compteurs~~ : fait. **Proposition 10**, liste de fin d'année, qui s'appuie sur les compteurs.
+7. ~~**Propositions 9 puis 10**, compteurs puis liste de fin d'année~~ : faites.
 8. **Proposition 11**, objectifs par projet.
 9. **Proposition 12 b**, journal des décisions.
 10. **Proposition 5**, exposition réelle, après une étude de faisabilité.

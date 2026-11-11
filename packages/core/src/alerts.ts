@@ -9,6 +9,7 @@ import { isRetirementPlan } from "./params";
 import { GUARANTEE_LABELS, protectionOf } from "./protection";
 import { reconcile, staleAccounts } from "./reconciliation";
 import { MAX_EFFORT_RATE } from "./debt";
+import { yearEndChecklist, yearEndSeason } from "./yearEnd";
 import { daysBetween } from "./xirr";
 
 /** Niveaux réservés : toujours affichés avec une icône et un libellé, jamais par la couleur seule. */
@@ -164,6 +165,12 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
       detail: "Comparer la valeur et les titres avec le site de l'établissement fiabilise tous les calculs.",
       link: "/rapprochement",
     });
+
+  // Fin d'année : gestes fiscaux à faire avant le 31 décembre.
+  if (yearEndSeason(today)) {
+    const chiffres = yearEndChecklist(data, state).filter((x) => x.saving != null && x.saving > 0);
+    if (chiffres.length) out.push({ id: "fin-annee", level: "info", title: `Liste de fin d'année : ${chiffres.length} geste${chiffres.length > 1 ? "s" : ""} avant le 31 décembre`, detail: chiffres.map((x) => x.title).join(" · "), link: "/impots" });
+  }
 
   // Crédits : taux d'effort au-delà de ce que prêtent les banques.
   if (p.profile.netMonthlyIncome > 0 && state.netWorth.monthlyLoans / p.profile.netMonthlyIncome > MAX_EFFORT_RATE) {
