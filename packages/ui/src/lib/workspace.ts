@@ -22,6 +22,7 @@ function normalizeWorkspace(ws: Partial<Workspace>): Workspace {
     statements: list("statements"),
     plannedExpenses: list("plannedExpenses"),
     properties: list("properties"),
+    companies: list("companies"),
     leases: list("leases"),
     leaseRents: list("leaseRents"),
     rentExceptions: list("rentExceptions"),

@@ -19,6 +19,7 @@ const TABLES = [
   "statements",
   "prices",
   "planned_expenses",
+  "companies",
   "properties",
   "leases",
   "lease_rents",

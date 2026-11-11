@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_TYPE_LABELS, dpeExpiry, formatEur, formatPct, propertyImprovements, propertyProfitability, propertySqm, propertySummary, propertyTotalCost, propertyYears } from "@hamac/core";
+import { PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_TYPE_LABELS, dpeExpiry, formatEur, formatPct, heldShareLabel, propertyImprovements, propertyProfitability, propertySqm, propertySummary, propertyTotalCost, propertyYears } from "@hamac/core";
 import { EnergyDiagram } from "@/components/EnergyDiagram";
 import { PrintLine, PrintPage, PrintSection } from "@/components/PrintPage";
 import { formatDate, formatNumber } from "@/lib/numbers";
@@ -17,10 +17,12 @@ export function ImpressionBien() {
   const p = ws.properties.find((x) => x.id === id);
   if (!p) return <PrintPage>Bien introuvable.</PrintPage>;
   const improvements = propertyImprovements(ws.propertyExpenses, p.id, pf.today);
-  const s = propertySummary(p, pf.state.netWorth.loans, improvements);
+  const held = pf.data.properties?.find((x) => x.id === p.id) ?? p;
+  const heldLoans = pf.data.loans ?? ws.loans;
+  const s = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
   const sqm = propertySqm(p, null);
   const rented = p.kind === "locatif";
-  const years = rented ? propertyYears({ property: p, incomes: ws.propertyIncomes, leases: ws.leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: ws.loans }, pf.today) : [];
+  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases: ws.leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans }, pf.today) : [];
   const profit = propertyProfitability(years);
   const place = [p.address, [p.postalCode, p.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   return (
@@ -53,7 +55,7 @@ export function ImpressionBien() {
         </PrintSection>
       )}
 
-      <PrintSection title={p.share < 1 ? `Valeur et coût (part détenue : ${formatPct(p.share)})` : "Valeur et coût"}>
+      <PrintSection title={heldShareLabel(held, pf.today) ? `Valeur et coût (${heldShareLabel(held, pf.today)})` : "Valeur et coût"}>
         <PrintLine label="Valeur détenue">{eur(s.heldValue)}</PrintLine>
         {p.valueDate && <PrintLine label="Estimée le">{formatDate(p.valueDate)}</PrintLine>}
         <PrintLine label="Coût d'achat complet du bien entier">{eur(propertyTotalCost(p))}</PrintLine>

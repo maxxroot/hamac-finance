@@ -190,7 +190,7 @@ export interface PortfolioState {
   disposals: Disposal[];
   buckets: Record<Bucket, number>;
   allocation: { invested: number; rows: AllocationRow[] };
-  /** Patrimoine financier + biens immobiliers (part détenue) − capital restant dû des crédits. */
+  /** Patrimoine financier (part détenue des comptes joints) + biens immobiliers (part détenue) − capital restant dû des crédits. */
   netWorth: { financial: number; realEstate: number; debts: number; net: number; monthlyLoans: number; loans: LoanState[] };
   livrets: {
     total: number;
@@ -442,9 +442,11 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     if (crowdValue) byBucket.crowdlending = (byBucket.crowdlending ?? 0) + crowdValue;
     if (!account.archived || value !== 0) {
       for (const [b, v] of Object.entries(byBucket)) buckets[b as Bucket] += v ?? 0;
-      if (cash !== 0 && cashInAllocation(account, enabled)) allocate(cashBucket, cash);
-      for (const p of positions) if (p.inAllocation) allocate(p.classId ?? p.bucket, p.value);
-      for (const c of crowdProjects) if (c.project.inAllocation ?? account.inAllocation ?? enabled("crowdlending")) allocate("crowdlending", c.value);
+      // Compte joint : seule la part détenue compte dans la répartition.
+      const held = account.share ?? 1;
+      if (cash !== 0 && cashInAllocation(account, enabled)) allocate(cashBucket, cash * held);
+      for (const p of positions) if (p.inAllocation) allocate(p.classId ?? p.bucket, p.value * held);
+      for (const c of crowdProjects) if (c.project.inAllocation ?? account.inAllocation ?? enabled("crowdlending")) allocate("crowdlending", c.value * held);
     }
     if (cash < -0.01) warnings.push(`Espèces négatives sur « ${account.name} » (${formatEur(cash)}) : un versement manque probablement dans le journal.`);
 
@@ -482,7 +484,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const properties = (data.properties ?? []).filter((x) => !x.archived);
   for (const x of properties) {
     const key = params.customClasses.find((c) => c.id === x.classId)?.id ?? "immobilier";
-    if (x.inAllocation ?? enabled(key)) allocate(key, propertyValue(x));
+    if (x.inAllocation ?? enabled(key)) allocate(key, propertyValue(x, asOf));
   }
   const invested = [...allocated.values()].reduce((s, v) => s + v, 0);
   const targetsNow = classTargets(params, age);
@@ -514,7 +516,9 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   };
   totals.gain = roundCents(totals.value - totals.netContrib);
 
-  const realEstate = roundCents(properties.reduce((s, x) => s + propertyValue(x), 0));
+  const realEstate = roundCents(properties.reduce((s, x) => s + propertyValue(x, asOf), 0));
+  // Comptes joints : le patrimoine ne compte que la part détenue ; les totaux des comptes restent entiers.
+  const financial = roundCents(active.reduce((s, a) => s + a.value * (a.account.share ?? 1), 0));
   const loans = (data.loans ?? []).filter((l) => !l.archived).map((l) => loanState(l, asOf));
   const debts = roundCents(loans.reduce((s, l) => s + l.heldBalance, 0));
 
@@ -526,7 +530,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     totals,
     buckets,
     allocation: { invested: roundCents(invested), rows },
-    netWorth: { financial: totals.value, realEstate, debts, net: roundCents(totals.value + realEstate - debts), monthlyLoans: roundCents(loans.reduce((s, l) => s + l.heldMonthly, 0)), loans },
+    netWorth: { financial, realEstate, debts, net: roundCents(financial + realEstate - debts), monthlyLoans: roundCents(loans.reduce((s, l) => s + l.heldMonthly, 0)), loans },
     livrets: {
       total: livretsTotal,
       floor,

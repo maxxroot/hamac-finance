@@ -190,8 +190,15 @@ export interface Account {
   monthsToInvest: number | null;
   /** Dans ou hors de l'allocation cible ; null = selon le type (livrets et crypto hors, le reste dedans). */
   inAllocation: boolean | null;
+  /** Part détenue (fraction) d'un compte joint : seule cette part compte dans le patrimoine et la répartition. */
+  share: number;
   sortOrder: number;
   archived: boolean;
+}
+
+/** Comptes qui peuvent être ouverts à plusieurs : les autres (PEA, assurance-vie, livrets réglementés…) sont individuels. */
+export function canBeJoint(a: Pick<Account, "kind" | "livretType">): boolean {
+  return a.kind === "cto" || a.kind === "crypto" || (a.kind === "livret" && (a.livretType ?? "AUTRE") === "AUTRE");
 }
 
 export interface Asset {

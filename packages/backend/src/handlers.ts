@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from "drizzle-orm";
 import { one } from "./db/driver";
 import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, type EnergyLetter, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, type EnergyLetter, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -24,7 +24,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -169,6 +169,8 @@ export const handlers: Handlers = {
       managementFeeRate: input.managementFeeRate,
       monthsToInvest: input.monthsToInvest,
       inAllocation: input.inAllocation,
+      // Seuls les comptes qui peuvent être joints gardent une part détenue.
+      share: canBeJoint({ kind: input.kind, livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null }) ? input.share : 1,
       sortOrder: input.sortOrder,
       archived: input.archived,
       updatedAt: nowIso(),
@@ -451,8 +453,29 @@ export const handlers: Handlers = {
     return OK;
   },
 
+  async "companies.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const row = { name: input.name, share: input.share, comment: input.comment, archived: input.archived, updatedAt: nowIso() };
+    if (input.id) {
+      const res = await ctx.db.update(t.companies).set(row).where(eq(t.companies.id, id)).returning({ id: t.companies.id });
+      if (!res.length) throw new RpcError("NOT_FOUND", "Société introuvable.");
+    } else await ctx.db.insert(t.companies).values({ id, ...row });
+    return mapCompany((await ctx.db.select().from(t.companies).where(eq(t.companies.id, id)).limit(1).then(one))!);
+  },
+
+  async "companies.delete"({ id }, ctx) {
+    // Les biens de la société restent, détenus pour la part saisie sur chacun.
+    await ctx.db.delete(t.companies).where(eq(t.companies.id, id));
+    return OK;
+  },
+
   async "properties.upsert"(input, ctx) {
     const id = input.id ?? newId();
+    const viaCompany = input.ownership === "sci" || input.ownership === "sci_familiale";
+    if (viaCompany && input.companyId && !(await ctx.db.select().from(t.companies).where(eq(t.companies.id, input.companyId)).limit(1).then(one))) {
+      throw new RpcError("NOT_FOUND", "Société introuvable.");
+    }
+    const pleine = input.dismemberment === "pleine";
     const row = {
       kind: input.kind,
       ownership: input.ownership,
@@ -486,6 +509,10 @@ export const handlers: Handlers = {
       dpeDate: input.dpeDate,
       dpeReminders: input.dpeReminders,
       share: input.share,
+      companyId: viaCompany ? input.companyId : null,
+      dismemberment: input.dismemberment,
+      usufructBirthDate: pleine ? null : input.usufructBirthDate,
+      usufructEnd: pleine ? null : input.usufructEnd,
       inAllocation: input.inAllocation,
       classId: input.classId,
       comment: input.comment,

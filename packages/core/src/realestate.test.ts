@@ -113,7 +113,7 @@ describe("crédits", () => {
   });
 
   it("valeur d'un bien : part détenue", () => {
-    expect(propertyValue({ value: 300_000, share: 0.5 })).toBe(150_000);
+    expect(propertyValue({ value: 300_000, share: 0.5 }, "2026-01-01")).toBe(150_000);
   });
 
   it("coût par année arrêté à une date : seules les échéances passées comptent", () => {
@@ -206,7 +206,7 @@ describe("biens", () => {
   });
 
   it("la synthèse ajoute les améliorations au coût et réduit le gain", () => {
-    expect(propertySummary(bien, [], 10_000)).toMatchObject({ heldCost: 120_000, gain: 30_000 });
+    expect(propertySummary(bien, [], 10_000, "2026-01-01")).toMatchObject({ heldCost: 120_000, gain: 30_000 });
   });
 
   it("bilan de la vente à la part détenue", () => {
@@ -256,7 +256,7 @@ describe("biens", () => {
   it("synthèse à la part détenue : coût, gain et valeur nette des seuls crédits rattachés", () => {
     const rattache = loanState({ ...loan, id: "r", propertyId: "b", share: 0.5 }, "2026-06-10");
     const autre = loanState({ ...loan, id: "a", propertyId: "x" }, "2026-06-10");
-    const s = propertySummary(bien, [rattache, autre]);
+    const s = propertySummary(bien, [rattache, autre], 0, "2026-01-01");
     expect(s.heldValue).toBe(150_000);
     expect(s.heldCost).toBe(115_000);
     expect(s.gain).toBe(35_000);
@@ -267,7 +267,7 @@ describe("biens", () => {
   });
 
   it("synthèse sans prix d'achat : ni coût ni gain, la valeur nette reste calculée", () => {
-    const s = propertySummary({ ...bien, purchasePrice: null }, []);
+    const s = propertySummary({ ...bien, purchasePrice: null }, [], 0, "2026-01-01");
     expect(s.heldCost).toBeNull();
     expect(s.gain).toBeNull();
     expect(s.netValue).toBe(150_000);

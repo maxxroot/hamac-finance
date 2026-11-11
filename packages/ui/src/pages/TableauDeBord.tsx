@@ -32,7 +32,8 @@ export function TableauDeBord() {
   const ry = retirementYear(p);
   const yearsLeft = Math.max(0, ry - +pf.today.slice(0, 4));
   const total = state.performance.find((r) => r.key === "total");
-  const hasRealEstate = state.netWorth.realEstate !== 0 || state.netWorth.debts !== 0;
+  // Biens, crédits ou comptes joints : le patrimoine net diffère du total des comptes.
+  const hasRealEstate = state.netWorth.realEstate !== 0 || state.netWorth.debts !== 0 || state.netWorth.financial !== state.totals.value;
   const change = history ? gainSinceLastMonth(history) : null;
   const middle = retraite && proj ? <RetirementCard proj={proj} p={p} /> : !retraite && hasRealEstate ? <NetWorthCard netWorth={state.netWorth} /> : null;
 

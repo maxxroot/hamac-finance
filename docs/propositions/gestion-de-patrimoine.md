@@ -8,7 +8,7 @@ Chaque proposition indique son statut, ce qui existe déjà dans Hamac, ce qu'il
 |----|-------------|--------|
 | 1 | Ce qui est protégé si un établissement fait faillite | Fait le 11 novembre 2026 |
 | 2 | Calcul de l'IFI | Reporté |
-| 3 | Qui possède quoi | À faire |
+| 3 | Qui possède quoi | Fait le 11 novembre 2026 |
 | 4 | Biens qui ne sont pas des placements | À faire (sans les actions de l'employeur) |
 | 5 | Exposition réelle derrière les ETF | À étudier : faisabilité des données incertaine |
 | 6 | Concentration et risque | À faire, à détailler |
@@ -71,7 +71,7 @@ Pas de calcul pour le moment. La proposition 3 (qui possède quoi) et la proposi
 
 ## 3. Qui possède quoi
 
-**Statut :** à faire, plus détaillé que l'existant.
+**Statut :** fait le 11 novembre 2026. Décisions : usufruit et nue-propriété au barème fiscal (`core/src/ownership.ts`), pour l'immobilier ; parts de SCI détaillées (table `companies`, biens rattachés, carte « Sociétés (SCI) » dans Immobilier) ; part détenue sur les comptes qui peuvent être joints (compte-titres, livret bancaire, crypto). La nature « bien propre / commun » est reportée au foyer. Les montants des comptes joints restent ceux du compte entier dans les pages des comptes et la Performance : seuls le patrimoine net, la répartition et la protection comptent la part détenue. La trésorerie et les autres dettes d'une SCI ne sont pas saisies pour l'instant.
 
 **Pourquoi.** La façon dont un bien est détenu change sa valeur réelle dans le patrimoine, le calcul d'un futur IFI et une éventuelle succession. C'est aussi ce qui préparera le foyer, prévu plus tard.
 

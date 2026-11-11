@@ -439,6 +439,15 @@ export function Notice() {
           Indiquez aussi son utilisation, son statut (nom propre, indivision, SCI…) et ses frais d'achat. Les <B>frais de notaire</B> sont estimés d'après le prix, la date d'achat et l'état du bien (neuf ou ancien), avec le taux de droits de mutation le plus courant : comparez-les à votre acte et corrigez-les si besoin. Le bouton « Fiche du bien » ouvre sa présentation complète : caractéristiques, DPE, rentabilité et documents. Cliquez sur son nom pour accéder à son suivi : location et finances.
         </p>
         <p>
+          <B>Usufruit et nue-propriété.</B> Sur la fiche du bien, choisissez le droit détenu et la date de naissance de l'usufruitier (ou la fin de l'usufruit s'il est à durée fixe). Le bien compte alors dans le patrimoine selon le barème fiscal (article 669 du CGI) : par exemple, avec un usufruitier de 61 à 70 ans, l'usufruit vaut 40 % du bien et la nue-propriété 60 %. La valeur évolue avec son âge.
+        </p>
+        <p>
+          <B>Biens détenus par une SCI.</B> Créez la société dans la carte « Sociétés (SCI) » de la page Immobilier avec la part de ses parts que vous détenez, puis rattachez-lui ses biens (statut « SCI »). Les biens et leurs crédits comptent pour la part de vos parts ; la carte montre l'actif net de la société et ce que valent vos parts.
+        </p>
+        <p>
+          <B>Un compte joint</B> (compte-titres, livret bancaire, crypto) se saisit en entier, avec la part que vous détenez sur sa fiche. Seule votre part compte dans le patrimoine net, la répartition et la protection en cas de faillite.
+        </p>
+        <p>
           La fiche se complète depuis cette fenêtre, quand vous le souhaitez. En tapant l'adresse, votre navigateur interroge la Base Adresse Nationale (service de l'IGN) pour proposer des suggestions : seul ce que vous tapez dans ce champ lui est envoyé. Adresse, surface, caractéristiques et DPE : tout est facultatif. Une case permet d'être alerté avant l'expiration du DPE et, pour un bien en location, si sa note interdit de le louer.
         </p>
         <p>

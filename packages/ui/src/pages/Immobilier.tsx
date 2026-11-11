@@ -1,7 +1,8 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { PROPERTY_KIND_LABELS, classEnabled, formatPct, propertyValue, type Property } from "@hamac/core";
+import { DISMEMBERMENT_LABELS, PROPERTY_KIND_LABELS, classEnabled, dismembermentRatio, formatPct, propertyValue, type Property } from "@hamac/core";
+import { CompaniesCard } from "@/components/CompaniesCard";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
 import { Stat, StatGrid } from "@/components/Stat";
@@ -66,7 +67,10 @@ export function Immobilier() {
             </thead>
             <tbody>
               {properties.length === 0 && <EmptyRow cols={7}>Aucun bien. Ajoutez votre résidence ou un investissement locatif.</EmptyRow>}
-              {properties.map((p) => (
+              {properties.map((p) => {
+                // Part détenue, parts de SCI comprises.
+                const held = pf.data.properties?.find((x) => x.id === p.id) ?? p;
+                return (
                 <Tr key={p.id} className={cn("group", p.archived && "opacity-50")}>
                   <Td className="font-medium">
                     <Link to={`/immobilier/${p.id}`} className="hover:text-accent hover:underline">
@@ -79,8 +83,15 @@ export function Immobilier() {
                     </div>
                   </Td>
                   <Td align="right"><Amount value={p.value} compact /></Td>
-                  <Td align="right">{formatPct(p.share)}</Td>
-                  <Td align="right"><Amount value={propertyValue(p)} compact /></Td>
+                  <Td align="right">
+                    {formatPct(held.share)}
+                    {held.dismemberment !== "pleine" && (
+                      <div className="text-xs text-fg-faint">
+                        {DISMEMBERMENT_LABELS[held.dismemberment].toLocaleLowerCase("fr-FR")} {formatPct(dismembermentRatio(held, pf.today))}
+                      </div>
+                    )}
+                  </Td>
+                  <Td align="right"><Amount value={propertyValue(held, pf.today)} compact /></Td>
                   <Td><Badge tone={(p.inAllocation ?? immobilierIn) ? "accent" : "neutral"}>{(p.inAllocation ?? immobilierIn) ? "Inclus" : "Hors"}</Badge></Td>
                   <Td align="right" className="whitespace-nowrap">
                     <Button className="h-8" aria-label={`Fiche du bien ${p.name}`} onClick={() => setSheetId(p.id)}>
@@ -89,10 +100,13 @@ export function Immobilier() {
                   </Td>
                   <Td className="w-20"><RowActions onEdit={() => setEditing(p)} onDelete={() => confirm(`Supprimer « ${p.name} » ?`) && del.mutate({ id: p.id })} /></Td>
                 </Tr>
-              ))}
+                );
+              })}
             </tbody>
           </Table>
         </Card>
+
+        <CompaniesCard />
 
         {scpi.length > 0 && (
           <Card>

@@ -12,7 +12,7 @@ import { cryptoTax, withdrawalTaxes, yearlyTaxes } from "./taxes";
 // ——— Fabriques ———
 const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): Account => ({
   id, kind, livretType: kind === "livret" ? "LEP" : null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "",
-  beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false, ...extra,
+  beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false, ...extra,
 });
 const asset = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
   id, kind, name: id, isin: null, symbol: null, priceSource: kind === "obligation" ? "modele" : "auto", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null,
@@ -273,7 +273,7 @@ describe("historique reconstruit", () => {
   it("PER, épargne salariale, PEA-PME : fiscalité au retrait", () => {
     const p = defaultParams(new Date(2026, 0, 1));
     const params = { ...p, tax: { ...p.tax, tmi: 0.3 as const } };
-    const value = (id: string, kind: Account["kind"]) => ({ id, kind, livretType: null, name: id, institutionId: null, openedOn: "2015-01-01", depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
+    const value = (id: string, kind: Account["kind"]) => ({ id, kind, livretType: null, name: id, institutionId: null, openedOn: "2015-01-01", depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
     const tx = (id: string, accountId: string, type: "apport_initial" | "interets", amount: number) => ({ id, date: "2020-01-02", type, accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" }) as const;
     const accounts = [value("per", "per"), value("pee", "epargne_salariale"), value("pme", "pea_pme")];
     const d: EngineData = { params, accounts, assets: [], plans: [], skips: [], prices: [], transactions: accounts.flatMap((a) => [tx(`a${a.id}`, a.id, "apport_initial", 1_000), tx(`i${a.id}`, a.id, "interets", 100)]) };
@@ -289,7 +289,7 @@ describe("historique reconstruit", () => {
 
   it("crypto sur deux plateformes : le prix d'acquisition global n'est déduit qu'une fois", () => {
     const p = defaultParams(new Date(2026, 0, 1));
-    const crypto = (id: string) => ({ id, kind: "crypto", livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
+    const crypto = (id: string) => ({ id, kind: "crypto", livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
     const btc = { id: "btc", kind: "crypto", name: "BTC", isin: null, symbol: "bitcoin", priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false } as Asset;
     const tx = (id: string, accountId: string, type: "apport_initial" | "achat") => ({ id, date: "2026-01-02", type, accountId, assetId: type === "achat" ? "btc" : null, counterAccountId: null, amount: 6_000, quantity: type === "achat" ? 5 : null, fee: null, comment: "" }) as Transaction;
     const accounts = [crypto("a"), crypto("b")];
@@ -303,7 +303,7 @@ describe("historique reconstruit", () => {
 
   it("crowdlending : impôts prélevés par la plateforme ou restant à payer", () => {
     const p = defaultParams(new Date(2026, 0, 1));
-    const plateforme = (id: string, institutionId: string | null) => ({ id, kind: "crowdlending", livretType: null, name: id, institutionId, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
+    const plateforme = (id: string, institutionId: string | null) => ({ id, kind: "crowdlending", livretType: null, name: id, institutionId, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
     const etab = (id: string, crowdlending: { taxWithheld: boolean; taxRate: number | null }) => ({ id, name: id, kind: "crowdlending", website: "", score: null, comment: "", offers: { crowdlending } }) as Institution;
     const interets = (accountId: string, amount: number) => ({ id: accountId, date: "2026-03-01", type: "interets", accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" }) as Transaction;
     const accounts = [plateforme("preleve", "e30"), plateforme("forfait", "pfu"), plateforme("adeclarer", null)];
@@ -323,7 +323,7 @@ describe("historique reconstruit", () => {
 
   it("crowdlending : intérêts bruts puis impôts débités à part, comme sur le relevé de la plateforme", () => {
     const p = defaultParams(new Date(2026, 0, 1));
-    const account = { id: "c", kind: "crowdlending", livretType: null, name: "c", institutionId: "e", openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false } as Account;
+    const account = { id: "c", kind: "crowdlending", livretType: null, name: "c", institutionId: "e", openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false } as Account;
     const institution = { id: "e", name: "e", kind: "crowdlending", website: "", score: null, comment: "", offers: { crowdlending: { taxWithheld: true, taxRate: 0.314 } } } as Institution;
     const lines = crowdInterestEntries({ accountId: "c", month: "2026-03", monthLabel: "mars 2026", gross: 100, withheld: crowdWithholding(100, 0.314, p), today: "2026-06-01" });
     const transactions = lines.map((l, i) => ({ id: `t${i}`, assetId: null, counterAccountId: null, quantity: null, fee: null, ...l }) as Transaction);
@@ -367,5 +367,21 @@ describe("patrimoine net", () => {
     expect(netWorth.debts).toBe(47_500);
     expect(netWorth.monthlyLoans).toBe(505);
     expect(netWorth.net).toBe(52_500);
+  });
+
+  it("ne compte que la part détenue d'un compte joint, sans toucher aux totaux du compte", () => {
+    const joint = acc("joint", "livret", { livretType: "AUTRE", share: 0.5, inAllocation: true });
+    const state = computePortfolio(data({ accounts: [joint], transactions: [tx("2026-01-10", "versement", "joint", 10_000)] }), "2026-06-01");
+    expect(state.totals.value).toBe(10_000);
+    expect(state.netWorth.financial).toBe(5_000);
+    expect(state.netWorth.net).toBe(5_000);
+    expect(state.allocation.invested).toBe(5_000);
+  });
+
+  it("évalue un bien en nue-propriété selon l'âge de l'usufruitier", () => {
+    const bien: Property = { id: "b", kind: "autre", ownership: "nom_propre", name: "Maison", value: 300_000, valueDate: null, purchasePrice: null, purchaseDate: null, newBuild: false, ...NO_PROPERTY_DETAILS, dismemberment: "nue_propriete", usufructBirthDate: "1955-01-01", notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
+    // Usufruitier de 71 ans : usufruit 30 %, nue-propriété 70 %.
+    expect(computePortfolio(data({ properties: [bien] }), "2026-06-01").netWorth.realEstate).toBe(210_000);
+    expect(buildHistory(data({ properties: [bien], transactions: [tx("2026-05-02", "versement", "x", 0)], accounts: [acc("x", "cto")] }), "2026-06-01").at(-1)?.realEstate).toBe(210_000);
   });
 });

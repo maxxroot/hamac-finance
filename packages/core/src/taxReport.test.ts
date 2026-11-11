@@ -7,7 +7,7 @@ import { buildTaxReport, compareWithStatement, reportTotalsMismatches, resolveIn
 import { cryptoTax, yearlyTaxes } from "./taxes";
 
 const acc = (id: string, kind: Account["kind"], institutionId: string | null = null): Account => ({
-  id, kind, livretType: null, name: id, institutionId, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false,
+  id, kind, livretType: null, name: id, institutionId, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false,
 });
 const asset = (id: string, kind: Asset["kind"]): Asset => ({
   id, kind, name: id, isin: null, symbol: null, priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false,

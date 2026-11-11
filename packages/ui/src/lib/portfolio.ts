@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { buildHistory, computePortfolio, cryptoTax, type EngineData, type PortfolioState } from "@hamac/core";
+import { buildHistory, computePortfolio, cryptoTax, withCompanyShares, type EngineData, type PortfolioState } from "@hamac/core";
 import type { Workspace } from "@hamac/api";
 import { todayIso } from "./numbers";
 import { useWorkspaceIndex } from "./workspace";
@@ -13,7 +13,9 @@ const engineCache = new WeakMap<Workspace, { today: string; data: EngineData; st
 function engineFor(ws: Workspace, today: string) {
   const hit = engineCache.get(ws);
   if (hit?.today === today) return hit;
-  const data: EngineData = { ...ws, prices: ws.prices };
+  // Biens détenus par une SCI : la part des parts s'applique aux biens et à leurs crédits pour tous les calculs.
+  // Les formulaires, eux, lisent `ws` et gardent la part saisie sur le bien.
+  const data: EngineData = { ...ws, ...withCompanyShares(ws), prices: ws.prices };
   const entry = { today, data, state: computePortfolio(data, today), crypto: cryptoTax(data, today) };
   engineCache.set(ws, entry);
   return entry;

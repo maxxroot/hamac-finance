@@ -5,6 +5,7 @@ import { Amount } from "@/components/Amount";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
 import { AllocationChoice } from "./AllocationChoice";
+import { DismembermentFields, dismembermentComplete } from "@/components/DismembermentFields";
 import { todayIso } from "@/lib/numbers";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
@@ -17,7 +18,10 @@ const emptyProperty = (): PropertyDraft => ({ kind: "residence_principale", owne
 export function PropertyDialog({ open, property, onClose }: { open: boolean; property: Property | null; onClose: () => void }) {
   const [d, setD] = useState<PropertyDraft>(emptyProperty());
   const save = useMutate("properties.upsert", { success: property ? "Bien mis à jour" : "Bien ajouté" });
-  const classes = useWorkspaceIndex()?.ws.params.customClasses ?? [];
+  const idx = useWorkspaceIndex();
+  const classes = idx?.ws.params.customClasses ?? [];
+  const companies = (idx?.ws.companies ?? []).filter((c) => !c.archived || c.id === d.companyId);
+  const viaCompany = d.ownership === "sci" || d.ownership === "sci_familiale";
   // Tant que le montant n'a pas été saisi, il suit l'estimation.
   const [notaryAuto, setNotaryAuto] = useState(true);
   useEffect(() => {
@@ -51,7 +55,7 @@ export function PropertyDialog({ open, property, onClose }: { open: boolean; pro
           <Button variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button variant="primary" disabled={save.isPending || !d.name.trim() || d.share <= 0} onClick={() => save.mutate(d, { onSuccess: onClose })}>
+          <Button variant="primary" disabled={save.isPending || !d.name.trim() || d.share <= 0 || !dismembermentComplete(d)} onClick={() => save.mutate(d, { onSuccess: onClose })}>
             {property ? "Valider" : "Ajouter"}
           </Button>
         </>
@@ -86,8 +90,25 @@ export function PropertyDialog({ open, property, onClose }: { open: boolean; pro
         <FormGrid cols={3}>
           <Field label="Valeur estimée" help="Du bien entier.">{(id) => <MoneyInput id={id} value={d.value} onChange={(v) => set("value", v ?? 0)} />}</Field>
           <Field label="Estimée le">{(id) => <TextInput id={id} type="date" value={d.valueDate ?? ""} onChange={(e) => set("valueDate", e.target.value || null)} />}</Field>
-          <Field label="Part détenue" help="50 % pour un bien à deux, ou vos parts de la SCI.">{(id) => <PercentInput id={id} value={d.share} onChange={(v) => set("share", v ?? 0)} />}</Field>
+          <Field label={viaCompany && d.companyId ? "Part détenue par la SCI" : "Part détenue"} help={viaCompany && d.companyId ? "Souvent 100 % : vos parts de la SCI s'appliquent en plus." : "50 % pour un bien à deux, ou vos parts de la SCI."}>
+            {(id) => <PercentInput id={id} value={d.share} onChange={(v) => set("share", v ?? 0)} />}
+          </Field>
         </FormGrid>
+        {viaCompany && (
+          <Field label="Société" help={companies.length ? "La SCI qui détient le bien : ses parts et ses crédits se calculent ensemble (page Immobilier › Sociétés)." : "Créez d'abord la SCI dans la page Immobilier, carte « Sociétés (SCI) », pour y rattacher ses biens."}>
+            {(id) => (
+              <Select id={id} value={d.companyId ?? ""} onChange={(e) => set("companyId", e.target.value || null)}>
+                <option value="">Aucune : la part détenue ci-dessus suffit</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({Math.round(c.share * 1000) / 10} % des parts)
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
+        <DismembermentFields value={d} onChange={(v) => setD((x) => ({ ...x, ...v }))} />
         <FormGrid cols={3}>
           <Field label="Prix d'achat (facultatif)">{(id) => <MoneyInput id={id} value={d.purchasePrice} onChange={(v) => set("purchasePrice", v)} />}</Field>
           <Field label="Date d'achat (facultative)">{(id) => <TextInput id={id} type="date" value={d.purchaseDate ?? ""} onChange={(e) => set("purchaseDate", e.target.value || null)} />}</Field>

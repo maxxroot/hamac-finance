@@ -74,7 +74,7 @@ export function buildHistory(data: EngineData, asOf: string): HistoryPoint[] {
       gain: s.totals.gain,
       realEstate,
       debts,
-      netWorth: roundCents(s.totals.value + realEstate - debts),
+      netWorth: roundCents(s.netWorth.financial + realEstate - debts),
       buckets: Object.fromEntries(BUCKETS.map((b) => [b, s.buckets[b]])) as Record<Bucket, number>,
       byAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.value])),
       contribByAccount: Object.fromEntries(s.accounts.map((a) => [a.account.id, a.netContrib])),

@@ -59,5 +59,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0014_absent_brood",
     "sql": "ALTER TABLE \"institutions\" ADD COLUMN \"protection\" text DEFAULT '{}' NOT NULL;"
+  },
+  {
+    "tag": "0015_powerful_silver_samurai",
+    "sql": "CREATE TABLE \"companies\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"name\" text NOT NULL,\n\t\"share\" double precision DEFAULT 1 NOT NULL,\n\t\"comment\" text DEFAULT '' NOT NULL,\n\t\"archived\" boolean DEFAULT false NOT NULL,\n\t\"created_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\t\"updated_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL\n);\n--> statement-breakpoint\nALTER TABLE \"accounts\" ADD COLUMN \"share\" double precision DEFAULT 1 NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"company_id\" text;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"dismemberment\" text DEFAULT 'pleine' NOT NULL;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"usufruct_birth_date\" text;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"usufruct_end\" text;--> statement-breakpoint\nALTER TABLE \"properties\" ADD CONSTRAINT \"properties_company_id_companies_id_fk\" FOREIGN KEY (\"company_id\") REFERENCES \"companies\"(\"id\") ON DELETE set null ON UPDATE no action;"
   }
 ];

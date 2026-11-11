@@ -6,6 +6,7 @@ import type {
   Account,
   Asset,
   BondPlan,
+  Company,
   ContributionPlan,
   ContributionSkip,
   FundRate,
@@ -33,6 +34,7 @@ import {
   AssetInput,
   MarketSeriesInput,
   BondPlanInput,
+  CompanyInput,
   InstitutionInput,
   FundRateInput,
   ManualPriceInput,
@@ -87,6 +89,8 @@ export interface Workspace {
   statements: Statement[];
   plannedExpenses: PlannedExpense[];
   properties: Property[];
+  /** Sociétés (SCI) qui détiennent des biens. */
+  companies: Company[];
   leases: Lease[];
   leaseRents: LeaseRent[];
   rentExceptions: RentException[];
@@ -207,6 +211,8 @@ export const procedures = {
   "crowdProjects.upsert": { input: CrowdProjectInput, output: entity<CrowdProject>() },
   "crowdProjects.delete": { input: byId, output: ok },
   "crowdProjects.applyImport": { input: CrowdImportInput, output: entity<{ transactions: number; projects: number }>() },
+  "companies.upsert": { input: CompanyInput, output: entity<Company>() },
+  "companies.delete": { input: byId, output: ok },
   "properties.upsert": { input: PropertyInput, output: entity<Property>() },
   "properties.delete": { input: byId, output: ok },
   "properties.sell": { input: PropertySaleInput, output: ok },

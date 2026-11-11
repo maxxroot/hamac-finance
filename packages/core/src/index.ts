@@ -2,6 +2,7 @@ export * from "./money";
 export * from "./dates";
 export * from "./domain";
 export * from "./params";
+export * from "./ownership";
 export * from "./realestate";
 export * from "./leases";
 export * from "./irl";

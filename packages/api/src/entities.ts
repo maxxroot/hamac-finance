@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -25,6 +25,8 @@ export const AccountInput = z.object({
   managementFeeRate: rate.nullable().default(null),
   monthsToInvest: z.number().int().min(1).max(240).nullable().default(null),
   inAllocation: z.boolean().nullable().default(null),
+  /** Part détenue d'un compte joint ; 1 pour un compte individuel. */
+  share: z.number().gt(0, "Part détenue requise").max(1).default(1),
   sortOrder: z.number().int().default(0),
   archived: z.boolean().default(false),
 });
@@ -195,11 +197,16 @@ export const PropertyInput = z.object({
   dpeDate: isoDate.nullable().default(null),
   dpeReminders: z.boolean().default(true),
   share: z.number().gt(0, "Part détenue requise").max(1).default(1),
+  companyId: id.nullable().default(null),
+  dismemberment: z.enum(DISMEMBERMENTS).default("pleine"),
+  usufructBirthDate: isoDate.nullable().default(null),
+  usufructEnd: isoDate.nullable().default(null),
   inAllocation: z.boolean().nullable().default(null),
   classId: id.nullable().default(null),
   comment: text(500).default(""),
   archived: z.boolean().default(false),
-});
+})
+  .refine((p) => p.dismemberment === "pleine" || p.usufructBirthDate != null || p.usufructEnd != null, { path: ["usufructBirthDate"], message: "Indiquez la date de naissance de l'usufruitier, ou la fin de l'usufruit s'il est à durée fixe." });
 export type PropertyInput = z.input<typeof PropertyInput>;
 
 export const PropertySaleInput = z.object({
@@ -341,6 +348,15 @@ export const PropertyDocumentInput = z.object({
   location: text(300).default(""),
 });
 export type PropertyDocumentInput = z.input<typeof PropertyDocumentInput>;
+
+export const CompanyInput = z.object({
+  id: id.optional(),
+  name: text(120).min(1, "Nom requis"),
+  share: z.number().gt(0, "Part des parts requise").max(1).default(1),
+  comment: text(500).default(""),
+  archived: z.boolean().default(false),
+});
+export type CompanyInput = z.input<typeof CompanyInput>;
 
 export const InstitutionInput = z.object({
   id: id.optional(),

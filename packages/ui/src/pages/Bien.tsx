@@ -1,7 +1,7 @@
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, formatPct, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost } from "@hamac/core";
+import { LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, heldShareLabel, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine as Line } from "@/components/DetailLine";
 import { ExpensesCard } from "@/components/ExpensesCard";
@@ -48,18 +48,22 @@ export function Bien() {
       </>
     );
   }
+  // Calculs sur la part détenue, parts de SCI comprises ; les formulaires gardent le bien tel que saisi.
+  const held = pf.data.properties?.find((p) => p.id === property.id) ?? property;
+  const heldLoans = pf.data.loans ?? pf.idx.ws.loans;
   const improvements = propertyImprovements(pf.idx.ws.propertyExpenses, property.id, pf.today);
-  const s = propertySummary(property, pf.state.netWorth.loans, improvements);
+  const s = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
   const totalCost = propertyTotalCost(property);
-  const sale = propertySale(property, improvements, property.saleDate ? loanPayoffAt(pf.idx.ws.loans, property.id, property.saleDate) : 0);
-  const shareLabel = property.share < 1 ? ` · part détenue ${formatPct(property.share)}` : "";
+  const sale = propertySale(held, improvements, property.saleDate ? loanPayoffAt(heldLoans, property.id, property.saleDate) : 0);
+  const heldLabel = heldShareLabel(held, pf.today);
+  const shareLabel = heldLabel ? ` · ${heldLabel}` : "";
   const { ws } = pf.idx;
   const leases = ws.leases.filter((l) => l.propertyId === property.id);
   const rented = property.kind === "locatif";
   const tabs: Array<[Tab, string]> = rented ? [["location", "Location"], ["finances", "Finances"]] : [["finances", "Finances"]];
   const requested = search.get("onglet");
   const tab = tabs.find(([key]) => key === requested)?.[0] ?? tabs[0][0];
-  const rentalData = { property, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: ws.loans };
+  const rentalData = { property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans };
 
   return (
     <>

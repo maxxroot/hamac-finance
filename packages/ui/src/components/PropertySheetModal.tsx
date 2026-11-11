@@ -9,7 +9,7 @@ import {
   dpeExpiry,
   dpeRentalBan,
   formatEur,
-  formatPct,
+  heldShareLabel,
   leaseState,
   loanPayoffAt,
   propertyImprovements,
@@ -61,9 +61,12 @@ function Sheet({ property: p, onClose }: { property: Property; onClose: () => vo
   const rented = p.kind === "locatif";
   const leases = ws.leases.filter((l) => l.propertyId === p.id);
   const improvements = propertyImprovements(ws.propertyExpenses, p.id, pf.today);
-  const summary = propertySummary(p, pf.state.netWorth.loans, improvements);
-  const sale = propertySale(p, improvements, p.saleDate ? loanPayoffAt(ws.loans, p.id, p.saleDate) : 0);
-  const years = rented ? propertyYears({ property: p, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: ws.loans }, pf.today) : [];
+  // Part détenue, parts de SCI comprises (le formulaire garde le bien tel que saisi).
+  const held = pf.data.properties?.find((x) => x.id === p.id) ?? p;
+  const heldLoans = pf.data.loans ?? ws.loans;
+  const summary = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
+  const sale = propertySale(held, improvements, p.saleDate ? loanPayoffAt(heldLoans, p.id, p.saleDate) : 0);
+  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans }, pf.today) : [];
   const profit = propertyProfitability(years);
   const lease = currentLease(leases.map((l) => leaseState(l, ws.leaseRents, pf.today)));
   const monthlyRent = rented && (lease?.status === "en_cours" || lease?.status === "conge") ? lease.rent : null;
@@ -106,7 +109,7 @@ function Sheet({ property: p, onClose }: { property: Property; onClose: () => vo
             </div>
             <p className="text-sm text-fg-muted">
               {PROPERTY_KIND_LABELS[p.kind]} · {PROPERTY_OWNERSHIP_LABELS[p.ownership]}
-              {p.share < 1 ? ` · part détenue ${formatPct(p.share)}` : ""}
+              {heldShareLabel(held, pf.today) ? ` · ${heldShareLabel(held, pf.today)}` : ""}
             </p>
             {place && <p className="text-sm text-fg-muted">{place}</p>}
           </header>

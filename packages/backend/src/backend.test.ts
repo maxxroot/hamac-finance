@@ -268,6 +268,28 @@ describe("établissements", () => {
     expect(ws.accounts[0].institutionId).toBeNull();
   });
 
+  it("enregistre une SCI, le démembrement d'un bien et la part d'un compte joint", async () => {
+    const b = await memory();
+    const sci = await call<{ id: string; share: number }>(b, "companies.upsert", { name: "SCI Fictive", share: 0.4 });
+    expect(sci.share).toBe(0.4);
+    const bien = await call<{ id: string; companyId: string | null; dismemberment: string; usufructBirthDate: string | null }>(b, "properties.upsert", { kind: "locatif", ownership: "sci_familiale", name: "Studio", value: 150_000, companyId: sci.id, dismemberment: "nue_propriete", usufructBirthDate: "1958-04-02" });
+    expect(bien).toMatchObject({ companyId: sci.id, dismemberment: "nue_propriete", usufructBirthDate: "1958-04-02" });
+    // Hors SCI, le rattachement à une société est retiré ; en pleine propriété, l'usufruitier aussi.
+    const nom = await call<{ companyId: string | null; usufructBirthDate: string | null }>(b, "properties.upsert", { id: bien.id, kind: "locatif", ownership: "nom_propre", name: "Studio", value: 150_000, companyId: sci.id, dismemberment: "pleine", usufructBirthDate: "1958-04-02" });
+    expect(nom).toMatchObject({ companyId: null, usufructBirthDate: null });
+    // Un démembrement sans de quoi l'évaluer est refusé.
+    await expect(call(b, "properties.upsert", { kind: "locatif", name: "Sans date", value: 1, dismemberment: "usufruit" })).rejects.toThrow(/VALIDATION/);
+
+    const joint = await call<{ share: number }>(b, "accounts.upsert", { kind: "cto", name: "Compte-titres joint", share: 0.5 });
+    expect(joint.share).toBe(0.5);
+    const pea = await call<{ share: number }>(b, "accounts.upsert", { kind: "pea", name: "PEA", share: 0.5 });
+    expect(pea.share).toBe(1);
+
+    await call(b, "companies.delete", { id: sci.id });
+    const ws = await call<{ companies: unknown[] }>(b, "workspace.load");
+    expect(ws.companies).toHaveLength(0);
+  });
+
   it("conserve l'établissement garant et le pays d'un établissement", async () => {
     const b = await memory();
     const defaut = await call<{ protection: { guarantor: string; country: string } }>(b, "institutions.upsert", { name: "Banque", kind: "banque" });

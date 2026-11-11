@@ -1,6 +1,7 @@
 import { addMonths, monthsBetween } from "./dates";
 import type { EnergyLetter } from "./energy";
 import { roundCents } from "./money";
+import { dismembermentRatio, type Company, type DismembermentFields } from "./ownership";
 
 /** Biens immobiliers et crédits : hors comptes, ils forment avec le patrimoine financier le patrimoine net. */
 
@@ -36,7 +37,7 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   autre: "Autre",
 };
 
-export interface Property {
+export interface Property extends DismembermentFields {
   id: string;
   kind: PropertyKind;
   ownership: PropertyOwnership;
@@ -80,8 +81,10 @@ export interface Property {
   /** Prix et frais de vente du bien entier. */
   salePrice: number | null;
   saleFees: number;
-  /** Part détenue (fraction) : 0,5 pour un bien à deux. */
+  /** Part détenue (fraction) : 0,5 pour un bien à deux ; pour un bien de SCI, la part du bien détenue par la société. */
   share: number;
+  /** Société (SCI) qui détient le bien : sa part s'applique en plus, une fois les parts de société appliquées (`withCompanyShares`). */
+  companyId: string | null;
   /** Dans ou hors de l'allocation cible ; null = comme la classe Immobilier. */
   inAllocation: boolean | null;
   classId: string | null;
@@ -113,6 +116,10 @@ export const NO_PROPERTY_DETAILS = {
   saleDate: null,
   salePrice: null,
   saleFees: 0,
+  companyId: null,
+  dismemberment: "pleine",
+  usufructBirthDate: null,
+  usufructEnd: null,
 } satisfies Partial<Property>;
 
 export const LOAN_KINDS = ["immobilier", "travaux", "consommation", "auto", "autre"] as const;
@@ -354,7 +361,9 @@ export function loanState(loan: Loan, asOf: string): LoanState {
   };
 }
 
-export const propertyValue = (p: Pick<Property, "value" | "share">) => roundCents(p.value * p.share);
+/** Valeur de la part détenue à une date : part du bien, puis part du droit en cas d'usufruit ou de nue-propriété (barème fiscal). */
+export const propertyValue = (p: Pick<Property, "value" | "share"> & Partial<DismembermentFields>, date: string) =>
+  roundCents(p.value * p.share * (p.dismemberment ? dismembermentRatio(p as DismembermentFields, date) : 1));
 
 /** Repères au m² ; null sans surface connue. */
 export function propertySqm(p: Pick<Property, "surface" | "purchasePrice" | "value">, monthlyRent: number | null): { purchase: number | null; value: number; rent: number | null } | null {
@@ -387,8 +396,8 @@ export interface PropertySummary {
 }
 
 /** Synthèse d'un bien, à partir des crédits en cours (non archivés) déjà calculés. `improvements` : travaux qui s'ajoutent au coût. */
-export function propertySummary(property: Property, loanStates: readonly LoanState[], improvements = 0): PropertySummary {
-  const heldValue = propertyValue(property);
+export function propertySummary(property: Property, loanStates: readonly LoanState[], improvements: number, date: string): PropertySummary {
+  const heldValue = propertyValue(property, date);
   const totalCost = propertyTotalCost(property);
   const heldCost = totalCost == null ? null : roundCents((totalCost + improvements) * property.share);
   const loans = loanStates.filter((l) => l.loan.propertyId === property.id);
@@ -463,7 +472,7 @@ export function propertyHeldValueAt(p: Property, estimates: readonly PropertyVal
   const points = [...estimates.filter((e) => e.propertyId === p.id).map((e) => ({ date: e.date, value: e.value })), ...(p.valueDate != null ? [{ date: p.valueDate, value: p.value }] : [])].sort((a, b) => a.date.localeCompare(b.date));
   const known = points.filter((x) => x.date <= date).at(-1);
   const value = known?.value ?? (points.length === 0 ? p.value : (p.purchasePrice ?? points[0].value));
-  return roundCents(value * p.share);
+  return propertyValue({ ...p, value }, date);
 }
 
 /** Part à charge du capital restant dû à une date : rien avant la première échéance, ni une fois soldé ou archivé sans date. */
@@ -498,4 +507,29 @@ export function propertySale(p: Property, improvements: number, loanPayoff: numb
   const totalCost = propertyTotalCost(p);
   const cost = totalCost == null ? null : roundCents((totalCost + improvements) * p.share);
   return { price, fees, cost, gain: cost == null ? null : roundCents(price - fees - cost), loanPayoff, net: roundCents(price - fees - loanPayoff) };
+}
+
+export interface CompanySummary {
+  /** Biens de la société (non vendus), pour la part qu'elle en détient. */
+  properties: Property[];
+  value: number;
+  /** Capital restant dû des crédits de ses biens. */
+  debt: number;
+  /** Actif net de la société : biens − crédits. */
+  net: number;
+  /** Valeur des parts de l'utilisateur. */
+  held: number;
+}
+
+/**
+ * Une SCI vue de l'extérieur : ses biens et ses crédits tels que saisis (avant les parts de société),
+ * son actif net, et ce que valent les parts de l'utilisateur.
+ */
+export function companySummary(company: Pick<Company, "id" | "share">, properties: readonly Property[], loans: readonly Loan[], date: string): CompanySummary {
+  const own = properties.filter((p) => p.companyId === company.id && !p.archived);
+  const ids = new Set(own.map((p) => p.id));
+  const value = roundCents(own.reduce((s, p) => s + propertyValue(p, date), 0));
+  const debt = roundCents(loans.filter((l) => !l.archived && l.propertyId != null && ids.has(l.propertyId)).reduce((s, l) => s + loanState(l, date).heldBalance, 0));
+  const net = roundCents(value - debt);
+  return { properties: own, value, debt, net, held: roundCents(net * company.share) };
 }

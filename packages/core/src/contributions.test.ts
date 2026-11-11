@@ -9,7 +9,7 @@ import type { AllocationRule } from "./allocations";
 
 const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): Account => ({
   id, kind, livretType: kind === "livret" ? "LEP" : null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "",
-  beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false, ...extra,
+  beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false, ...extra,
 });
 let n = 0;
 const apport = (accountId: string, amount: number): Transaction => ({ id: `t${n++}`, date: "2026-01-02", type: "apport_initial", accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" });

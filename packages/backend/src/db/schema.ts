@@ -69,6 +69,8 @@ export const accounts = pgTable("accounts", {
   managementFeeRate: doublePrecision("management_fee_rate"),
   monthsToInvest: bigint("months_to_invest", { mode: "number" }),
   inAllocation: boolean("in_allocation"),
+  /** Part détenue d'un compte joint (fraction). */
+  share: doublePrecision("share").notNull().default(1),
   sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
   archived: boolean("archived").notNull().default(false),
   ...timestamps,
@@ -248,6 +250,16 @@ export const crowdProjects = pgTable(
   (t) => [uniqueIndex("crowd_external_uq").on(t.accountId, t.externalId)],
 );
 
+/** Sociétés (SCI) qui détiennent des biens : l'utilisateur en détient une part des parts. */
+export const companies = pgTable("companies", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  share: doublePrecision("share").notNull().default(1),
+  comment: text("comment").notNull().default(""),
+  archived: boolean("archived").notNull().default(false),
+  ...timestamps,
+});
+
 export const properties = pgTable("properties", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
@@ -285,6 +297,11 @@ export const properties = pgTable("properties", {
   salePriceCents: bigint("sale_price_cents", { mode: "number" }),
   saleFeesCents: bigint("sale_fees_cents", { mode: "number" }).notNull().default(0),
   share: doublePrecision("share").notNull().default(1),
+  companyId: text("company_id").references(() => companies.id, { onDelete: "set null" }),
+  /** Pleine propriété, usufruit ou nue-propriété, et ce qui sert à les évaluer (barème fiscal). */
+  dismemberment: text("dismemberment").notNull().default("pleine"),
+  usufructBirthDate: text("usufruct_birth_date"),
+  usufructEnd: text("usufruct_end"),
   inAllocation: boolean("in_allocation"),
   classId: text("class_id"),
   comment: text("comment").notNull().default(""),

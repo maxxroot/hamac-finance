@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AccountInput } from "@hamac/api";
-import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, canBeJoint, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
@@ -24,6 +24,7 @@ function empty(kind: AccountKind): Draft {
     managementFeeRate: null,
     monthsToInvest: kind === "pea" ? 12 : null,
     inAllocation: null,
+    share: 1,
     sortOrder: 0,
     archived: false,
   };
@@ -195,6 +196,12 @@ export function AccountDialog({
         {d.kind === "pea" && (
           <Field label="Mois pour investir l'apport de départ" help="Hamac conseille chaque mois d'investir les espèces du PEA par fractions sur cette durée.">
             {(id) => <NumberInput id={id} value={d.monthsToInvest} decimals={0} onChange={(v) => set("monthsToInvest", v == null ? null : Math.max(1, Math.round(v)))} />}
+          </Field>
+        )}
+
+        {canBeJoint(d) && (
+          <Field label="Part détenue" help="Compte joint : 50 % s'il est à deux. Seule votre part compte dans le patrimoine, la répartition et la protection en cas de faillite ; le compte et ses opérations restent saisis en entier.">
+            {(id) => <PercentInput id={id} value={d.share} onChange={(v) => set("share", v == null ? 1 : Math.min(1, Math.max(0.01, v)))} />}
           </Field>
         )}
 
