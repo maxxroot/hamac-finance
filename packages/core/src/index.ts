@@ -34,3 +34,5 @@ export * from "./bondnames";
 export * from "./allocations";
 export * from "./contributions";
 export * from "./timeline";
+export * from "./simulation";
+export * from "./simulators";

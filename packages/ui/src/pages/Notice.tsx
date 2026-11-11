@@ -345,7 +345,8 @@ export function Notice() {
             [<L to="/" key="d">Tableau de bord</L>, "Votre patrimoine, votre répartition et les points à regarder. Commencez par là."],
             [<L to="/performance" key="p">Performance</L>, "Ce que votre argent a réellement rapporté, enveloppe par enveloppe, et sa comparaison avec un ETF ou un autre titre, même sans le détenir."],
             [<L to="/projection" key="j">Projection</L>, "Votre patrimoine à la retraite et le revenu mensuel possible."],
-            [<L to="/historique" key="h">Historique</L>, "L'évolution de votre patrimoine, mois après mois."],
+            [<L to="/historique" key="h">Historique</L>, "Où en était votre patrimoine à une date, ce qui a changé depuis, et si vous êtes en avance sur votre plan."],
+            [<L to="/simulateurs" key="m">Simulateurs</L>, "Avant d'investir : ce qu'un placement rapporterait avant et après impôts, et plusieurs placements côte à côte."],
             [<L to="/enveloppes" key="s">Synthèse</L>, "Tous vos comptes côte à côte."],
           ]}
         />

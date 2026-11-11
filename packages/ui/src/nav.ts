@@ -2,6 +2,7 @@ import type { ModuleKey } from "@hamac/core";
 import {
   Banknote,
   BookOpen,
+  Calculator,
   Bitcoin,
   CalendarClock,
   ChartLine,
@@ -50,7 +51,8 @@ export const NAV: NavGroup[] = [
       { path: "/", label: "Tableau de bord", icon: Gauge, sheetTab: "Tableau de bord", step: 4, description: "Patrimoine, projection retraite, alertes et répartition." },
       { path: "/performance", module: "performance", label: "Performance", icon: TrendingUp, sheetTab: "Performance", step: 3, description: "Rendement annualisé (TRI) et plus-values par enveloppe." },
       { path: "/projection", label: "Projection", icon: ChartLine, sheetTab: "Projection", step: 4, description: "Projection année par année jusqu'à la retraite et simulations.", retirementOnly: true },
-      { path: "/historique", module: "historique", label: "Historique", icon: History, sheetTab: "Historique", step: 3, description: "Photos mensuelles du patrimoine et leur évolution." },
+      { path: "/historique", module: "historique", label: "Historique", icon: History, sheetTab: "Historique", step: 3, description: "La situation à deux dates, ce qui a changé entre les deux et les grandes étapes." },
+      { path: "/simulateurs", module: "simulateurs", label: "Simulateurs", icon: Calculator, sheetTab: "Simulateurs", step: 5, description: "Rendement brut et net d'impôts d'un placement, avant d'investir, et comparaison." },
     ],
   },
   {

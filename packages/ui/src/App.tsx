@@ -11,6 +11,7 @@ import { Crowdlending } from "@/pages/Crowdlending";
 import { Crypto } from "@/pages/Crypto";
 import { FondsEuros } from "@/pages/FondsEuros";
 import { Historique } from "@/pages/Historique";
+import { Simulateurs } from "@/pages/Simulateurs";
 import { Immobilier } from "@/pages/Immobilier";
 import { ImpressionBien } from "@/pages/ImpressionBien";
 import { Quittance } from "@/pages/Quittance";
@@ -49,6 +50,7 @@ const PAGES: Record<string, ReactNode> = {
   "/impots": <Impots />,
   "/declaration": <Declaration />,
   "/historique": <Historique />,
+  "/simulateurs": <Simulateurs />,
 };
 
 // Routeur par hash : aucune configuration de réécriture d'URL côté reverse proxy.
