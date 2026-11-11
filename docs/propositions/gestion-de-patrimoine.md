@@ -12,6 +12,7 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 - **Qui possède quoi (proposition 3)** : usufruit et nue-propriété d'un bien immobilier au barème fiscal, sociétés (SCI) avec la part des parts détenue, part détenue sur les comptes joints.
 - **Rapprochement avec les relevés (proposition 12 a)** : page « Rapprochement » (groupe Saisie), relevé avec valeur, espèces et quantités, comparé au calcul à sa date, correction en un clic, rappel au-delà de 12 mois sans relevé.
 - **Poids des crédits (proposition 8)** : sur la page Crédits, part du patrimoine financée à crédit, part de chaque bien encore due, taux d'effort, taux assurance comprise et coût restant de chaque crédit, et comparateur « rembourser par avance ou placer ».
+- **Compteurs et plafonds (proposition 9)** : page « Compteurs et plafonds » (groupe Fiscalité) : ancienneté du PEA et des assurances-vie, plafonds du PEA, du PEA-PME, des livrets et du PER, abattement annuel de l'assurance-vie, versements avant et après 70 ans, donations faites et reçues avec leurs abattements.
 - **Autres biens (proposition 4)** : page « Autres biens », en dernier des enveloppes ; or, objets, véhicules, parts de société (démembrables), compte courant d'associé et argent prêté, avec décote, délai de vente et impôt estimé à la vente.
 
 Le détail, les décisions prises et ce qui reste hors de chaque version sont dans la section de chaque proposition.
@@ -28,7 +29,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 6 | Concentration et risque | À faire, à détailler |
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
 | 8 | Poids des crédits et aide à la décision | Fait le 11 novembre 2026 |
-| 9 | Compteurs d'ancienneté et plafonds | À faire, en partie existant |
+| 9 | Compteurs d'ancienneté et plafonds | Fait le 11 novembre 2026 |
 | 10 | Liste de fin d'année | À faire, dans la partie Impôts |
 | 11 | Objectifs par projet | À faire |
 | 12 | Rapprochement avec les relevés et journal des décisions | 12 a fait le 11 novembre 2026 ; 12 b à faire |
@@ -236,7 +237,7 @@ Pour chaque bien :
 
 ## 9. Compteurs d'ancienneté et plafonds
 
-**Statut :** à faire. En partie existant.
+**Statut :** fait le 11 novembre 2026. Calculs dans `core/src/counters.ts`, page « Compteurs et plafonds » (`/compteurs`, groupe Fiscalité, module Impôts), table `gifts` pour les donations, réglage « Plafond de déduction PER » (Paramètres › Plan). Décisions : les plafonds du PEA comptent les versements bruts (versé net plus retraits et transferts sortants), ce qui est prudent ; la part de gain d'un retrait d'assurance-vie se calcule au prorata du versé net juste avant le retrait ; les 70 ans sont comptés au 1er janvier de l'année des 70 ans, faute de date de naissance complète ; les donations se saisissent avec le lien du bénéficiaire avec le donateur, et le don familial d'argent s'impute d'abord sur son exonération. Abattements vérifiés sur service-public.gouv.fr (page vérifiée le 13 mai 2026). Non fait : abattement pour handicap, donations par représentation, droits de donation au-delà des abattements.
 
 **Ce qui existe :**
 
@@ -332,7 +333,7 @@ Pour chaque bien :
 4. **Proposition 7**, disponibilité de l'argent.
 5. **Proposition 6**, concentration et risque.
 6. ~~**Proposition 8**, crédits~~ : fait.
-7. **Propositions 9 puis 10**, compteurs puis liste de fin d'année, qui s'appuie sur les compteurs.
+7. ~~**Proposition 9**, compteurs~~ : fait. **Proposition 10**, liste de fin d'année, qui s'appuie sur les compteurs.
 8. **Proposition 11**, objectifs par projet.
 9. **Proposition 12 b**, journal des décisions.
 10. **Proposition 5**, exposition réelle, après une étude de faisabilité.

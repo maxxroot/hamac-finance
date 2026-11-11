@@ -267,6 +267,19 @@ export const crowdProjects = pgTable(
   (t) => [uniqueIndex("crowd_external_uq").on(t.accountId, t.externalId)],
 );
 
+/** Donations faites et reçues, pour suivre les abattements renouvelés tous les 15 ans. */
+export const gifts = pgTable("gifts", {
+  id: text("id").primaryKey(),
+  date: text("date").notNull(),
+  direction: text("direction").notNull(),
+  kind: text("kind").notNull(),
+  person: text("person").notNull(),
+  relation: text("relation").notNull(),
+  amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+  comment: text("comment").notNull().default(""),
+  ...timestamps,
+});
+
 /** Sociétés (SCI) qui détiennent des biens : l'utilisateur en détient une part des parts. */
 export const companies = pgTable("companies", {
   id: text("id").primaryKey(),

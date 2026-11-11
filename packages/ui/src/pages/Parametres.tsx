@@ -281,6 +281,7 @@ function PlanTab({ draft }: { draft: PlanDraft }) {
           {pctField("Impôt assurance-vie avant 8 ans", ["tax", "avBefore8"])}
           {pctField("Impôt assurance-vie après 8 ans", ["tax", "avAfter8"], "Pour moins de 150 000 € de versements.")}
           {eurField("Abattement annuel assurance-vie (seul)", ["tax", "avAllowanceSingle"], "Après 8 ans. 9 200 € pour un couple.")}
+          {eurField("Plafond de déduction PER", ["tax", "perDeductionCeiling"], "Indiqué sur votre avis d'impôt. 0 : non renseigné.")}
           {eurField("Seuil d'exonération des ventes crypto", ["crypto", "exemptionThreshold"], "Total annuel des cessions en dessous duquel rien n'est dû.")}
         </FormGrid>
       </Section>

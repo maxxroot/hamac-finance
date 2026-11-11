@@ -35,6 +35,7 @@ const TABLES = [
   "loans",
   "loan_prepayments",
   "account_rates",
+  "gifts",
 ] as const;
 
 export async function exportDump(ctx: Pick<BackendContext, "raw" | "schemaVersion" | "appVersion">): Promise<DataDump> {

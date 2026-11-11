@@ -10,6 +10,7 @@ import type {
   ContributionPlan,
   ContributionSkip,
   FundRate,
+  Gift,
   CrowdProject,
   IrlData,
   Lease,
@@ -39,6 +40,7 @@ import {
   CompanyInput,
   InstitutionInput,
   FundRateInput,
+  GiftInput,
   ManualPriceInput,
   PlanInput,
   CrowdImportInput,
@@ -95,6 +97,8 @@ export interface Workspace {
   properties: Property[];
   /** Sociétés (SCI) qui détiennent des biens. */
   companies: Company[];
+  /** Donations faites et reçues. */
+  gifts: Gift[];
   /** Or, objets de valeur, véhicules, parts de société, sommes prêtées, et leurs estimations passées. */
   otherAssets: OtherAsset[];
   otherAssetValues: OtherAssetValue[];
@@ -222,6 +226,8 @@ export const procedures = {
   "otherAssets.delete": { input: byId, output: ok },
   "otherAssetValues.add": { input: OtherAssetValueInput, output: ok },
   "otherAssetValues.delete": { input: byId, output: ok },
+  "gifts.upsert": { input: GiftInput, output: entity<Gift>() },
+  "gifts.delete": { input: byId, output: ok },
   "companies.upsert": { input: CompanyInput, output: entity<Company>() },
   "companies.delete": { input: byId, output: ok },
   "properties.upsert": { input: PropertyInput, output: entity<Property>() },

@@ -13,6 +13,7 @@ import {
   Gem,
   HandCoins,
   History,
+  Hourglass,
   House,
   Landmark,
   NotebookPen,
@@ -87,6 +88,7 @@ export const NAV: NavGroup[] = [
     label: "Fiscalité",
     items: [
       { path: "/impots", module: "impots", label: "Impôts", icon: Receipt, sheetTab: "Impôts", step: 3, description: "À payer à la prochaine déclaration, détail de chaque compte, impôt si tout était retiré, rendements nets, impôt annuel." },
+      { path: "/compteurs", module: "impots", label: "Compteurs et plafonds", icon: Hourglass, sheetTab: "Impôts", step: 5, description: "Ancienneté des contrats, plafonds de versement, abattements de l'assurance-vie et des donations." },
       { path: "/declaration", module: "impots", label: "Aide à la déclaration", icon: FileText, sheetTab: "Impôts", step: 3, description: "Récapitulatif fiscal par établissement et récapitulatif complet." },
     ],
   },

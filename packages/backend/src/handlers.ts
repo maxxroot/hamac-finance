@@ -24,7 +24,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapGift, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -526,6 +526,21 @@ export const handlers: Handlers = {
 
   async "otherAssetValues.delete"({ id }, ctx) {
     await ctx.db.delete(t.otherAssetValues).where(eq(t.otherAssetValues.id, id));
+    return OK;
+  },
+
+  async "gifts.upsert"(input, ctx) {
+    const id = input.id ?? newId();
+    const row = { date: input.date, direction: input.direction, kind: input.kind, person: input.person, relation: input.relation, amountCents: toCents(input.amount), comment: input.comment, updatedAt: nowIso() };
+    if (input.id) {
+      const res = await ctx.db.update(t.gifts).set(row).where(eq(t.gifts.id, id)).returning({ id: t.gifts.id });
+      if (!res.length) throw new RpcError("NOT_FOUND", "Donation introuvable.");
+    } else await ctx.db.insert(t.gifts).values({ id, ...row });
+    return mapGift((await ctx.db.select().from(t.gifts).where(eq(t.gifts.id, id)).limit(1).then(one))!);
+  },
+
+  async "gifts.delete"({ id }, ctx) {
+    await ctx.db.delete(t.gifts).where(eq(t.gifts.id, id));
     return OK;
   },
 

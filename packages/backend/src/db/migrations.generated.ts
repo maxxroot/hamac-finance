@@ -71,5 +71,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0017_glamorous_dark_beast",
     "sql": "CREATE TABLE \"statement_positions\" (\n\t\"statement_id\" text NOT NULL,\n\t\"asset_id\" text NOT NULL,\n\t\"quantity\" double precision NOT NULL,\n\tCONSTRAINT \"statement_positions_statement_id_asset_id_pk\" PRIMARY KEY(\"statement_id\",\"asset_id\")\n);\n--> statement-breakpoint\nALTER TABLE \"statements\" ADD COLUMN \"cash_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"statement_positions\" ADD CONSTRAINT \"statement_positions_statement_id_statements_id_fk\" FOREIGN KEY (\"statement_id\") REFERENCES \"statements\"(\"id\") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint\nALTER TABLE \"statement_positions\" ADD CONSTRAINT \"statement_positions_asset_id_assets_id_fk\" FOREIGN KEY (\"asset_id\") REFERENCES \"assets\"(\"id\") ON DELETE cascade ON UPDATE no action;"
+  },
+  {
+    "tag": "0018_bent_scarlet_witch",
+    "sql": "CREATE TABLE \"gifts\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"date\" text NOT NULL,\n\t\"direction\" text NOT NULL,\n\t\"kind\" text NOT NULL,\n\t\"person\" text NOT NULL,\n\t\"relation\" text NOT NULL,\n\t\"amount_cents\" bigint NOT NULL,\n\t\"comment\" text DEFAULT '' NOT NULL,\n\t\"created_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\t\"updated_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL\n);\n"
   }
 ];

@@ -97,6 +97,8 @@ export const PlanParams = z
       avAllowanceSingle: eur,
       avAllowanceCouple: eur,
       peaBefore5: pct,
+      /** Plafond de déduction des versements sur un PER, lu sur l'avis d'impôt ; 0 = non renseigné. */
+      perDeductionCeiling: eur,
     }),
     /** Pages affichées dans le menu. Masquer un module ne change aucun calcul. */
     modules: z.object(Object.fromEntries(MODULES.map((m) => [m, z.boolean()])) as Record<ModuleKey, z.ZodBoolean>),
@@ -184,6 +186,7 @@ export function defaultParams(today = new Date()): PlanParams {
       avAllowanceSingle: 4600,
       avAllowanceCouple: 9200,
       peaBefore5: 0.128,
+      perDeductionCeiling: 0,
     },
     modules: Object.fromEntries(MODULES.map((m) => [m, true])) as Record<ModuleKey, boolean>,
     contributions: { mode: "libre", capacity: 0 },

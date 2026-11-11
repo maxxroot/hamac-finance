@@ -268,6 +268,19 @@ describe("établissements", () => {
     expect(ws.accounts[0].institutionId).toBeNull();
   });
 
+  it("enregistre, modifie et supprime une donation", async () => {
+    const b = await memory();
+    const g = await call<{ id: string; amount: number; kind: string }>(b, "gifts.upsert", { date: "2025-06-01", direction: "faite", person: "Camille", relation: "enfant", amount: 20_000 });
+    expect(g).toMatchObject({ amount: 20_000, kind: "donation" });
+    await call(b, "gifts.upsert", { id: g.id, date: "2025-06-01", direction: "faite", kind: "don_argent", person: "Camille", relation: "enfant", amount: 25_000 });
+    let ws = await call<{ gifts: Array<{ kind: string; amount: number }> }>(b, "workspace.load");
+    expect(ws.gifts).toEqual([expect.objectContaining({ kind: "don_argent", amount: 25_000 })]);
+    await expect(call(b, "gifts.upsert", { date: "2025-06-01", direction: "faite", person: "", relation: "enfant", amount: 1 })).rejects.toThrow(/VALIDATION/);
+    await call(b, "gifts.delete", { id: g.id });
+    ws = await call(b, "workspace.load");
+    expect(ws.gifts).toHaveLength(0);
+  });
+
   it("enregistre un relevé avec ses espèces et ses quantités, et les remplace à la modification", async () => {
     const b = await memory();
     const pea = await call<{ id: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA" });

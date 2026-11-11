@@ -568,6 +568,12 @@ export function Notice() {
           </li>
         </ol>
         <p>Chaque document indique l'année de validité de ses règles. Si une année n'a pas encore été vérifiée, c'est signalé, et ses numéros de case sont seulement indicatifs.</p>
+        <p>
+          <B>Compteurs et plafonds.</B> La page <L to="/compteurs">Compteurs et plafonds</L> rassemble ce qui avance avec le temps : la date des 5 ans de votre PEA et des 8 ans de chaque assurance-vie, les versements comparés au plafond du PEA (150 000 €) et du PEA-PME (225 000 € à eux deux), le solde de chaque livret face à son plafond, et vos versements PER de l'année si vous indiquez votre plafond de déduction (Paramètres › Plan). Pour l'assurance-vie, elle montre la part de l'abattement annuel déjà utilisée par vos retraits de l'année, et vos versements avant et après 70 ans.
+        </p>
+        <p>
+          <B>Donations.</B> Notez les donations que vous faites ou recevez : pour chaque personne, Hamac montre l'abattement utilisé sur les 15 dernières années (100 000 € entre parent et enfant, 31 865 € pour un petit-enfant…), ce qu'il reste, le don familial de sommes d'argent encore possible et la date à laquelle l'abattement se renouvelle. Les présents d'usage ne comptent pas.
+        </p>
       </Fold>
 
       <Fold id="donnees" title="Vos données et sauvegardes">
