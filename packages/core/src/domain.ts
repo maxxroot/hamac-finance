@@ -301,7 +301,12 @@ export interface Statement {
   id: string;
   accountId: string;
   date: string;
+  /** Valeur totale relevée. */
   value: number;
+  /** Espèces relevées ; null si non relevées. */
+  cash: number | null;
+  /** Quantités relevées, titre par titre (seulement les titres vérifiés). */
+  positions: Array<{ assetId: string; quantity: number }>;
   comment: string;
 }
 

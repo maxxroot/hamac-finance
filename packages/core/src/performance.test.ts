@@ -3,7 +3,7 @@ import type { Account, Asset, PricePoint, Transaction } from "./domain";
 import { computePortfolio, type EngineData } from "./engine";
 import { buildHistory } from "./history";
 import { defaultParams } from "./params";
-import { assetPerformance, chainRates, comparableAssetIds, comparePerformance, envelopePerformance, gainSources, maxDrawdown, monthlyReturns, sameFlowsOn, scopePerformance, type MonthReturn } from "./performance";
+import { assetPerformance, chainRates, comparableAssetIds, comparePerformance, envelopePerformance, gainSources, maxDrawdown, monthlyReturns, periodTables, sameFlowsOn, scopePerformance, type MonthReturn, type PeriodTables } from "./performance";
 import { PriceBook } from "./prices";
 
 const acc = (id: string, kind: Account["kind"]): Account => ({ id, kind, livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false });
@@ -165,10 +165,35 @@ describe("page Performance sur un portefeuille", () => {
     expect(p.years).toHaveLength(1);
     expect(p.years[0]).toMatchObject({ year: 2025, startValue: 0, inflow: 1000, income: 20, fees: 15 });
     expect(p.years[0]!.gain).toBe(p.summary.gain);
+    // Mois par mois : chaque mois part de la valeur de fin du précédent, et le tout redonne l'année.
+    expect(p.monthly.length).toBeGreaterThan(1);
+    p.monthly.slice(1).forEach((m, i) => expect(m.startValue).toBe(p.monthly[i]!.endValue));
+    const total = (k: "inflow" | "gain" | "income" | "fees") => Math.round(p.monthly.reduce((t, m) => t + m[k], 0) * 100) / 100;
+    expect(total("inflow")).toBe(p.years[0]!.inflow);
+    expect(total("gain")).toBe(p.years[0]!.gain);
+    expect(total("income")).toBe(p.years[0]!.income);
+    expect(total("fees")).toBe(p.years[0]!.fees);
+    expect(p.monthly.at(-1)!.endValue).toBe(p.years[0]!.endValue);
     // Depuis le début : la courbe en euros part du premier mois et finit sur le gain total.
     expect(p.curve.at(-1)!.gain).toBe(p.summary.gain);
     expect(p.calendar[0]!.months).toHaveLength(12);
     expect(p.stats!.counted).toBeGreaterThan(0);
+  });
+
+  it("détail par enveloppe : les mêmes chiffres que l'analyse complète", () => {
+    const d = base();
+    const state = computePortfolio(d, ASOF);
+    const history = buildHistory(d, ASOF);
+    const full = scopePerformance(d, state, history, ["pea"], null)!;
+    const t = periodTables(d, state, history, ["pea"])!;
+    expect(t.years).toEqual(full.years);
+    expect(t.monthly).toEqual(full.monthly);
+    // Les parts se recomposent : la somme des gains de chaque enveloppe redonne le gain de l'ensemble.
+    const both = scopePerformance(d, state, history, ["pea", "cto"], null)!;
+    const cto = periodTables(d, state, history, ["cto"])!;
+    const of = (x: PeriodTables, y: number, k: "gain" | "inflow" | "endValue") => x.years.find((r) => r.year === y)?.[k] ?? 0;
+    for (const y of both.years) for (const k of ["gain", "inflow", "endValue"] as const) expect(of(t, y.year, k) + of(cto, y.year, k)).toBeCloseTo(y[k], 2);
+    expect(periodTables(d, state, history, ["inconnu"])).toBeNull();
   });
 
   it("signale les mois comptés au prix de revient, faute de cours", () => {

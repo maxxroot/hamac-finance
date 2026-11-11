@@ -113,8 +113,8 @@ export interface GainSources {
   embeddedFees: number;
 }
 
-export interface YearPerformance {
-  year: number;
+/** Chiffres d'une année ou d'un mois. */
+export interface PeriodFigures {
   startValue: number;
   endValue: number;
   inflow: number;
@@ -122,6 +122,14 @@ export interface YearPerformance {
   rate: number | null;
   income: number;
   fees: number;
+}
+
+export interface YearPerformance extends PeriodFigures {
+  year: number;
+}
+
+export interface MonthPerformance extends PeriodFigures {
+  month: Month;
 }
 
 export interface CalendarYear {
@@ -177,6 +185,8 @@ export interface ScopePerformance {
   drawdown: Drawdown | null;
   curve: CurvePoint[];
   years: YearPerformance[];
+  /** Les mêmes chiffres, mois par mois, sur tout l'historique. */
+  monthly: MonthPerformance[];
   calendar: CalendarYear[];
   stats: MonthStats | null;
   /** Mois de la période dont plus de 1 % de la valeur est comptée au prix de revient, faute de cours. */
@@ -267,20 +277,21 @@ export function gainSources(start: HistoryPoint | null, end: HistoryPoint, ids: 
   };
 }
 
-function yearsOf(months: readonly MonthReturn[], history: readonly HistoryPoint[], ids: readonly string[]): YearPerformance[] {
-  const byYear = new Map<number, number[]>();
+/** Regroupe les mois (par année, ou un par un) : valeur au début et à la fin, argent versé, gain, rendement, revenus et frais. */
+function periodsOf(months: readonly MonthReturn[], history: readonly HistoryPoint[], ids: readonly string[], keyOf: (m: Month) => string): Array<{ key: string } & PeriodFigures> {
+  const groups = new Map<string, number[]>();
   months.forEach((m, i) => {
-    const y = +m.month.slice(0, 4);
-    byYear.set(y, [...(byYear.get(y) ?? []), i]);
+    const k = keyOf(m.month);
+    groups.set(k, [...(groups.get(k) ?? []), i]);
   });
-  return [...byYear.entries()].map(([year, idx]) => {
+  return [...groups.entries()].map(([key, idx]) => {
     const first = idx[0]!;
     const last = idx.at(-1)!;
     const before = first > 0 ? history[first - 1]! : null;
     const s = gainSources(before, history[last]!, ids);
     const group = idx.map((i) => months[i]!);
     return {
-      year,
+      key,
       startValue: before ? months[first - 1]!.value : 0,
       endValue: months[last]!.value,
       inflow: roundCents(sum(group, (m) => m.inflow)),
@@ -291,6 +302,12 @@ function yearsOf(months: readonly MonthReturn[], history: readonly HistoryPoint[
     };
   });
 }
+
+const yearsOf = (months: readonly MonthReturn[], history: readonly HistoryPoint[], ids: readonly string[]): YearPerformance[] =>
+  periodsOf(months, history, ids, (m) => m.slice(0, 4)).map(({ key, ...f }) => ({ year: +key, ...f }));
+
+const monthlyOf = (months: readonly MonthReturn[], history: readonly HistoryPoint[], ids: readonly string[]): MonthPerformance[] =>
+  periodsOf(months, history, ids, (m) => m).map(({ key, ...f }) => ({ month: key, ...f }));
 
 function calendarOf(months: readonly MonthReturn[]): CalendarYear[] {
   const years = new Map<number, Array<number | null>>();
@@ -392,15 +409,38 @@ function classBreakdown(data: EngineData, kept: readonly HistoryPoint[], account
   return { rows, charges: roundCents(from.charges - end.charges) };
 }
 
-/** Tout ce que la page montre pour un ensemble de comptes ; `monthsBack` null = depuis le début. */
-export function scopePerformance(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], accountIds: readonly string[], monthsBack: number | null): ScopePerformance | null {
+/** Mois d'un ensemble de comptes, à partir de sa première donnée ; null s'il n'a encore rien. */
+function scopeMonths(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], accountIds: readonly string[]) {
   const flows = accountFlows(data, accountIds, state.asOf);
   const all = history.map((h) => ({ month: h.month, date: h.date, value: sum(accountIds, (id) => h.byAccount[id] ?? 0) }));
   const first = trimLeading(all, flows);
   if (first < 0) return null;
   const points = all.slice(first);
   const kept = history.slice(first);
-  const months = monthlyReturns(points, flows);
+  return { flows, points, kept, months: monthlyReturns(points, flows) };
+}
+
+export interface PeriodTables {
+  years: YearPerformance[];
+  monthly: MonthPerformance[];
+}
+
+/**
+ * Année par année et mois par mois pour un ensemble de comptes, sans le reste de l'analyse :
+ * sert au détail par enveloppe ou par compte. Un transfert entre deux ensembles compte comme
+ * argent versé pour l'un et retiré pour l'autre.
+ */
+export function periodTables(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], accountIds: readonly string[]): PeriodTables | null {
+  const base = scopeMonths(data, state, history, accountIds);
+  if (!base) return null;
+  return { years: yearsOf(base.months, base.kept, accountIds), monthly: monthlyOf(base.months, base.kept, accountIds) };
+}
+
+/** Tout ce que la page montre pour un ensemble de comptes ; `monthsBack` null = depuis le début. */
+export function scopePerformance(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], accountIds: readonly string[], monthsBack: number | null): ScopePerformance | null {
+  const base = scopeMonths(data, state, history, accountIds);
+  if (!base) return null;
+  const { flows, points, kept, months } = base;
   const start = windowStart(points.length, monthsBack);
   const window = start == null ? months : months.slice(start + 1);
   const curve: CurvePoint[] = start == null ? [] : [{ month: points[start]!.month, cumulative: 0, gain: 0 }];
@@ -422,6 +462,7 @@ export function scopePerformance(data: EngineData, state: PortfolioState, histor
     drawdown: maxDrawdown(window),
     curve,
     years: yearsOf(months, kept, accountIds),
+    monthly: monthlyOf(months, kept, accountIds),
     calendar: calendarOf(months),
     stats: statsOf(months),
     unpricedMonths,

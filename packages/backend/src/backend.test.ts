@@ -268,6 +268,17 @@ describe("établissements", () => {
     expect(ws.accounts[0].institutionId).toBeNull();
   });
 
+  it("enregistre un relevé avec ses espèces et ses quantités, et les remplace à la modification", async () => {
+    const b = await memory();
+    const pea = await call<{ id: string }>(b, "accounts.upsert", { kind: "pea", name: "PEA" });
+    const etf = await call<{ id: string }>(b, "assets.upsert", { kind: "etf", name: "ETF Monde", priceSource: "manuel" });
+    const r = await call<{ id: string; cash: number | null; positions: Array<{ assetId: string; quantity: number }> }>(b, "statements.upsert", { accountId: pea.id, date: "2025-12-31", value: 2_550, cash: 950, positions: [{ assetId: etf.id, quantity: 16 }] });
+    expect(r).toMatchObject({ cash: 950, positions: [{ assetId: etf.id, quantity: 16 }] });
+    await call(b, "statements.upsert", { id: r.id, accountId: pea.id, date: "2025-12-31", value: 2_550, positions: [] });
+    const ws = await call<{ statements: Array<{ cash: number | null; positions: unknown[] }> }>(b, "workspace.load");
+    expect(ws.statements[0]).toMatchObject({ cash: null, positions: [] });
+  });
+
   it("enregistre un autre bien, garde ses estimations passées et ne garde l'échéancier que pour un prêt", async () => {
     const b = await memory();
     const or = await call<{ id: string; loanPrincipal: number | null }>(b, "otherAssets.upsert", { kind: "metal", name: "Pièces", value: 18_000, valueDate: "2025-01-10", purchasePrice: 12_000, purchaseDate: "2016-03-01", loanPrincipal: 5_000 });

@@ -289,6 +289,7 @@ function PlanTab({ draft }: { draft: PlanDraft }) {
           {eurField("Espèces du compte-titres à investir", ["alerts", "ctoCashThreshold"], "Alerte quand de quoi acheter une obligation attend.")}
           {eurField("Espèces du PEA à investir", ["alerts", "peaCashThreshold"])}
           {eurField("Garantie des assureurs (FGAP)", ["alerts", "fgapGuarantee"], "Par personne et par assureur.")}
+          {intField("Rappel de rapprochement (mois)", ["alerts", "reconcileMonths"], "Compte sans relevé depuis ce délai. 0 : pas de rappel.")}
         </FormGrid>
       </Section>
     </div>

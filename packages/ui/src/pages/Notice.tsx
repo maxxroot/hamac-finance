@@ -18,6 +18,7 @@ export const NOTICE_PLAN: ReadonlyArray<{ part: string; items: ReadonlyArray<[id
     items: [
       ["journal", "Noter une opération"],
       ["import", "Importer un relevé"],
+      ["rapprochement", "Vérifier avec le site de l'établissement"],
       ["versements", "Vos virements mensuels"],
       ["calendrier", "Que faire, et quand"],
       ["resultats", "Où lire vos résultats"],
@@ -285,6 +286,16 @@ export function Notice() {
         <p>
           <B>À retenir :</B> les montants sont toujours positifs, car le type d'opération indique déjà le sens. Seule une correction peut être négative. Les frais d'achat et de vente se calculent seuls, et restent modifiables.
         </p>
+      </Section>
+
+      <Section id="rapprochement" title="Vérifier avec le site de l'établissement">
+        <p>
+          De temps en temps, ouvrez <L to="/rapprochement">Rapprochement</L> et cliquez sur « Saisir un relevé » pour un compte : recopiez la valeur totale affichée par l'établissement et sa date. Sur un PEA, un compte-titres, une assurance-vie ou une plateforme crypto, ajoutez si vous le pouvez les espèces disponibles et la quantité de chaque titre.
+        </p>
+        <p>
+          Hamac recalcule le compte <B>à la date du relevé</B> et affiche l'écart. Une quantité qui diffère signale un achat, une vente ou un transfert oublié ; un écart sur les espèces, une opération manquante ou des frais non notés. Cherchez d'abord l'opération manquante ; à défaut, le bouton « Ajouter la correction au journal » note l'écart en une fois. Sur un compte de titres, un petit écart de valeur peut simplement venir des cours.
+        </p>
+        <p>Un rappel apparaît au tableau de bord pour les comptes sans relevé depuis 12 mois. Le délai se règle dans Paramètres › Plan, rubrique « Seuils d'alerte » (0 pour ne plus être rappelé).</p>
       </Section>
 
       <Section id="import" title="Importer un relevé">

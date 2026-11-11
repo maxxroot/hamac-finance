@@ -34,6 +34,17 @@ export function findScope(options: ScopeOptions, key: string): ScopeOption | nul
   return [options.all, ...options.groups, ...options.accounts].find((o) => o.key === key) ?? null;
 }
 
+/**
+ * Sous-lignes du tableau année par année : les enveloppes sur tout le patrimoine, les comptes
+ * d'une enveloppe qui en a plusieurs ; rien pour un seul compte.
+ */
+export function breakdownParts(options: ScopeOptions, scope: ScopeOption): ScopeOption[] {
+  if (scope.key === ALL_SCOPE) return options.groups;
+  if (!scope.key.startsWith("group:") || scope.accountIds.length < 2) return [];
+  const ids = new Set(scope.accountIds);
+  return options.accounts.filter((a) => ids.has(a.accountIds[0]!));
+}
+
 export const assetKey = (assetId: string) => `asset:${assetId}`;
 
 /** Titre recherché pour une comparaison : il n'est pas ajouté au portefeuille. */

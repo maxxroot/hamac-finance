@@ -17,6 +17,7 @@ const TABLES = [
   "bond_plans",
   "fund_rates",
   "statements",
+  "statement_positions",
   "prices",
   "planned_expenses",
   "companies",

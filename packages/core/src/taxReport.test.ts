@@ -253,7 +253,7 @@ describe("contrôles de cohérence", () => {
   });
 
   it("repère un relevé qui s'écarte de la valeur calculée", () => {
-    const d = data({ accounts: [acc("c", "cto", "e")], institutions: [etab("e", { report: true })], transactions: [tx("2025-01-05", "versement", "c", 1000)], statements: [{ id: "r", accountId: "c", date: "2025-12-31", value: 1500, comment: "" }] });
+    const d = data({ accounts: [acc("c", "cto", "e")], institutions: [etab("e", { report: true })], transactions: [tx("2025-01-05", "versement", "c", 1000)], statements: [{ id: "r", accountId: "c", date: "2025-12-31", value: 1500, cash: null, positions: [], comment: "" }] });
     expect(alerts(d)).toContain("s'écarte de la valeur calculée");
   });
 

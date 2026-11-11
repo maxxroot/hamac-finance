@@ -10,6 +10,7 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 
 - **Protection en cas de faillite (proposition 1)** : carte sur la Synthèse, part garantie et non garantie par établissement garant, alerte au-delà d'un plafond, champs « Établissement garant » et « Pays » sur la fiche de l'établissement.
 - **Qui possède quoi (proposition 3)** : usufruit et nue-propriété d'un bien immobilier au barème fiscal, sociétés (SCI) avec la part des parts détenue, part détenue sur les comptes joints.
+- **Rapprochement avec les relevés (proposition 12 a)** : page « Rapprochement » (groupe Saisie), relevé avec valeur, espèces et quantités, comparé au calcul à sa date, correction en un clic, rappel au-delà de 12 mois sans relevé.
 - **Autres biens (proposition 4)** : page « Autres biens », en dernier des enveloppes ; or, objets, véhicules, parts de société (démembrables), compte courant d'associé et argent prêté, avec décote, délai de vente et impôt estimé à la vente.
 
 Le détail, les décisions prises et ce qui reste hors de chaque version sont dans la section de chaque proposition.
@@ -29,7 +30,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 9 | Compteurs d'ancienneté et plafonds | À faire, en partie existant |
 | 10 | Liste de fin d'année | À faire, dans la partie Impôts |
 | 11 | Objectifs par projet | À faire |
-| 12 | Rapprochement avec les relevés et journal des décisions | À faire |
+| 12 | Rapprochement avec les relevés et journal des décisions | 12 a fait le 11 novembre 2026 ; 12 b à faire |
 
 ---
 
@@ -299,6 +300,8 @@ Pour chaque bien :
 
 ### 12 a. Rapprochement avec les relevés
 
+**Statut :** fait le 11 novembre 2026. Décisions : une page dédiée « Rapprochement » dans le groupe Saisie (la carte des fonds euros y renvoie) ; relevé avec valeur totale, espèces facultatives et quantités facultatives par titre (table `statement_positions`) ; comparaison au calcul à la date du relevé (`core/src/reconciliation.ts`) ; correction proposée seulement quand l'écart porte sur l'argent du compte (espèces relevées, ou valeur d'un compte sans titres) ; rappel au-delà de 12 mois sans relevé, réglable (`alerts.reconcileMonths`, 0 = aucun), compté depuis l'ouverture pour un compte jamais rapproché. Le remplissage automatique par les imports de relevés n'est pas fait.
+
 **Ce qui existe.** La table `statements` (valeur relevée d'un compte à une date) et le calcul de l'écart (`statementGap` dans `engine.ts`), avec une alerte, utilisés pour les fonds euros.
 
 **Ce qu'il faut ajouter :**
@@ -324,7 +327,7 @@ Pour chaque bien :
 
 1. ~~**Proposition 1**, protection en cas de faillite~~ : faite.
 2. ~~**Propositions 3 et 4**, qui possède quoi et autres biens~~ : faites.
-3. **Proposition 12 a**, rapprochement : il fiabilise tous les calculs qui suivent.
+3. ~~**Proposition 12 a**, rapprochement~~ : fait.
 4. **Proposition 7**, disponibilité de l'argent.
 5. **Proposition 6**, concentration et risque.
 6. **Proposition 8**, crédits.

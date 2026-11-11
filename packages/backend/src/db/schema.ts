@@ -198,9 +198,26 @@ export const statements = pgTable("statements", {
     .references(() => accounts.id, { onDelete: "cascade" }),
   date: text("date").notNull(),
   valueCents: bigint("value_cents", { mode: "number" }).notNull(),
+  /** Espèces relevées ; null si non relevées. */
+  cashCents: bigint("cash_cents", { mode: "number" }),
   comment: text("comment").notNull().default(""),
   ...timestamps,
 });
+
+/** Quantités relevées titre par titre, pour les rapprocher du calcul. */
+export const statementPositions = pgTable(
+  "statement_positions",
+  {
+    statementId: text("statement_id")
+      .notNull()
+      .references(() => statements.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    quantity: doublePrecision("quantity").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.statementId, t.assetId] })],
+);
 
 export const prices = pgTable(
   "prices",

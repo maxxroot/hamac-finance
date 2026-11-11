@@ -30,6 +30,7 @@ import { Versements } from "@/pages/Versements";
 import type { ReactNode } from "react";
 import { Placeholder } from "@/pages/Placeholder";
 import { AutresBiens } from "@/pages/AutresBiens";
+import { Rapprochement } from "@/pages/Rapprochement";
 
 const PAGES: Record<string, ReactNode> = {
   "/": <TableauDeBord />,
@@ -38,6 +39,7 @@ const PAGES: Record<string, ReactNode> = {
   "/parametres": <Parametres />,
   "/journal": <Journal />,
   "/versements": <Versements />,
+  "/rapprochement": <Rapprochement />,
   "/enveloppes": <Synthese />,
   "/livrets": <Livrets />,
   "/fonds-euros": <FondsEuros />,

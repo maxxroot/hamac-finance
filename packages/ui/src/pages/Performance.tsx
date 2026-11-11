@@ -1,16 +1,16 @@
 import { useMemo, useState } from "react";
-import { assetPerformance, envelopePerformance, scopePerformance, withdrawalTaxes } from "@hamac/core";
+import { assetPerformance, envelopePerformance, periodTables, scopePerformance, withdrawalTaxes } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { PeriodSelector } from "@/components/EvolutionChart";
 import { Select } from "@/components/form";
-import { CalendarCard, CumulativeCard, EnvelopeTable, RankingCard, SourcesCard, YearsCard } from "@/components/PerformanceBlocks";
+import { CalendarCard, CumulativeCard, EnvelopeTable, PeriodsCard, RankingCard, SourcesCard } from "@/components/PerformanceBlocks";
 import { PerformanceCompare } from "@/components/PerformanceCompare";
 import { Notice, Pct, Stat } from "@/components/Stat";
 import { PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { PERIODS, type PeriodKey } from "@/lib/dashboard";
 import { capitalize, formatMonth } from "@/lib/numbers";
-import { ALL_SCOPE, envelopesForScope, findScope, pctText, scopeOptions } from "@/lib/performance";
+import { ALL_SCOPE, breakdownParts, envelopesForScope, findScope, pctText, scopeOptions } from "@/lib/performance";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
 
 export function Performance() {
@@ -32,6 +32,15 @@ export function Performance() {
       envelopes: envelopePerformance(pf.data, pf.state, history, taxes, monthsBack),
     };
   }, [pf, history, scope, monthsBack]);
+
+  // Ne dépend pas de la période : ce tableau couvre toujours tout l'historique.
+  const parts = useMemo(() => {
+    if (!pf || !history?.length || !options || !scope) return [];
+    return breakdownParts(options, scope).flatMap((o) => {
+      const t = periodTables(pf.data, pf.state, history, o.accountIds);
+      return t ? [{ key: o.key, label: o.label, ...t }] : [];
+    });
+  }, [pf, history, options, scope]);
 
   if (!pf || !history || !options || !scope) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
@@ -94,7 +103,7 @@ export function Performance() {
             <SourcesCard sources={perf.sources} byClass={perf.byClass} />
           </div>
 
-          <YearsCard years={perf.years} />
+          <PeriodsCard years={perf.years} monthly={perf.monthly} parts={parts} />
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <CalendarCard calendar={perf.calendar} stats={perf.stats} />
