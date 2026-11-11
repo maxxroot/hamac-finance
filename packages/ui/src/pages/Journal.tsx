@@ -56,7 +56,17 @@ export function Journal() {
     setEditing(null);
     if (search.has("nouveau")) setSearch({}, { replace: true });
   };
-  const [account, setAccount] = useState("");
+  // Lien depuis l'Historique : #/journal?du=2025-04-01&au=2026-11-11&filtre=<compte> affiche les opérations de la période.
+  const [account, setAccount] = useState(search.has("nouveau") ? "" : (search.get("filtre") ?? ""));
+  const du = search.get("du");
+  const au = search.get("au");
+  const clearPeriod = () => {
+    const next = new URLSearchParams(search);
+    next.delete("du");
+    next.delete("au");
+    next.delete("filtre");
+    setSearch(next, { replace: true });
+  };
   const [type, setType] = useState<TxType | "">("");
   const [year, setYear] = useState("");
   const [importing, setImporting] = useState(false);
@@ -71,13 +81,15 @@ export function Journal() {
       if (account && t.accountId !== account && t.counterAccountId !== account) return false;
       if (type && t.type !== type) return false;
       if (year && !t.date.startsWith(year)) return false;
+      if (du && t.date < du) return false;
+      if (au && t.date > au) return false;
       if (needle) {
         const hay = [t.comment, idx.assetById.get(t.assetId ?? "")?.name, idx.accountById.get(t.accountId)?.name, TX_LABELS[t.type]].join(" ").toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       return true;
     });
-  }, [idx, all, account, type, year, q]);
+  }, [idx, all, account, type, year, q, du, au]);
 
   const { sorted, by } = useSortable(
     rows,
@@ -170,6 +182,14 @@ export function Journal() {
             </option>
           ))}
         </Select>
+        {(du || au) && (
+          <span className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-xs text-fg">
+            {du && au ? `Du ${formatDate(du)} au ${formatDate(au)}` : du ? `Depuis le ${formatDate(du)}` : `Jusqu'au ${formatDate(au)}`}
+            <button type="button" onClick={clearPeriod} className="text-fg-muted hover:text-fg" aria-label="Retirer le filtre de dates">
+              ×
+            </button>
+          </span>
+        )}
         <span className="ml-auto text-xs text-fg-faint">
           {rows.length} opération{rows.length > 1 ? "s" : ""}
         </span>

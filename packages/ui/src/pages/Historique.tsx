@@ -1,157 +1,135 @@
 import { useMemo, useState } from "react";
-import { BUCKET_LABELS, BUCKETS, formatEur } from "@hamac/core";
-import { Amount } from "@/components/Amount";
-import { Chart, axisStyle, tooltipStyle, type ChartOption } from "@/components/Chart";
-import { Table, Td, Tr } from "@/components/table";
+import { useSearchParams } from "react-router";
+import { addMonth, compareSnapshots, milestones, periodChange, type Milestone } from "@hamac/core";
+import { AccountsCard, AllocationCompareCard, CascadeCard, Frise, MilestoneList, MonthlyTable, PositionsCard, RangeControls, SituationCard } from "@/components/HistoryBlocks";
+import { Notice } from "@/components/Stat";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
-import { useChartColors } from "@/lib/colors";
-import { capitalize, formatMonth } from "@/lib/numbers";
-import { useHistory } from "@/lib/portfolio";
-import { useWorkspaceIndex } from "@/lib/workspace";
-import { SortTh, useSortable } from "@/lib/sort";
-import { Pct } from "@/components/Stat";
+import { activeShortcut, inRange, parseRange, pointLabel, rangeFromMilestone, rangeLabel, rangeParams, shortcutRange, waterfall, type Range } from "@/lib/historique";
+import { useHistory, usePortfolio } from "@/lib/portfolio";
+import { useJournal } from "@/lib/journal";
 
-const eurAxis = (v: number) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)} k€` : `${v} €`);
-const tooltipEur = (v: unknown) => formatEur(Number(v), { compact: true });
+const ALL = "all";
 
+/**
+ * Remonter le temps : la situation à deux dates, ce qui s'est passé entre les deux, et les grandes étapes
+ * du parcours. La période choisie est dans l'adresse, pour pouvoir y revenir ou la partager.
+ */
 export function Historique() {
-  const idx = useWorkspaceIndex();
+  const pf = usePortfolio();
   const history = useHistory();
+  const journal = useJournal();
+  const [search, setSearch] = useSearchParams();
+  const [scope, setScope] = useState(ALL);
+  const [showAll, setShowAll] = useState(false);
   const [showTable, setShowTable] = useState(false);
 
-  const c = useChartColors();
-  const charts = useMemo(() => {
-    if (!history?.length) return null;
-    const months = history.map((h) => capitalize(formatMonth(h.month)));
-    const line: ChartOption = {
-      tooltip: { trigger: "axis", ...tooltipStyle(c), valueFormatter: tooltipEur },
-      xAxis: { type: "category", data: months, boundaryGap: false, ...axisStyle(c), splitLine: { show: false } },
-      yAxis: { type: "value", ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxis } },
-      series: [
-        { name: "Patrimoine", type: "line", data: history.map((h) => h.value), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.primary }, itemStyle: { color: c.primary } },
-        { name: "Versé net", type: "line", data: history.map((h) => h.netContrib), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, type: "dashed", color: c.ink.muted }, itemStyle: { color: c.ink.muted } },
-      ],
-    };
-    if (history.some((h) => h.realEstate !== 0 || h.debts !== 0)) {
-      (line.series as unknown[]).push({ name: "Patrimoine net (biens et crédits compris)", type: "line", data: history.map((h) => h.netWorth), showSymbol: false, symbolSize: 8, lineStyle: { width: 2, color: c.buckets.immobilier }, itemStyle: { color: c.buckets.immobilier } });
-    }
-    const used = BUCKETS.filter((b) => history.some((h) => h.buckets[b] !== 0));
-    const area: ChartOption = {
-      tooltip: { trigger: "axis", ...tooltipStyle(c), valueFormatter: tooltipEur },
-      xAxis: { type: "category", data: months, boundaryGap: false, ...axisStyle(c), splitLine: { show: false } },
-      yAxis: { type: "value", ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxis } },
-      series: used.map((b) => ({
-        name: BUCKET_LABELS[b],
-        type: "line",
-        stack: "total",
-        data: history.map((h) => Math.max(0, h.buckets[b])),
-        showSymbol: false,
-        lineStyle: { width: 2, color: c.ink.surface },
-        areaStyle: { color: c.buckets[b], opacity: 0.9 },
-        itemStyle: { color: c.buckets[b] },
-      })),
-    };
-    return { line, area };
-  }, [history, c]);
+  const months = useMemo(() => (history ?? []).map((h) => h.month), [history]);
+  const steps = useMemo(() => (pf && history ? milestones(pf.data, history, pf.today) : []), [pf, history]);
 
-  const reversed = useMemo(() => [...(history ?? [])].reverse(), [history]);
-  const { sorted, by } = useSortable(
-    reversed,
-    {
-      mois: (h) => h.month,
-      ...Object.fromEntries(BUCKETS.map((b) => [b, (h: (typeof reversed)[number]) => h.buckets[b]])),
-      total: (h) => h.value,
-      net: (h) => h.netContrib,
-      gain: (h) => h.gain,
-      gainPct: (h) => (h.netContrib > 0 ? h.gain / h.netContrib : null),
-      biens: (h) => h.realEstate,
-      credits: (h) => h.debts,
-      patrimoineNet: (h) => h.netWorth,
-    },
-    { key: "mois", dir: "desc" },
-  );
+  const range = months.length ? parseRange(search.get("du"), search.get("au"), months) : null;
+  const setRange = (r: Range) => setSearch(rangeParams(r), { replace: true });
 
-  if (!idx || !history) return null;
-  if (idx.ws.accounts.length === 0) return <Onboarding />;
+  const rangeFrom = range?.from ?? null;
+  const rangeTo = range?.to ?? null;
+  const view = useMemo(() => {
+    if (!pf || !history?.length || !rangeTo) return null;
+    const at = (m: string | null) => (m == null ? null : (history.find((h) => h.month === m) ?? null));
+    const from = at(rangeFrom);
+    const to = at(rangeTo)!;
+    const cmp = compareSnapshots(from, to);
+    // Une enveloppe absente de la période choisie : retour à tout le patrimoine.
+    const scoped = scope !== ALL && cmp.accounts.some((a) => a.accountId === scope) ? scope : ALL;
+    const ids = scoped === ALL ? pf.data.accounts.map((a) => a.id) : [scoped];
+    return { from, to, cmp, scope: scoped, change: periodChange(pf.data, from, to, ids) };
+  }, [pf, history, rangeFrom, rangeTo, scope]);
+
+  if (!pf || !history) return null;
+  if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
+  if (!range || !view) {
+    return (
+      <>
+        <PageHeader title="Historique" />
+        <Notice>L'historique commence avec la première opération du journal.</Notice>
+      </>
+    );
+  }
+
+  const last = months.at(-1)!;
+  const startLabel = pointLabel(range.from, last);
+  const endLabel = pointLabel(range.to, last);
   const withRealEstate = history.some((h) => h.realEstate !== 0 || h.debts !== 0);
+  const accountName = (id: string) => pf.idx.accountById.get(id)?.name ?? "Compte supprimé";
+  const assetName = (id: string) => pf.idx.assetById.get(id)?.name ?? "Titre supprimé";
+  const pick = (m: Milestone) => setRange(rangeFromMilestone(m, range, months));
+
+  const fromDate = view.from?.date ?? null;
+  const inPeriod = steps.filter((m) => inRange(m, fromDate, view.to.date));
+  const scopes = [{ key: ALL, label: "Tout le patrimoine financier" }, ...view.cmp.accounts.map((a) => ({ key: a.accountId, label: accountName(a.accountId) }))];
+  const scopeOk = view.scope;
+  const operations = journal.filter((t) => (fromDate == null || t.date > fromDate) && t.date <= view.to.date && (scopeOk === ALL || t.accountId === scopeOk || t.counterAccountId === scopeOk)).length;
+  const journalQuery = new URLSearchParams({ ...(range.from ? { du: `${addMonth(range.from, 1)}-01` } : {}), au: view.to.date, ...(scopeOk !== ALL ? { filtre: scopeOk } : {}) });
 
   return (
     <>
-      <PageHeader
-        title="Historique"
-        description="Reconstruit chaque mois à partir du journal et des cours connus : rien à photographier, et une correction du passé se répercute partout."
-        actions={<Button onClick={() => setShowTable((v) => !v)}>{showTable ? "Masquer le tableau" : "Voir le tableau"}</Button>}
-      />
-      {charts && (
-        <div className="mb-6 grid gap-5 xl:grid-cols-2">
-          <Card>
-            <CardTitle>Valeur du patrimoine et argent versé</CardTitle>
-            <Chart option={charts.line} height={300} />
-          </Card>
-          <Card>
-            <CardTitle>Répartition par classe d'actifs dans le temps</CardTitle>
-            <Chart option={charts.area} height={300} />
-          </Card>
+      <PageHeader title="Historique" description="Remonter le temps : où en était le patrimoine à une date, ce qui a changé depuis, et les grandes étapes du parcours. Tout est reconstruit à partir du journal." />
+
+      <Card className="mb-5">
+        <CardTitle hint={`${steps.length} étape${steps.length > 1 ? "s" : ""} en tout`}>Le parcours</CardTitle>
+        <RangeControls months={months} range={range} active={activeShortcut(range, months)} onChange={setRange} onShortcut={(k) => setRange(shortcutRange(k, range.to, months))} />
+        {months.length > 1 && (
+          <div className="mt-5">
+            <Frise months={months} items={steps} range={range} onPick={pick} />
+          </div>
+        )}
+      </Card>
+
+      <h2 className="mb-4 font-display text-xl text-fg">{rangeLabel(range, last)}</h2>
+
+      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <div className="space-y-5">
+          <SituationCard cmp={view.cmp} startLabel={startLabel} endLabel={endLabel} withRealEstate={withRealEstate} />
+          <AllocationCompareCard rows={view.cmp.buckets} startLabel={startLabel} endLabel={endLabel} />
+        </div>
+        <CascadeCard
+          w={waterfall(view.change, range.from == null ? null : startLabel, endLabel)}
+          scope={scopeOk}
+          scopes={scopes}
+          onScope={setScope}
+          journalHref={`/journal?${journalQuery.toString()}`}
+          operations={operations}
+        />
+      </div>
+
+      <Card className="mb-5">
+        <CardTitle hint={`${inPeriod.length} sur la période`}>Les grandes étapes</CardTitle>
+        <MilestoneList items={showAll ? steps : inPeriod} total={steps.length} showAll={showAll} onToggleAll={() => setShowAll((v) => !v)} onPick={pick} />
+      </Card>
+
+      <div className="mb-5">
+        <AccountsCard rows={view.cmp.accounts} nameOf={accountName} closed={(id) => pf.idx.accountById.get(id)?.archived ?? true} />
+      </div>
+
+      {view.cmp.positions.length > 0 && (
+        <div className="mb-5">
+          <PositionsCard rows={view.cmp.positions} assetName={assetName} accountName={accountName} />
         </div>
       )}
-      {showTable && (
-        <Table>
-          <thead>
-            <tr>
-              <SortTh {...by("mois")}>Mois</SortTh>
-              {BUCKETS.map((b) => (
-                <SortTh key={b} {...by(b)} align="right">
-                  {BUCKET_LABELS[b]}
-                </SortTh>
-              ))}
-              <SortTh {...by("total")} align="right">Total</SortTh>
-              <SortTh {...by("net")} align="right">Versé net</SortTh>
-              <SortTh {...by("gain")} align="right">Gain</SortTh>
-              <SortTh {...by("gainPct")} align="right">Gain (%)</SortTh>
-              {withRealEstate && (
-                <>
-                  <SortTh {...by("biens")} align="right">Biens</SortTh>
-                  <SortTh {...by("credits")} align="right">Crédits</SortTh>
-                  <SortTh {...by("patrimoineNet")} align="right">Patrimoine net</SortTh>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((h) => (
-              <Tr key={h.month}>
-                <Td>{capitalize(formatMonth(h.month))}</Td>
-                {BUCKETS.map((b) => (
-                  <Td key={b} align="right">
-                    <Amount value={h.buckets[b]} compact />
-                  </Td>
-                ))}
-                <Td align="right" className="font-medium">
-                  <Amount value={h.value} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={h.netContrib} compact />
-                </Td>
-                <Td align="right">
-                  <Amount value={h.gain} signed compact />
-                </Td>
-                <Td align="right">
-                  <Pct value={h.netContrib > 0 ? h.gain / h.netContrib : null} signed />
-                </Td>
-                {withRealEstate && (
-                  <>
-                    <Td align="right"><Amount value={h.realEstate} compact /></Td>
-                    <Td align="right"><Amount value={h.debts} compact /></Td>
-                    <Td align="right" className="font-medium"><Amount value={h.netWorth} compact /></Td>
-                  </>
-                )}
-              </Tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-      <p className="mt-4 text-xs text-fg-faint">Les mois passés sont valorisés avec le dernier cours connu à leur date ; sans cours, au prix de revient. L'historique des cours se complète automatiquement avec les cours en direct.</p>
+
+      <div className="mt-8">
+        <Button variant="ghost" onClick={() => setShowTable((v) => !v)}>
+          {showTable ? "Masquer le tableau mois par mois" : "Voir le tableau mois par mois"}
+        </Button>
+        {showTable && (
+          <div className="mt-3">
+            <MonthlyTable history={history} />
+          </div>
+        )}
+      </div>
+
+      <p className="mt-4 text-xs text-fg-faint">
+        Chaque mois est valorisé avec le dernier cours connu à sa date ; sans cours, au prix de revient. Les enveloppes clôturées restent comptées : leur argent versé et leur gain font partie du parcours. Les transferts entre enveloppes s'annulent sur le total, mais comptent pour chacune.
+      </p>
     </>
   );
 }
