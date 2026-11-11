@@ -10,7 +10,6 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 
 - **Protection en cas de faillite (proposition 1)** : carte sur la Synthèse, part garantie et non garantie par établissement garant, alerte au-delà d'un plafond, champs « Établissement garant » et « Pays » sur la fiche de l'établissement.
 - **Qui possède quoi (proposition 3)** : usufruit et nue-propriété d'un bien immobilier au barème fiscal, sociétés (SCI) avec la part des parts détenue, part détenue sur les comptes joints.
-- **Rapprochement avec les relevés (proposition 12 a)** : page « Rapprochement » (groupe Saisie), relevé avec valeur, espèces et quantités, comparé au calcul à sa date, correction en un clic, rappel au-delà de 12 mois sans relevé.
 - **Poids des crédits (proposition 8)** : sur la page Crédits, part du patrimoine financée à crédit, part de chaque bien encore due, taux d'effort, taux assurance comprise et coût restant de chaque crédit, et comparateur « rembourser par avance ou placer ».
 - **Compteurs et plafonds (proposition 9)** : page « Compteurs et plafonds » (groupe Fiscalité) : ancienneté du PEA et des assurances-vie, plafonds du PEA, du PEA-PME, des livrets et du PER, abattement annuel de l'assurance-vie, versements avant et après 70 ans, donations faites et reçues avec leurs abattements.
 - **Liste de fin d'année (proposition 10)** : repliée en bas de la page Impôts, moins-values à réaliser, abattement de l'assurance-vie, versement PER, plafonds libres et préparation de la déclaration, chiffrés, avec une case par geste ; alerte au tableau de bord en novembre et décembre.
@@ -33,7 +32,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 9 | Compteurs d'ancienneté et plafonds | Fait le 11 novembre 2026 |
 | 10 | Liste de fin d'année | Fait le 11 novembre 2026 |
 | 11 | Objectifs par projet | À faire |
-| 12 | Rapprochement avec les relevés et journal des décisions | 12 a fait le 11 novembre 2026 ; 12 b à faire |
+| 12 | Rapprochement avec les relevés et journal des décisions | 12 a abandonné le 11 novembre 2026 ; 12 b à faire |
 
 ---
 
@@ -303,7 +302,7 @@ Pour chaque bien :
 
 ### 12 a. Rapprochement avec les relevés
 
-**Statut :** fait le 11 novembre 2026. Décisions : une page dédiée « Rapprochement » dans le groupe Saisie (la carte des fonds euros y renvoie) ; relevé avec valeur totale, espèces facultatives et quantités facultatives par titre (table `statement_positions`) ; comparaison au calcul à la date du relevé (`core/src/reconciliation.ts`) ; correction proposée seulement quand l'écart porte sur l'argent du compte (espèces relevées, ou valeur d'un compte sans titres) ; rappel au-delà de 12 mois sans relevé, réglable (`alerts.reconcileMonths`, 0 = aucun), compté depuis l'ouverture pour un compte jamais rapproché. Le remplissage automatique par les imports de relevés n'est pas fait.
+**Statut :** abandonné le 11 novembre 2026, après avoir été construit (commit `8b734b8`) puis retiré. Raison : sans export du portefeuille par les plateformes (BoursoBank ne propose pas de CSV des positions du PEA, par exemple), la saisie manuelle des relevés n'apporte pas assez. Reste en place : la carte « Contrôle avec le relevé » des fonds euros, qui compare désormais à la date du relevé (`core/src/reconciliation.ts`), et son alerte. À reprendre si une plateforme utilisée fournit un export des positions (CSV ou OFX).
 
 **Ce qui existe.** La table `statements` (valeur relevée d'un compte à une date) et le calcul de l'écart (`statementGap` dans `engine.ts`), avec une alerte, utilisés pour les fonds euros.
 
@@ -330,7 +329,7 @@ Pour chaque bien :
 
 1. ~~**Proposition 1**, protection en cas de faillite~~ : faite.
 2. ~~**Propositions 3 et 4**, qui possède quoi et autres biens~~ : faites.
-3. ~~**Proposition 12 a**, rapprochement~~ : fait.
+3. ~~**Proposition 12 a**, rapprochement~~ : abandonné.
 4. **Proposition 7**, disponibilité de l'argent.
 5. **Proposition 6**, concentration et risque.
 6. ~~**Proposition 8**, crédits~~ : fait.

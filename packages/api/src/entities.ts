@@ -123,8 +123,6 @@ export const StatementInput = z.object({
   accountId: id,
   date: isoDate,
   value: money,
-  cash: money.nullable().default(null),
-  positions: z.array(z.object({ assetId: id, quantity: z.number().min(0).max(1e12) })).max(500).default([]),
   comment: text(200).default(""),
 });
 export const PlannedExpenseInput = z.object({

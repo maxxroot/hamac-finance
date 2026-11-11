@@ -390,17 +390,10 @@ export const handlers: Handlers = {
 
   async "statements.upsert"(input, ctx) {
     const id = input.id ?? newId();
-    const row = { accountId: input.accountId, date: input.date, valueCents: toCents(input.value), cashCents: input.cash == null ? null : toCents(input.cash), comment: input.comment, updatedAt: nowIso() };
-    // Un titre au plus une fois : la dernière quantité saisie l'emporte.
-    const positions = [...new Map(input.positions.map((p) => [p.assetId, p.quantity])).entries()].map(([assetId, quantity]) => ({ statementId: id, assetId, quantity }));
-    await ctx.raw.transaction(async () => {
-      if (input.id) await ctx.db.update(t.statements).set(row).where(eq(t.statements.id, id));
-      else await ctx.db.insert(t.statements).values({ id, ...row });
-      await ctx.db.delete(t.statementPositions).where(eq(t.statementPositions.statementId, id));
-      if (positions.length) await ctx.db.insert(t.statementPositions).values(positions);
-    });
-    const saved = (await ctx.db.select().from(t.statements).where(eq(t.statements.id, id)).limit(1).then(one))!;
-    return mapStatement(saved, positions.map((p) => ({ assetId: p.assetId, quantity: p.quantity })));
+    const row = { accountId: input.accountId, date: input.date, valueCents: toCents(input.value), comment: input.comment, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.statements).set(row).where(eq(t.statements.id, id));
+    else await ctx.db.insert(t.statements).values({ id, ...row });
+    return mapStatement((await ctx.db.select().from(t.statements).where(eq(t.statements.id, id)).limit(1).then(one))!);
   },
 
   async "statements.delete"({ id }, ctx) {

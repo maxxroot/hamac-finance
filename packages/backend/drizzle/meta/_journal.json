@@ -134,6 +134,13 @@
       "when": 1794428710992,
       "tag": "0018_bent_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794429916078,
+      "tag": "0019_burly_ironclad",
+      "breakpoints": true
     }
   ]
 }

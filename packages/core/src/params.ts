@@ -117,8 +117,6 @@ export const PlanParams = z
       ctoCashThreshold: eur,
       peaCashThreshold: eur,
       fgapGuarantee: eur,
-      /** Rappel de rapprocher un compte sans relevé depuis ce nombre de mois ; 0 = pas de rappel. */
-      reconcileMonths: z.number().int().min(0).max(120),
       stressEquity: z.tuple([pct, pct]),
       stressCrypto: z.tuple([pct, pct]),
     }),
@@ -197,7 +195,6 @@ export function defaultParams(today = new Date()): PlanParams {
       ctoCashThreshold: 1000,
       peaCashThreshold: 50,
       fgapGuarantee: 70000,
-      reconcileMonths: 12,
       stressEquity: [0.3, 0.5],
       stressCrypto: [0.5, 0.8],
     },

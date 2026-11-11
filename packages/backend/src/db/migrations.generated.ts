@@ -75,5 +75,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0018_bent_scarlet_witch",
     "sql": "CREATE TABLE \"gifts\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"date\" text NOT NULL,\n\t\"direction\" text NOT NULL,\n\t\"kind\" text NOT NULL,\n\t\"person\" text NOT NULL,\n\t\"relation\" text NOT NULL,\n\t\"amount_cents\" bigint NOT NULL,\n\t\"comment\" text DEFAULT '' NOT NULL,\n\t\"created_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\t\"updated_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL\n);\n"
+  },
+  {
+    "tag": "0019_burly_ironclad",
+    "sql": "DROP TABLE \"statement_positions\" CASCADE;--> statement-breakpoint\nALTER TABLE \"statements\" DROP COLUMN \"cash_cents\";"
   }
 ];

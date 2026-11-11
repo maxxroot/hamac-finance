@@ -7,7 +7,6 @@ import {
   CalendarClock,
   ChartLine,
   ChartPie,
-  CheckCheck,
   FileText,
   Gauge,
   Gem,
@@ -62,7 +61,6 @@ export const NAV: NavGroup[] = [
     label: "Saisie",
     items: [
       { path: "/journal", label: "Journal", icon: NotebookPen, sheetTab: "Journal", step: 2, description: "Toutes les opérations : versements, achats, ventes, intérêts…" },
-      { path: "/rapprochement", label: "Rapprochement", icon: CheckCheck, sheetTab: "Rapprochement", step: 5, description: "Chaque compte face à son relevé : écarts, correction et comptes à rapprocher." },
       { path: "/versements", label: "Versements", icon: CalendarClock, sheetTab: "Versements", step: 2, description: "Calendrier des versements mensuels programmés." },
     ],
   },

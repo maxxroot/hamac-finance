@@ -7,7 +7,7 @@ import { currentLease, leaseRevisionDue, leaseState, rentMonths } from "./leases
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
 import { GUARANTEE_LABELS, protectionOf } from "./protection";
-import { reconcile, staleAccounts } from "./reconciliation";
+import { reconcile } from "./reconciliation";
 import { MAX_EFFORT_RATE } from "./debt";
 import { yearEndChecklist, yearEndSeason } from "./yearEnd";
 import { daysBetween } from "./xirr";
@@ -150,21 +150,10 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
     if (!a.account.beneficiaryClause && a.value > 0) out.push({ id: `clause-${a.account.id}`, level: "attention", title: `Clause bénéficiaire à rédiger : ${a.account.name}`, link: "/fonds-euros" });
   }
 
-  // Rapprochement : écarts avec le dernier relevé, comptes sans relevé depuis longtemps.
-  const reconciled = reconcile(data, today);
-  for (const r of reconciled.filter((x) => x.status === "ecart" && !x.account.archived)) {
-    const what = r.quantityGaps.length ? `quantité de ${r.quantityGaps.map((q) => q.name).join(", ")}` : `${eur(r.cashGap != null && Math.abs(r.cashGap) >= 1 ? r.cashGap : (r.valueGap ?? 0))}`;
-    out.push({ id: `releve-${r.account.id}`, level: "attention", title: `Écart avec le relevé de ${r.account.name} : ${what}`, detail: `Relevé du ${frDate(r.statement!.date)}. Une opération manque peut-être au journal.`, link: "/rapprochement" });
+  // Contrôle avec le relevé : écart à la date du dernier relevé saisi.
+  for (const r of reconcile(data, today).filter((x) => x.status === "ecart" && !x.account.archived)) {
+    out.push({ id: `releve-${r.account.id}`, level: "attention", title: `Écart de ${eur(r.valueGap ?? 0)} avec le relevé de ${r.account.name}`, detail: `Relevé du ${frDate(r.statement!.date)}. Saisir une correction dans le journal.`, link: r.account.kind === "assurance_vie" ? "/fonds-euros" : "/journal" });
   }
-  const toReconcile = staleAccounts(reconciled, data, state, p.alerts.reconcileMonths);
-  if (toReconcile.length)
-    out.push({
-      id: "rapprochement",
-      level: "info",
-      title: toReconcile.length === 1 ? `${toReconcile[0].account.name} : pas de relevé depuis plus de ${p.alerts.reconcileMonths} mois` : `${toReconcile.length} comptes sans relevé depuis plus de ${p.alerts.reconcileMonths} mois`,
-      detail: "Comparer la valeur et les titres avec le site de l'établissement fiabilise tous les calculs.",
-      link: "/rapprochement",
-    });
 
   // Fin d'année : gestes fiscaux à faire avant le 31 décembre.
   if (yearEndSeason(today)) {

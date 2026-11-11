@@ -1,6 +1,5 @@
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router";
 import { accountAgeYears, fiscalAnniversary, monthsBetween, reconcile, type AccountState } from "@hamac/core";
 import { EditAccountButton } from "@/components/AccountButtons";
 import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
@@ -131,7 +130,7 @@ function Reconciliation({ s }: { s: AccountState }) {
   const [value, setValue] = useState<number | null>(null);
   const [date, setDate] = useState(todayIso());
   const pf = usePortfolio();
-  // Écart calculé à la date du relevé, comme sur la page Rapprochement.
+  // Écart calculé à la date du relevé, et non avec la valeur du jour.
   const row = useMemo(() => (pf ? reconcile(pf.data, pf.today).find((r) => r.account.id === s.account.id) : undefined), [pf, s.account.id]);
   const gap = row?.valueGap ?? null;
   return (
@@ -143,11 +142,7 @@ function Reconciliation({ s }: { s: AccountState }) {
           <div className="mt-1">
             {gap != null && Math.abs(gap) >= 1 ? (
               <span className="text-warning">
-                Écart de <Amount value={gap} signed /> à cette date : voir la page{" "}
-                <Link to="/rapprochement" className="underline">
-                  Rapprochement
-                </Link>
-                .
+                Écart de <Amount value={gap} signed /> à la date du relevé : saisir une « Correction » dans le journal.
               </span>
             ) : (
               <span className="text-positive">✓ Concorde avec le calcul</span>

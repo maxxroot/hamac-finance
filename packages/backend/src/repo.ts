@@ -146,13 +146,11 @@ export const mapBondPlan = (r: typeof t.bondPlans.$inferSelect): BondPlan => ({
   comment: r.comment,
 });
 export const mapFundRate = (r: typeof t.fundRates.$inferSelect): FundRate => ({ ...r });
-export const mapStatement = (r: typeof t.statements.$inferSelect, positions: Statement["positions"] = []): Statement => ({
+export const mapStatement = (r: typeof t.statements.$inferSelect): Statement => ({
   id: r.id,
   accountId: r.accountId,
   date: r.date,
   value: fromCents(r.valueCents),
-  cash: fromCentsOrNull(r.cashCents),
-  positions,
   comment: r.comment,
 });
 export const mapExpense = (r: typeof t.plannedExpenses.$inferSelect): PlannedExpense => ({
@@ -382,7 +380,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows, propertyValueRows, incomeRows, documentRows, prepaymentRows, companyRows, otherAssetRows, otherAssetValueRows, statementPositionRows, giftRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows, propertyValueRows, incomeRows, documentRows, prepaymentRows, companyRows, otherAssetRows, otherAssetValueRows, giftRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
     db.select().from(t.assets).orderBy(t.assets.name),
@@ -417,7 +415,6 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     db.select().from(t.companies).orderBy(t.companies.name),
     db.select().from(t.otherAssets).orderBy(t.otherAssets.name),
     db.select().from(t.otherAssetValues).orderBy(t.otherAssetValues.date),
-    db.select().from(t.statementPositions),
     db.select().from(t.gifts).orderBy(desc(t.gifts.date)),
   ]);
   // Cours communs à l'instance, fusionnés avec ceux propres au tenant.
@@ -435,7 +432,7 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     skips: skips.map(mapSkip),
     bondPlans: bondPlans.map(mapBondPlan),
     fundRates: fundRates.map(mapFundRate),
-    statements: statements.map((r) => mapStatement(r, statementPositionRows.filter((p) => p.statementId === r.id).map((p) => ({ assetId: p.assetId, quantity: p.quantity })))),
+    statements: statements.map(mapStatement),
     plannedExpenses: expenses.map(mapExpense),
     properties: propertyRows.map(mapProperty),
     companies: companyRows.map(mapCompany),
