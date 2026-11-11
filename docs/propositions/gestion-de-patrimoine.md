@@ -4,6 +4,18 @@ Document de travail, ouvert le 11 novembre 2026. Il garde la trace de douze prop
 
 Chaque proposition indique son statut, ce qui existe déjà dans Hamac, ce qu'il faut ajouter et les questions à trancher avant de coder. Les montants et règles légales cités sont **à vérifier sur la source officielle au moment du développement**, comme pour toute règle de `@hamac/core` (source citée, date de vérification, tests chiffrés).
 
+## Déjà en place
+
+Sur la branche `patrimoine`, au 11 novembre 2026 :
+
+- **Protection en cas de faillite (proposition 1)** : carte sur la Synthèse, part garantie et non garantie par établissement garant, alerte au-delà d'un plafond, champs « Établissement garant » et « Pays » sur la fiche de l'établissement.
+- **Qui possède quoi (proposition 3)** : usufruit et nue-propriété d'un bien immobilier au barème fiscal, sociétés (SCI) avec la part des parts détenue, part détenue sur les comptes joints.
+- **Autres biens (proposition 4)** : page « Autres biens », en dernier des enveloppes ; or, objets, véhicules, parts de société (démembrables), compte courant d'associé et argent prêté, avec décote, délai de vente et impôt estimé à la vente.
+
+Le détail, les décisions prises et ce qui reste hors de chaque version sont dans la section de chaque proposition.
+
+## Suivi
+
 | N° | Proposition | Statut |
 |----|-------------|--------|
 | 1 | Ce qui est protégé si un établissement fait faillite | Fait le 11 novembre 2026 (commit `bd14015`) |
@@ -71,7 +83,7 @@ Pas de calcul pour le moment. La proposition 3 (qui possède quoi) et la proposi
 
 ## 3. Qui possède quoi
 
-**Statut :** fait le 11 novembre 2026. Décisions : usufruit et nue-propriété au barème fiscal (`core/src/ownership.ts`), pour l'immobilier ; parts de SCI détaillées (table `companies`, biens rattachés, carte « Sociétés (SCI) » dans Immobilier) ; part détenue sur les comptes qui peuvent être joints (compte-titres, livret bancaire, crypto). La nature « bien propre / commun » est reportée au foyer. Les montants des comptes joints restent ceux du compte entier dans les pages des comptes et la Performance : seuls le patrimoine net, la répartition et la protection comptent la part détenue. La trésorerie et les autres dettes d'une SCI ne sont pas saisies pour l'instant.
+**Statut :** fait le 11 novembre 2026. Décisions : usufruit et nue-propriété au barème fiscal (`core/src/ownership.ts`), pour l'immobilier ; parts de SCI détaillées (table `companies`, biens rattachés, carte « Sociétés (SCI) » dans Immobilier) ; part détenue sur les comptes qui peuvent être joints (compte-titres, livret bancaire, crypto). La nature « bien propre / commun » est reportée au foyer. Le démembrement des parts de SCI elles-mêmes (nue-propriété de parts reçue en donation) n'est pas couvert : décision du 11 novembre 2026 de ne pas l'ajouter pour l'instant. Les montants des comptes joints restent ceux du compte entier dans les pages des comptes et la Performance : seuls le patrimoine net, la répartition et la protection comptent la part détenue. La trésorerie et les autres dettes d'une SCI ne sont pas saisies pour l'instant.
 
 **Pourquoi.** La façon dont un bien est détenu change sa valeur réelle dans le patrimoine, le calcul d'un futur IFI et une éventuelle succession. C'est aussi ce qui préparera le foyer, prévu plus tard.
 
