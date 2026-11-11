@@ -1,4 +1,4 @@
-import { addMonth, type Milestone, type Month, type PeriodChange } from "@hamac/core";
+import { addMonth, type Milestone, type Month, type MonthChange, type PeriodChange, type PlanComparison } from "@hamac/core";
 import { capitalize, formatMonth } from "./numbers";
 
 /** Logique d'affichage de la page Historique, sans React pour pouvoir la tester. */
@@ -178,4 +178,96 @@ export function barSpan(r: Pick<WaterfallRow, "from" | "to" | "kind">, w: Pick<W
   return { left, width: Math.min(width, 100 - left) };
 }
 
+
+// ——— Résumé de la période ———
+
+export interface PeriodSummary {
+  months: number;
+  startValue: number;
+  endValue: number;
+  /** Argent apporté net et gain des placements : leur somme est la variation. */
+  money: number;
+  gain: number;
+  /** Part de la hausse qui vient de l'épargne ; null si l'un des deux est négatif ou nul (pas de partage qui ait un sens). */
+  moneyShare: number | null;
+  perMonth: number;
+}
+
+export function periodSummary(c: PeriodChange, months: number): PeriodSummary {
+  const money = c.flows.deposits - c.flows.withdrawals + c.flows.transfersIn - c.flows.transfersOut;
+  const gain = c.sources.total;
+  return {
+    months,
+    startValue: c.startValue,
+    endValue: c.endValue,
+    money,
+    gain,
+    moneyShare: money > 0 && gain > 0 ? money / (money + gain) : null,
+    perMonth: months > 0 ? money / months : 0,
+  };
+}
+
+/** « 1 mois », « 7 mois », « 2 ans », « 2 ans et 3 mois ». */
+export function durationLabel(months: number): string {
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  const ys = y ? `${y} an${y > 1 ? "s" : ""}` : "";
+  const ms = m ? `${m} mois` : "";
+  return ys && ms ? `${ys} et ${ms}` : ys || ms || "0 mois";
+}
+
+// ——— Mois par mois ———
+
+export interface MonthStats {
+  /** Mois sans aucun versement. */
+  empty: Month[];
+  best: MonthChange | null;
+  worst: MonthChange | null;
+}
+
+export function monthStats(months: readonly MonthChange[]): MonthStats {
+  const by = (better: (a: number, b: number) => boolean) => months.reduce<MonthChange | null>((x, m) => (x == null || better(m.gain, x.gain) ? m : x), null);
+  const best = by((a, b) => a > b);
+  const worst = by((a, b) => a < b);
+  return {
+    empty: months.filter((m) => m.deposits < 0.005).map((m) => m.month),
+    best: best && best.gain > 0.005 ? best : null,
+    worst: worst && worst.gain < -0.005 ? worst : null,
+  };
+}
+
+export interface ChartBar {
+  key: string;
+  label: string;
+  money: number;
+  gain: number;
+}
+
+/** Au-delà de trois ans, une barre par an : sinon les barres deviennent illisibles. */
+export const MONTHS_PER_BAR_LIMIT = 36;
+
+export function chartBars(months: readonly MonthChange[], monthLabel: (m: Month) => string): { bars: ChartBar[]; yearly: boolean } {
+  if (months.length <= MONTHS_PER_BAR_LIMIT) return { bars: months.map((m) => ({ key: m.month, label: monthLabel(m.month), money: m.money, gain: m.gain })), yearly: false };
+  const years = new Map<string, ChartBar>();
+  for (const m of months) {
+    const y = m.month.slice(0, 4);
+    const bar = years.get(y) ?? { key: y, label: y, money: 0, gain: 0 };
+    bar.money += m.money;
+    bar.gain += m.gain;
+    years.set(y, bar);
+  }
+  return { bars: [...years.values()], yearly: true };
+}
+
+// ——— Par rapport au plan ———
+
+export type PlanVerdict = "avance" | "retard" | "conforme";
+
+/** Dans les clous sous 0,5 % de la valeur prévue (et au moins 20 €) : en dessous, l'écart n'a pas de sens. */
+export function planVerdict(p: Pick<PlanComparison, "gap" | "expectedEnd">): PlanVerdict {
+  const tolerance = Math.max(20, 0.005 * Math.abs(p.expectedEnd));
+  return Math.abs(p.gap) < tolerance ? "conforme" : p.gap > 0 ? "avance" : "retard";
+}
+
+/** « Mars 2025 ». */
 export const monthTitle = (m: Month) => capitalize(formatMonth(m));

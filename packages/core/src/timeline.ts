@@ -1,4 +1,4 @@
-import { ACCOUNT_KIND_LABELS, BUCKETS, type Bucket } from "./domain";
+import { ACCOUNT_KIND_LABELS, BUCKETS, CASH_BUCKET, type Bucket } from "./domain";
 import type { EngineData } from "./engine";
 import type { HistoryPoint } from "./history";
 import { formatEur, formatPct, roundCents } from "./money";
@@ -301,4 +301,131 @@ export function compareSnapshots(from: HistoryPoint | null, to: HistoryPoint): S
   }).filter((b) => b.start !== 0 || b.end !== 0);
 
   return { start: from ? totalsOf(from) : null, end: totalsOf(to), accounts, positions, buckets };
+}
+
+// ——— Mois par mois ———
+
+export interface MonthChange {
+  month: Month;
+  /** Argent apporté net : versements moins retraits (les transferts entre enveloppes s'annulent). */
+  money: number;
+  /** Versements bruts du mois : nuls, c'est un mois sans versement. */
+  deposits: number;
+  /** Ce que les placements ont rapporté (ou fait perdre) dans le mois. */
+  gain: number;
+}
+
+/** Chaque mois de la période (après `from`, jusqu'à `to` compris) : l'argent apporté et le gain. */
+export function monthByMonth(data: EngineData, history: readonly HistoryPoint[], from: Month | null, to: Month): MonthChange[] {
+  const ids = data.accounts.map((a) => a.id);
+  const out: MonthChange[] = [];
+  history.forEach((h, i) => {
+    if ((from != null && h.month <= from) || h.month > to) return;
+    const c = periodChange(data, i > 0 ? history[i - 1]! : null, h, ids);
+    out.push({ month: h.month, money: roundCents(c.flows.deposits - c.flows.withdrawals), deposits: c.flows.deposits, gain: c.sources.total });
+  });
+  return out;
+}
+
+// ——— Par rapport au plan ———
+
+/**
+ * Rendement annuel attendu de chaque classe, d'après les réglages de la projection : les quatre lignes de base,
+ * puis le rendement saisi sur la ligne de la répartition cible pour l'immobilier, le crowdlending et la crypto.
+ * null : aucun rendement attendu, la classe est supposée ne rien rapporter.
+ */
+export function expectedRates(params: EngineData["params"]): Record<Bucket, number | null> {
+  const line = (key: Bucket) => params.targets.find((l) => l.key === key)?.expectedReturn ?? null;
+  return {
+    precaution: params.returns.livrets,
+    garanti: params.returns.fondsEuros,
+    obligations: params.returns.obligations,
+    croissance: params.returns.actions,
+    immobilier: line("immobilier"),
+    crowdlending: line("crowdlending"),
+    speculatif: line("speculatif"),
+  };
+}
+
+export interface PlanPoint {
+  month: Month;
+  expected: number;
+  actual: number;
+}
+
+export interface PlanComparison {
+  expectedEnd: number;
+  actualEnd: number;
+  /** Positif : en avance sur le plan. Égal à `moneyGap + gainGap`. */
+  gap: number;
+  plannedMoney: number;
+  actualMoney: number;
+  /** Argent apporté en plus (ou en moins) du calendrier des versements. */
+  moneyGap: number;
+  expectedGain: number;
+  actualGain: number;
+  /** Gain des placements au-dessus (ou en dessous) des rendements attendus. */
+  gainGap: number;
+  path: PlanPoint[];
+  /** Classes détenues sans rendement attendu, comptées sans gain dans le plan. */
+  unrated: Bucket[];
+}
+
+/**
+ * Ce que le plan prévoyait pour la période, avec les réglages actuels : la valeur de départ de chaque classe
+ * grandit à son rendement attendu, et les versements du calendrier s'y ajoutent chaque mois, dans la classe
+ * des espèces de leur compte (comme la projection), ainsi que les apports initiaux, point de départ du plan.
+ * Les mois déclarés manqués comptent : c'est l'écart d'épargne.
+ * null si la période ne contient aucun mois.
+ */
+export function planComparison(data: EngineData, history: readonly HistoryPoint[], from: Month | null, to: Month): PlanComparison | null {
+  const start = from == null ? null : (history.find((h) => h.month === from) ?? null);
+  const end = history.find((h) => h.month === to);
+  const months = history.filter((h) => (from == null || h.month > from) && h.month <= to);
+  if (!end || !months.length) return null;
+  const rates = expectedRates(data.params);
+  const schedule = new Schedule(data.plans, data.skips, data.params.profile.startMonth, data.params.profile.contributionDay);
+  const plan = Object.fromEntries(BUCKETS.map((b) => [b, Math.max(0, start?.buckets[b] ?? 0)])) as Record<Bucket, number>;
+  let plannedMoney = 0;
+  const path: PlanPoint[] = start ? [{ month: start.month, expected: start.value, actual: start.value }] : [];
+  for (const h of months) {
+    for (const b of BUCKETS) plan[b] *= Math.pow(1 + (rates[b] ?? 0), 1 / 12);
+    // Les apports initiaux sont le point de départ du plan, pas une épargne en plus.
+    for (const t of data.transactions) {
+      if (t.type !== "apport_initial" || monthOf(t.date) !== h.month || t.date > h.date) continue;
+      const kind = data.accounts.find((a) => a.id === t.accountId)?.kind;
+      if (!kind) continue;
+      plan[CASH_BUCKET[kind]] += t.amount;
+      plannedMoney += t.amount;
+    }
+    // Le mois en cours ne compte son versement qu'une fois son jour passé.
+    if (schedule.isPaid(h.month, h.date)) {
+      for (const a of data.accounts) {
+        const amount = schedule.planned(a.id, h.month);
+        if (amount <= 0) continue;
+        plan[CASH_BUCKET[a.kind]] += amount;
+        plannedMoney += amount;
+      }
+    }
+    path.push({ month: h.month, expected: roundCents(BUCKETS.reduce((t, b) => t + plan[b], 0)), actual: h.value });
+  }
+  const startValue = start?.value ?? 0;
+  const expectedEnd = path.at(-1)!.expected;
+  const change = periodChange(data, start, end, data.accounts.map((a) => a.id));
+  const actualMoney = roundCents(change.flows.deposits - change.flows.withdrawals);
+  const expectedGain = roundCents(expectedEnd - startValue - plannedMoney);
+  const unrated = BUCKETS.filter((b) => rates[b] == null && months.some((h) => h.buckets[b] > 0));
+  return {
+    expectedEnd,
+    actualEnd: end.value,
+    gap: roundCents(end.value - expectedEnd),
+    plannedMoney: roundCents(plannedMoney),
+    actualMoney,
+    moneyGap: roundCents(actualMoney - plannedMoney),
+    expectedGain,
+    actualGain: change.sources.total,
+    gainGap: roundCents(change.sources.total - expectedGain),
+    path,
+    unrated,
+  };
 }

@@ -4,7 +4,7 @@ import type { EngineData } from "./engine";
 import { buildHistory, type HistoryPoint } from "./history";
 import { formatEur } from "./money";
 import { defaultParams } from "./params";
-import { compareSnapshots, milestones, periodChange, positionMove, thresholds } from "./timeline";
+import { compareSnapshots, expectedRates, milestones, monthByMonth, periodChange, planComparison, positionMove, thresholds } from "./timeline";
 
 const acc = (id: string, kind: Account["kind"], over: Partial<Account> = {}): Account => ({ id, kind, livretType: null, name: id.toUpperCase(), institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false, ...over });
 const asset = (id: string): Asset => ({ id, kind: "etf", name: `ETF ${id}`, isin: null, symbol: null, priceSource: "auto", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false });
@@ -145,5 +145,78 @@ describe("grandes étapes", () => {
   it("triées par date, rien après la date du jour", () => {
     expect([...list].sort((a, b) => a.date.localeCompare(b.date)).map((m) => m.id)).toEqual(ids);
     expect(milestones(data, history, "2025-01-31").every((m) => m.date <= "2025-01-31")).toBe(true);
+  });
+});
+
+describe("mois par mois", () => {
+  const data = scenario();
+  const history = buildHistory(data, ASOF);
+
+  it("chaque mois de la période : argent apporté net et gain, qui redonnent la cascade", () => {
+    const months = monthByMonth(data, history, "2025-02", "2025-08");
+    expect(months.map((m) => m.month)).toEqual(["2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08"]);
+    // Mars : seulement le versement programmé ; juillet : 200 programmés, 1 100 retirés.
+    expect(months[0]!.money).toBe(200);
+    expect(months[4]!.money).toBe(-900);
+    expect(months[4]!.deposits).toBe(200);
+    const whole = periodChange(data, at(history, "2025-02"), at(history, "2025-08"), data.accounts.map((a) => a.id));
+    expect(months.reduce((t, m) => t + m.money, 0)).toBeCloseTo(whole.flows.deposits - whole.flows.withdrawals, 6);
+    expect(months.reduce((t, m) => t + m.gain, 0)).toBeCloseTo(whole.sources.total, 6);
+  });
+
+  it("depuis le tout début : le premier mois part de zéro", () => {
+    const months = monthByMonth(data, history, null, "2025-01");
+    expect(months).toHaveLength(1);
+    expect(months[0]!.money).toBe(23_000);
+  });
+});
+
+describe("par rapport au plan", () => {
+  it("sans rendement attendu : le plan, c'est la valeur de départ plus le calendrier des versements", () => {
+    const data = scenario();
+    data.params.returns = { ...data.params.returns, livrets: 0, fondsEuros: 0, obligations: 0, actions: 0 };
+    const history = buildHistory(data, ASOF);
+    const p = planComparison(data, history, "2025-02", "2025-08")!;
+    expect(p.plannedMoney).toBe(1_200);
+    expect(p.expectedEnd).toBeCloseTo(at(history, "2025-02").value + 1_200, 6);
+    expect(p.expectedGain).toBeCloseTo(0, 6);
+    // 1 200 programmés, 1 100 retirés : 1 100 de moins que prévu.
+    expect(p.actualMoney).toBe(100);
+    expect(p.moneyGap).toBe(-1_100);
+    expect(p.gainGap).toBeCloseTo(p.actualGain, 6);
+    expect(p.moneyGap + p.gainGap).toBeCloseTo(p.gap, 6);
+    expect(p.path[0]).toEqual({ month: "2025-02", expected: at(history, "2025-02").value, actual: at(history, "2025-02").value });
+    expect(p.path.at(-1)!.actual).toBe(p.actualEnd);
+  });
+
+  it("avec un rendement attendu : chaque classe grandit à son taux, mois après mois", () => {
+    const data = scenario();
+    data.params.returns = { ...data.params.returns, livrets: 0, fondsEuros: 0, obligations: 0, actions: 0.12 };
+    const history = buildHistory(data, ASOF);
+    const p = planComparison(data, history, "2025-07", "2025-08")!;
+    const start = at(history, "2025-07");
+    // Un mois : la valeur des actions grandit de (1,12)^(1/12) − 1, puis les 200 € du mois s'ajoutent.
+    const growth = start.buckets.croissance * (Math.pow(1.12, 1 / 12) - 1);
+    expect(p.expectedEnd).toBeCloseTo(start.value + growth + 200, 1);
+    expect(p.moneyGap + p.gainGap).toBeCloseTo(p.gap, 6);
+  });
+
+  it("depuis le tout début : les apports initiaux font partie du plan, pas de l'épargne en plus", () => {
+    const data = scenario();
+    data.params.returns = { ...data.params.returns, livrets: 0, fondsEuros: 0, obligations: 0, actions: 0 };
+    const history = buildHistory(data, ASOF);
+    const p = planComparison(data, history, null, "2025-01")!;
+    // Janvier : 3 000 d'apport initial sur le livret (prévu), 20 000 versés en plus.
+    expect(p.plannedMoney).toBe(3_000);
+    expect(p.moneyGap).toBe(20_000);
+  });
+
+  it("rendements des classes : réglages de la projection, puis ceux de la répartition cible", () => {
+    const data = scenario();
+    data.params.targets = data.params.targets.map((l) => (l.key === "crowdlending" ? { ...l, expectedReturn: 0.07 } : l));
+    const r = expectedRates(data.params);
+    expect(r.croissance).toBe(data.params.returns.actions);
+    expect(r.crowdlending).toBe(0.07);
+    expect(r.speculatif).toBeNull();
   });
 });

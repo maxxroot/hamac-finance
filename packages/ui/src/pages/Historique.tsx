@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { addMonth, compareSnapshots, milestones, periodChange, type Milestone } from "@hamac/core";
-import { AccountsCard, AllocationCompareCard, CascadeCard, Frise, MilestoneList, MonthlyTable, PositionsCard, RangeControls, SituationCard } from "@/components/HistoryBlocks";
+import { addMonth, compareSnapshots, milestones, monthByMonth, periodChange, planComparison, type Milestone } from "@hamac/core";
+import { AccountsCard, AllocationCompareCard, CascadeCard, MilestoneList, MonthlyTable, MonthsCard, PlanCard, PositionsCard, RangeControls, SituationCard, SummaryCard } from "@/components/HistoryBlocks";
 import { Notice } from "@/components/Stat";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
-import { activeShortcut, inRange, parseRange, pointLabel, rangeFromMilestone, rangeLabel, rangeParams, shortcutRange, waterfall, type Range } from "@/lib/historique";
+import { activeShortcut, inRange, monthTitle, parseRange, periodSummary, pointLabel, rangeFromMilestone, rangeLabel, rangeParams, shortcutRange, waterfall, type Range } from "@/lib/historique";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
 import { useJournal } from "@/lib/journal";
 
@@ -44,9 +44,22 @@ export function Historique() {
     return { from, to, cmp, scope: scoped, change: periodChange(pf.data, from, to, ids) };
   }, [pf, history, rangeFrom, rangeTo, scope]);
 
+  // Résumé, mois par mois et plan : toujours sur tout le patrimoine, quel que soit le périmètre de la cascade.
+  const period = useMemo(() => {
+    if (!pf || !history?.length || !rangeTo) return null;
+    const from = rangeFrom == null ? null : (history.find((h) => h.month === rangeFrom) ?? null);
+    const to = history.find((h) => h.month === rangeTo)!;
+    const months = monthByMonth(pf.data, history, rangeFrom, rangeTo);
+    return {
+      months,
+      summary: periodSummary(periodChange(pf.data, from, to, pf.data.accounts.map((a) => a.id)), months.length),
+      plan: planComparison(pf.data, history, rangeFrom, rangeTo),
+    };
+  }, [pf, history, rangeFrom, rangeTo]);
+
   if (!pf || !history) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
-  if (!range || !view) {
+  if (!range || !view || !period) {
     return (
       <>
         <PageHeader title="Historique" />
@@ -74,17 +87,18 @@ export function Historique() {
     <>
       <PageHeader title="Historique" description="Remonter le temps : où en était le patrimoine à une date, ce qui a changé depuis, et les grandes étapes du parcours. Tout est reconstruit à partir du journal." />
 
-      <Card className="mb-5">
-        <CardTitle hint={`${steps.length} étape${steps.length > 1 ? "s" : ""} en tout`}>Le parcours</CardTitle>
+      <div className="mb-6">
         <RangeControls months={months} range={range} active={activeShortcut(range, months)} onChange={setRange} onShortcut={(k) => setRange(shortcutRange(k, range.to, months))} />
-        {months.length > 1 && (
-          <div className="mt-5">
-            <Frise months={months} items={steps} range={range} onPick={pick} />
-          </div>
-        )}
-      </Card>
+      </div>
 
       <h2 className="mb-4 font-display text-xl text-fg">{rangeLabel(range, last)}</h2>
+
+      <SummaryCard s={period.summary} fromStart={range.from == null} />
+
+      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <MonthsCard months={period.months} monthLabel={monthTitle} />
+        {period.plan && <PlanCard p={period.plan} monthLabel={monthTitle} />}
+      </div>
 
       <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
         <div className="space-y-5">

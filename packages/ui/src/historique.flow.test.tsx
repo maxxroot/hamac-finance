@@ -20,6 +20,9 @@ vi.mock("@/lib/transport", () => ({
   },
 }));
 
+// Le dessin SVG demande un navigateur ; on vérifie ici les données et les textes autour des graphiques.
+vi.mock("@/components/Chart", () => ({ Chart: () => <div data-testid="graphique" />, axisStyle: () => ({}), tooltipStyle: () => ({}) }));
+
 async function rpc<T = unknown>(name: string, input?: unknown): Promise<T> {
   const r = await h.backend.dispatch(name, input);
   if (!r.ok) throw new Error(r.error.message);
@@ -59,16 +62,21 @@ afterEach(() => {
 });
 
 describe("page Historique", () => {
-  it("frise, situation, cascade : une étape ouvre la période qui la contient", async () => {
+  it("situation, cascade, étapes : une étape ouvre la période qui la contient", async () => {
     const user = userEvent.setup();
     await seed();
     show(<Historique />, "/historique");
-    expect(await screen.findByText("Le parcours")).toBeTruthy();
-    expect(screen.getByText("La situation")).toBeTruthy();
+    expect(await screen.findByText("La situation")).toBeTruthy();
     expect(screen.getByText("Ce qui s'est passé")).toBeTruthy();
+
+    expect(screen.getByText("Mois par mois")).toBeTruthy();
+    expect(screen.getByText("Par rapport au plan")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Depuis le début" }));
     expect(screen.getByRole("heading", { name: "Du début à aujourd'hui" })).toBeTruthy();
+    expect(screen.getByText(/Depuis le début, votre patrimoine financier a atteint/)).toBeTruthy();
+    const plan = screen.getByText("Par rapport au plan").closest("div.rounded-2xl") as HTMLElement;
+    expect(within(plan).getByText(/^(En avance|En retard|Dans les clous)/)).toBeTruthy();
     const list = screen.getByText("Les grandes étapes").closest("div.rounded-2xl") as HTMLElement;
     expect(within(list).getByText("Premier achat de ETF Fictif")).toBeTruthy();
     expect(within(list).getByText("Ouverture de « Mon PEA »")).toBeTruthy();

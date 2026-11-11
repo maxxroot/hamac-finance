@@ -14,17 +14,21 @@ import {
   type Month,
   type PositionChange,
   type PositionMove,
+  type MonthChange,
+  type PlanComparison,
   type SnapshotComparison,
   type SnapshotTotals,
+  formatEur,
 } from "@hamac/core";
 import { Amount } from "./Amount";
+import { Chart, axisStyle, tooltipStyle, type ChartOption } from "./Chart";
 import { Select } from "./form";
 import { Pct } from "./Stat";
 import { Table, Td, Th, Tr } from "./table";
 import { Badge, Button, Card, CardTitle } from "./ui";
-import { BUCKET_COLORS } from "@/lib/colors";
+import { BUCKET_COLORS, useChartColors } from "@/lib/colors";
 import { cn } from "@/lib/cn";
-import { barSpan, byYear, monthTitle, SHORTCUTS, type Range, type ShortcutKey, type Waterfall } from "@/lib/historique";
+import { barSpan, byYear, chartBars, durationLabel, monthStats, planVerdict, SHORTCUTS, type PeriodSummary, type Range, type ShortcutKey, type Waterfall } from "@/lib/historique";
 import { capitalize, formatDate, formatMonth } from "@/lib/numbers";
 import { SortTh, useSortable } from "@/lib/sort";
 
@@ -40,7 +44,7 @@ export const CATEGORY_COLORS: Record<MilestoneCategory, string> = {
 
 const dot = (category: MilestoneCategory): CSSProperties => ({ backgroundColor: CATEGORY_COLORS[category] });
 
-// ——— Choix des dates et frise ———
+// ——— Choix des dates ———
 
 export function RangeControls({ months, range, active, onChange, onShortcut }: { months: readonly Month[]; range: Range; active: ShortcutKey | null; onChange: (r: Range) => void; onShortcut: (k: ShortcutKey) => void }) {
   const last = months.at(-1)!;
@@ -79,60 +83,6 @@ export function RangeControls({ months, range, active, onChange, onShortcut }: {
           </button>
         ))}
       </span>
-    </div>
-  );
-}
-
-/**
- * Frise du parcours : un point par mois qui compte au moins une étape, la période choisie surlignée.
- * Un clic sur un point ouvre la période à cette étape. La liste en dessous en est la version lisible.
- */
-export function Frise({ months, items, range, onPick }: { months: readonly Month[]; items: readonly Milestone[]; range: Range; onPick: (m: Milestone) => void }) {
-  const index = useMemo(() => new Map(months.map((m, i) => [m, i])), [months]);
-  const pos = (m: Month) => (months.length > 1 ? (index.get(m)! / (months.length - 1)) * 100 : 50);
-  const groups = useMemo(() => {
-    const map = new Map<Month, Milestone[]>();
-    for (const m of items) if (index.has(m.month)) map.set(m.month, [...(map.get(m.month) ?? []), m]);
-    return [...map.entries()];
-  }, [items, index]);
-  const years = months.filter((m, i) => i === 0 || m.endsWith("-01"));
-  const from = range.from == null ? 0 : pos(range.from);
-  const to = pos(range.to);
-
-  return (
-    <div className="px-2">
-      <div className="relative h-24" aria-label="Frise des grandes étapes">
-        {/* Période choisie */}
-        <div className="absolute top-2 bottom-7 rounded-md border-x-2 border-accent/60 bg-accent/8" style={{ left: `${from}%`, width: `${Math.max(0.5, to - from)}%` }} aria-hidden />
-        {/* Ligne du temps */}
-        <div className="absolute right-0 left-0 h-px bg-line-strong" style={{ bottom: "1.75rem" }} aria-hidden />
-        {years.map((m) => (
-          <div key={m} className="absolute bottom-0 -translate-x-1/2 text-[0.6875rem] text-fg-faint num" style={{ left: `${pos(m)}%` }} aria-hidden>
-            <div className="mx-auto mb-1 h-2 w-px bg-line-strong" />
-            {m.slice(0, 4)}
-          </div>
-        ))}
-        {groups.map(([month, list]) => {
-          const shown = list.slice(0, 3);
-          const inside = (range.from == null || month > range.from) && month <= range.to;
-          return (
-            <div key={month} className="absolute flex -translate-x-1/2 flex-col-reverse items-center gap-0.5" style={{ left: `${pos(month)}%`, bottom: "calc(1.75rem - 5px)" }}>
-              {shown.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => onPick(m)}
-                  title={`${monthTitle(month)} · ${m.title}${m.detail ? ` — ${m.detail}` : ""}`}
-                  aria-label={`${monthTitle(month)} : ${m.title}. Voir ce qui a changé depuis.`}
-                  className={cn("size-2.5 cursor-pointer rounded-full ring-2 ring-surface transition-transform hover:scale-150 focus-visible:scale-150 focus-visible:outline-2 focus-visible:outline-accent", !inside && "opacity-40")}
-                  style={dot(m.category)}
-                />
-              ))}
-              {list.length > shown.length && <span className="text-[0.625rem] leading-none text-fg-faint">+{list.length - shown.length}</span>}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -205,6 +155,187 @@ export function MilestoneList({ items, total, showAll, onToggleAll, onPick }: { 
         </Button>
       )}
     </div>
+  );
+}
+
+// ——— Résumé de la période ———
+
+const eurText = (v: number) => formatEur(v, { compact: true });
+const signedText = (v: number) => `${v > 0.004 ? "+" : ""}${eurText(v)}`;
+/** Graduations : « 1,5 k€ » plutôt qu'un arrondi qui ferait lire 2 k€. */
+const eurAxis = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} k€` : `${v} €`);
+
+/** La période en une phrase : de combien le patrimoine a grandi, et d'où ça vient. */
+export function SummaryCard({ s, fromStart }: { s: PeriodSummary; fromStart: boolean }) {
+  const delta = s.endValue - s.startValue;
+  return (
+    <Card className="mb-5">
+      <p className="font-display text-xl leading-snug text-fg">
+        {fromStart ? (
+          <>
+            Depuis le début, votre patrimoine financier a atteint <Amount value={s.endValue} compact />.
+          </>
+        ) : (
+          <>
+            En {durationLabel(s.months)}, votre patrimoine financier est passé de <Amount value={s.startValue} compact /> à <Amount value={s.endValue} compact /> (<Amount value={delta} signed compact />).
+          </>
+        )}
+      </p>
+      {s.moneyShare != null ? (
+        <div className="mt-4">
+          <div className="flex h-2.5 overflow-hidden rounded-full bg-surface-3" aria-hidden>
+            <div className="bg-precaution" style={{ width: `${s.moneyShare * 100}%` }} />
+            <div className="bg-positive" style={{ width: `${(1 - s.moneyShare) * 100}%` }} />
+          </div>
+          <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-fg-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-precaution" aria-hidden />
+              <span>
+                {Math.round(s.moneyShare * 100)} % vient de votre épargne (<Amount value={s.money} compact />)
+              </span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-positive" aria-hidden />
+              <span>
+                {100 - Math.round(s.moneyShare * 100)} % des placements (<Amount value={s.gain} compact />)
+              </span>
+            </span>
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-fg-muted">
+          {s.money >= 0 ? <>Vous avez apporté <Amount value={s.money} compact /></> : <>Vous avez retiré <Amount value={-s.money} compact /> de plus que vous n'avez versé</>}
+          {" ; "}
+          {s.gain >= 0 ? <>les placements ont rapporté <Amount value={s.gain} compact /></> : <>les placements ont fait perdre <Amount value={-s.gain} compact /></>}.
+        </p>
+      )}
+      {s.months > 0 && s.money > 0 && (
+        <p className="mt-2 text-sm text-fg-muted">
+          <Amount value={s.perMonth} compact className="font-medium text-fg" /> épargnés par mois en moyenne.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// ——— Mois par mois ———
+
+export function MonthsCard({ months, monthLabel }: { months: readonly MonthChange[]; monthLabel: (m: Month) => string }) {
+  const c = useChartColors();
+  const { bars, yearly } = useMemo(() => chartBars(months, monthLabel), [months, monthLabel]);
+  const stats = useMemo(() => monthStats(months), [months]);
+  const option = useMemo<ChartOption>(
+    () => ({
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, ...tooltipStyle(c), valueFormatter: (v: unknown) => signedText(Number(v)) },
+      legend: { show: false },
+      grid: { left: 8, right: 8, top: 12, bottom: 8, containLabel: true },
+      xAxis: { type: "category", data: bars.map((b) => b.label), ...axisStyle(c), splitLine: { show: false } },
+      yAxis: { type: "value", ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxis } },
+      series: [
+        { name: "Argent apporté", type: "bar", barMaxWidth: 18, data: bars.map((b) => Math.round(b.money)), itemStyle: { color: c.buckets.precaution, borderRadius: 2 } },
+        {
+          name: "Gain des placements",
+          type: "bar",
+          barMaxWidth: 18,
+          data: bars.map((b) => ({ value: Math.round(b.gain), itemStyle: { color: b.gain >= 0 ? c.polarity.positive : c.polarity.negative, borderRadius: 2 } })),
+        },
+      ],
+    }),
+    [bars, c],
+  );
+  const named = (list: readonly Month[]) => list.slice(0, 3).map(monthLabel).join(", ") + (list.length > 3 ? "…" : "");
+  return (
+    <Card>
+      <CardTitle
+        hint={
+          <span className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-precaution" aria-hidden />apporté</span>
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-positive" aria-hidden />gain</span>
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-negative" aria-hidden />perte</span>
+          </span>
+        }
+      >
+        {yearly ? "Année par année" : "Mois par mois"}
+      </CardTitle>
+      {months.length === 0 ? <p className="py-16 text-center text-sm text-fg-muted">Aucun mois sur cette période.</p> : <Chart option={option} height={220} />}
+      {months.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm text-fg-muted">
+          <li>{stats.empty.length === 0 ? "Un versement chaque mois" : `${stats.empty.length} mois sans versement (${named(stats.empty)})`}</li>
+          {stats.best && (
+            <li>
+              Meilleur mois : <Amount value={stats.best.gain} signed compact /> en {monthLabel(stats.best.month).toLowerCase()}
+              {stats.worst && (
+                <>
+                  {" · "}pire : <Amount value={stats.worst.gain} signed compact /> en {monthLabel(stats.worst.month).toLowerCase()}
+                </>
+              )}
+            </li>
+          )}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+// ——— Par rapport au plan ———
+
+const BUCKET_UNRATED: Partial<Record<string, string>> = { speculatif: "la crypto", crowdlending: "le crowdlending", immobilier: "l'immobilier (SCPI)" };
+
+export function PlanCard({ p, monthLabel }: { p: PlanComparison; monthLabel: (m: Month) => string }) {
+  const c = useChartColors();
+  const verdict = planVerdict(p);
+  const option = useMemo<ChartOption>(
+    () => ({
+      tooltip: { trigger: "axis", ...tooltipStyle(c), valueFormatter: (v: unknown) => eurText(Number(v)) },
+      legend: { show: false },
+      grid: { left: 8, right: 8, top: 12, bottom: 8, containLabel: true },
+      xAxis: { type: "category", boundaryGap: false, data: p.path.map((x) => monthLabel(x.month)), ...axisStyle(c), splitLine: { show: false } },
+      yAxis: { type: "value", scale: true, ...axisStyle(c), axisLabel: { color: c.ink.faint, formatter: eurAxis } },
+      series: [
+        { name: "Prévu", type: "line", data: p.path.map((x) => x.expected), showSymbol: false, lineStyle: { width: 2, type: "dashed", color: c.ink.muted }, itemStyle: { color: c.ink.muted } },
+        { name: "Réel", type: "line", data: p.path.map((x) => x.actual), showSymbol: false, lineStyle: { width: 2, color: c.primary }, itemStyle: { color: c.primary } },
+      ],
+    }),
+    [p, c, monthLabel],
+  );
+  const unrated = p.unrated.map((b) => BUCKET_UNRATED[b]).filter(Boolean);
+  return (
+    <Card>
+      <CardTitle hint={<Link to="/projection" className="text-accent hover:underline">Régler les rendements attendus</Link>}>Par rapport au plan</CardTitle>
+      <p className={cn("font-display text-2xl", verdict === "avance" && "text-positive", verdict === "retard" && "text-negative")}>
+        {verdict === "conforme" ? "Dans les clous" : verdict === "avance" ? `En avance de ${eurText(p.gap)}` : `En retard de ${eurText(-p.gap)}`}
+      </p>
+      <p className="mt-1 text-sm text-fg-muted">
+        Prévu : <Amount value={p.expectedEnd} compact /> · réel : <Amount value={p.actualEnd} compact className="text-fg" />
+      </p>
+      <dl className="mt-4 space-y-2 text-sm">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-fg-muted">
+            Épargne <span className="text-xs text-fg-faint">(prévu <Amount value={p.plannedMoney} compact />, apporté <Amount value={p.actualMoney} compact />)</span>
+          </dt>
+          <dd><Amount value={p.moneyGap} signed compact /></dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-fg-muted">
+            Placements <span className="text-xs text-fg-faint">(prévu <Amount value={p.expectedGain} signed compact />, obtenu <Amount value={p.actualGain} signed compact />)</span>
+          </dt>
+          <dd><Amount value={p.gainGap} signed compact /></dd>
+        </div>
+      </dl>
+      {p.path.length > 1 && (
+        <>
+          <div className="mt-4 flex gap-4 text-xs text-fg-faint">
+            <span className="flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-fg-muted" aria-hidden />prévu</span>
+            <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-accent" aria-hidden />réel</span>
+          </div>
+          <Chart option={option} height={170} />
+        </>
+      )}
+      <p className="mt-2 text-xs text-fg-faint">
+        Le plan part de la valeur de départ, fait grandir chaque classe à son rendement attendu et ajoute les versements programmés, avec les réglages actuels.
+        {unrated.length > 0 && ` Sans rendement attendu, ${unrated.join(" et ")} ${unrated.length > 1 ? "sont comptés" : "est compté"} sans gain.`}
+      </p>
+    </Card>
   );
 }
 

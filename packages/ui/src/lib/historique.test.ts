@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { PeriodChange } from "@hamac/core";
-import { activeShortcut, barSpan, byYear, defaultRange, inRange, parseRange, pointLabel, rangeFromMilestone, shortcutRange, waterfall } from "./historique";
+import type { MonthChange, PeriodChange } from "@hamac/core";
+import { activeShortcut, barSpan, byYear, chartBars, defaultRange, durationLabel, monthStats, periodSummary, planVerdict, inRange, parseRange, pointLabel, rangeFromMilestone, shortcutRange, waterfall } from "./historique";
 
 const months = Array.from({ length: 23 }, (_, i) => `${2025 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`); // 2025-01 → 2026-11
 
@@ -78,5 +78,47 @@ describe("cascade", () => {
     expect(big.zoomed).toBe(false);
     expect(big.lo).toBe(0);
     expect(big.rows[0]!.key).toBe("versements");
+  });
+});
+
+describe("résumé, mois par mois et plan", () => {
+  it("résumé : part de l'épargne seulement quand les deux sont positifs", () => {
+    const up = periodSummary(change({ deposits: 4_000 }, { unrealized: 1_000 }), 10);
+    expect(up.moneyShare).toBeCloseTo(0.8, 10);
+    expect(up.perMonth).toBe(400);
+    expect(periodSummary(change({ deposits: 4_000 }, { unrealized: -1_000 }), 10).moneyShare).toBeNull();
+    expect(periodSummary(change({ withdrawals: 500 }, { unrealized: 1_000 }), 10).moneyShare).toBeNull();
+  });
+
+  it("durées en mots", () => {
+    expect(durationLabel(1)).toBe("1 mois");
+    expect(durationLabel(12)).toBe("1 an");
+    expect(durationLabel(27)).toBe("2 ans et 3 mois");
+  });
+
+  const m = (month: string, money: number, gain: number, deposits = money): MonthChange => ({ month, money, gain, deposits });
+
+  it("statistiques des mois : mois sans versement, meilleur et pire", () => {
+    const s = monthStats([m("2026-01", 500, 120), m("2026-02", 0, -80, 0), m("2026-03", 400, 30)]);
+    expect(s.empty).toEqual(["2026-02"]);
+    expect(s.best!.month).toBe("2026-01");
+    expect(s.worst!.month).toBe("2026-02");
+    expect(monthStats([m("2026-01", 100, 10)]).worst).toBeNull();
+  });
+
+  it("une barre par mois jusqu'à trois ans, puis par an", () => {
+    const short = chartBars([m("2026-01", 1, 1), m("2026-02", 2, 2)], (x) => x);
+    expect(short.yearly).toBe(false);
+    expect(short.bars).toHaveLength(2);
+    const long = chartBars(months.concat(months.map((x) => `${+x.slice(0, 4) + 2}${x.slice(4)}`)).map((x) => m(x, 100, 10)), (x) => x);
+    expect(long.yearly).toBe(true);
+    expect(long.bars.map((b) => b.key)).toEqual(["2025", "2026", "2027", "2028"]);
+    expect(long.bars[0]!.money).toBe(1_200);
+  });
+
+  it("verdict du plan, avec une marge", () => {
+    expect(planVerdict({ gap: 1_200, expectedEnd: 30_000 })).toBe("avance");
+    expect(planVerdict({ gap: -1_200, expectedEnd: 30_000 })).toBe("retard");
+    expect(planVerdict({ gap: 100, expectedEnd: 30_000 })).toBe("conforme");
   });
 });
