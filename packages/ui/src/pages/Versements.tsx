@@ -1,6 +1,6 @@
 import { CalendarX2, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Schedule, addMonth, monthOf, isRetirementPlan, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
+import { Schedule, addMonth, formatEur, monthOf, isRetirementPlan, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { ContributionSplitCard } from "@/components/CustomAllocationCards";
 import { SuggestedContributions } from "@/components/SuggestedContributions";
@@ -10,6 +10,7 @@ import { Badge, Button, Card, CardTitle, PageHeader, tabClass, tabListClass } fr
 import { Onboarding } from "@/pages/Onboarding";
 import { cn } from "@/lib/cn";
 import { capitalize, formatMonth, todayIso } from "@/lib/numbers";
+import { oneOffByMonth, oneOffTotal } from "@/lib/versements";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
 export function Versements() {
@@ -20,15 +21,21 @@ export function Versements() {
   const current = monthOf(today);
 
   const schedule = useMemo(() => (idx ? new Schedule(idx.ws.plans, idx.ws.skips, idx.ws.params.profile.startMonth, idx.ws.params.profile.contributionDay) : null), [idx]);
+  const oneOffs = useMemo(() => oneOffByMonth(idx?.ws.transactions ?? []), [idx]);
 
   if (!idx || !schedule) return null;
   if (idx.ws.accounts.length === 0) return <Onboarding />;
 
   const { params } = idx.ws;
   const withPlans = idx.activeAccounts.filter((a) => idx.ws.plans.some((p) => p.accountId === a.id));
-  // Calendrier jusqu'au départ en retraite, ou sur dix ans en gestion de patrimoine.
+  // Colonnes du calendrier : comptes à versement programmé, plus ceux qui ont reçu un versement ponctuel (même archivés).
+  const withOneOffs = new Set([...oneOffs.values()].flatMap((byAccount) => [...byAccount.keys()]));
+  const columns = idx.ws.accounts.filter((a) => withPlans.some((p) => p.id === a.id) || withOneOffs.has(a.id));
+  // Calendrier jusqu'au départ en retraite, ou sur dix ans en gestion de patrimoine ; depuis le premier versement ponctuel s'il précède le plan.
   const endMonth = isRetirementPlan(params) ? `${retirementYear(params)}-12` : `${Math.max(+current.slice(0, 4), +params.profile.startMonth.slice(0, 4)) + 10}-12`;
-  const allMonths = monthsBetweenInclusive(params.profile.startMonth, endMonth);
+  const firstOneOff = [...oneOffs.keys()].sort()[0];
+  const startMonth = firstOneOff && firstOneOff < params.profile.startMonth ? firstOneOff : params.profile.startMonth;
+  const allMonths = monthsBetweenInclusive(startMonth, endMonth);
   const months = showAll ? allMonths : allMonths.filter((m) => m >= addMonth(current, -3) && m <= addMonth(current, 14));
   const monthlyTotal = withPlans.reduce((s, a) => s + schedule.current(a.id, today), 0);
   const dueDay = Number(schedule.dueDate(current).slice(8));
@@ -41,7 +48,7 @@ export function Versements() {
     <>
       <PageHeader
         title="Versements"
-        description="Versements mensuels programmés, compte par compte. Un mois écoulé est considéré comme versé, sauf s'il est déclaré manqué."
+        description="Versements mensuels programmés, compte par compte. Un mois écoulé est considéré comme versé, sauf s'il est déclaré manqué. Les versements ponctuels du journal s'ajoutent au calendrier."
       />
 
       <div className={tabListClass} role="tablist">
@@ -100,13 +107,13 @@ export function Versements() {
       <Card className="p-0">
         <div className="flex min-h-14 items-center justify-between px-5 pt-3 pb-1">
           <h2 className="text-sm font-medium text-fg-muted">Calendrier</h2>
-          {withPlans.length > 0 && (
+          {columns.length > 0 && (
             <Button variant="ghost" className="-mr-3 h-8 text-accent" onClick={() => setShowAll((v) => !v)}>
               {showAll ? "Afficher autour d'aujourd'hui" : `Tout afficher (${allMonths.length} mois)`}
             </Button>
           )}
         </div>
-        {withPlans.length === 0 ? (
+        {columns.length === 0 ? (
           <p className="px-5 pb-5 text-sm text-fg-muted">Programmez un premier versement pour voir le calendrier.</p>
         ) : (
           <div className="max-h-[560px] overflow-y-auto">
@@ -115,7 +122,7 @@ export function Versements() {
                 <tr>
                   <Th className="w-full pl-5">Mois</Th>
                   <Th align="right">Âge</Th>
-                  {withPlans.map((a) => (
+                  {columns.map((a) => (
                     <Th key={a.id} align="right">
                       {a.name}
                     </Th>
@@ -126,19 +133,31 @@ export function Versements() {
               </thead>
               <tbody>
                 {months.map((m) => {
-                  const total = withPlans.reduce((s, a) => s + schedule.amount(a.id, m), 0);
+                  const monthOneOffs = oneOffs.get(m);
+                  const total = columns.reduce((s, a) => s + schedule.amount(a.id, m), 0) + oneOffTotal(monthOneOffs);
+                  const paid = m < params.profile.startMonth ? oneOffTotal(monthOneOffs) > 0 : schedule.isPaid(m, today);
                   const past = m < current;
                   const isCurrent = m === current;
                   return (
                     <Tr key={m} className={cn(isCurrent && "bg-gold/10", !past && !isCurrent && "text-fg-muted")}>
                       <Td className={cn("pl-5 whitespace-nowrap", isCurrent && "font-semibold text-accent")}>{capitalize(formatMonth(m))}</Td>
                       <Td align="right">{Number(m.slice(0, 4)) - params.profile.birthYear}</Td>
-                      {withPlans.map((a) => {
+                      {columns.map((a) => {
                         const amount = schedule.amount(a.id, m);
                         const skipped = schedule.planned(a.id, m) > amount;
+                        const oneOff = monthOneOffs?.get(a.id);
+                        const title = [
+                          skipped && "Mois manqué (tout ou partie)",
+                          ...(oneOff?.items.map((i) => `Versement ponctuel du ${i.date.slice(8)}/${i.date.slice(5, 7)} : ${formatEur(i.amount)}${i.comment ? ` (${i.comment})` : ""}`) ?? []),
+                        ].filter(Boolean);
                         return (
-                          <Td key={a.id} align="right" className={cn(skipped && "text-warning")} title={skipped ? "Mois manqué (tout ou partie)" : undefined}>
-                            {amount ? <Amount value={amount} compact /> : <span className="text-fg-faint">–</span>}
+                          <Td key={a.id} align="right" className={cn("whitespace-nowrap", skipped && "text-warning")} title={title.join("\n") || undefined}>
+                            {amount ? <Amount value={amount} compact /> : !oneOff && <span className="text-fg-faint">–</span>}
+                            {oneOff && (
+                              <div className="text-xs text-accent">
+                                + <Amount value={oneOff.total} compact /> ponctuel
+                              </div>
+                            )}
                           </Td>
                         );
                       })}
@@ -146,7 +165,7 @@ export function Versements() {
                         <Amount value={total} compact />
                       </Td>
                       <Td align="right" className="pr-5 whitespace-nowrap">
-                        {schedule.isPaid(m, today) ? <Badge tone="positive">✓ versé</Badge> : <span className="text-xs">à venir</span>}
+                        {paid ? <Badge tone="positive">✓ versé</Badge> : <span className="text-xs">à venir</span>}
                       </Td>
                     </Tr>
                   );
