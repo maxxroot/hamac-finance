@@ -6,10 +6,10 @@ Chaque proposition indique son statut, ce qui existe déjà dans Hamac, ce qu'il
 
 | N° | Proposition | Statut |
 |----|-------------|--------|
-| 1 | Ce qui est protégé si un établissement fait faillite | Fait le 11 novembre 2026 |
+| 1 | Ce qui est protégé si un établissement fait faillite | Fait le 11 novembre 2026 (commit `bd14015`) |
 | 2 | Calcul de l'IFI | Reporté |
-| 3 | Qui possède quoi | Fait le 11 novembre 2026 |
-| 4 | Biens qui ne sont pas des placements | Fait le 11 novembre 2026 (sans les actions de l'employeur) |
+| 3 | Qui possède quoi | Fait le 11 novembre 2026 (commit `c92ceb0`) |
+| 4 | Biens qui ne sont pas des placements | Fait le 11 novembre 2026, sans les actions de l'employeur (commit `adc3eb5`) |
 | 5 | Exposition réelle derrière les ETF | À étudier : faisabilité des données incertaine |
 | 6 | Concentration et risque | À faire, à détailler |
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
@@ -23,7 +23,7 @@ Chaque proposition indique son statut, ce qui existe déjà dans Hamac, ce qu'il
 
 ## 1. Ce qui est protégé si un établissement fait faillite
 
-**Statut :** fait le 11 novembre 2026. Calcul dans `core/src/protection.ts`, carte sur la Synthèse, alerte dans « À regarder », champs « Établissement garant » et « Pays » sur la fiche de l'établissement. Décisions : la carte va sur la Synthèse ; l'établissement garant est un champ libre (avec les noms déjà saisis proposés) ; pour l'assurance-vie, l'assureur de l'offre fait foi ; l'épargne salariale est classée à part (fonds détenus hors de l'établissement) ; dans un autre pays de l'Union européenne, 100 000 € sur les dépôts et au moins 20 000 € sur les titres (minimum européen).
+**Statut :** fait le 11 novembre 2026. Calcul dans `core/src/protection.ts`, carte sur la Synthèse, alerte dans « À regarder », champs « Établissement garant » et « Pays » sur la fiche de l'établissement. Décisions : la carte va sur la Synthèse ; l'établissement garant est un champ libre (avec les noms déjà saisis proposés) ; pour l'assurance-vie, l'assureur de l'offre fait foi ; l'épargne salariale est classée à part (fonds détenus hors de l'établissement) ; dans un autre pays de l'Union européenne, 100 000 € sur les dépôts et au moins 20 000 € sur les titres (minimum européen de la directive 97/9/CE, à confirmer sur une source officielle).
 
 **Pourquoi.** Personne ne regarde combien il a chez un même établissement par rapport aux garanties légales. Une alerte comme « 140 000 € chez le même assureur, dont 70 000 € non garantis » prévient un vrai risque, sans rien demander de plus à l'utilisateur que ce qu'il saisit déjà.
 
@@ -310,8 +310,8 @@ Pour chaque bien :
 
 À valider. L'ordre tient compte des dépendances entre propositions.
 
-1. **Proposition 1**, protection en cas de faillite : la plus attendue, et elle ne dépend de rien.
-2. **Propositions 3 et 4**, qui possède quoi et autres biens : elles complètent le patrimoine net et nourrissent les propositions 6 et 7.
+1. ~~**Proposition 1**, protection en cas de faillite~~ : faite.
+2. ~~**Propositions 3 et 4**, qui possède quoi et autres biens~~ : faites.
 3. **Proposition 12 a**, rapprochement : il fiabilise tous les calculs qui suivent.
 4. **Proposition 7**, disponibilité de l'argent.
 5. **Proposition 6**, concentration et risque.
