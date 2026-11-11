@@ -8,6 +8,10 @@ release
 *.sqlite
 *.sqlite-*
 CLAUDE.md
+.claude/
+sonar-project.properties
+.scannerwork/
+coverage/
 
 # Clés et secrets locaux
 .env

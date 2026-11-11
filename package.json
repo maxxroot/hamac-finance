@@ -14,11 +14,14 @@
     "dev": "pnpm --parallel --filter @hamac/server --filter @hamac/ui dev",
     "build": "pnpm --filter @hamac/ui build && pnpm --filter @hamac/server build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "sonar": "vitest run --coverage && sonar-scanner",
     "typecheck": "pnpm -r --parallel exec tsc --noEmit -p tsconfig.json",
     "start": "pnpm --filter @hamac/server start"
   },
   "devDependencies": {
     "@types/node": "24",
+    "@vitest/coverage-v8": "5.1.0",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
   },
