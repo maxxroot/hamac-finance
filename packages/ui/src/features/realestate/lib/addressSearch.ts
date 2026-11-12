@@ -1,6 +1,6 @@
 /**
  * Recherche d'adresse dans la Base Adresse Nationale, appelée directement depuis le navigateur.
- * Service de l'IGN (Géoplateforme) : autorisé dans la CSP de `index.html` et de `apps/server/src/app.ts`.
+ * Service de l'IGN (Géoplateforme) : autorisé dans la CSP de `index.html` et de `apps/server/src/http/app.ts`.
  */
 const ENDPOINT = "https://data.geopf.fr/geocodage/search/";
 

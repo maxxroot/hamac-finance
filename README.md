@@ -271,6 +271,7 @@ packages/
   api/        contrat typé (zod) entre l'interface et le backend
   backend/    PostgreSQL + Drizzle, tenants isolés, migrations embarquées, base de cours commune
   ui/         interface React
+  architecture/  tests de structure : frontières entre couches et domaines, liens de la documentation
 ```
 
 L'interface ne connaît que le contrat `@hamac/api`, qu'elle appelle en HTTP. Les calculs vivent dans
@@ -290,8 +291,10 @@ HAMAC_LIVE=1 pnpm test   # inclut les tests sur les vraies sources de cours
 s'applique à chaque tenant à sa prochaine ouverture. Une reprise de données s'écrit à la main dans le
 fichier SQL généré.
 
-La documentation du modèle de données est dans
-[`docs/architecture/modele-de-donnees.md`](docs/architecture/modele-de-donnees.md).
+La documentation est dans [`docs/`](docs/README.md) : un guide et une documentation technique par
+fonctionnalité, [l'organisation du code](docs/architecture/organisation-du-code.md) (où va un nouveau
+fichier), [le modèle de données](docs/architecture/modele-de-donnees.md) et [les décisions](docs/decisions/README.md).
+Les frontières entre couches et domaines sont vérifiées par `pnpm test` ([détail](docs/frontieres-du-code/technique.md)).
 
 ## Contribuer
 
@@ -304,6 +307,8 @@ Les contributions sont bienvenues : signalements, idées, corrections, nouvelles
   va dans `@hamac/core`, accompagnée de tests chiffrés, et cite sa source (texte de loi, BOFiP, site
   officiel).
 - **Langue** : l'interface, les messages et la documentation sont en français.
+- **Documentation** : une fonctionnalité nouvelle ou modifiée met à jour son `docs/<sujet>/guide.md` et son
+  `technique.md` dans la même pull request.
 - **Avant d'envoyer** : `pnpm typecheck` et `pnpm test` doivent passer.
 
 ## Feuille de route

@@ -5,7 +5,7 @@ import { upgradeLegacyDump, upgradeLegacyEuroFunds, upgradeLegacyRentExceptions 
 import { MARKET_SECRETS_KEY } from "../market/config";
 
 /** Tables exportées, dans l'ordre d'insertion (clés étrangères). */
-const TABLES = [
+export const TABLES = [
   "settings",
   "institutions",
   "tax_statement_amounts",

@@ -1,6 +1,6 @@
 # Plan de migration : réorganiser la structure du code
 
-> Statut : **validé le 2026-11-12** (décisions au § 7), **en cours** sur la branche `structure` (avancement au § 8).
+> Statut : **validé le 2026-11-12** (décisions au § 7), **terminé** sur la branche `structure` le 2026-11-12, à fusionner (avancement au § 8).
 > Rédigé le 2026-11-12, sur la branche `gestion-locative` (commit `f317f63`).
 > Démarrage : **après la fusion de `gestion-locative` dans `main`**, dans un **worktree dédié** (§ 4).
 > Modèle : l'organisation d'Argonis-paysage (couches, puis domaines, frontières vérifiées par la CI, une doc par sujet), adaptée à un monorepo TypeScript.
@@ -295,4 +295,6 @@ La table des couches tient en une dizaine de lignes dans le test. Comme dans Arg
 | 5 | Fait | 180 fichiers déplacés (`app/`, `shared/`, `features/<domaine>/`, `flows/`), imports `@/` réécrits, `lib/dashboard.ts` renommé `shared/lib/evolution.ts` (son contenu : historiques des graphiques d'évolution). Façades générées à partir des imports réels. `Etablissements` rejoint `settings` (il n'est affiché que comme onglet des Paramètres). Test des frontières de l'interface bloquant. |
 | 6 | Fait | Dossiers avec façade, mêmes imports pour les appelants : `Parametres/` (un fichier par onglet, `usePlanDraft`, `Section`), `HistoryBlocks/` et `PerformanceBlocks/` (un fichier par carte), `Declaration/` (page, vue complète, fiche d'un établissement), `Notice/` (une partie par fichier, sommaire, lexique). Restent au-dessus de 400 lignes, à voir dans un chantier à part car ce sont des calculs : `core/portfolio/engine.ts` (827), `core/analysis/performance.ts` (746), `core/analysis/exposure.ts`, `core/realestate/leases.ts`, `core/tax/taxReport.ts` ; côté interface, `TransactionDialog.tsx` (598), `Impots.tsx`, `Simulateurs.tsx`. |
 | 7 | Fait | `http/`, `auth/`, `cli/` ; les points d'entrée restent à la racine. Le test de parcours `ui/app/compte.flow.test.tsx`, qui démarre le vrai serveur, pointe vers les nouveaux chemins. Test des frontières du serveur bloquant. |
+| 8 | Fait | 27 sujets documentés, chacun avec `guide.md` et `technique.md` (index : [docs/README.md](../README.md)) ; [organisation du code](organisation-du-code.md) ; sept décisions dans [docs/decisions/](../decisions/README.md) ; README à jour. Les points incohérents relevés en lisant le code sont consignés dans la section « Limites connues » de chaque `technique.md`, sans correction : ce chantier ne change aucun comportement. Le `CLAUDE.md` (ignoré par git) de la nouvelle structure est à la racine du worktree, à recopier à la fusion. |
+| 9 | Fait | Tous les tests de frontières sont bloquants depuis leur étape. S'y ajoutent `docs.test.ts` (aucun lien cassé, aucun chemin cité disparu, deux fichiers par sujet) et `backend/src/backup/dump.test.ts` (chaque table du schéma figure dans `TABLES`). |
 

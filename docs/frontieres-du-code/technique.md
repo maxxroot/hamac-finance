@@ -26,6 +26,7 @@ Ce paquet ne contient que des tests et ne livre aucun code. Il a les types Node 
 | `src/backend.test.ts` | Règles de `@hamac/backend`. |
 | `src/ui.test.ts` | Règles de `@hamac/ui`. |
 | `src/server.test.ts` | Règles d'`apps/server`. |
+| `src/docs.test.ts` | Documentation : aucun lien relatif cassé, aucun chemin du dépôt cité qui n'existe plus (le plan de réorganisation, qui raconte d'anciens chemins, n'est vérifié que pour ses liens), et un `guide.md` et un `technique.md` par sujet de `docs/`. |
 
 ## Couches de `@hamac/core`
 
