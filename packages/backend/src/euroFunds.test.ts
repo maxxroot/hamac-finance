@@ -54,6 +54,19 @@ describe("fonds euros : contrats", () => {
     expect(refused.ok).toBe(false);
   });
 
+  it("prendre le fonds d'un autre contrat : l'argent et les taux servis le suivent, l'ancien fonds disparaît", async () => {
+    backend = await testBackend();
+    const a = await call<Account>(backend, "accounts.upsert", { kind: "assurance_vie", name: "Contrat A" });
+    const b = await call<Account>(backend, "accounts.upsert", { kind: "assurance_vie", name: "Contrat B" });
+    await call(backend, "transactions.upsert", { date: "2025-01-02", type: "versement", accountId: b.id, amount: 800 });
+    await call(backend, "fundRates.set", { accountId: b.id, assetId: b.defaultAssetId, year: 2024, rate: 0.028 });
+    const shared = await call<Account>(backend, "accounts.upsert", { id: b.id, kind: "assurance_vie", name: "Contrat B", defaultAssetId: a.defaultAssetId });
+    expect(shared.defaultAssetId).toBe(a.defaultAssetId);
+    const w = await ws(backend);
+    expect(w.assets.map((x) => x.id)).toEqual([a.defaultAssetId]);
+    expect(w.fundRates).toMatchObject([{ accountId: b.id, assetId: a.defaultAssetId, year: 2024, rate: 0.028 }]);
+  });
+
   it("supprimer un contrat vide supprime son fonds euros, sauf s'il sert à un autre contrat", async () => {
     backend = await testBackend();
     const a = await call<Account>(backend, "accounts.upsert", { kind: "assurance_vie", name: "Contrat A" });

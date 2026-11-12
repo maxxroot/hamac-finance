@@ -1168,8 +1168,17 @@ async function upsertAccount(input: Parsed<"accounts.upsert">, ctx: BackendConte
     }
     await ctx.db.update(t.accounts).set(row).where(eq(t.accounts.id, id));
     if (input.archived && !current.archived) await stopPlans(ctx, id);
-    // Son ancien fonds euros par défaut, s'il ne sert plus nulle part (PER devenu bancaire, par exemple).
-    if (current.defaultAssetId && current.defaultAssetId !== defaultAssetId) await deleteUnusedEuroFund(ctx, current.defaultAssetId);
+    if (current.defaultAssetId && current.defaultAssetId !== defaultAssetId) {
+      // Nouveau fonds par défaut : les taux servis du contrat le suivent, sauf les années qu'il a déjà.
+      if (defaultAssetId) {
+        await ctx.raw.run(
+          `UPDATE fund_rates SET asset_id = ? WHERE account_id = ? AND asset_id = ? AND year NOT IN (SELECT year FROM fund_rates WHERE account_id = ? AND asset_id = ?)`,
+          [defaultAssetId, id, current.defaultAssetId, id, defaultAssetId],
+        );
+      }
+      // L'ancien fonds euros, s'il ne sert plus nulle part (PER devenu bancaire, fonds partagé avec un autre contrat…).
+      await deleteUnusedEuroFund(ctx, current.defaultAssetId);
+    }
   } else {
     await ctx.db.insert(t.accounts).values({ id, ...row });
   }
