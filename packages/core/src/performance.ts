@@ -555,6 +555,23 @@ function assetFlows(data: EngineData, state: PortfolioState, assetId: string, ac
   return flows;
 }
 
+/**
+ * Flux d'un fonds euros : tout ce qui change son solde, sauf ses intérêts, est de l'argent apporté ou retiré
+ * (versements, achats et ventes d'unités de compte, frais…), daté de la fin du mois. Son rendement d'un mois
+ * est donc ses intérêts rapportés au solde de départ.
+ */
+function euroFundFlows(history: readonly HistoryPoint[], of: (h: HistoryPoint) => { value: number; income: number }): Flow[] {
+  const flows: Flow[] = [];
+  let prev = { value: 0, income: 0 };
+  for (const h of history) {
+    const now = of(h);
+    const moved = now.value - prev.value - (now.income - prev.income);
+    if (Math.abs(moved) >= 0.005) flows.push({ date: h.date, amount: -moved });
+    prev = now;
+  }
+  return flows;
+}
+
 /** Résultat de chaque titre sur la période, titres vendus compris, du meilleur au moins bon. */
 export function assetPerformance(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], accountIds: readonly string[], monthsBack: number | null): AssetPerformance[] {
   const accounts = new Set(accountIds);
@@ -575,7 +592,8 @@ export function assetPerformance(data: EngineData, state: PortfolioState, histor
         },
         { value: 0, latent: 0, realized: 0, income: 0 },
       );
-    const flows = assetFlows(data, state, assetId, accounts);
+    const isFund = data.assets.find((a) => a.id === assetId)?.kind === "fonds_euros";
+    const flows = isFund ? euroFundFlows(history, of) : assetFlows(data, state, assetId, accounts);
     const series = history.map((h) => ({ month: h.month, date: h.date, value: of(h).value }));
     const first = trimLeading(series, flows);
     if (first < 0) continue;

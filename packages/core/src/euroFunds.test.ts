@@ -3,7 +3,7 @@ import type { Account, Asset, ContributionPlan, PricePoint, Transaction } from "
 import { computePortfolio, type EngineData } from "./engine";
 import { buildHistory } from "./history";
 import { defaultParams } from "./params";
-import { envelopePerformance, scopePerformance } from "./performance";
+import { assetPerformance, envelopePerformance, scopePerformance } from "./performance";
 import { withdrawalTaxes } from "./taxes";
 import { validateTransaction } from "./validation";
 
@@ -96,6 +96,17 @@ describe("fonds euros : support d'un contrat", () => {
       return { summary: p.summary, byClass: p.byClass, sources: p.sources, curve: p.curve, years: p.years, envelopes: envelopePerformance(d, state, history, taxes, null) };
     };
     expect(view(contract(true))).toEqual(view(contract(false)));
+  });
+
+  it("classement par titre : le gain du fonds euros est ses intérêts, son rendement ne compte pas les versements", () => {
+    const d = contract(true);
+    const rows = assetPerformance(d, computePortfolio(d, ASOF), buildHistory(d, ASOF), ["av"], null);
+    const fund = rows.find((r) => r.assetId === "fe")!;
+    expect(fund.gain).toBe(182.4);
+    expect(fund.income).toBe(182.4);
+    // Environ 182,40 € d'intérêts sur un solde d'environ 9 000 € : quelques %, pas des centaines.
+    expect(fund.rate).toBeGreaterThan(0.01);
+    expect(fund.rate).toBeLessThan(0.04);
   });
 
   it("une opération peut viser un autre fonds euros du contrat, et un transfert son fonds d'arrivée", () => {
