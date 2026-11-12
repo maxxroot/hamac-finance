@@ -8,8 +8,8 @@ import { rawFor } from "@hamac/backend";
 import { testProvider } from "@hamac/backend/testkit";
 // Le vrai serveur web (routes /api/auth/* et /api/rpc/*) tourne en mémoire derrière un `fetch` simulé : l'interface
 // parle donc à de vraies sessions, de vrais codes TOTP et au vrai backend de chaque compte.
-import { createApp, type ServerConfig } from "@/../../../apps/server/src/app";
-import { totp } from "@/../../../apps/server/src/totp";
+import { createApp, type ServerConfig } from "../../../../apps/server/src/http/app";
+import { totp } from "../../../../apps/server/src/auth/totp";
 import { AppearanceCard } from "@/features/settings/components/AppearanceCard";
 import { App } from "@/app/App";
 import { AuthGate } from "@/app/layout/AuthGate";
@@ -26,7 +26,7 @@ type Server = Awaited<ReturnType<typeof createApp>>;
 
 /** Parcours réels : l'interface parle au vrai serveur, sur une base en mémoire. */
 const h = vi.hoisted(() => ({
-  server: null as unknown as Awaited<ReturnType<typeof import("@/../../../apps/server/src/app").createApp>>,
+  server: null as unknown as Awaited<ReturnType<typeof import("../../../../apps/server/src/http/app").createApp>>,
   /** Cookie de session du « navigateur ». */
   cookie: "",
   /** Horloge du serveur : les codes TOTP et les étapes de connexion en dépendent. */

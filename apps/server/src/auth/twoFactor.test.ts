@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { rawFor } from "@hamac/backend";
 import { testProvider } from "@hamac/backend/testkit";
-import { createApp, type ServerConfig } from "./app";
-import { runCommand } from "./commands";
+import { createApp, type ServerConfig } from "../http/app";
+import { runCommand } from "../cli/commands";
 import { totp } from "./totp";
 import { ChallengeStore, CHALLENGE_MAX_TRIES, newRecoveryCode, normalizeRecoveryCode } from "./twoFactor";
 

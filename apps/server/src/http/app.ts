@@ -6,9 +6,9 @@ import { bodyLimit } from "hono/body-limit";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createBackend, SharedMarket, type Backend, type MarketConfig, type PgProvider } from "@hamac/backend";
-import { CHALLENGE_MAX_TRIES, ChallengeStore, TwoFactor } from "./twoFactor";
-import { KEY_FILE, loadTwoFactorKey } from "./twoFactorKey";
-import { sameSecret, UserStore, type User } from "./users";
+import { CHALLENGE_MAX_TRIES, ChallengeStore, TwoFactor } from "../auth/twoFactor";
+import { KEY_FILE, loadTwoFactorKey } from "../auth/twoFactorKey";
+import { sameSecret, UserStore, type User } from "../auth/users";
 
 export type SignupMode = "invite" | "open" | "closed";
 

@@ -1,8 +1,8 @@
 import { createInterface } from "node:readline/promises";
 import { postgresProvider } from "@hamac/backend";
-import { runCommand } from "./commands";
+import { runCommand } from "./cli/commands";
 import { databaseUrl } from "./env";
-import { UserStore } from "./users";
+import { UserStore } from "./auth/users";
 
 /**
  * Administration de l'instance :

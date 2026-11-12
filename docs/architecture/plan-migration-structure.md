@@ -193,12 +193,13 @@ Fichiers à découper au passage, sans changer leur comportement (étape 6) : `P
 
 ```
 apps/server/src/
-  main.ts  env.ts
-  http/   app.ts (Hono, CSP, routes)
-  auth/   password.ts  totp.ts  twoFactor.ts  twoFactorKey.ts  users.ts
-  cli/    cli.ts  commands.ts
-  tenants/  BackendPool, si on le sort de app.ts
+  main.ts  cli.ts  env.ts   points d'entrée cités par tsup.config.ts (serveur, commandes) et lecture de l'environnement
+  http/   app.ts (Hono : CSP, routes, connexion, pool de tenants)
+  auth/   password  totp  twoFactor  twoFactorKey  users
+  cli/    commands
 ```
+
+Couches : `auth` → `http`, `cli`.
 
 ### 3.8 `docs/`
 
@@ -293,4 +294,5 @@ La table des couches tient en une dizaine de lignes dans le test. Comme dans Arg
 | 4 | Fait | `handlers.ts` (1 164 lignes) en dix domaines, typés chacun sur les procédures de son domaine (`DomainHandlers`) ; l'immobilier en trois fichiers. `repo.ts` en mappers par domaine, `params`, `loadWorkspace` ; conversions dans `db/units.ts`. `schema.ts` en un fichier de tables par domaine : `db:generate` ne produit aucune migration. Sources de cours dans `market/sources/`, compositions dans `market/compositions/`, actualisation dans `prices/`, sauvegardes dans `backup/`. Les cycles de fichiers ne comptent plus que les imports réels : deux cycles de types existants (`context` ↔ `market`, `index` ↔ `demo`) sont sans effet à l'exécution. Test des frontières du backend bloquant. |
 | 5 | Fait | 180 fichiers déplacés (`app/`, `shared/`, `features/<domaine>/`, `flows/`), imports `@/` réécrits, `lib/dashboard.ts` renommé `shared/lib/evolution.ts` (son contenu : historiques des graphiques d'évolution). Façades générées à partir des imports réels. `Etablissements` rejoint `settings` (il n'est affiché que comme onglet des Paramètres). Test des frontières de l'interface bloquant. |
 | 6 | Fait | Dossiers avec façade, mêmes imports pour les appelants : `Parametres/` (un fichier par onglet, `usePlanDraft`, `Section`), `HistoryBlocks/` et `PerformanceBlocks/` (un fichier par carte), `Declaration/` (page, vue complète, fiche d'un établissement), `Notice/` (une partie par fichier, sommaire, lexique). Restent au-dessus de 400 lignes, à voir dans un chantier à part car ce sont des calculs : `core/portfolio/engine.ts` (827), `core/analysis/performance.ts` (746), `core/analysis/exposure.ts`, `core/realestate/leases.ts`, `core/tax/taxReport.ts` ; côté interface, `TransactionDialog.tsx` (598), `Impots.tsx`, `Simulateurs.tsx`. |
+| 7 | Fait | `http/`, `auth/`, `cli/` ; les points d'entrée restent à la racine. Le test de parcours `ui/app/compte.flow.test.tsx`, qui démarre le vrai serveur, pointe vers les nouveaux chemins. Test des frontières du serveur bloquant. |
 

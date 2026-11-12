@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { postgresProvider, waitForDatabase } from "@hamac/backend";
-import { createApp, type SignupMode } from "./app";
+import { createApp, type SignupMode } from "./http/app";
 import { databaseUrl, intFromEnv } from "./env";
 
 /**

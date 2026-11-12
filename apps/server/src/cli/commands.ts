@@ -1,4 +1,4 @@
-import type { UserStore } from "./users";
+import type { UserStore } from "../auth/users";
 
 export interface CliIo {
   log: (line: string) => void;
