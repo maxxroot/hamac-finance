@@ -22,6 +22,7 @@ Ce paquet ne contient que des tests et ne livre aucun code. Il a les types Node 
 | `src/rules.ts` | `checkBoundaries` : applique une table « domaine → couche » au graphe et renvoie les écarts (couche, façade, domaine inconnu) et les cycles. `formatReport` les met en texte. |
 | `src/graph.test.ts` | Tests de l'outil lui-même. |
 | `src/core.test.ts` | Règles de `@hamac/core` : table des couches et domaine de chaque fichier. |
+| `src/api.test.ts` | Règles de `@hamac/api`. |
 
 ## Couches de `@hamac/core`
 
@@ -38,7 +39,8 @@ Une exception (un import qui enfreint la règle mais qu'on garde) se déclare da
 ## État
 
 - `@hamac/core` : **bloquant** depuis l'étape 2 du plan. Aucun cycle, aucune exception.
-- Les autres paquets seront ajoutés au fil des étapes 3 à 7.
+- `@hamac/api` : **bloquant** depuis l'étape 3. Les domaines sont indépendants, sauf `journal` (lit `assets`) et `system` (lit `assets` pour l'état des cours).
+- Les autres paquets seront ajoutés au fil des étapes 4 à 7.
 
 Pour voir les écarts d'un paquet, lancer son test ; le message d'échec liste un problème par ligne :
 

@@ -125,13 +125,15 @@ packages/core/src/
 
 ```
 packages/api/src/
-  index.ts
-  transport.ts
-  contract/   index.ts (assemble `procedures`)  workspace.ts  accounts.ts  realestate.ts  investments.ts  tax.ts  market.ts  settings.ts  …
-  entities/   index.ts  <domaine>.ts
+  index.ts        façade : contrat, domaines, transport
+  contract.ts     assemble `procedures` à partir des domaines ; types Procedures, ProcName, ProcInput, ProcOutput
+  common.ts       briques de schémas (id, isoDate, money, text, ok, byId, entity…), internes au paquet
+  transport.ts    enveloppe RPC et RpcError
+  <domaine>/      index.ts  inputs.ts (schémas d'entrée)  procedures.ts (procédures et types de sortie du domaine)
+                  system · accounts · journal · assets · exposure · investments · realestate · loans · other-assets · planning
 ```
 
-`contract/index.ts` fusionne les objets de procédures par domaine. Le type `Procedures`, l'`RpcResult` et les noms de procédure (`leases.save`, par exemple) ne changent pas.
+`entities.ts` ne contenait que des schémas d'entrée : ils sont devenus les `inputs.ts` des domaines. `contract.ts` fusionne les objets de procédures par domaine. Le type `Procedures`, l'`RpcResult` et les noms de procédure (`leases.save`, par exemple) ne changent pas.
 
 ### 3.5 `packages/backend`
 
@@ -282,4 +284,5 @@ La table des couches tient en une dizaine de lignes dans le test. Comme dans Arg
 | 0 | Fait | Paquet `packages/architecture` ([doc technique](../frontieres-du-code/technique.md)). Le premier rapport a déplacé `exposure` vers `analysis` et `csv` vers `imports`, et placé `tax` sous `analysis` et `planning`. |
 | 1 | Fait | 98 fichiers déplacés, tous reconnus comme renommages. Les 461 exports d'exécution de `@hamac/core` sont identiques avant et après. |
 | 2 | Fait | Prêt sorti dans `loans/loan.ts` ; `debtOverview` et `MAX_EFFORT_RATE` dans `analysis/debt.ts` ; réglages de protection dans `model/institutionProtection.ts` ; `lots.ts` ne lit plus les baux (`leaseKindsFor` et `rentalModeFromLeases` dans `leases.ts`, état d'un lot dans `lotStatus.ts`) ; impôt crypto dans `tax/cryptoTax.ts`. Aucun cycle ni aucune exception. Le test de `core` est **bloquant** dès maintenant. |
+| 3 | Fait | `contract.ts` et `entities.ts` découpés en dix domaines. Les exports de `@hamac/api`, la liste des procédures et l'empreinte de leurs schémas (JSON Schema) sont identiques avant et après ; seuls s'ajoutent les objets de procédures de chaque domaine (`realestateProcedures`…). Test des frontières de `api` bloquant. |
 
