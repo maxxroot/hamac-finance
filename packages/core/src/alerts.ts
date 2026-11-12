@@ -4,6 +4,8 @@ import { addDays, addMonths, monthsBetween } from "./dates";
 import { dpeExpiry, dpeFreezesRent, dpeRentalBan } from "./energy";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
 import { currentLease, leaseRevisionDue, leaseState, rentMonths } from "./leases";
+import { lotIsActive, sortLots } from "./lots";
+import { LEASE_GUARANTEE_LABELS } from "./renters";
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
 import { GUARANTEE_LABELS, protectionOf } from "./protection";
@@ -309,43 +311,58 @@ export function documentAlerts(data: Pick<EngineData, "properties" | "propertyDo
 /** Délai avant une échéance de bail à partir duquel on la rappelle. */
 const LEASE_ALERT_DAYS = 60;
 
-/** Rappels des biens en location : fin de bail, départ du locataire, date limite pour donner congé et loyers impayés. */
-export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents" | "rentExceptions">, today: string): Alert[] {
+/** Rappels des biens en location, lot par lot : fin de bail, départ du locataire, date limite pour donner congé, garanties et loyers impayés. */
+export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents" | "rentExceptions" | "lots" | "leaseGuarantees">, today: string): Alert[] {
   const out: Alert[] = [];
   const soon = (date: string | null): date is string => date != null && daysBetween(today, date) >= 0 && daysBetween(today, date) <= LEASE_ALERT_DAYS;
   for (const property of (data.properties ?? []).filter((p) => p.kind === "locatif" && !p.archived)) {
-    const states = (data.leases ?? []).filter((l) => l.propertyId === property.id).map((l) => leaseState(l, data.leaseRents ?? [], today));
-    const current = currentLease(states);
-    if (!current) continue;
+    const leases = (data.leases ?? []).filter((l) => l.propertyId === property.id);
     const link = `/immobilier/${property.id}`;
-    const unpaid = states.flatMap((s) => rentMonths(s.lease, data.leaseRents ?? [], data.rentExceptions ?? [], today)).filter((m) => m.status === "impaye");
+    const allStates = leases.map((l) => leaseState(l, data.leaseRents ?? [], today));
+    const unpaid = allStates.flatMap((s) => rentMonths(s.lease, data.leaseRents ?? [], data.rentExceptions ?? [], today)).filter((m) => m.status === "impaye");
     if (unpaid.length) {
       const due = unpaid.reduce((sum, m) => sum + m.expectedRent + m.expectedCharges, 0);
       out.push({ id: `loyers-impayes-${property.id}`, level: "attention", title: `${property.name} : ${unpaid.length} loyer${unpaid.length > 1 ? "s" : ""} impayé${unpaid.length > 1 ? "s" : ""}`, detail: `${eur(due)} à recevoir.`, link });
     }
-    for (const s of states.filter((x) => x.status === "termine" && x.lease.reminders && x.lease.deposit > 0 && x.lease.depositReturned == null)) {
-      out.push({ id: `bail-depot-${s.lease.id}`, level: "attention", title: `${property.name} : dépôt de garantie à restituer`, detail: "Délai légal : 1 mois après la remise des clés si l'état des lieux de sortie est conforme, 2 mois sinon.", link });
-    }
-    if (!current.lease.reminders) continue;
-    if (current.status === "termine") {
-      out.push({ id: `bail-vacant-${property.id}`, level: "info", title: `${property.name} : aucun bail en cours`, link });
-      continue;
-    }
-    if (current.status === "a_venir") continue;
-    const revision = current.status === "en_cours" && !dpeFreezesRent(property.dpe) ? leaseRevisionDue(current.lease, data.leaseRents ?? [], today) : null;
-    if (current.lease.tenantInsuranceUntil != null && daysBetween(today, current.lease.tenantInsuranceUntil) <= DOCUMENT_ALERT_DAYS) {
-      out.push({ id: `bail-assurance-${current.lease.id}`, level: "info", title: `${property.name} : attestation d'assurance du locataire à renouveler`, detail: `Valable jusqu'au ${frDate(current.lease.tenantInsuranceUntil)}.`, link });
-    }
-    if (revision) out.push({ id: `bail-revision-${current.lease.id}`, level: "info", title: `${property.name} : révision annuelle du loyer au ${frDate(revision)}`, detail: "Le calcul d'après l'indice de l'INSEE et le courrier au locataire sont prêts dans l'onglet Location.", link: `${link}?onglet=location` });
-    if (soon(current.end)) {
-      out.push(
-        current.status === "conge"
-          ? { id: `bail-depart-${current.lease.id}`, level: "info", title: `${property.name} : fin du bail le ${frDate(current.end)}`, detail: "Un congé a été donné.", link }
-          : { id: `bail-fin-${current.lease.id}`, level: "attention", title: `${property.name} : le bail se termine le ${frDate(current.end)}`, detail: "Ce bail ne se reconduit pas : prévoyez un nouveau bail.", link },
-      );
-    }
-    if (soon(current.nextDeadline)) {
-      out.push({ id: `bail-conge-${current.lease.id}`, level: "attention", title: `${property.name} : dernier jour pour donner congé le ${frDate(current.nextDeadline)}`, detail: `Sans congé reçu par le locataire à cette date, le bail se reconduit le ${frDate(addDays(current.nextDeadlineTermEnd!, 1))}.`, link });
+    // Un groupe par lot ; les baux sans lot connu forment le logement du bien.
+    const lots = sortLots((data.lots ?? []).filter((l) => l.propertyId === property.id && (lotIsActive(l, property.rentalMode) || leases.some((x) => x.lotId === l.id))));
+    const known = new Set(lots.map((l) => l.id));
+    const groups = [...lots.map((lot) => ({ lot, states: allStates.filter((s) => s.lease.lotId === lot.id) })), { lot: null, states: allStates.filter((s) => !known.has(s.lease.lotId)) }].filter((g) => g.states.length > 0);
+    const named = groups.length > 1;
+    for (const { lot, states } of groups) {
+      const where = named && lot ? `${property.name}, ${lot.name}` : property.name;
+      const current = currentLease(states);
+      if (!current) continue;
+      for (const s of states.filter((x) => x.status === "termine" && x.lease.reminders && x.lease.deposit > 0 && x.lease.depositReturned == null)) {
+        out.push({ id: `bail-depot-${s.lease.id}`, level: "attention", title: `${where} : dépôt de garantie à restituer`, detail: "Délai légal : 1 mois après la remise des clés si l'état des lieux de sortie est conforme, 2 mois sinon.", link });
+      }
+      if (!current.lease.reminders) continue;
+      if (current.status === "termine") {
+        // Un lot archivé ou qui ne correspond plus au mode de location n'attend pas de nouveau bail.
+        if (lot == null || lotIsActive(lot, property.rentalMode)) out.push({ id: named && lot ? `bail-vacant-${lot.id}` : `bail-vacant-${property.id}`, level: "info", title: `${where} : aucun bail en cours`, link });
+        continue;
+      }
+      if (current.status === "a_venir") continue;
+      const revision = current.status === "en_cours" && !dpeFreezesRent(property.dpe) ? leaseRevisionDue(current.lease, data.leaseRents ?? [], today) : null;
+      if (current.lease.tenantInsuranceUntil != null && daysBetween(today, current.lease.tenantInsuranceUntil) <= DOCUMENT_ALERT_DAYS) {
+        out.push({ id: `bail-assurance-${current.lease.id}`, level: "info", title: `${where} : attestation d'assurance du locataire à renouveler`, detail: `Valable jusqu'au ${frDate(current.lease.tenantInsuranceUntil)}.`, link });
+      }
+      for (const g of (data.leaseGuarantees ?? []).filter((x) => x.leaseId === current.lease.id && x.until != null && daysBetween(today, x.until) <= DOCUMENT_ALERT_DAYS)) {
+        const ended = g.until! < today;
+        const who = g.name ? ` (${g.name})` : "";
+        out.push({ id: `bail-garantie-${g.id}`, level: "info", title: `${where} : ${LEASE_GUARANTEE_LABELS[g.kind].toLowerCase()}${who} ${ended ? "terminée le" : "jusqu'au"} ${frDate(g.until!)}`, detail: "Le bail continue sans cette garantie après cette date.", link: `${link}?onglet=location` });
+      }
+      if (revision) out.push({ id: `bail-revision-${current.lease.id}`, level: "info", title: `${where} : révision annuelle du loyer au ${frDate(revision)}`, detail: "Le calcul d'après l'indice de l'INSEE et le courrier au locataire sont prêts dans l'onglet Location.", link: `${link}?onglet=location` });
+      if (soon(current.end)) {
+        out.push(
+          current.status === "conge"
+            ? { id: `bail-depart-${current.lease.id}`, level: "info", title: `${where} : fin du bail le ${frDate(current.end)}`, detail: "Un congé a été donné.", link }
+            : { id: `bail-fin-${current.lease.id}`, level: "attention", title: `${where} : le bail se termine le ${frDate(current.end)}`, detail: "Ce bail ne se reconduit pas : prévoyez un nouveau bail.", link },
+        );
+      }
+      if (soon(current.nextDeadline)) {
+        out.push({ id: `bail-conge-${current.lease.id}`, level: "attention", title: `${where} : dernier jour pour donner congé le ${frDate(current.nextDeadline)}`, detail: `Sans congé reçu par le locataire à cette date, le bail se reconduit le ${frDate(addDays(current.nextDeadlineTermEnd!, 1))}.`, link });
+      }
     }
   }
   return out;

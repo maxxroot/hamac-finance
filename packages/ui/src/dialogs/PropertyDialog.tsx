@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PROPERTY_KIND_LABELS, PROPERTY_KINDS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_OWNERSHIPS, NO_PROPERTY_DETAILS, estimateNotaryFees, propertyFees, propertyTotalCost, type Property, type PropertyKind, type PropertyOwnership } from "@hamac/core";
+import { RENTAL_MODE_HELP, RENTAL_MODE_LABELS, RENTAL_MODES, type RentalMode, PROPERTY_KIND_LABELS, PROPERTY_KINDS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_OWNERSHIPS, NO_PROPERTY_DETAILS, estimateNotaryFees, propertyFees, propertyTotalCost, type Property, type PropertyKind, type PropertyOwnership } from "@hamac/core";
 import type { PropertyInput } from "@hamac/api";
 import { Amount } from "@/components/Amount";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
@@ -87,6 +87,19 @@ export function PropertyDialog({ open, property, onClose }: { open: boolean; pro
             )}
           </Field>
         </FormGrid>
+        {d.kind === "locatif" && (
+          <Field label="Mode de location" help={RENTAL_MODE_HELP[d.rentalMode]}>
+            {(id) => (
+              <Select id={id} value={d.rentalMode} onChange={(e) => set("rentalMode", e.target.value as RentalMode)}>
+                {RENTAL_MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {RENTAL_MODE_LABELS[m]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
         <FormGrid cols={3}>
           <Field label="Valeur estimée" help="Du bien entier.">{(id) => <MoneyInput id={id} value={d.value} onChange={(v) => set("value", v ?? 0)} />}</Field>
           <Field label="Estimée le">{(id) => <TextInput id={id} type="date" value={d.valueDate ?? ""} onChange={(e) => set("valueDate", e.target.value || null)} />}</Field>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { RENT_EXCEPTION_LABELS, rentMonths, rentReceipt, type Lease, type LeaseRent, type RentException, type RentMonth } from "@hamac/core";
+import { RENT_EXCEPTION_LABELS, rentMonths, rentReceipt, type Lease, type LeaseRent, type Lot, type RentException, type RentMonth } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Select } from "@/components/form";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
@@ -9,8 +9,11 @@ import { RentExceptionDialog } from "@/dialogs/RentExceptionDialog";
 import { formatMonth } from "@/lib/numbers";
 
 /** Loyers comptés automatiquement, mois par mois ; seuls les écarts se signalent. */
-export function RentsCard({ leases, rents, exceptions, today }: { leases: readonly Lease[]; rents: readonly LeaseRent[]; exceptions: readonly RentException[]; today: string }) {
+export function RentsCard({ leases, rents, exceptions, lots = [], today }: { leases: readonly Lease[]; rents: readonly LeaseRent[]; exceptions: readonly RentException[]; lots?: readonly Lot[]; today: string }) {
   const months = leases.flatMap((l) => rentMonths(l, rents, exceptions, today)).sort((a, b) => b.month.localeCompare(a.month));
+  // Avec plusieurs lots loués, chaque ligne dit de quel lot il s'agit.
+  const lotOf = new Map(leases.map((l) => [l.id, lots.find((x) => x.id === l.lotId)?.name ?? ""]));
+  const named = new Set(leases.map((l) => l.lotId)).size > 1;
   const years = [...new Set(months.map((m) => m.month.slice(0, 4)))];
   const [chosenYear, setChosenYear] = useState<string | null>(null);
   const year = chosenYear != null && years.includes(chosenYear) ? chosenYear : (years[0] ?? null);
@@ -37,6 +40,7 @@ export function RentsCard({ leases, rents, exceptions, today }: { leases: readon
         <thead>
           <tr>
             <Th>Mois</Th>
+            {named && <Th>Lot</Th>}
             <Th align="right">Prévu</Th>
             <Th align="right">Reçu</Th>
             <Th>État</Th>
@@ -44,10 +48,11 @@ export function RentsCard({ leases, rents, exceptions, today }: { leases: readon
           </tr>
         </thead>
         <tbody>
-          {shown.length === 0 && <EmptyRow cols={5}>Les loyers apparaîtront ici dès le début du bail.</EmptyRow>}
+          {shown.length === 0 && <EmptyRow cols={named ? 6 : 5}>Les loyers apparaîtront ici dès le début du bail.</EmptyRow>}
           {shown.map((m) => (
             <Tr key={`${m.leaseId}-${m.month}`}>
               <Td className="whitespace-nowrap">{formatMonth(m.month)}</Td>
+              {named && <Td>{lotOf.get(m.leaseId)}</Td>}
               <Td align="right"><Amount value={m.expectedRent + m.expectedCharges} /></Td>
               <Td align="right"><Amount value={m.receivedRent + m.receivedCharges} /></Td>
               <Td>{m.status === "paye" ? <Badge tone="positive">Reçu</Badge> : <Badge tone={m.status === "impaye" ? "negative" : "neutral"}>{RENT_EXCEPTION_LABELS[m.status]}</Badge>}</Td>

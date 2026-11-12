@@ -22,7 +22,7 @@ export function ImpressionBien() {
   const s = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
   const sqm = propertySqm(p, null);
   const rented = p.kind === "locatif";
-  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases: ws.leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans }, pf.today) : [];
+  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases: ws.leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans, lots: ws.lots }, pf.today) : [];
   const profit = propertyProfitability(years);
   const place = [p.address, [p.postalCode, p.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   return (

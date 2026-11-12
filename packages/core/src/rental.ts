@@ -1,5 +1,6 @@
 import { addDays, addMonths } from "./dates";
-import { daysInMonth, depositRetained, rentMonths, type Lease, type LeaseRent, type RentException } from "./leases";
+import { daysInMonth, depositRetained, leaseEnd, leaseRentAt, rentMonths, type Lease, type LeaseRent, type RentException, type RentMonth } from "./leases";
+import { lotIsActive, type Lot } from "./lots";
 import { roundCents } from "./money";
 import { loanYears, propertyTotalCost, type Loan, type Property } from "./realestate";
 import { daysBetween } from "./xirr";
@@ -76,7 +77,59 @@ export interface RentalData {
   exceptions: readonly RentException[];
   expenses: readonly PropertyExpense[];
   loans: readonly Loan[];
+  /** Lots du bien ; sans lot connu, tous les baux portent sur le même logement. */
+  lots?: readonly Lot[];
 }
+
+/** Période où un lot est proposé à la location, et son poids dans le taux d'occupation. */
+interface LotWindow {
+  from: string;
+  to: string;
+  weight: number;
+  months: RentMonth[];
+}
+
+/**
+ * Un lot compte du début de son premier bail (ou du premier bail du bien, s'il est vide mais a un loyer espéré)
+ * jusqu'à `lastDay` ; un lot archivé ou qui ne correspond plus au mode de location s'arrête à la fin de son dernier bail.
+ * Son poids est son loyer espéré, sinon le dernier loyer de ses baux : un parking vide ne pèse pas comme un appartement vide.
+ */
+function lotWindows(data: RentalData, leases: readonly Lease[], months: readonly RentMonth[], asOf: string, lastDay: string, firstLease: string | null): LotWindow[] {
+  const lots = (data.lots ?? []).filter((l) => l.propertyId === data.property.id);
+  const known = new Set(lots.map((l) => l.id));
+  const groups: Array<{ lot: Lot | null; leases: Lease[] }> = lots.map((lot) => ({ lot, leases: leases.filter((l) => l.lotId === lot.id) }));
+  const orphans = leases.filter((l) => !known.has(l.lotId));
+  if (orphans.length) groups.push({ lot: null, leases: orphans });
+  const out: LotWindow[] = [];
+  for (const g of groups) {
+    const started = g.leases.filter((l) => l.startDate <= asOf);
+    const open = g.lot == null || lotIsActive(g.lot, data.property.rentalMode);
+    const target = g.lot?.targetRent != null && g.lot.targetRent > 0 ? g.lot.targetRent : null;
+    let from: string;
+    let to = lastDay;
+    if (started.length) {
+      from = started.reduce((min, l) => (l.startDate < min ? l.startDate : min), started[0].startDate);
+      if (!open) {
+        const ends = started.map((l) => leaseEnd(l) ?? lastDay);
+        to = ends.reduce((max, e) => (e > max ? e : max), ends[0]);
+        if (to > lastDay) to = lastDay;
+      }
+    } else if (open && target != null && firstLease != null) from = firstLease;
+    else continue;
+    const latest = started.reduce<Lease | null>((best, l) => (best == null || l.startDate > best.startDate ? l : best), null);
+    const latestEnd = latest ? (leaseEnd(latest) ?? asOf) : asOf;
+    const lastRent = latest ? leaseRentAt(latest, data.rents, (latestEnd < asOf ? latestEnd : asOf).slice(0, 7)).rent : 0;
+    const ids = new Set(g.leases.map((l) => l.id));
+    out.push({ from, to, weight: target ?? (lastRent > 0 ? lastRent : 1), months: months.filter((m) => ids.has(m.leaseId)) });
+  }
+  return out;
+}
+
+const overlapDays = (from: string, to: string, start: string, end: string) => {
+  const a = from > start ? from : start;
+  const b = to < end ? to : end;
+  return a > b ? 0 : daysBetween(a, b) + 1;
+};
 
 /** Une année de location, à la part détenue (crédits : part à charge), avant impôt. */
 export interface PropertyYear {
@@ -130,6 +183,7 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
 
   const cost = propertyTotalCost(property);
   const lastDay = sold ? asOf : addDays(addMonths(`${asOf.slice(0, 7)}-01`, 1), -1);
+  const windows = lotWindows(data, leases, months, asOf, lastDay, firstLease);
   const out: PropertyYear[] = [];
   for (let year = Math.min(...startYears); year <= asOfYear; year++) {
     const yearStart = `${year}-01-01`;
@@ -147,7 +201,13 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
     const running = expenses.filter((e) => e.date.startsWith(`${year}-`) && !e.improvement).reduce((s, e) => s + e.amount, 0);
     const improved = expenses.filter((e) => e.improvement && e.date <= yearEnd).reduce((s, e) => s + e.amount, 0);
     const received = incomes.filter((i) => i.date.startsWith(`${year}-`)).reduce((s, i) => s + i.amount, 0);
-    const occupiedDays = ofYear.reduce((s, m) => s + m.occupied * daysInMonth(m.month), 0);
+    // Occupation pondérée par le loyer de chaque lot, sur la période où il est proposé à la location.
+    let offered = 0;
+    let occupied = 0;
+    for (const w of windows) {
+      offered += w.weight * overlapDays(w.from, w.to, periodStart, periodEnd);
+      occupied += w.weight * w.months.filter((m) => m.month.startsWith(`${year}-`)).reduce((s, m) => s + m.occupied * daysInMonth(m.month), 0);
+    }
 
     const loanTotal = (field: "interest" | "insurance" | "capital") => loans.reduce((sum, l) => sum + (l.years.find((y) => y.year === year)?.[field] ?? 0) * l.share, 0);
     const interest = loanTotal("interest");
@@ -170,7 +230,7 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
       remaining: roundCents((rents + charges + received - spent) * property.share - interest - insurance - capital),
       grossYield: annualize == null ? null : rents * annualize,
       netYield: annualize == null ? null : (rents + charges + received - running) * annualize,
-      occupancy: rentalDays > 0 ? Math.min(1, occupiedDays / rentalDays) : null,
+      occupancy: rentalDays > 0 && offered > 0 ? Math.min(1, occupied / offered) : null,
     });
   }
   return out;

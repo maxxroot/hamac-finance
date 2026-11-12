@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { formatEur, rentMonths, rentReceipt } from "@hamac/core";
+import { formatEur, leaseRenterNames, rentMonths, rentReceipt } from "@hamac/core";
 import { PrintLine, PrintPage, PrintSection } from "@/components/PrintPage";
 import { formatDate, formatMonth } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -18,7 +18,7 @@ export function Quittance() {
   const place = [property.address, [property.postalCode, property.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || property.name;
   const period = formatMonth(rent.month);
   const landlord = lease.landlord || "le propriétaire";
-  const tenant = lease.tenant || "le locataire";
+  const tenant = leaseRenterNames(lease.id, ws.leaseRenters, ws.renters) || "le locataire";
   return (
     <PrintPage>
       <h1 className="mb-1 text-xl font-semibold">{receipt.kind === "quittance" ? "Quittance de loyer" : "Reçu de paiement partiel"}</h1>

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { LEASE_KIND_LABELS, LEASE_STATUS_LABELS, NO_IRL_DATA, currentLease, depositRetained, dpeFreezesRent, irlQuarterLabel, leaseState, pendingRevisionAnniversary, proposeRevision, type Lease, type LeaseRent, type LeaseState, type Property, type RevisionProposal } from "@hamac/core";
+import { LEASE_GUARANTEE_LABELS, LEASE_KIND_LABELS, LEASE_STATUS_LABELS, leaseRenterNames, type Lot, NO_IRL_DATA, currentLease, depositRetained, dpeFreezesRent, irlQuarterLabel, leaseState, pendingRevisionAnniversary, proposeRevision, type Lease, type LeaseRent, type LeaseState, type Property, type RevisionProposal } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine } from "@/components/DetailLine";
 import { RowActions } from "@/components/RowActions";
@@ -13,12 +13,16 @@ import { LeaseRentDialog } from "@/dialogs/LeaseRentDialog";
 import { RentRevisionDialog } from "@/dialogs/RentRevisionDialog";
 import { formatDate, formatMonth } from "@/lib/numbers";
 import { call } from "@/lib/transport";
-import { useMutate } from "@/lib/workspace";
+import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
-const describeLease = (l: Lease) => (l.tenant ? `${LEASE_KIND_LABELS[l.kind]} · ${l.tenant}` : LEASE_KIND_LABELS[l.kind]);
-
-/** Le bail en cours du bien, ses échéances, l'évolution du loyer et les baux précédents. */
-export function LeaseCard({ property, leases, rents, today }: { property: Property; leases: readonly Lease[]; rents: readonly LeaseRent[]; today: string }) {
+/**
+ * Le bail en cours d'un lot, ses échéances, l'évolution du loyer et les baux précédents.
+ * `lot` null : bien sans lot, dont le logement sera créé au premier bail. `all` : tous les baux du bien, pour les chevauchements.
+ */
+export function LeaseCard({ property, lot, named, leases, all, rents, today }: { property: Property; lot: Lot | null; named: boolean; leases: readonly Lease[]; all: readonly Lease[]; rents: readonly LeaseRent[]; today: string }) {
+  const ws = useWorkspaceIndex()?.ws;
+  const names = (l: Lease) => (ws ? leaseRenterNames(l.id, ws.leaseRenters, ws.renters) : "");
+  const describeLease = (l: Lease) => [LEASE_KIND_LABELS[l.kind], names(l)].filter(Boolean).join(" · ");
   const [editing, setEditing] = useState<Lease | "new" | null>(null);
   const [newRent, setNewRent] = useState<LeaseState | null>(null);
   const deleteLease = useMutate("leases.delete", { success: "Bail supprimé" });
@@ -45,9 +49,9 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
           </Button>
         }
       >
-        Bail
+        {named && lot ? `Bail · ${lot.name}` : "Bail"}
       </CardTitle>
-      {!current && <p className="text-sm text-fg-muted">Aucun bail. Ajoutez-en un pour suivre les loyers et les échéances.</p>}
+      {!current && <p className="text-sm text-fg-muted">{lot && named ? `Aucun bail pour ${lot.name.toLowerCase()}.` : "Aucun bail."} Ajoutez-en un pour suivre les loyers et les échéances.</p>}
       {current && (
         <>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -60,7 +64,14 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
           {current.nextDeadline && <DetailLine label="Dernier jour pour donner congé">{formatDate(current.nextDeadline)}</DetailLine>}
           {current.noticeTooLateFor && <p className="py-1.5 text-xs text-warning">Congé trop tardif pour l'échéance du {formatDate(current.noticeTooLateFor)} : il vaut pour la suivante.</p>}
           {!current.lease.reminders && <DetailLine label="Rappels">Désactivés</DetailLine>}
-          {current.lease.guarantor && <DetailLine label="Garant">{current.lease.guarantor}</DetailLine>}
+          {(ws?.leaseGuarantees ?? [])
+            .filter((g) => g.leaseId === current.lease.id)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((g) => (
+              <DetailLine key={g.id} label={LEASE_GUARANTEE_LABELS[g.kind]}>
+                {[g.name, g.until && `jusqu'au ${formatDate(g.until)}`].filter(Boolean).join(", ") || "—"}
+              </DetailLine>
+            ))}
           {current.lease.tenantInsuranceUntil && <DetailLine label="Assurance du locataire jusqu'au">{formatDate(current.lease.tenantInsuranceUntil)}</DetailLine>}
           <DetailLine label="Loyer hors charges"><Amount value={current.rent} /></DetailLine>
           <DetailLine label="Charges"><Amount value={current.charges} /></DetailLine>
@@ -150,7 +161,7 @@ export function LeaseCard({ property, leases, rents, today }: { property: Proper
           </Table>
         </div>
       )}
-      <LeaseDialog open={editing !== null} property={property} lease={editing === "new" ? null : editing} others={leases.filter((l) => l.id !== editedId)} onClose={() => setEditing(null)} />
+      <LeaseDialog open={editing !== null} property={property} lot={lot} lease={editing === "new" ? null : editing} others={all.filter((l) => l.id !== editedId)} onClose={() => setEditing(null)} />
       {active && <RentRevisionDialog proposal={revising} lease={active.lease} onClose={() => setRevising(null)} />}
       <LeaseRentDialog state={newRent} frozen={dpeFreezesRent(property.dpe)} onClose={() => setNewRent(null)} />
     </Card>

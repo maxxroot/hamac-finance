@@ -18,7 +18,11 @@ import type {
   LivretType,
   CrowdProject,
   Lease,
+  LeaseGuarantee,
+  LeaseRenter,
   LeaseRent,
+  Lot,
+  Renter,
   OtherAsset,
   OtherAssetValue,
   Loan,
@@ -214,6 +218,7 @@ export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
   ges: r.ges as Property["ges"],
   dpeDate: r.dpeDate,
   dpeReminders: r.dpeReminders,
+  rentalMode: r.rentalMode as Property["rentalMode"],
   saleDate: r.saleDate,
   salePrice: r.salePriceCents == null ? null : fromCents(r.salePriceCents),
   saleFees: fromCents(r.saleFeesCents),
@@ -287,8 +292,8 @@ export const mapLoan = (r: typeof t.loans.$inferSelect, prepayments: readonly Lo
 export const mapLease = (r: typeof t.leases.$inferSelect): Lease => ({
   id: r.id,
   propertyId: r.propertyId,
+  lotId: r.lotId,
   kind: r.kind as Lease["kind"],
-  tenant: r.tenant,
   startDate: r.startDate,
   durationMonths: r.durationMonths,
   rent: fromCents(r.rentCents),
@@ -304,11 +309,46 @@ export const mapLease = (r: typeof t.leases.$inferSelect): Lease => ({
   depositReturnedOn: r.depositReturnedOn,
   depositReason: r.depositReason,
   landlord: r.landlord,
-  guarantor: r.guarantor,
   tenantInsuranceUntil: r.tenantInsuranceUntil,
   revisable: r.revisable,
   irlQuarter: r.irlQuarter,
   landlordAddress: r.landlordAddress,
+});
+
+export const mapLot = (r: typeof t.lots.$inferSelect): Lot => ({
+  id: r.id,
+  propertyId: r.propertyId,
+  name: r.name,
+  kind: r.kind as Lot["kind"],
+  surface: r.surface,
+  targetRent: r.targetRentCents == null ? null : fromCents(r.targetRentCents),
+  comment: r.comment,
+  archived: r.archived,
+  sortOrder: r.sortOrder,
+});
+
+export const mapRenter = (r: typeof t.renters.$inferSelect): Renter => ({
+  id: r.id,
+  firstName: r.firstName,
+  lastName: r.lastName,
+  email: r.email,
+  phone: r.phone,
+  forwardingAddress: r.forwardingAddress,
+  comment: r.comment,
+});
+
+export const mapLeaseRenter = (r: typeof t.leaseRenters.$inferSelect): LeaseRenter => ({ leaseId: r.leaseId, renterId: r.renterId, sortOrder: r.sortOrder });
+
+export const mapLeaseGuarantee = (r: typeof t.leaseGuarantees.$inferSelect): LeaseGuarantee => ({
+  id: r.id,
+  leaseId: r.leaseId,
+  kind: r.kind as LeaseGuarantee["kind"],
+  name: r.name,
+  contact: r.contact,
+  amount: r.amountCents == null ? null : fromCents(r.amountCents),
+  until: r.until,
+  comment: r.comment,
+  sortOrder: r.sortOrder,
 });
 
 export const mapLeaseRent = (r: typeof t.leaseRents.$inferSelect): LeaseRent => ({
@@ -383,7 +423,7 @@ export async function saveParams(db: Db, params: PlanParams): Promise<void> {
 }
 
 export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
-  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows, propertyValueRows, incomeRows, documentRows, prepaymentRows, companyRows, otherAssetRows, otherAssetValueRows, giftRows, goalRows, goalAllocationRows] = await Promise.all([
+  const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentExceptionRows, expenseRows, propertyValueRows, incomeRows, documentRows, prepaymentRows, companyRows, otherAssetRows, otherAssetValueRows, giftRows, goalRows, goalAllocationRows, lotRows, renterRows, leaseRenterRows, guaranteeRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),
     db.select().from(t.assets).orderBy(t.assets.name),
@@ -421,6 +461,10 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     db.select().from(t.gifts).orderBy(desc(t.gifts.date)),
     db.select().from(t.goals).orderBy(t.goals.targetDate),
     db.select().from(t.goalAllocations),
+    db.select().from(t.lots).orderBy(t.lots.sortOrder, t.lots.name),
+    db.select().from(t.renters).orderBy(t.renters.lastName, t.renters.firstName),
+    db.select().from(t.leaseRenters).orderBy(t.leaseRenters.sortOrder),
+    db.select().from(t.leaseGuarantees).orderBy(t.leaseGuarantees.sortOrder),
   ]);
   // Cours communs à l'instance, fusionnés avec ceux propres au tenant.
   const mappedAssets = assets.map(mapAsset);
@@ -445,7 +489,11 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Works
     goals: goalRows.map((r) => mapGoal(r, goalAllocationRows.filter((a) => a.goalId === r.id).map((a) => ({ accountId: a.accountId, mode: a.mode as Goal["allocations"][number]["mode"], value: a.value })))),
     otherAssets: otherAssetRows.map(mapOtherAsset),
     otherAssetValues: otherAssetValueRows.map(mapOtherAssetValue),
+    lots: lotRows.map(mapLot),
     leases: leaseRows.map(mapLease),
+    renters: renterRows.map(mapRenter),
+    leaseRenters: leaseRenterRows.map(mapLeaseRenter),
+    leaseGuarantees: guaranteeRows.map(mapLeaseGuarantee),
     leaseRents: leaseRentRows.map(mapLeaseRent),
     rentExceptions: rentExceptionRows.map(mapRentException),
     propertyExpenses: expenseRows.map(mapPropertyExpense),

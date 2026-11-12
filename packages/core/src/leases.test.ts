@@ -3,7 +3,7 @@ import { documentAlerts, leaseAlerts } from "./alerts";
 import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseRevisionDue, leaseState, rentReceipt, depositRetained, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 
-const vide: Lease = { id: "l", propertyId: "b", kind: "vide", tenant: "", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", guarantor: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "" };
+const vide: Lease = { id: "l", propertyId: "b", lotId: "lot", kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "" };
 const meuble: Lease = { ...vide, kind: "meuble", durationMonths: 12, startDate: "2025-03-01" };
 
 describe("règles légales", () => {

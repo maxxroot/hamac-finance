@@ -281,7 +281,7 @@ describe("parcours de l'interface", () => {
 
   it("impression : fiche du bien et quittance d'un mois payé, reçu refusé sans paiement", async () => {
     const bien = await rpc<{ id: string }>("properties.upsert", { kind: "locatif", name: "Studio", value: 120_000, purchasePrice: 100_000, surface: 25, city: "Ville fictive", dpe: "D" });
-    const bail = await rpc<{ id: string }>("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: "2024-01-01", durationMonths: 36, rent: 500, charges: 50, tenant: "Locataire fictif", landlord: "Propriétaire fictif" });
+    const bail = await rpc<{ id: string }>("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: "2024-01-01", durationMonths: 36, rent: 500, charges: 50, renters: [{ lastName: "Locataire fictif" }], landlord: "Propriétaire fictif" });
     await rpc("rentExceptions.set", { leaseId: bail.id, month: "2024-03", kind: "impaye" });
     const routes = (
       <Routes>
@@ -329,7 +329,7 @@ describe("parcours de l'interface", () => {
 
   it("nouveau bail : effacer la date de début ou la durée affiche un message sans planter", async () => {
     const bien = await rpc<Property>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
-    show(<LeaseDialog open property={bien} lease={null} others={[]} onClose={() => undefined} />);
+    show(<LeaseDialog open property={bien} lot={null} lease={null} others={[]} onClose={() => undefined} />);
     fireEvent.change(fieldOf("Début du bail"), { target: { value: "" } });
     expect(await screen.findByText(/Indiquez la date de début/)).toBeTruthy();
     expect((screen.getByRole("button", { name: "Ajouter" }) as HTMLButtonElement).disabled).toBe(true);
@@ -344,7 +344,7 @@ describe("parcours de l'interface", () => {
     const pad = (n: number) => String(n).padStart(2, "0");
     const debut = `${y - 2}-${pad(today.getMonth() + 1)}-01`;
     const bien = await rpc<Property>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000, postalCode: "69001", city: "Ville fictive" });
-    const bail = await rpc<{ id: string }>("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: debut, durationMonths: 36, rent: 800, charges: 50, tenant: "Locataire fictif", landlord: "Propriétaire fictif", irlQuarter: 2 });
+    const bail = await rpc<{ id: string }>("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: debut, durationMonths: 36, rent: 800, charges: 50, renters: [{ lastName: "Locataire fictif" }], landlord: "Propriétaire fictif", irlQuarter: 2 });
     show(
       <Routes>
         <Route path="/immobilier/:id" element={<Bien />} />
@@ -381,8 +381,8 @@ describe("parcours de l'interface", () => {
   it("nouveau bail : durée et dépôt proposés selon le type, enregistrés", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const bien = await rpc<Property>("properties.upsert", { kind: "locatif", ownership: "sci", name: "Studio", value: 100_000 });
-    show(<LeaseDialog open property={bien} lease={null} others={[]} onClose={onClose} />);
+    const bien = await rpc<Property>("properties.upsert", { kind: "locatif", ownership: "sci", name: "Studio", value: 100_000, rentalMode: "colocation" });
+    show(<LeaseDialog open property={bien} lot={null} lease={null} others={[]} onClose={onClose} />);
     expect(fieldOf("Durée (mois)").value).toBe("72");
     await user.selectOptions(fieldOf("Type de bail"), "meuble");
     expect(fieldOf("Durée (mois)").value).toBe("12");

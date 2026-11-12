@@ -15,7 +15,11 @@ import type {
   CrowdProject,
   IrlData,
   Lease,
+  LeaseGuarantee,
+  LeaseRenter,
   LeaseRent,
+  Lot,
+  Renter,
   OtherAsset,
   OtherAssetValue,
   Loan,
@@ -51,6 +55,8 @@ import {
   OtherAssetInput,
   OtherAssetValueInput,
   LeaseRentInput,
+  LotInput,
+  RenterInput,
   LoanInput,
   PlannedExpenseInput,
   LoanPrepaymentInput,
@@ -106,7 +112,13 @@ export interface Workspace {
   /** Or, objets de valeur, véhicules, parts de société, sommes prêtées, et leurs estimations passées. */
   otherAssets: OtherAsset[];
   otherAssetValues: OtherAssetValue[];
+  /** Ce qui se loue dans chaque bien : logement entier, chambres, annexes. */
+  lots: Lot[];
   leases: Lease[];
+  /** Locataires, leurs baux et les garanties des baux. */
+  renters: Renter[];
+  leaseRenters: LeaseRenter[];
+  leaseGuarantees: LeaseGuarantee[];
   leaseRents: LeaseRent[];
   rentExceptions: RentException[];
   propertyExpenses: PropertyExpense[];
@@ -293,6 +305,10 @@ export const procedures = {
   "properties.cancelSale": { input: byId, output: ok },
   "propertyValues.add": { input: PropertyValueInput, output: ok },
   "propertyValues.delete": { input: byId, output: ok },
+  "lots.upsert": { input: LotInput, output: entity<Lot>() },
+  "lots.delete": { input: byId, output: ok },
+  "renters.upsert": { input: RenterInput, output: entity<Renter>() },
+  "renters.delete": { input: byId, output: ok },
   "leases.upsert": { input: LeaseInput, output: entity<Lease>() },
   "leases.delete": { input: byId, output: ok },
   "leaseRents.upsert": { input: LeaseRentInput, output: entity<LeaseRent>() },

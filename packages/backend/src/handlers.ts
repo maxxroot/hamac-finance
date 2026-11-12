@@ -1,8 +1,8 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { one } from "./db/driver";
-import { AccountInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
+import { AccountInput, RenterInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeDismembered, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, type EnergyLetter, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeDismembered, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, defaultLotName, leaseKindsFor, lotIsActive, lotIsAnnex, RENTAL_MODE_LABELS, type RentalMode, type Lot, type EnergyLetter, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -25,7 +25,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLot, mapRenter, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -69,6 +69,28 @@ async function syncCurrentRate(ctx: BackendContext, accountId: string) {
     .orderBy(desc(t.accountRates.fromDate))
     .limit(1).then(one);
   if (cur) await ctx.db.update(t.accounts).set({ rate: cur.rate }).where(eq(t.accounts.id, accountId));
+}
+
+/** Crée ou met à jour un locataire ; un id inconnu est refusé. */
+async function saveRenter(ctx: BackendContext, r: output<typeof RenterInput>) {
+  const row = { firstName: r.firstName, lastName: r.lastName, email: r.email, phone: r.phone, forwardingAddress: r.forwardingAddress, comment: r.comment, updatedAt: nowIso() };
+  if (r.id) {
+    const saved = await ctx.db.update(t.renters).set(row).where(eq(t.renters.id, r.id)).returning();
+    if (!saved[0]) throw new RpcError("NOT_FOUND", "Locataire introuvable.");
+    return saved[0];
+  }
+  return (await ctx.db.insert(t.renters).values({ id: newId(), ...row }).returning())[0];
+}
+
+/** Lot d'un nouveau bail quand aucun n'est choisi : le seul logement ou la seule chambre proposés, sinon un logement créé pour l'occasion. */
+async function defaultLot(ctx: BackendContext, propertyId: string, mode: RentalMode, lots: readonly Lot[]): Promise<string> {
+  const candidates = lots.filter((l) => lotIsActive(l, mode) && !lotIsAnnex(l.kind));
+  if (candidates.length === 1) return candidates[0].id;
+  if (candidates.length > 1) throw new RpcError("VALIDATION", "Choisissez le lot loué.");
+  if (mode === "chambres") throw new RpcError("VALIDATION", "Ajoutez d'abord les chambres du bien, puis choisissez celle qui est louée.");
+  const id = newId();
+  await ctx.db.insert(t.lots).values({ id, propertyId, name: defaultLotName("logement", lots), kind: "logement" });
+  return id;
 }
 
 async function count(query: Promise<{ n: number } | undefined>): Promise<number> {
@@ -614,6 +636,7 @@ export const handlers: Handlers = {
       ges: input.ges,
       dpeDate: input.dpeDate,
       dpeReminders: input.dpeReminders,
+      rentalMode: input.rentalMode,
       share: input.share,
       companyId: viaCompany ? input.companyId : null,
       dismemberment: input.dismemberment,
@@ -674,43 +697,114 @@ export const handlers: Handlers = {
     return OK;
   },
 
+  async "lots.upsert"(input, ctx) {
+    const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one);
+    if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    const id = input.id ?? newId();
+    if (input.id) {
+      const before = await ctx.db.select().from(t.lots).where(eq(t.lots.id, id)).limit(1).then(one);
+      if (!before || before.propertyId !== input.propertyId) throw new RpcError("NOT_FOUND", "Lot introuvable.");
+      // Un lot déjà loué garde sa nature : ses baux en dépendent.
+      if (before.kind !== input.kind && (await ctx.db.select({ id: t.leases.id }).from(t.leases).where(eq(t.leases.lotId, id)).limit(1)).length) {
+        throw new RpcError("CONFLICT", "Ce lot a déjà des baux : sa nature ne peut plus changer. Archivez-le et créez-en un autre.");
+      }
+    }
+    const row = { propertyId: input.propertyId, name: input.name, kind: input.kind, surface: input.surface, targetRentCents: input.targetRent == null ? null : toCents(input.targetRent), comment: input.comment, archived: input.archived, sortOrder: input.sortOrder, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.lots).set(row).where(eq(t.lots.id, id));
+    else await ctx.db.insert(t.lots).values({ id, ...row });
+    return mapLot((await ctx.db.select().from(t.lots).where(eq(t.lots.id, id)).limit(1).then(one))!);
+  },
+
+  async "lots.delete"({ id }, ctx) {
+    if ((await ctx.db.select({ id: t.leases.id }).from(t.leases).where(eq(t.leases.lotId, id)).limit(1)).length) {
+      throw new RpcError("CONFLICT", "Ce lot a des baux : archivez-le plutôt, pour garder leur historique.");
+    }
+    await ctx.db.delete(t.lots).where(eq(t.lots.id, id));
+    return OK;
+  },
+
+  async "renters.upsert"(input, ctx) {
+    return mapRenter(await saveRenter(ctx, input));
+  },
+
+  async "renters.delete"({ id }, ctx) {
+    if ((await ctx.db.select({ id: t.leaseRenters.leaseId }).from(t.leaseRenters).where(eq(t.leaseRenters.renterId, id)).limit(1)).length) {
+      throw new RpcError("CONFLICT", "Ce locataire figure sur un bail : retirez-le d'abord du bail.");
+    }
+    await ctx.db.delete(t.renters).where(eq(t.renters.id, id));
+    return OK;
+  },
+
   async "leases.upsert"(input, ctx) {
     const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one);
     if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
     if (property.kind !== "locatif") throw new RpcError("CONFLICT", "Seul un investissement locatif peut avoir un bail.");
-    const others = (await ctx.db.select().from(t.leases).where(eq(t.leases.propertyId, input.propertyId))).map(mapLease);
-    const error = validateLease(input, others);
-    if (error) throw new RpcError("VALIDATION", error);
-    const id = input.id ?? newId();
-    const row = {
-      propertyId: input.propertyId,
-      kind: input.kind,
-      tenant: input.tenant,
-      startDate: input.startDate,
-      durationMonths: input.durationMonths,
-      rentCents: toCents(input.rent),
-      chargesCents: toCents(input.charges),
-      depositCents: toCents(input.deposit),
-      noticeBy: input.noticeBy,
-      noticeDate: input.noticeDate,
-      noticeMonths: input.noticeBy === "locataire" ? input.noticeMonths : null,
-      actualEnd: input.actualEnd,
-      comment: input.comment,
-      reminders: input.reminders,
-      depositReturnedCents: input.depositReturned == null ? null : toCents(input.depositReturned),
-      depositReturnedOn: input.depositReturnedOn,
-      depositReason: input.depositReturned == null ? "" : input.depositReason,
-      landlord: input.landlord,
-      guarantor: input.guarantor,
-      tenantInsuranceUntil: input.tenantInsuranceUntil,
-      revisable: input.revisable,
-      irlQuarter: input.irlQuarter,
-      landlordAddress: input.landlordAddress,
-      updatedAt: nowIso(),
-    };
-    if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));
-    else await ctx.db.insert(t.leases).values({ id, ...row });
-    return mapLease((await ctx.db.select().from(t.leases).where(eq(t.leases.id, id)).limit(1).then(one))!);
+    const mode = property.rentalMode as RentalMode;
+    const before = input.id ? await ctx.db.select().from(t.leases).where(eq(t.leases.id, input.id)).limit(1).then(one) : undefined;
+    if (input.id && (!before || before.propertyId !== input.propertyId)) throw new RpcError("NOT_FOUND", "Bail introuvable.");
+    return ctx.raw.transaction(async () => {
+      const lots = (await ctx.db.select().from(t.lots).where(eq(t.lots.propertyId, input.propertyId))).map(mapLot);
+      const lotId = input.lotId ?? before?.lotId ?? (await defaultLot(ctx, property.id, mode, lots));
+      const lot = lots.find((l) => l.id === lotId) ?? (await ctx.db.select().from(t.lots).where(eq(t.lots.id, lotId)).limit(1).then((r) => (r[0] ? mapLot(r[0]) : undefined)));
+      if (!lot || lot.propertyId !== input.propertyId) throw new RpcError("NOT_FOUND", "Lot introuvable.");
+      // Un bail existant garde son type même si le mode de location du bien a changé depuis.
+      if ((!before || before.kind !== input.kind || before.lotId !== lotId) && !leaseKindsFor(mode, lot.kind).includes(input.kind)) {
+        throw new RpcError("VALIDATION", `Ce type de bail ne correspond pas à ce lot en ${RENTAL_MODE_LABELS[mode].toLowerCase()}.`);
+      }
+      const others = (await ctx.db.select().from(t.leases).where(eq(t.leases.propertyId, input.propertyId))).map(mapLease);
+      const allLots = lots.some((l) => l.id === lot.id) ? lots : [...lots, lot];
+      const error = validateLease({ ...input, lotId }, others, allLots);
+      if (error) throw new RpcError("VALIDATION", error);
+      const id = input.id ?? newId();
+      const row = {
+        propertyId: input.propertyId,
+        lotId,
+        kind: input.kind,
+        startDate: input.startDate,
+        durationMonths: input.durationMonths,
+        rentCents: toCents(input.rent),
+        chargesCents: toCents(input.charges),
+        depositCents: toCents(input.deposit),
+        noticeBy: input.noticeBy,
+        noticeDate: input.noticeDate,
+        noticeMonths: input.noticeBy === "locataire" ? input.noticeMonths : null,
+        actualEnd: input.actualEnd,
+        comment: input.comment,
+        reminders: input.reminders,
+        depositReturnedCents: input.depositReturned == null ? null : toCents(input.depositReturned),
+        depositReturnedOn: input.depositReturnedOn,
+        depositReason: input.depositReturned == null ? "" : input.depositReason,
+        landlord: input.landlord,
+        tenantInsuranceUntil: input.tenantInsuranceUntil,
+        revisable: input.revisable,
+        irlQuarter: input.irlQuarter,
+        landlordAddress: input.landlordAddress,
+        updatedAt: nowIso(),
+      };
+      if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));
+      else await ctx.db.insert(t.leases).values({ id, ...row });
+
+      // Locataires : repris par leur id, sinon créés ; l'ordre de la liste est celui des courriers.
+      const renterIds: string[] = [];
+      for (const r of input.renters) {
+        const saved = await saveRenter(ctx, r);
+        if (!renterIds.includes(saved.id)) renterIds.push(saved.id);
+      }
+      await ctx.db.delete(t.leaseRenters).where(eq(t.leaseRenters.leaseId, id));
+      if (renterIds.length) await ctx.db.insert(t.leaseRenters).values(renterIds.map((renterId, sortOrder) => ({ leaseId: id, renterId, sortOrder })));
+
+      // Garanties : la liste envoyée remplace celle du bail.
+      const kept = input.guarantees.flatMap((g) => (g.id ? [g.id] : []));
+      const existing = await ctx.db.select({ id: t.leaseGuarantees.id }).from(t.leaseGuarantees).where(eq(t.leaseGuarantees.leaseId, id));
+      for (const g of existing.filter((x) => !kept.includes(x.id))) await ctx.db.delete(t.leaseGuarantees).where(eq(t.leaseGuarantees.id, g.id));
+      const known = new Set(existing.map((x) => x.id));
+      for (const [sortOrder, g] of input.guarantees.entries()) {
+        const set = { kind: g.kind, name: g.name, contact: g.contact, amountCents: g.amount == null ? null : toCents(g.amount), until: g.until, comment: g.comment, sortOrder, updatedAt: nowIso() };
+        if (g.id && known.has(g.id)) await ctx.db.update(t.leaseGuarantees).set(set).where(eq(t.leaseGuarantees.id, g.id));
+        else await ctx.db.insert(t.leaseGuarantees).values({ id: newId(), leaseId: id, ...set });
+      }
+      return mapLease((await ctx.db.select().from(t.leases).where(eq(t.leases.id, id)).limit(1).then(one))!);
+    });
   },
 
   async "leases.delete"({ id }, ctx) {

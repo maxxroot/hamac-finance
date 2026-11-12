@@ -25,6 +25,8 @@ import type { Institution } from "./institutions";
 import { ageInYear, classEnabled, classLabel, classTargets, type PlanParams } from "./params";
 import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
 import type { Lease, LeaseRent, RentException } from "./leases";
+import type { Lot as RentalLot } from "./lots";
+import type { LeaseGuarantee } from "./renters";
 import type { PropertyDocument, PropertyExpense } from "./rental";
 import { otherAssetHeldValueAt, type OtherAsset, type OtherAssetValue } from "./otherAssets";
 import { loanState, propertyValue, type Loan, type LoanState, type Property, type PropertyValue } from "./realestate";
@@ -50,6 +52,9 @@ export interface EngineData {
   otherAssets?: readonly OtherAsset[];
   otherAssetValues?: readonly OtherAssetValue[];
   leases?: readonly Lease[];
+  /** Lots des biens en location et garanties des baux. */
+  lots?: readonly RentalLot[];
+  leaseGuarantees?: readonly LeaseGuarantee[];
   leaseRents?: readonly LeaseRent[];
   rentExceptions?: readonly RentException[];
   propertyExpenses?: readonly PropertyExpense[];

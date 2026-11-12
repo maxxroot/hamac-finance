@@ -1,5 +1,6 @@
 import { addDays, addMonths, isIsoDate } from "./dates";
 import { roundCents } from "./money";
+import type { Lot } from "./lots";
 import type { PropertyOwnership } from "./realestate";
 import { daysBetween } from "./xirr";
 
@@ -78,9 +79,9 @@ export function leaseDurationNote(kind: LeaseKind, ownership: PropertyOwnership,
 export interface Lease {
   id: string;
   propertyId: string;
+  /** Lot loué : le logement entier, une chambre, un parking… */
+  lotId: string;
   kind: LeaseKind;
-  /** Nom du locataire, facultatif. */
-  tenant: string;
   startDate: string;
   /** Durée du bail, et de chaque reconduction. */
   durationMonths: number;
@@ -104,7 +105,6 @@ export interface Lease {
   depositReason: string;
   /** Nom du propriétaire, pour les quittances. */
   landlord: string;
-  guarantor: string;
   /** Fin de validité de l'attestation d'assurance du locataire. */
   tenantInsuranceUntil: string | null;
   /** Le bail contient une clause de révision annuelle. */
@@ -225,10 +225,31 @@ export function currentLease(states: readonly LeaseState[]): LeaseState | null {
   return byStart.find((s) => s.status === "en_cours" || s.status === "conge") ?? byStart.find((s) => s.status === "a_venir") ?? byStart.at(-1) ?? null;
 }
 
+/** Loyer hors charges du mois en cours, tous lots du bien confondus : la somme des baux en cours. */
+export function monthlyRentNow(leases: readonly Lease[], rents: readonly LeaseRent[], today: string): number | null {
+  const running = leases.map((l) => leaseState(l, rents, today)).filter((s) => s.status === "en_cours" || s.status === "conge");
+  return running.length ? roundCents(running.reduce((sum, s) => sum + s.rent, 0)) : null;
+}
+
 const frDate = (iso: string) => iso.split("-").reverse().join("/");
 
-/** Contrôle partagé par le formulaire et le backend : message d'erreur, ou null si le bail est valide. */
-export function validateLease(lease: LeaseDates & { id?: string }, others: readonly (LeaseDates & { id: string })[]): string | null {
+type LotRef = { lotId?: string | null };
+
+/**
+ * Deux baux du même bien se gênent s'ils portent sur le même lot, ou si l'un loue le logement entier et l'autre une chambre.
+ * Sans lot connu (anciennes données, tests), tous les baux du bien portent sur le même logement.
+ */
+function leasesClash(a: LotRef, b: LotRef, lots: readonly Pick<Lot, "id" | "kind">[]): boolean {
+  if (a.lotId == null || b.lotId == null || a.lotId === b.lotId) return true;
+  const kinds = new Set([lots.find((l) => l.id === a.lotId)?.kind, lots.find((l) => l.id === b.lotId)?.kind]);
+  return kinds.has("logement") && kinds.has("chambre");
+}
+
+/**
+ * Contrôle partagé par le formulaire et le backend : message d'erreur, ou null si le bail est valide.
+ * `others` : les autres baux du bien ; `lots` : ses lots.
+ */
+export function validateLease(lease: LeaseDates & LotRef & { id?: string }, others: readonly (LeaseDates & LotRef & { id: string })[], lots: readonly Pick<Lot, "id" | "kind">[] = []): string | null {
   // Pendant la saisie : une date vide ou incomplète, ou une durée nulle, ne permettent aucun calcul d'échéance.
   if (!isIsoDate(lease.startDate)) return "Indiquez la date de début du bail.";
   if (lease.durationMonths < 1) return "Indiquez la durée du bail.";
@@ -237,10 +258,14 @@ export function validateLease(lease: LeaseDates & { id?: string }, others: reado
   if (lease.actualEnd && lease.actualEnd < lease.startDate) return "Le départ ne peut pas précéder le début du bail.";
   const end = leaseEnd(lease);
   for (const other of others) {
-    if (other.id === lease.id) continue;
+    if (other.id === lease.id || !leasesClash(lease, other, lots)) continue;
     const otherEnd = leaseEnd(other);
     const overlaps = (otherEnd == null || lease.startDate <= otherEnd) && (end == null || other.startDate <= end);
-    if (overlaps) return `Ce bien a déjà un bail sur cette période (début le ${frDate(other.startDate)}). Indiquez d'abord le congé ou la fin de ce bail.`;
+    if (!overlaps) continue;
+    const sameLot = lease.lotId == null || other.lotId == null || lease.lotId === other.lotId;
+    return sameLot
+      ? `Ce logement a déjà un bail sur cette période (début le ${frDate(other.startDate)}). Indiquez d'abord le congé ou la fin de ce bail.`
+      : `Le logement entier et une chambre ne peuvent pas être loués en même temps (bail du ${frDate(other.startDate)}). Indiquez d'abord le congé ou la fin de ce bail.`;
   }
   return null;
 }

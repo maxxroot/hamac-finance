@@ -2004,10 +2004,11 @@ describe("Bien : bail, loyers et quittances", () => {
   it("bail en cours : garant, assurance, dépôt, loyers à revoir ; nouveau loyer, évolution, suppression d'un loyer", async () => {
     const user = userEvent.setup();
     const studio = await locatif();
-    const b = await bail(studio.id, { tenant: "Locataire fictif", guarantor: "Garant fictif", tenantInsuranceUntil: dansJours(200), reminders: false });
+    const b = await bail(studio.id, { renters: [{ lastName: "Locataire fictif" }], guarantees: [{ kind: "caution", name: "Garant fictif", until: dansAns(3) }], tenantInsuranceUntil: dansJours(200), reminders: false });
     pageBien(studio.id, "location");
     expect(await screen.findByText(/· Locataire fictif/)).toBeTruthy();
-    expect(screen.getByText("Garant fictif")).toBeTruthy();
+    expect(screen.getByText("Caution d'une personne")).toBeTruthy();
+    expect(screen.getByText(/^Garant fictif, jusqu'au /)).toBeTruthy();
     expect(screen.getByText("Assurance du locataire jusqu'au")).toBeTruthy();
     expect(screen.getByText("Désactivés")).toBeTruthy();
     expect(screen.getByText(/Dépôt de garantie \(à restituer\)/)).toBeTruthy();
@@ -2053,7 +2054,7 @@ describe("Bien : bail, loyers et quittances", () => {
   it("dépôt rendu avec retenue, congé du locataire et départ réel : le bail se modifie, ses échéances se recalculent", async () => {
     const user = userEvent.setup();
     const studio = await locatif();
-    const b = await bail(studio.id, { kind: "vide", tenant: "Locataire fictif" });
+    const b = await bail(studio.id, { kind: "vide", renters: [{ lastName: "Locataire fictif" }] });
     pageBien(studio.id, "location");
     await user.click(await screen.findByRole("button", { name: "Modifier ou donner congé" }));
     const dialog = within(await screen.findByRole("dialog", { name: "Modifier le bail" }));
@@ -2084,8 +2085,8 @@ describe("Bien : bail, loyers et quittances", () => {
   it("baux précédents listés à part : modification et suppression confirmée ; un bail qui chevauche est refusé", async () => {
     const user = userEvent.setup();
     const studio = await locatif();
-    await bail(studio.id, { startDate: "2016-01-01", durationMonths: 36, actualEnd: "2018-12-31", tenant: "Ancien locataire" });
-    const courant = await bail(studio.id, { tenant: "Locataire actuel" });
+    await bail(studio.id, { startDate: "2016-01-01", durationMonths: 36, actualEnd: "2018-12-31", renters: [{ lastName: "Ancien locataire" }] });
+    const courant = await bail(studio.id, { renters: [{ lastName: "Locataire actuel" }] });
     pageBien(studio.id, "location");
     expect(await screen.findByText("Autres baux")).toBeTruthy();
     const ancien = screen.getByText(/Ancien locataire/).closest("tr") as HTMLElement;
@@ -2095,7 +2096,7 @@ describe("Bien : bail, loyers et quittances", () => {
     const dialog = within(await screen.findByRole("dialog", { name: "Modifier le bail" }));
     // Prolonger l'ancien bail jusqu'au bail actuel : refusé, avec la raison.
     fireEvent.change(dialog.getByLabelText("Départ réel (facultatif)"), { target: { value: dansJours(-10) } });
-    expect(await dialog.findByText(/Ce bien a déjà un bail sur cette période/)).toBeTruthy();
+    expect(await dialog.findByText(/Ce logement a déjà un bail sur cette période/)).toBeTruthy();
     expect((dialog.getByRole("button", { name: "Valider" }) as HTMLButtonElement).disabled).toBe(true);
     await user.click(dialog.getByRole("button", { name: "Annuler" }));
     h.confirm = false;
@@ -2105,11 +2106,12 @@ describe("Bien : bail, loyers et quittances", () => {
     await user.click(within(ancien).getByRole("button", { name: "Supprimer" }));
     await waitFor(async () => expect((await workspace()).leases.map((l: Id) => l.id)).toEqual([courant.id]));
     // Le bail en cours se supprime aussi, sur confirmation : la carte repasse à « Aucun bail ».
+    // Le premier « Supprimer » de la page est celui de la carte du bail, avant la carte des lots.
     h.confirm = false;
-    await user.click(screen.getByRole("button", { name: "Supprimer" }));
+    await user.click(screen.getAllByRole("button", { name: "Supprimer" })[0]!);
     expect((await workspace()).leases).toHaveLength(1);
     h.confirm = true;
-    await user.click(screen.getByRole("button", { name: "Supprimer" }));
+    await user.click(screen.getAllByRole("button", { name: "Supprimer" })[0]!);
     expect(await screen.findByText(/Aucun bail\. Ajoutez-en un/)).toBeTruthy();
   });
 
@@ -2155,19 +2157,38 @@ describe("Bien : bail, loyers et quittances", () => {
     await user.click(dialog.getByLabelText("Le bail prévoit une révision annuelle du loyer"));
     await user.selectOptions(dialog.getByLabelText("Trimestre de référence de l'indice"), "3");
     await user.click(dialog.getByLabelText(/Me rappeler les échéances de ce bail/));
-    await user.type(dialog.getByLabelText("Locataire (facultatif)"), "Locataire fictif");
+    // Locataires : une ligne vide au départ ; une ligne commencée sans nom bloque l'enregistrement.
+    await user.type(dialog.getByLabelText("E-mail (facultatif)"), "locataire@example.org");
+    expect(await dialog.findByText(/Indiquez le prénom ou le nom de chaque locataire/)).toBeTruthy();
+    expect((dialog.getByRole("button", { name: "Ajouter" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.type(dialog.getByLabelText("Prénom"), "Camille");
+    await user.type(dialog.getByLabelText("Nom"), "Fictive");
+    // Une deuxième ligne laissée vide est ignorée.
+    await user.click(dialog.getByRole("button", { name: "Ajouter un locataire" }));
+    await user.click(dialog.getByRole("button", { name: "Ajouter un locataire" }));
+    await user.click(dialog.getByRole("button", { name: "Retirer le locataire 3" }));
+    expect(dialog.getAllByLabelText("Prénom")).toHaveLength(2);
+    await user.click(dialog.getByRole("button", { name: "Ajouter une garantie" }));
+    await user.click(dialog.getByRole("button", { name: "Retirer la garantie 1" }));
+    expect(dialog.getByText(/Aucune garantie/)).toBeTruthy();
+    await user.click(dialog.getByRole("button", { name: "Ajouter une garantie" }));
+    await user.selectOptions(dialog.getByLabelText("Type"), "visale");
+    await user.type(dialog.getByLabelText("Organisme"), "Visale (fictif)");
     await user.type(dialog.getByLabelText("Propriétaire (facultatif)"), "Propriétaire fictif");
-    await user.type(dialog.getByLabelText("Garant (facultatif)"), "Garant fictif");
     await user.type(dialog.getByLabelText("Adresse du propriétaire (facultative)"), "1 rue Fictive");
     fireEvent.change(dialog.getByLabelText("Assurance du locataire valable jusqu'au"), { target: { value: dansJours(90) } });
     await user.click(dialog.getByRole("button", { name: "Ajouter" }));
-    await waitFor(async () => expect((await workspace()).leases).toMatchObject([{ propertyId: studio.id, kind: "vide", rent: 800, deposit: 5000, irlQuarter: 3, reminders: false, tenant: "Locataire fictif", landlord: "Propriétaire fictif", guarantor: "Garant fictif", landlordAddress: "1 rue Fictive", revisable: true }]));
+    await waitFor(async () => expect((await workspace()).leases).toMatchObject([{ propertyId: studio.id, kind: "vide", rent: 800, deposit: 5000, irlQuarter: 3, reminders: false, landlord: "Propriétaire fictif", landlordAddress: "1 rue Fictive", revisable: true }]));
+    const ws = await workspace();
+    expect(ws.renters).toMatchObject([{ firstName: "Camille", lastName: "Fictive", email: "locataire@example.org" }]);
+    expect(ws.leaseGuarantees).toMatchObject([{ kind: "visale", name: "Visale (fictif)" }]);
+    expect(ws.lots).toMatchObject([{ propertyId: studio.id, name: "Logement", kind: "logement" }]);
   });
 
   it("changer le type d'un bail avec congé du propriétaire efface ce congé, impossible pour un bail mobilité", async () => {
     const user = userEvent.setup();
-    const studio = await locatif();
-    const b = await bail(studio.id);
+    const studio = await locatif({ rentalMode: "meuble" });
+    const b = await bail(studio.id, { kind: "meuble", durationMonths: 12 });
     pageBien(studio.id, "location");
     await user.click(await screen.findByRole("button", { name: "Modifier ou donner congé" }));
     const dialog = within(await screen.findByRole("dialog", { name: "Modifier le bail" }));
@@ -2181,6 +2202,97 @@ describe("Bien : bail, loyers et quittances", () => {
     expect(dialog.queryByLabelText("Le bail prévoit une révision annuelle du loyer")).toBeNull();
     await user.click(dialog.getByRole("button", { name: "Valider" }));
     await waitFor(async () => expect((await workspace()).leases.find((l: Id) => l.id === b.id)).toMatchObject({ kind: "mobilite", noticeBy: null, noticeDate: null }));
+  });
+});
+
+describe("Bien : lots et colocation par chambre", () => {
+  it("chambres ajoutées une à une, un bail par chambre, locataire repris, lot loué archivé plutôt que supprimé", async () => {
+    const user = userEvent.setup();
+    const maison = await locatif({ name: "Maison", rentalMode: "chambres" });
+    pageBien(maison.id, "location");
+    expect(await screen.findByText("Ajoutez les chambres du bien pour y rattacher leurs baux.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Nouveau bail" })).toBeNull();
+
+    // Deux chambres : la nature et le nom sont proposés, le loyer espéré est facultatif.
+    await user.click(screen.getByRole("button", { name: "Ajouter un lot" }));
+    let lotDialog = within(await screen.findByRole("dialog", { name: "Nouveau lot" }));
+    expect((lotDialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("Chambre 1");
+    await user.type(lotDialog.getByLabelText("Loyer espéré (facultatif)"), "450");
+    await user.type(lotDialog.getByLabelText("Surface en m² (facultative)"), "12");
+    await user.click(lotDialog.getByRole("button", { name: "Ajouter" }));
+    await waitFor(async () => expect((await workspace()).lots).toMatchObject([{ name: "Chambre 1", kind: "chambre", targetRent: 450, surface: 12 }]));
+    await user.click(screen.getByRole("button", { name: "Ajouter un lot" }));
+    lotDialog = within(await screen.findByRole("dialog", { name: "Nouveau lot" }));
+    expect((lotDialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("Chambre 2");
+    // Changer de nature renomme un lot dont le nom n'a pas été touché.
+    await user.selectOptions(lotDialog.getByLabelText("Nature"), "parking");
+    expect((lotDialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("Parking ou box");
+    await user.selectOptions(lotDialog.getByLabelText("Nature"), "chambre");
+    await user.click(lotDialog.getByRole("button", { name: "Ajouter" }));
+    expect(await screen.findByText("Bail · Chambre 2")).toBeTruthy();
+    expect(screen.getByText("Bail · Chambre 1")).toBeTruthy();
+    expect(screen.getAllByText("Jamais loué")).toHaveLength(2);
+
+    // Bail étudiant sur la première chambre.
+    await user.click(screen.getAllByRole("button", { name: "Nouveau bail" })[0]!);
+    let dialog = within(await screen.findByRole("dialog", { name: "Nouveau bail · Chambre 1" }));
+    await user.selectOptions(dialog.getByLabelText("Type de bail"), "etudiant");
+    await user.type(dialog.getByLabelText("Loyer hors charges"), "450");
+    await user.type(dialog.getByLabelText("Prénom"), "Alice");
+    await user.type(dialog.getByLabelText("Nom"), "Fictive");
+    await user.click(dialog.getByRole("button", { name: "Ajouter" }));
+    await waitFor(async () => expect((await workspace()).leases).toHaveLength(1));
+    expect(await screen.findByText("Alice Fictive")).toBeTruthy();
+    expect(screen.getByText("Loué")).toBeTruthy();
+
+    // Même locataire, repris, sur la seconde chambre.
+    await user.click(screen.getAllByRole("button", { name: "Nouveau bail" })[1]!);
+    dialog = within(await screen.findByRole("dialog", { name: "Nouveau bail · Chambre 2" }));
+    await user.type(dialog.getByLabelText("Loyer hors charges"), "420");
+    await user.selectOptions(dialog.getByLabelText("Reprendre un locataire déjà saisi"), dialog.getByRole("option", { name: "Alice Fictive" }));
+    expect(dialog.getAllByLabelText("Prénom")).toHaveLength(1);
+    await user.click(dialog.getByRole("button", { name: "Ajouter" }));
+    await waitFor(async () => expect((await workspace()).leaseRenters).toHaveLength(2));
+    const ws = await workspace();
+    expect(ws.renters).toHaveLength(1);
+    expect(new Set(ws.leases.map((l: { lotId: string }) => l.lotId)).size).toBe(2);
+    // Plusieurs lots loués : la liste des loyers dit de quel lot il s'agit.
+    await waitFor(() => expect(screen.getAllByRole("columnheader", { name: "Lot" })).toHaveLength(2));
+
+    // Un lot loué ne se supprime pas : on propose de l'archiver.
+    // La ligne du lot, dans la carte des lots (la liste des loyers cite aussi la chambre).
+    const ligneDuLot = () => screen.getAllByText("Chambre 1").map((x) => x.closest("tr")).find((tr) => tr && within(tr).queryByRole("button", { name: "Supprimer" })) as HTMLElement;
+    const ligne = ligneDuLot();
+    h.confirm = true;
+    await user.click(within(ligne).getByRole("button", { name: "Supprimer" }));
+    await waitFor(async () => expect((await workspace()).lots.find((l: { name: string }) => l.name === "Chambre 1")).toMatchObject({ archived: true }));
+    await user.click(await screen.findByRole("button", { name: "Afficher les lots archivés (1)" }));
+    expect(screen.getByText("Archivé")).toBeTruthy();
+    const archivee = ligneDuLot();
+    await user.click(within(archivee).getByRole("button", { name: "Modifier" }));
+    lotDialog = within(await screen.findByRole("dialog", { name: "Modifier chambre 1" }));
+    expect((lotDialog.getByLabelText("Nature") as HTMLSelectElement).disabled).toBe(true);
+    await user.click(lotDialog.getByLabelText(/Archiver/));
+    await user.click(lotDialog.getByRole("button", { name: "Valider" }));
+    await waitFor(async () => expect((await workspace()).lots.every((l: { archived: boolean }) => !l.archived)).toBe(true));
+  });
+
+  it("un lot jamais loué se supprime ; le mode de location se choisit sur la fiche du bien", async () => {
+    const user = userEvent.setup();
+    const maison = await locatif({ name: "Maison" });
+    await rpc("lots.upsert", { propertyId: maison.id, name: "Cave", kind: "cave" });
+    pageBien(maison.id, "location");
+    const ligne = (await screen.findAllByText("Cave"))[0]!.closest("tr") as HTMLElement;
+    h.confirm = true;
+    await user.click(within(ligne).getByRole("button", { name: "Supprimer" }));
+    await waitFor(async () => expect((await workspace()).lots).toEqual([]));
+    await user.click(screen.getByRole("button", { name: /Modifier$/ }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Modifier le bien" }));
+    await user.selectOptions(dialog.getByLabelText("Mode de location"), "colocation");
+    expect(dialog.getByText("Un seul bail signé par tous les colocataires.")).toBeTruthy();
+    await user.click(dialog.getByRole("button", { name: "Valider" }));
+    await waitFor(async () => expect((await workspace()).properties.find((p: Id) => p.id === maison.id)).toMatchObject({ rentalMode: "colocation" }));
+    expect(await screen.findByText(/Colocation, un bail pour tous\./)).toBeTruthy();
   });
 });
 

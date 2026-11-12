@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GOAL_ALLOCATION_MODES, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GOAL_ALLOCATION_MODES, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, LEASE_GUARANTEE_KINDS, LOT_KINDS, RENTAL_MODES, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -196,6 +196,7 @@ export const PropertyInput = z.object({
   ges: z.enum(ENERGY_LETTERS).nullable().default(null),
   dpeDate: isoDate.nullable().default(null),
   dpeReminders: z.boolean().default(true),
+  rentalMode: z.enum(RENTAL_MODES).default("vide"),
   share: z.number().gt(0, "Part détenue requise").max(1).default(1),
   companyId: id.nullable().default(null),
   dismemberment: z.enum(DISMEMBERMENTS).default("pleine"),
@@ -223,12 +224,53 @@ export const PropertyValueInput = z.object({
   value: money.min(0),
 });
 
+export const LotInput = z.object({
+  id: id.optional(),
+  propertyId: id,
+  name: text(80).min(1, "Nom requis"),
+  kind: z.enum(LOT_KINDS),
+  surface: z.number().positive("Surface invalide").max(100_000).nullable().default(null),
+  targetRent: money.min(0).nullable().default(null),
+  comment: text(500).default(""),
+  archived: z.boolean().default(false),
+  sortOrder: z.number().int().default(0),
+});
+export type LotInput = z.input<typeof LotInput>;
+
+export const RenterInput = z
+  .object({
+    id: id.optional(),
+    firstName: text(80).default(""),
+    lastName: text(120).default(""),
+    email: text(200).default(""),
+    phone: text(40).default(""),
+    forwardingAddress: text(300).default(""),
+    comment: text(500).default(""),
+  })
+  .refine((r) => r.firstName !== "" || r.lastName !== "", { path: ["lastName"], message: "Indiquez le nom du locataire." });
+export type RenterInput = z.input<typeof RenterInput>;
+
+export const LeaseGuaranteeInput = z.object({
+  id: id.optional(),
+  kind: z.enum(LEASE_GUARANTEE_KINDS),
+  name: text(120).default(""),
+  contact: text(300).default(""),
+  amount: money.min(0).nullable().default(null),
+  until: isoDate.nullable().default(null),
+  comment: text(300).default(""),
+});
+export type LeaseGuaranteeInput = z.input<typeof LeaseGuaranteeInput>;
+
 export const LeaseInput = z
   .object({
     id: id.optional(),
     propertyId: id,
+    /** Lot loué ; null = le seul lot du bien, créé au besoin. */
+    lotId: id.nullable().default(null),
     kind: z.enum(LEASE_KINDS),
-    tenant: text(120).default(""),
+    /** Locataires du bail, dans l'ordre : créés, mis à jour ou repris par leur id. */
+    renters: z.array(RenterInput).max(12).default([]),
+    guarantees: z.array(LeaseGuaranteeInput).max(12).default([]),
     startDate: isoDate,
     durationMonths: z.number().int().min(1).max(600),
     rent: money.min(0),
@@ -244,7 +286,6 @@ export const LeaseInput = z
     depositReturnedOn: isoDate.nullable().default(null),
     depositReason: text(200).default(""),
     landlord: text(120).default(""),
-    guarantor: text(120).default(""),
     tenantInsuranceUntil: isoDate.nullable().default(null),
     revisable: z.boolean().default(true),
     irlQuarter: z.number().int().min(1).max(4).nullable().default(null),

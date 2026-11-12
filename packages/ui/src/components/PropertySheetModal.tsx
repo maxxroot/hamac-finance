@@ -5,12 +5,11 @@ import {
   PROPERTY_KIND_LABELS,
   PROPERTY_OWNERSHIP_LABELS,
   PROPERTY_TYPE_LABELS,
-  currentLease,
+  monthlyRentNow,
   dpeExpiry,
   dpeRentalBan,
   formatEur,
   heldShareLabel,
-  leaseState,
   loanPayoffAt,
   propertyImprovements,
   propertyProfitability,
@@ -66,10 +65,9 @@ function Sheet({ property: p, onClose }: { property: Property; onClose: () => vo
   const heldLoans = pf.data.loans ?? ws.loans;
   const summary = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
   const sale = propertySale(held, improvements, p.saleDate ? loanPayoffAt(heldLoans, p.id, p.saleDate) : 0);
-  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans }, pf.today) : [];
+  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans, lots: ws.lots }, pf.today) : [];
   const profit = propertyProfitability(years);
-  const lease = currentLease(leases.map((l) => leaseState(l, ws.leaseRents, pf.today)));
-  const monthlyRent = rented && (lease?.status === "en_cours" || lease?.status === "conge") ? lease.rent : null;
+  const monthlyRent = rented ? monthlyRentNow(leases, ws.leaseRents, pf.today) : null;
   const sqm = propertySqm(p, monthlyRent);
   const perSqm = (v: number) => `${formatEur(v)}/m²`;
   const place = [p.address, [p.postalCode, p.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");

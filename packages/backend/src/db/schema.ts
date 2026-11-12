@@ -380,6 +380,8 @@ export const properties = pgTable("properties", {
   ges: text("ges"),
   dpeDate: text("dpe_date"),
   dpeReminders: boolean("dpe_reminders").notNull().default(true),
+  /** Mode de location : vide, meublé, colocation à bail unique ou par chambre. */
+  rentalMode: text("rental_mode").notNull().default("vide"),
   saleDate: text("sale_date"),
   salePriceCents: bigint("sale_price_cents", { mode: "number" }),
   saleFeesCents: bigint("sale_fees_cents", { mode: "number" }).notNull().default(0),
@@ -419,7 +421,39 @@ export const loans = pgTable("loans", {
   ...timestamps,
 });
 
-/** Baux d'un bien en location : une seule location à la fois, avec des baux successifs possibles. */
+/** Ce qui se loue dans un bien : logement entier, chambre, parking… */
+export const lots = pgTable(
+  "lots",
+  {
+    id: text("id").primaryKey(),
+    propertyId: text("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    kind: text("kind").notNull(),
+    surface: doublePrecision("surface"),
+    targetRentCents: bigint("target_rent_cents", { mode: "number" }),
+    comment: text("comment").notNull().default(""),
+    archived: boolean("archived").notNull().default(false),
+    sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index("lots_property_idx").on(t.propertyId)],
+);
+
+/** Locataires, qui peuvent avoir plusieurs baux successifs. */
+export const renters = pgTable("renters", {
+  id: text("id").primaryKey(),
+  firstName: text("first_name").notNull().default(""),
+  lastName: text("last_name").notNull().default(""),
+  email: text("email").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  forwardingAddress: text("forwarding_address").notNull().default(""),
+  comment: text("comment").notNull().default(""),
+  ...timestamps,
+});
+
+/** Baux d'un lot : un seul à la fois par lot, avec des baux successifs possibles. */
 export const leases = pgTable(
   "leases",
   {
@@ -427,8 +461,10 @@ export const leases = pgTable(
     propertyId: text("property_id")
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
+    lotId: text("lot_id")
+      .notNull()
+      .references(() => lots.id),
     kind: text("kind").notNull(),
-    tenant: text("tenant").notNull().default(""),
     startDate: text("start_date").notNull(),
     durationMonths: bigint("duration_months", { mode: "number" }).notNull(),
     rentCents: bigint("rent_cents", { mode: "number" }).notNull(),
@@ -444,14 +480,48 @@ export const leases = pgTable(
     depositReturnedOn: text("deposit_returned_on"),
     depositReason: text("deposit_reason").notNull().default(""),
     landlord: text("landlord").notNull().default(""),
-    guarantor: text("guarantor").notNull().default(""),
     tenantInsuranceUntil: text("tenant_insurance_until"),
     revisable: boolean("revisable").notNull().default(true),
     irlQuarter: bigint("irl_quarter", { mode: "number" }),
     landlordAddress: text("landlord_address").notNull().default(""),
     ...timestamps,
   },
-  (t) => [index("leases_property_idx").on(t.propertyId)],
+  (t) => [index("leases_property_idx").on(t.propertyId), index("leases_lot_idx").on(t.lotId)],
+);
+
+/** Locataires de chaque bail, dans l'ordre de saisie. */
+export const leaseRenters = pgTable(
+  "lease_renters",
+  {
+    leaseId: text("lease_id")
+      .notNull()
+      .references(() => leases.id, { onDelete: "cascade" }),
+    renterId: text("renter_id")
+      .notNull()
+      .references(() => renters.id, { onDelete: "cascade" }),
+    sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.leaseId, t.renterId] }), index("lease_renters_renter_idx").on(t.renterId)],
+);
+
+/** Garanties d'un bail : caution, Visale, assurance loyers impayés… */
+export const leaseGuarantees = pgTable(
+  "lease_guarantees",
+  {
+    id: text("id").primaryKey(),
+    leaseId: text("lease_id")
+      .notNull()
+      .references(() => leases.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    name: text("name").notNull().default(""),
+    contact: text("contact").notNull().default(""),
+    amountCents: bigint("amount_cents", { mode: "number" }),
+    until: text("until"),
+    comment: text("comment").notNull().default(""),
+    sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index("lease_guarantees_lease_idx").on(t.leaseId)],
 );
 
 /** Nouveaux loyers d'un bail, en vigueur à partir d'un mois. */

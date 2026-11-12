@@ -12,6 +12,8 @@ export * from "./concentration";
 export * from "./goals";
 export * from "./realestate";
 export * from "./leases";
+export * from "./lots";
+export * from "./renters";
 export * from "./irl";
 export * from "./energy";
 export * from "./rental";

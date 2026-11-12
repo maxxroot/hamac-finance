@@ -1,5 +1,6 @@
 import { addMonths, monthsBetween } from "./dates";
 import type { EnergyLetter } from "./energy";
+import type { RentalMode } from "./lots";
 import { roundCents } from "./money";
 import { dismembermentRatio, type Company, type DismembermentFields } from "./ownership";
 
@@ -76,6 +77,8 @@ export interface Property extends DismembermentFields {
   dpeDate: string | null;
   /** Alerter avant l'expiration du DPE et si sa note interdit de louer. */
   dpeReminders: boolean;
+  /** Comment le bien est loué (investissement locatif) : il décide des lots et des baux proposés. */
+  rentalMode: RentalMode;
   /** Vente : le bien sort du patrimoine à cette date. */
   saleDate: string | null;
   /** Prix et frais de vente du bien entier. */
@@ -113,6 +116,7 @@ export const NO_PROPERTY_DETAILS = {
   ges: null,
   dpeDate: null,
   dpeReminders: true,
+  rentalMode: "vide",
   saleDate: null,
   salePrice: null,
   saleFees: 0,

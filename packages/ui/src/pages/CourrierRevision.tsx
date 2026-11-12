@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { LEASE_KIND_LABELS, formatEur, irlQuarterLabel, irlZone, IRL_ZONE_LABELS, revisedRent, revisionEffectiveDate } from "@hamac/core";
+import { leaseRenterNames, LEASE_KIND_LABELS, formatEur, irlQuarterLabel, irlZone, IRL_ZONE_LABELS, revisedRent, revisionEffectiveDate } from "@hamac/core";
 import { PrintLine, PrintPage, PrintSection } from "@/components/PrintPage";
 import { formatDate } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -30,7 +30,7 @@ export function CourrierRevision() {
           {lease.landlordAddress && <p className="whitespace-pre-line">{lease.landlordAddress}</p>}
         </div>
         <div className="text-right">
-          <p className="font-semibold">{lease.tenant || "Le locataire"}</p>
+          <p className="font-semibold">{leaseRenterNames(lease.id, ws.leaseRenters, ws.renters) || "Le locataire"}</p>
           <p>{place}</p>
         </div>
       </div>

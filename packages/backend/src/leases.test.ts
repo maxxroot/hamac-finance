@@ -26,8 +26,8 @@ describe("baux", () => {
   it("enregistre un bail et le renvoie à l'espace de travail", async () => {
     backend = await testBackend();
     const propertyId = await newProperty(backend);
-    await call(backend, "leases.upsert", { ...lease(propertyId), tenant: "Locataire fictif" });
-    expect((await ws(backend)).leases).toMatchObject([{ propertyId, kind: "vide", tenant: "Locataire fictif", rent: 800, charges: 50, deposit: 800, noticeBy: null }]);
+    await call(backend, "leases.upsert", { ...lease(propertyId), renters: [{ firstName: "Alice", lastName: "Fictive" }] });
+    expect((await ws(backend)).leases).toMatchObject([{ propertyId, kind: "vide", rent: 800, charges: 50, deposit: 800, noticeBy: null }]);
   });
 
   it("réservé aux biens en location", async () => {
