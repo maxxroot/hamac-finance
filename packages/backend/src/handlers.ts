@@ -8,6 +8,7 @@ import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
 import { MarketError } from "./market/http";
 import { refreshPrices } from "./market/refresh";
+import { assetSaved, chooseEquivalent, compositionAdmin, loadExposure, lookupComposition, setAdminLink } from "./exposure";
 import { TwelveDataBudget } from "./market/twelvedata";
 import * as t from "./db/schema";
 import {
@@ -272,6 +273,7 @@ export const handlers: Handlers = {
     } else {
       await ctx.db.insert(t.assets).values({ id, ...row });
     }
+    assetSaved(ctx, row);
     return mapAsset((await ctx.db.select().from(t.assets).where(eq(t.assets.id, id)).limit(1).then(one))!);
   },
 
@@ -976,6 +978,27 @@ export const handlers: Handlers = {
       if (e instanceof MarketError) throw new RpcError("NOT_FOUND", e.message);
       throw e;
     }
+  },
+
+  async "exposure.load"(_input, ctx) {
+    return loadExposure(ctx);
+  },
+
+  async "exposure.lookup"({ isin }, ctx) {
+    return lookupComposition(ctx, isin);
+  },
+
+  async "exposure.choose"({ assetId, proxyIsin }, ctx) {
+    await chooseEquivalent(ctx, assetId, proxyIsin);
+    return OK;
+  },
+
+  async "exposure.admin"(_input, ctx) {
+    return compositionAdmin(ctx);
+  },
+
+  async "exposure.adminLink"({ isin, proxyIsin }, ctx) {
+    return setAdminLink(ctx, isin, proxyIsin);
   },
 };
 

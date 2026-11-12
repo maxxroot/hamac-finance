@@ -1,6 +1,6 @@
-import type { EtfHolding } from "@hamac/core";
+import type { CompositionInfo, CompositionIssuer, EtfHolding, Replication } from "@hamac/core";
 import type { RawDb } from "../db/driver";
-import { type CompositionIssuer, fetchComposition, findComposition, type FetchedComposition, type Replication } from "./composition";
+import { fetchComposition, findComposition, type FetchedComposition } from "./composition";
 import type { Fetcher } from "./http";
 
 /**
@@ -44,25 +44,7 @@ export const COMPOSITION_TABLES = [
   )`,
 ];
 
-/**
- * État d'une composition, sans ses lignes.
- * - ok : composition disponible (une mise à jour a pu échouer depuis, voir `message`) ;
- * - pending : pas encore téléchargée ;
- * - unknown : ni Amundi ni iShares ne connaissent cet ISIN ;
- * - failed : le téléchargement a échoué et aucune composition n'est connue.
- */
-export interface CompositionInfo {
-  isin: string;
-  state: "ok" | "pending" | "unknown" | "failed";
-  issuer: CompositionIssuer | null;
-  fundName: string | null;
-  replication: Replication | null;
-  asOf: string | null;
-  lineCount: number;
-  checkedAt: string | null;
-  fetchedAt: string | null;
-  message: string | null;
-}
+export type { CompositionInfo };
 
 export interface CompositionLink {
   isin: string;

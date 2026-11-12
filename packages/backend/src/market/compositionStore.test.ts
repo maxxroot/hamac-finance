@@ -1,42 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Backend } from "../index";
 import { rawFor } from "../db/postgres";
-import { testBackend, testMarket, testProvider } from "../testkit";
+import { amundiFake, testBackend, testMarket, testProvider } from "../testkit";
 import { CompositionStore } from "./compositionStore";
 import type { Fetcher } from "./http";
 
 const DAY = 86_400_000;
-
-/** Réponse Amundi au format réel (montants fictifs) ; `known` : ISIN connus d'Amundi et leur réplication. */
-export function amundiFake(known: Record<string, string>, opts: { down?: () => boolean } = {}): Fetcher & { calls: string[] } {
-  const calls: string[] = [];
-  const f = (async (url: string, init?: RequestInit) => {
-    calls.push(url);
-    if (opts.down?.()) return new Response("panne", { status: 500 });
-    if (url.includes("amundietf")) {
-      const isin = (JSON.parse(String(init?.body)) as { productIds: string[] }).productIds[0]!;
-      if (!known[isin]) return Response.json({ products: [] });
-      return Response.json({
-        products: [
-          {
-            productId: isin,
-            characteristics: { FUND_REPLICATION_METHODOLOGY: known[isin], SHARE_MARKETING_NAME: `Amundi ${isin}` },
-            composition: {
-              compositionData: [
-                { compositionCharacteristics: { date: "2026-11-09", type: "EQUITY_ORDINARY", isin: "US0378331005", name: "APPLE INC", weight: 0.6, currency: "USD", sector: "Information Technology", countryOfRisk: "United States" } },
-                { compositionCharacteristics: { date: "2026-11-09", type: "EQUITY_ORDINARY", isin: "FR0000120271", name: "TOTALENERGIES SE", weight: 0.4, currency: "EUR", sector: "Energy", countryOfRisk: "France" } },
-              ],
-            },
-          },
-        ],
-      });
-    }
-    if (url.includes("core-search")) return Response.json({ results: [] });
-    return new Response("introuvable", { status: 404 });
-  }) as Fetcher & { calls: string[] };
-  f.calls = calls;
-  return f;
-}
 
 async function store(fetcher: Fetcher, clock: { t: number }) {
   await testMarket();

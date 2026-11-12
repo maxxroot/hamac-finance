@@ -148,6 +148,13 @@
       "when": 1794431680613,
       "tag": "0020_yielding_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794472932794,
+      "tag": "0021_clever_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }

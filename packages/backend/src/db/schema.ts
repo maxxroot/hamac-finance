@@ -100,6 +100,8 @@ export const assets = pgTable(
     nextCouponDate: text("next_coupon_date"),
     issuer: text("issuer"),
     bondKind: text("bond_kind"),
+    /** ETF : ISIN de l'ETF physique équivalent choisi par l'utilisateur pour l'exposition réelle ; null = lien commun de l'instance. */
+    compositionIsin: text("composition_isin"),
     archived: boolean("archived").notNull().default(false),
     ...timestamps,
   },

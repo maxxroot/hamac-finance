@@ -1,4 +1,4 @@
-import { countryCode, currencyCode, sectorFromLabel, type EtfHolding, type HoldingKind } from "@hamac/core";
+import { countryCode, currencyCode, sectorFromLabel, type CompositionIssuer, type EtfHolding, type HoldingKind, type Replication } from "@hamac/core";
 import { type Fetcher, getJson, MarketError } from "./http";
 
 /**
@@ -11,8 +11,7 @@ import { type Fetcher, getJson, MarketError } from "./http";
  * La méthode de réplication est donc toujours renvoyée avec la composition.
  */
 
-export type CompositionIssuer = "amundi" | "ishares";
-export type Replication = "physique" | "synthetique";
+export type { CompositionIssuer, Replication };
 
 /** De quoi retrouver une composition : c'est ce qui sera gardé en base. */
 export interface CompositionSource {

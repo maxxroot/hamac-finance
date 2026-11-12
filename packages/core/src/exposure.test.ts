@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { countryCode, currencyCode, SECTOR_LABELS, SECTORS, sectorFromLabel } from "./exposure";
+import {
+  countryCode,
+  currencyCode,
+  EQUIVALENT_REFERENCES,
+  resolveComposition,
+  SECTOR_LABELS,
+  SECTORS,
+  sectorFromLabel,
+  suggestEquivalent,
+  summarizeComposition,
+  type CompositionInfo,
+  type EtfHolding,
+} from "./exposure";
 
 describe("exposition : harmonisation des libellés d'émetteurs", () => {
   it("ramène les noms de pays d'Amundi et d'iShares au même code ISO", () => {
@@ -45,5 +57,86 @@ describe("exposition : harmonisation des libellés d'émetteurs", () => {
     expect(currencyCode("usd")).toBe("USD");
     expect(currencyCode("-")).toBeNull();
     expect(currencyCode("")).toBeNull();
+  });
+});
+
+const line = (over: Partial<EtfHolding>): EtfHolding => ({ name: "X", isin: null, ticker: null, weight: 0, kind: "action", sector: "technologie", country: "US", currency: "USD", ...over });
+
+describe("exposition : résumé d'une composition", () => {
+  it("répartitions ramenées au total publié, liquidités sans pays ni secteur, plus grosses lignes d'abord", () => {
+    const s = summarizeComposition([
+      line({ name: "B", weight: 0.3, country: "FR", sector: "energie", currency: "EUR" }),
+      line({ name: "A", weight: 0.5 }),
+      line({ name: "EUR CASH", weight: 0.2, kind: "liquidites", sector: null, country: null, currency: "EUR" }),
+      // Liquidités négatives en attente de règlement : total publié 0,98.
+      line({ name: "USD CASH", weight: -0.02, kind: "liquidites", sector: null, country: null, currency: "USD" }),
+    ]);
+    expect(s.lineCount).toBe(4);
+    expect(s.countries.US).toBeCloseTo(0.5 / 0.98);
+    expect(s.countries[""]).toBeCloseTo(0.18 / 0.98);
+    expect(Object.values(s.countries).reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+    expect(s.sectors.energie).toBeCloseTo(0.3 / 0.98);
+    expect(s.currencies.EUR).toBeCloseTo(0.5 / 0.98);
+    expect(s.kinds.liquidites).toBeCloseTo(0.18 / 0.98);
+    expect(s.top.map((t) => t.name)).toEqual(["A", "B"]);
+  });
+
+  it("composition vide : rien à répartir", () => {
+    expect(summarizeComposition([])).toMatchObject({ lineCount: 0, countries: {}, top: [] });
+  });
+});
+
+describe("exposition : équivalent proposé", () => {
+  it("trouve l'indice dans le nom, le plus précis d'abord", () => {
+    expect(suggestEquivalent(["Amundi MSCI World Swap UCITS ETF EUR Acc"])?.isin).toBe("IE00B4L5Y983");
+    expect(suggestEquivalent(["Amundi PEA Monde (MSCI World)"])?.index).toBe("MSCI World");
+    expect(suggestEquivalent(["iShares MSCI World Small Cap"])?.index).toBe("MSCI World Small Cap");
+    expect(suggestEquivalent(["Vanguard FTSE All-World"])?.index).toBe("MSCI ACWI");
+    expect(suggestEquivalent(["Amundi PEA S&P 500 UCITS ETF Acc"])?.isin).toBe("IE00B5BMR087");
+    expect(suggestEquivalent(["Amundi PEA Emergent (MSCI Emerging) ESG Transition"])?.index).toBe("MSCI Emerging Markets");
+    expect(suggestEquivalent(["Xtrackers MSCI Emerging Markets IMI"])?.index).toBe("MSCI Emerging Markets IMI");
+    expect(suggestEquivalent(["Amundi MSCI Pacific ex Japan"])?.index).toBe("MSCI Pacific ex Japan");
+    expect(suggestEquivalent(["Lyxor Core Stoxx Europe 600"])?.index).toBe("Stoxx Europe 600");
+    expect(suggestEquivalent(["Amundi PEA Europe"])?.index).toBe("MSCI Europe");
+  });
+
+  it("essaie chaque nom connu, jamais l'ETF lui-même, rien si l'indice est inconnu", () => {
+    expect(suggestEquivalent([null, "Amundi PEA Nasdaq-100"])?.index).toBe("Nasdaq-100");
+    expect(suggestEquivalent(["iShares Core MSCI World"], "IE00B4L5Y983")).toBeNull();
+    expect(suggestEquivalent(["Fonds thématique robotique"])).toBeNull();
+  });
+
+  it("chaque référence a un ISIN valide, une seule fois", () => {
+    const isins = EQUIVALENT_REFERENCES.map((r) => r.isin);
+    expect(new Set(isins).size).toBe(isins.length);
+    for (const i of isins) expect(i).toMatch(/^[A-Z]{2}[A-Z0-9]{9}\d$/);
+  });
+});
+
+describe("exposition : composition utilisée", () => {
+  const info = (over: Partial<CompositionInfo>): CompositionInfo => ({ isin: "IE0000000001", state: "ok", issuer: "amundi", fundName: null, replication: "physique", asOf: "2026-11-09", lineCount: 10, checkedAt: null, fetchedAt: null, message: null, ...over });
+  const synthetic = info({ replication: "synthetique" });
+  const proxy = info({ isin: "IE0000000002" });
+
+  it("ETF physique : sa composition", () => {
+    expect(resolveComposition(info({}), null, null)).toMatchObject({ used: { origin: "own" }, gap: null });
+  });
+
+  it("ETF synthétique : jamais par lui-même ; le lien commun, puis le choix de l'utilisateur", () => {
+    expect(resolveComposition(synthetic, null, null)).toEqual({ used: null, gap: "synthetic" });
+    expect(resolveComposition(synthetic, null, proxy)).toMatchObject({ used: { origin: "link", info: { isin: "IE0000000002" } } });
+    expect(resolveComposition(synthetic, info({ isin: "IE0000000003" }), proxy)).toMatchObject({ used: { origin: "choice", info: { isin: "IE0000000003" } } });
+  });
+
+  it("le choix de l'utilisateur l'emporte même sur un ETF physique", () => {
+    expect(resolveComposition(info({}), proxy, null)).toMatchObject({ used: { origin: "choice" } });
+  });
+
+  it("raisons : pas encore là, inconnu, échec, équivalent en attente ou en échec", () => {
+    expect(resolveComposition(info({ state: "pending" }), null, null).gap).toBe("pending");
+    expect(resolveComposition(info({ state: "unknown" }), null, null).gap).toBe("unknown");
+    expect(resolveComposition(info({ state: "failed" }), null, null).gap).toBe("failed");
+    expect(resolveComposition(synthetic, null, info({ state: "pending" })).gap).toBe("equivalent-pending");
+    expect(resolveComposition(synthetic, info({ state: "failed" }), null).gap).toBe("equivalent-failed");
   });
 });

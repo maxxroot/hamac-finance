@@ -205,3 +205,151 @@ export function currencyCode(code: string | null | undefined): string | null {
   const c = (code ?? "").trim().toUpperCase();
   return /^[A-Z]{3}$/.test(c) ? c : null;
 }
+
+// ——— Compositions : état, résumé, équivalents ———
+
+export type CompositionIssuer = "amundi" | "ishares";
+export type Replication = "physique" | "synthetique";
+
+/**
+ * État d'une composition, sans ses lignes.
+ * - ok : composition disponible (une mise à jour a pu échouer depuis, voir `message`) ;
+ * - pending : pas encore téléchargée ;
+ * - unknown : ni Amundi ni iShares ne connaissent cet ISIN ;
+ * - failed : le téléchargement a échoué et aucune composition n'est connue.
+ */
+export interface CompositionInfo {
+  isin: string;
+  state: "ok" | "pending" | "unknown" | "failed";
+  issuer: CompositionIssuer | null;
+  fundName: string | null;
+  replication: Replication | null;
+  asOf: string | null;
+  lineCount: number;
+  checkedAt: string | null;
+  fetchedAt: string | null;
+  message: string | null;
+}
+
+/** Ligne gardée dans un résumé : les plus grosses positions du fonds. */
+export type TopHolding = Pick<EtfHolding, "name" | "isin" | "ticker" | "weight" | "kind" | "sector" | "country">;
+
+/**
+ * Composition résumée, en fractions de l'actif du fonds (chaque répartition fait 1).
+ * Clé vide : lignes sans pays, sans secteur ou sans devise (liquidités, contrats à terme…).
+ */
+export interface CompositionSummary {
+  lineCount: number;
+  kinds: Partial<Record<HoldingKind, number>>;
+  countries: Record<string, number>;
+  sectors: Record<string, number>;
+  currencies: Record<string, number>;
+  /** Plus grosses lignes d'actions et d'obligations, par poids décroissant. */
+  top: TopHolding[];
+}
+
+/**
+ * Résumé d'une composition. Les poids sont ramenés à leur total : un fonds publie souvent 99,8 % ou 100,3 %,
+ * avec des liquidités négatives en attente de règlement.
+ */
+export function summarizeComposition(lines: readonly EtfHolding[], topCount = 30): CompositionSummary {
+  const total = lines.reduce((s, l) => s + l.weight, 0);
+  const scale = total > 0 ? 1 / total : 0;
+  const kinds: CompositionSummary["kinds"] = {};
+  const countries: Record<string, number> = {};
+  const sectors: Record<string, number> = {};
+  const currencies: Record<string, number> = {};
+  const add = (map: Record<string, number>, key: string | null, w: number) => {
+    map[key ?? ""] = (map[key ?? ""] ?? 0) + w;
+  };
+  for (const l of lines) {
+    const w = l.weight * scale;
+    kinds[l.kind] = (kinds[l.kind] ?? 0) + w;
+    add(countries, l.country, w);
+    add(sectors, l.sector, w);
+    add(currencies, l.currency, w);
+  }
+  const top = lines
+    .filter((l) => (l.kind === "action" || l.kind === "obligation") && l.weight > 0)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, topCount)
+    .map((l): TopHolding => ({ name: l.name, isin: l.isin, ticker: l.ticker, weight: l.weight * scale, kind: l.kind, sector: l.sector, country: l.country }));
+  return { lineCount: lines.length, kinds, countries, sectors, currencies, top };
+}
+
+/** ETF physique proposé comme équivalent pour un indice. */
+export interface EquivalentReference {
+  index: string;
+  pattern: RegExp;
+  isin: string;
+  name: string;
+}
+
+/**
+ * ETF physiques de référence, un par grand indice, proposés comme équivalents d'un ETF synthétique ou d'un émetteur non géré.
+ * Chacun a été vérifié le 12 novembre 2026 : physique d'après son émetteur, composition récupérable.
+ * Les plus précis d'abord (« MSCI World Small Cap » avant « MSCI World »).
+ */
+export const EQUIVALENT_REFERENCES: readonly EquivalentReference[] = [
+  { index: "MSCI World Small Cap", pattern: /world small[- ]?cap/i, isin: "IE00BF4RFH31", name: "iShares MSCI World Small Cap UCITS ETF" },
+  { index: "MSCI World SRI", pattern: /world sri\b/i, isin: "IE00BYX2JD69", name: "iShares MSCI World SRI UCITS ETF" },
+  { index: "MSCI ACWI", pattern: /\bacwi\b|all[- ]country|all[- ]world/i, isin: "IE00B6R52259", name: "iShares MSCI ACWI UCITS ETF" },
+  { index: "MSCI World", pattern: /msci world|\bmonde\b|\bworld\b/i, isin: "IE00B4L5Y983", name: "iShares Core MSCI World UCITS ETF" },
+  { index: "S&P 500", pattern: /s&p ?500|\bsp ?500\b/i, isin: "IE00B5BMR087", name: "iShares Core S&P 500 UCITS ETF" },
+  { index: "Nasdaq-100", pattern: /nasdaq/i, isin: "IE00B53SZB19", name: "iShares Nasdaq 100 UCITS ETF" },
+  { index: "MSCI Emerging Markets IMI", pattern: /(emerging|emergent|\bem\b).*\bimi\b/i, isin: "IE00BKM4GZ66", name: "iShares Core MSCI EM IMI UCITS ETF" },
+  { index: "MSCI Emerging Markets", pattern: /emerging|[ée]mergent|\bmsci em\b/i, isin: "IE00B4L5YC18", name: "iShares MSCI EM UCITS ETF" },
+  { index: "MSCI USA", pattern: /msci usa/i, isin: "IE00B52SFT06", name: "iShares MSCI USA UCITS ETF" },
+  { index: "Stoxx Europe 600", pattern: /stoxx (europe )?600/i, isin: "LU0908500753", name: "Amundi Core Stoxx Europe 600 UCITS ETF" },
+  { index: "Euro Stoxx 50", pattern: /euro ?stoxx 50/i, isin: "IE0008471009", name: "iShares Core EURO STOXX 50 UCITS ETF" },
+  { index: "MSCI EMU", pattern: /msci emu|zone euro|eurozone/i, isin: "IE00B53QG562", name: "iShares Core MSCI EMU UCITS ETF" },
+  { index: "MSCI Europe", pattern: /msci europe|\beurope\b/i, isin: "IE00B4K48X80", name: "iShares Core MSCI Europe UCITS ETF" },
+  { index: "MSCI Pacific ex Japan", pattern: /pacific ex[- ]?japan|pacifique hors japon/i, isin: "IE00B52MJY50", name: "iShares Core MSCI Pacific ex-Japan UCITS ETF" },
+  { index: "MSCI Japan", pattern: /japan|japon|topix|nikkei/i, isin: "IE00B4L5YX21", name: "iShares Core MSCI Japan IMI UCITS ETF" },
+  { index: "CAC 40", pattern: /cac ?40/i, isin: "FR0007052782", name: "Amundi CAC 40 UCITS ETF" },
+  { index: "DAX", pattern: /\bdax\b/i, isin: "DE0005933931", name: "iShares Core DAX UCITS ETF" },
+  { index: "MSCI China", pattern: /china|chine/i, isin: "IE00BJ5JPG56", name: "iShares MSCI China UCITS ETF" },
+  { index: "MSCI India", pattern: /india|\binde\b/i, isin: "IE00BZCQB185", name: "iShares MSCI India UCITS ETF" },
+];
+
+/** Équivalent proposé d'après les noms connus de l'ETF (nom chez l'émetteur, nom saisi) ; jamais l'ETF lui-même. */
+export function suggestEquivalent(names: ReadonlyArray<string | null | undefined>, excludeIsin?: string | null): EquivalentReference | null {
+  for (const name of names) {
+    if (!name) continue;
+    const found = EQUIVALENT_REFERENCES.find((r) => r.pattern.test(name));
+    if (found) return found.isin === excludeIsin ? null : found;
+  }
+  return null;
+}
+
+/** D'où vient la composition utilisée pour un ETF. */
+export type CompositionOrigin = "own" | "choice" | "link";
+
+/**
+ * Pourquoi aucune composition ne sert encore :
+ * pas encore téléchargée, ETF synthétique sans équivalent, émetteur non géré, échec,
+ * ou équivalent dont la composition n'est pas encore là ou n'a pas pu être récupérée.
+ */
+export type CompositionGap = "pending" | "synthetic" | "unknown" | "failed" | "equivalent-pending" | "equivalent-failed";
+
+/** La composition d'un ETF peut servir telle quelle : connue, et pas celle d'un ETF synthétique. */
+export const usableComposition = (info: CompositionInfo): boolean => info.state === "ok" && info.replication !== "synthetique";
+
+/**
+ * Composition qui sert pour un ETF. Dans l'ordre : l'équivalent choisi par l'utilisateur, la composition de l'ETF
+ * s'il est physique, puis l'équivalent commun de l'instance. Un ETF synthétique ne sert jamais par lui-même :
+ * il publie le panier qu'il détient, pas l'exposition qu'il donne.
+ */
+export function resolveComposition(
+  own: CompositionInfo,
+  choice: CompositionInfo | null,
+  link: CompositionInfo | null,
+): { used: { origin: CompositionOrigin; info: CompositionInfo } | null; gap: CompositionGap | null } {
+  const viaEquivalent = (origin: CompositionOrigin, info: CompositionInfo) =>
+    info.state === "ok" ? { used: { origin, info }, gap: null } : { used: null, gap: (info.state === "pending" ? "equivalent-pending" : "equivalent-failed") as CompositionGap };
+  if (choice) return viaEquivalent("choice", choice);
+  if (usableComposition(own)) return { used: { origin: "own", info: own }, gap: null };
+  if (link) return viaEquivalent("link", link);
+  if (own.state === "ok") return { used: null, gap: "synthetic" };
+  return { used: null, gap: own.state };
+}
