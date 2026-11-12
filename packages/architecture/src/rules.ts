@@ -10,8 +10,8 @@ export interface LayerRules {
   layers: Record<string, number>;
   /** Domaine d'un fichier (chemin relatif à la racine), ou null s'il est hors domaine (façade racine…). */
   domainOf: (file: string) => string | null;
-  /** Fichier façade d'un domaine (ex. `realestate/index.ts`) ; absent = pas de règle de façade. */
-  facadeOf?: (domain: string) => string;
+  /** Fichier façade d'un domaine (ex. `realestate/index.ts`) ; absent ou null = pas de règle de façade pour ce domaine. */
+  facadeOf?: (domain: string) => string | null;
   /** Imports permis entre deux domaines de la même couche (ou à rebours), « de → vers », chacun justifié. */
   allowed?: ReadonlyArray<readonly [string, string]>;
 }
@@ -51,8 +51,9 @@ export function checkBoundaries(graph: SourceGraph, rules: LayerRules): Boundary
       const sens = rules.layers[to] === rules.layers[from] ? "même couche" : "couche supérieure";
       violations.push({ kind: "couche", from: edge.from, to: edge.to, detail: `${from} → ${to} (${sens})` });
     }
-    if (rules.facadeOf && edge.to !== rules.facadeOf(to)) {
-      violations.push({ kind: "facade", from: edge.from, to: edge.to, detail: `${from} importe un fichier interne de ${to} au lieu de ${rules.facadeOf(to)}` });
+    const facade = rules.facadeOf?.(to) ?? null;
+    if (facade !== null && edge.to !== facade) {
+      violations.push({ kind: "facade", from: edge.from, to: edge.to, detail: `${from} importe un fichier interne de ${to} au lieu de ${facade}` });
     }
   }
 

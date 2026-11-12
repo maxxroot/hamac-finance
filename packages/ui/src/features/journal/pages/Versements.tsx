@@ -1,0 +1,306 @@
+import { CalendarX2, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Schedule, addMonth, formatEur, monthOf, isRetirementPlan, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
+import { Amount } from "@/shared/components/Amount";
+import { ContributionSplitCard } from "@/features/journal/components/CustomAllocationCards";
+import { SuggestedContributions } from "@/features/journal/components/SuggestedContributions";
+import { Field, MoneyInput, Select, TextInput } from "@/shared/components/form";
+import { Table, Td, Th, Tr } from "@/shared/components/table";
+import { Badge, Button, Card, CardTitle, PageHeader, tabClass, tabListClass } from "@/shared/components/ui";
+import { Onboarding } from "@/features/entry";
+import { cn } from "@/shared/lib/cn";
+import { capitalize, formatMonth, todayIso } from "@/shared/lib/numbers";
+import { oneOffByMonth, oneOffTotal } from "@/features/journal/lib/versements";
+import { useMutate, useWorkspaceIndex } from "@/shared/lib/workspace";
+
+export function Versements() {
+  const idx = useWorkspaceIndex();
+  const [showAll, setShowAll] = useState(false);
+  const saveMode = useMutate("params.update");
+  const today = todayIso();
+  const current = monthOf(today);
+
+  const schedule = useMemo(() => (idx ? new Schedule(idx.ws.plans, idx.ws.skips, idx.ws.params.profile.startMonth, idx.ws.params.profile.contributionDay) : null), [idx]);
+  const oneOffs = useMemo(() => oneOffByMonth(idx?.ws.transactions ?? []), [idx]);
+
+  if (!idx || !schedule) return null;
+  if (idx.ws.accounts.length === 0) return <Onboarding />;
+
+  const { params } = idx.ws;
+  const withPlans = idx.activeAccounts.filter((a) => idx.ws.plans.some((p) => p.accountId === a.id));
+  // Colonnes du calendrier : comptes à versement programmé, plus ceux qui ont reçu un versement ponctuel (même archivés).
+  const withOneOffs = new Set([...oneOffs.values()].flatMap((byAccount) => [...byAccount.keys()]));
+  const columns = idx.ws.accounts.filter((a) => withPlans.some((p) => p.id === a.id) || withOneOffs.has(a.id));
+  // Calendrier jusqu'au départ en retraite, ou sur dix ans en gestion de patrimoine ; depuis le premier versement ponctuel s'il précède le plan.
+  const endMonth = isRetirementPlan(params) ? `${retirementYear(params)}-12` : `${Math.max(+current.slice(0, 4), +params.profile.startMonth.slice(0, 4)) + 10}-12`;
+  const firstOneOff = [...oneOffs.keys()].sort((a, b) => a.localeCompare(b))[0];
+  const startMonth = firstOneOff && firstOneOff < params.profile.startMonth ? firstOneOff : params.profile.startMonth;
+  const allMonths = monthsBetweenInclusive(startMonth, endMonth);
+  const months = showAll ? allMonths : allMonths.filter((m) => m >= addMonth(current, -3) && m <= addMonth(current, 14));
+  const monthlyTotal = withPlans.reduce((s, a) => s + schedule.current(a.id, today), 0);
+  const dueDay = Number(schedule.dueDate(current).slice(8));
+  const paidThisMonth = schedule.isPaid(current, today);
+  const mode = params.contributions.mode;
+  const setMode = (m: typeof mode) => m !== mode && saveMode.mutate({ ...params, contributions: { ...params.contributions, mode: m } });
+  const firstOpenMonth = current < params.profile.startMonth ? params.profile.startMonth : paidThisMonth ? addMonth(current, 1) : current;
+
+  return (
+    <>
+      <PageHeader
+        title="Versements"
+        description="Versements mensuels programmés, compte par compte. Un mois écoulé est considéré comme versé, sauf s'il est déclaré manqué. Les versements ponctuels du journal s'ajoutent au calendrier."
+      />
+
+      <div className={tabListClass} role="tablist">
+        {(
+          [
+            ["libre", "Gestion libre", "Vous fixez le montant de chaque compte."],
+            ["suggere", "Gestion suggérée", "Hamac répartit votre capacité d'épargne selon vos allocations."],
+          ] as const
+        ).map(([m, label, title]) => (
+          <button
+            key={m}
+            role="tab"
+            aria-selected={mode === m}
+            title={title}
+            onClick={() => setMode(m)}
+            className={tabClass(mode === m)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-6 grid gap-5 @3xl:grid-cols-3">
+        {mode === "suggere" ? (
+          <div className="@3xl:col-span-2">
+            <SuggestedContributions defaultFromMonth={firstOpenMonth} />
+          </div>
+        ) : (
+          <Card className="@3xl:col-span-2">
+            <CardTitle hint={`Prélevés le ${params.profile.contributionDay} de chaque mois, à partir de ${formatMonth(params.profile.startMonth)} (Paramètres › Plan)`}>Programmation</CardTitle>
+            <PlanForm accounts={idx.activeAccounts} defaultMonth={current < params.profile.startMonth ? params.profile.startMonth : current} />
+            <div className="mt-5 space-y-3">
+              {withPlans.length === 0 && <p className="text-sm text-fg-muted">Aucun versement programmé.</p>}
+              {withPlans.map((a) => (
+                <AccountPlans key={a.id} account={a} current={schedule.current(a.id, today)} />
+              ))}
+            </div>
+          </Card>
+        )}
+        <div className="space-y-5">
+          <Card>
+            <CardTitle>Ce mois-ci</CardTitle>
+            <div className="text-3xl font-semibold tracking-tight">
+              <Amount value={monthlyTotal} />
+            </div>
+            <p className="mt-1 text-sm text-fg-muted">
+              {paidThisMonth ? "versés" : "prélevés"} le {dueDay} sur {withPlans.filter((a) => schedule.current(a.id, today) > 0).length} compte(s)
+            </p>
+          </Card>
+          <SkipsCard accounts={withPlans} />
+        </div>
+      </div>
+
+      {mode === "libre" && <ContributionSplitCard />}
+
+      <Card className="p-0">
+        <div className="flex min-h-14 items-center justify-between px-5 pt-3 pb-1">
+          <h2 className="text-sm font-medium text-fg-muted">Calendrier</h2>
+          {columns.length > 0 && (
+            <Button variant="ghost" className="-mr-3 h-8 text-accent" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "Afficher autour d'aujourd'hui" : `Tout afficher (${allMonths.length} mois)`}
+            </Button>
+          )}
+        </div>
+        {columns.length === 0 ? (
+          <p className="px-5 pb-5 text-sm text-fg-muted">Programmez un premier versement pour voir le calendrier.</p>
+        ) : (
+          <div className="max-h-[560px] overflow-y-auto">
+            <Table className="rounded-none border-x-0 border-b-0">
+              <thead>
+                <tr>
+                  <Th className="w-full pl-5">Mois</Th>
+                  <Th align="right">Âge</Th>
+                  {columns.map((a) => (
+                    <Th key={a.id} align="right">
+                      {a.name}
+                    </Th>
+                  ))}
+                  <Th align="right">Total</Th>
+                  <Th align="right" className="pr-5">État</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {months.map((m) => {
+                  const monthOneOffs = oneOffs.get(m);
+                  const total = columns.reduce((s, a) => s + schedule.amount(a.id, m), 0) + oneOffTotal(monthOneOffs);
+                  const paid = m < params.profile.startMonth ? oneOffTotal(monthOneOffs) > 0 : schedule.isPaid(m, today);
+                  const past = m < current;
+                  const isCurrent = m === current;
+                  return (
+                    <Tr key={m} className={cn(isCurrent && "bg-gold/10", !past && !isCurrent && "text-fg-muted")}>
+                      <Td className={cn("pl-5 whitespace-nowrap", isCurrent && "font-semibold text-accent")}>{capitalize(formatMonth(m))}</Td>
+                      <Td align="right">{Number(m.slice(0, 4)) - params.profile.birthYear}</Td>
+                      {columns.map((a) => {
+                        const amount = schedule.amount(a.id, m);
+                        const skipped = schedule.planned(a.id, m) > amount;
+                        const oneOff = monthOneOffs?.get(a.id);
+                        const title = [
+                          skipped && "Mois manqué (tout ou partie)",
+                          ...(oneOff?.items.map((i) => `Versement ponctuel du ${i.date.slice(8)}/${i.date.slice(5, 7)} : ${formatEur(i.amount)}${i.comment ? ` (${i.comment})` : ""}`) ?? []),
+                        ].filter(Boolean);
+                        return (
+                          <Td key={a.id} align="right" className={cn("whitespace-nowrap", skipped && "text-warning")} title={title.join("\n") || undefined}>
+                            {amount ? <Amount value={amount} compact /> : !oneOff && <span className="text-fg-faint">–</span>}
+                            {oneOff && (
+                              <div className="text-xs text-accent">
+                                + <Amount value={oneOff.total} compact /> ponctuel
+                              </div>
+                            )}
+                          </Td>
+                        );
+                      })}
+                      <Td align="right" className="font-medium">
+                        <Amount value={total} compact />
+                      </Td>
+                      <Td align="right" className="pr-5 whitespace-nowrap">
+                        {paid ? <Badge tone="positive">✓ versé</Badge> : <span className="text-xs">à venir</span>}
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </div>
+        )}
+      </Card>
+    </>
+  );
+}
+
+function PlanForm({ accounts, defaultMonth }: { accounts: Account[]; defaultMonth: string }) {
+  const set = useMutate("plans.set", { success: "Versement programmé" });
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  const [month, setMonth] = useState(defaultMonth);
+  const [amount, setAmount] = useState<number | null>(null);
+  return (
+    <form
+      className="grid items-end gap-3 sm:grid-cols-[1.4fr_1fr_1fr_auto]"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!accountId || amount == null) return;
+        set.mutate({ accountId, fromMonth: month, amount }, { onSuccess: () => setAmount(null) });
+      }}
+    >
+      <Field label="Compte">
+        {(id) => (
+          <Select id={id} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <Field label="À partir de">{(id) => <TextInput id={id} type="month" value={month} onChange={(e) => setMonth(e.target.value)} />}</Field>
+      <Field label="Montant par mois">{(id) => <MoneyInput id={id} value={amount} onChange={setAmount} />}</Field>
+      <Button variant="primary" type="submit" disabled={set.isPending || amount == null}>
+        Programmer
+      </Button>
+      <p className="text-xs text-fg-faint sm:col-span-4">Le nouveau montant s'applique à partir du mois choisi ; 0 arrête le versement.</p>
+    </form>
+  );
+}
+
+function AccountPlans({ account, current }: { account: Account; current: number }) {
+  const idx = useWorkspaceIndex();
+  const del = useMutate("plans.delete");
+  const plans = idx?.ws.plans.filter((p) => p.accountId === account.id) ?? [];
+  return (
+    <div className="rounded-xl border border-line bg-surface-2/50 px-4 py-3">
+      <div className="flex items-baseline justify-between">
+        <span className="font-medium">{account.name}</span>
+        <span className="text-sm text-fg-muted">
+          actuellement <Amount value={current} className="text-fg" /> / mois
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {plans.map((p) => (
+          <span key={p.id} className="group inline-flex items-center gap-2 rounded-lg bg-surface-3 px-2.5 py-1 text-xs">
+            <span className="text-fg-muted">dès {formatMonth(p.fromMonth)}</span>
+            <Amount value={p.amount} compact />
+            <button className="text-fg-faint hover:text-negative" aria-label="Supprimer" onClick={() => del.mutate({ id: p.id })}>
+              <Trash2 size={12} />
+            </button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SkipsCard({ accounts }: { accounts: Account[] }) {
+  const idx = useWorkspaceIndex();
+  const add = useMutate("skips.upsert", { success: "Mois manqué enregistré" });
+  const del = useMutate("skips.delete");
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  const [month, setMonth] = useState(monthOf(todayIso()));
+  const [amount, setAmount] = useState<number | null>(null);
+  const skips = idx?.ws.skips ?? [];
+  return (
+    <Card>
+      <CardTitle>
+        <span className="inline-flex items-center gap-2">
+          <CalendarX2 size={15} /> Mois manqués
+        </span>
+      </CardTitle>
+      {accounts.length === 0 ? (
+        <p className="text-sm text-fg-muted">Rien à déclarer tant qu'aucun versement n'est programmé.</p>
+      ) : (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const target = accountId || accounts[0]?.id;
+            if (!target || amount == null) return;
+            add.mutate({ accountId: target, month, amount }, { onSuccess: () => setAmount(null) });
+          }}
+        >
+          <Select value={accountId || accounts[0]?.id} onChange={(e) => setAccountId(e.target.value)}>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </Select>
+          <div className="grid gap-2">
+            <TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mois" />
+            <MoneyInput value={amount} onChange={setAmount} placeholder="non versé" aria-label="Montant non versé" />
+          </div>
+          <Button type="submit" className="w-full" disabled={amount == null}>
+            Déclarer
+          </Button>
+        </form>
+      )}
+      {skips.length > 0 && (
+        <ul className="mt-4 space-y-1.5 text-sm">
+          {skips.map((s) => (
+            <li key={s.id} className="flex items-center justify-between gap-2">
+              <span className="text-fg-muted">
+                {capitalize(formatMonth(s.month))} · {idx?.accountById.get(s.accountId)?.name}
+              </span>
+              <span className="flex items-center gap-2">
+                <Amount value={-s.amount} />
+                <button className="text-fg-faint hover:text-negative" onClick={() => del.mutate({ id: s.id })} aria-label="Supprimer">
+                  <Trash2 size={13} />
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}

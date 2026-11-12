@@ -24,6 +24,7 @@ Ce paquet ne contient que des tests et ne livre aucun code. Il a les types Node 
 | `src/core.test.ts` | Règles de `@hamac/core` : table des couches et domaine de chaque fichier. |
 | `src/api.test.ts` | Règles de `@hamac/api`. |
 | `src/backend.test.ts` | Règles de `@hamac/backend`. |
+| `src/ui.test.ts` | Règles de `@hamac/ui`. |
 
 ## Couches de `@hamac/core`
 
@@ -42,7 +43,8 @@ Une exception (un import qui enfreint la règle mais qu'on garde) se déclare da
 - `@hamac/core` : **bloquant** depuis l'étape 2 du plan. Aucun cycle, aucune exception.
 - `@hamac/api` : **bloquant** depuis l'étape 3. Les domaines sont indépendants, sauf `journal` (lit `assets`) et `system` (lit `assets` pour l'état des cours).
 - `@hamac/backend` : **bloquant** depuis l'étape 4, à deux niveaux : les dossiers (`db` → `market` → `repo` → `prices`, `backup` → `handlers`), puis les handlers entre eux (`system` → `accounts` → `journal` → `assets`). Pas de règle de façade : ces dossiers sont des briques techniques, pas des domaines.
-- Les autres paquets seront ajoutés au fil des étapes 5 à 7.
+- `@hamac/ui` : **bloquant** depuis l'étape 5. `shared` → `entry` → pages métier → `dashboard` → `app` ; une fonctionnalité s'importe par `features/<domaine>/index.ts`. L'alias `@/` est lu comme un chemin depuis `src/`.
+- `apps/server` sera ajouté à l'étape 7.
 
 Pour voir les écarts d'un paquet, lancer son test ; le message d'échec liste un problème par ligne :
 

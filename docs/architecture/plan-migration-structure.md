@@ -156,30 +156,38 @@ Couches : `db` → `market` → `repo` → `prices`, `backup` → `handlers`. En
 
 ### 3.6 `packages/ui`
 
-Classement par couche, puis par domaine ; à l'intérieur d'un domaine, par nature :
+Classement par couche, puis par fonctionnalité ; à l'intérieur d'une fonctionnalité, par nature (`pages/`, `components/`, `dialogs/`, `lib/`) :
 
 ```
 packages/ui/src/
-  app/          App.tsx  main.tsx  nav.ts  layout/ (Shell, AuthGate, RouteError)  routes
-  shared/       components/ (ui, form, table, Amount, Chart, Stat, RowActions, DetailLine, PrintPage…)
-                lib/ (transport, workspace, queries, portfolio, cn, colors, numbers, sort, toast, theme, files, xlsx, qr…)
+  main.tsx  styles.css   point d'entrée (cité par index.html) et styles
+  app/          App.tsx (routes)  Placeholder  layout/ (Shell, AuthGate, RouteError)  components/ et lib/ de la coquille
+  shared/       nav.ts (carte des pages, lue par la coquille et les réglages)
+                components/ (ui, form, table, Amount, Chart, EvolutionChart, AccountEvolution, Stat, RowActions, PrintPage…)
+                lib/ (transport, workspace, portfolio, evolution, numbers, sort, toast, theme, files, queries…)
   features/
-    dashboard/      pages/TableauDeBord.tsx  components/Alerts…  lib/dashboard.ts
-    journal/        Journal, Versements, TransactionDialog, Movements…
-    accounts/       Etablissements, Synthese, Livrets, FondsEuros, AccountDialog, InstitutionDialog…
-    investments/    Actions, Obligations, Crypto, Crowdlending, Exposition, AutresBiens…
-    realestate/     Immobilier, Bien, GestionLocative, Quittance, AvisEcheance, Relance,
-                    AttestationLoyer, CourrierRevision, ImpressionBien, Lease*/Lot*/Rent* dialogs et cartes
-    loans/          Credits, LoanDialog, DebtCards, LoanYearsChart…
-    tax/            Impots, Declaration, Compteurs…
-    planning/       Projection, Projets, Simulateurs, Performance, Historique…
-    settings/       Parametres, Notice, Onboarding, TwoFactorCard, PasswordCard, AppearanceCard…
-  styles.css
+    entry/          saisie partagée par les pages : TransactionDialog, NewAssetPanel, AccountDialog, AccountButtons,
+                    AllocationChoice, Movements, CompositionNotice, Onboarding (premiers pas)
+    accounts/       Comptes, Livrets, FondsEuros, cartes de protection et de concentration
+    journal/        Journal, Versements, import de relevés
+    analysis/       Performance, Exposition, Historique
+    investments/    Actions, Obligations, Crypto, Crowdlending
+    realestate/     Immobilier, Bien, GestionLocative, courriers imprimables (Quittance, AvisEcheance, Relance…)
+    loans/          Credits
+    other-assets/   AutresBiens
+    planning/       Projection, Projets, Simulateurs
+    tax/            Impots, Declaration, Compteurs
+    settings/       Parametres (dont l'onglet Établissements), sécurité du compte, apparence
+    help/           Notice
+    dashboard/      TableauDeBord
+  flows/        tests de parcours qui traversent plusieurs fonctionnalités
 ```
 
-Chaque `features/<domaine>/` porte son test de parcours (`realestate.flow.test.tsx`, par exemple). Règles : `shared/` n'importe jamais `features/` ; une fonctionnalité n'importe pas les fichiers internes d'une autre (si quelque chose doit être partagé, il descend dans `shared/`).
+Chaque fonctionnalité a une façade `index.ts` qui n'exporte que ce que les autres utilisent ; à l'intérieur, les imports restent directs. Couches : `shared` → `entry` → pages métier (indépendantes entre elles) → `dashboard` → `app`. `shared/` n'importe jamais `features/`. Les tests de parcours propres à une fonctionnalité sont dans son dossier (`realestate/gestion-locative.flow.test.tsx`).
 
-Fichiers à découper au passage, sans changer leur comportement : `Parametres.tsx` (759 lignes, une section par fichier), `HistoryBlocks.tsx` (704), `Notice.tsx` (628), `Declaration.tsx` (596), `PerformanceBlocks.tsx` (479).
+Au premier essai, `assets` → `journal` → `accounts` en couches successives faisait des cycles : la saisie d'un compte, d'un titre ou d'une opération sert dans tous les sens. D'où la couche `entry`.
+
+Fichiers à découper au passage, sans changer leur comportement (étape 6) : `Parametres.tsx` (759 lignes, une section par fichier), `HistoryBlocks.tsx` (704), `Notice.tsx` (628), `Declaration.tsx` (596), `PerformanceBlocks.tsx` (479).
 
 ### 3.7 `apps/server`
 
@@ -283,4 +291,5 @@ La table des couches tient en une dizaine de lignes dans le test. Comme dans Arg
 | 2 | Fait | Prêt sorti dans `loans/loan.ts` ; `debtOverview` et `MAX_EFFORT_RATE` dans `analysis/debt.ts` ; réglages de protection dans `model/institutionProtection.ts` ; `lots.ts` ne lit plus les baux (`leaseKindsFor` et `rentalModeFromLeases` dans `leases.ts`, état d'un lot dans `lotStatus.ts`) ; impôt crypto dans `tax/cryptoTax.ts`. Aucun cycle ni aucune exception. Le test de `core` est **bloquant** dès maintenant. |
 | 3 | Fait | `contract.ts` et `entities.ts` découpés en dix domaines. Les exports de `@hamac/api`, la liste des procédures et l'empreinte de leurs schémas (JSON Schema) sont identiques avant et après ; seuls s'ajoutent les objets de procédures de chaque domaine (`realestateProcedures`…). Test des frontières de `api` bloquant. |
 | 4 | Fait | `handlers.ts` (1 164 lignes) en dix domaines, typés chacun sur les procédures de son domaine (`DomainHandlers`) ; l'immobilier en trois fichiers. `repo.ts` en mappers par domaine, `params`, `loadWorkspace` ; conversions dans `db/units.ts`. `schema.ts` en un fichier de tables par domaine : `db:generate` ne produit aucune migration. Sources de cours dans `market/sources/`, compositions dans `market/compositions/`, actualisation dans `prices/`, sauvegardes dans `backup/`. Les cycles de fichiers ne comptent plus que les imports réels : deux cycles de types existants (`context` ↔ `market`, `index` ↔ `demo`) sont sans effet à l'exécution. Test des frontières du backend bloquant. |
+| 5 | Fait | 180 fichiers déplacés (`app/`, `shared/`, `features/<domaine>/`, `flows/`), imports `@/` réécrits, `lib/dashboard.ts` renommé `shared/lib/evolution.ts` (son contenu : historiques des graphiques d'évolution). Façades générées à partir des imports réels. `Etablissements` rejoint `settings` (il n'est affiché que comme onglet des Paramètres). Test des frontières de l'interface bloquant. |
 
