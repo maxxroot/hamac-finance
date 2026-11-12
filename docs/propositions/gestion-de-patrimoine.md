@@ -156,7 +156,7 @@ Pour chaque bien :
 
 ## 5. Exposition réelle derrière les ETF
 
-**Statut :** fait le 12 novembre 2026 (commits `c6f7460` à `0c45fed`). Où se trouve quoi :
+**Statut :** fait le 12 novembre 2026 (commits `c6f7460` à `0c45fed`, puis `1c88b8a` et `f3ce259` pour la fenêtre de l'équivalent et la place de la page). Où se trouve quoi :
 
 - téléchargement et lecture : `backend/src/market/composition.ts` (`findComposition` par ISIN, `fetchComposition` par source connue) ;
 - stockage commun, mise à jour trimestrielle, liens communs : `backend/src/market/compositionStore.ts`, tables `marche.compositions` et `marche.composition_links`, passage dans la boucle de `SharedMarket` ;
@@ -192,6 +192,7 @@ Adresses non documentées, testées à cette date, susceptibles de changer sans 
 - **Lien commun** : créé seulement à partir d'un équivalent vérifié, et seulement pour un ETF dont la composition ne sert pas telle quelle (synthétique, émetteur non géré, échec). Les liens et les échecs ne sont visibles que de l'administrateur, puisqu'ils disent quels ETF sont détenus sur l'instance.
 - **Équivalent proposé** : déduit du nom de l'ETF, à partir d'une table de 19 ETF physiques de référence, un par grand indice (`EQUIVALENT_REFERENCES`), chacun vérifié le 12 novembre 2026 sur le site de son émetteur. L'iShares STOXX Europe 600 (DE0002635307) est inconnu de la recherche iShares : l'Amundi Core Stoxx Europe 600 le remplace.
 - **Rythme** : une composition est remise à jour au bout de 92 jours ; un échec est réessayé après 6 heures, la composition précédente étant gardée ; un ETF inconnu des deux émetteurs est recherché de nouveau après 30 jours. Les téléchargements se font un par un, à une seconde d'intervalle, au plus 20 par passage de la boucle et 100 en attente à la demande. Une composition que plus personne ne détient ni ne référence est oubliée une fois périmée.
+- **Mise à jour sans visite** : la remise à jour trimestrielle passe par la boucle de l'instance, qui ne tourne que si l'actualisation automatique des cours est active (`HAMAC_PRICES`, `1` par défaut). Avec `HAMAC_PRICES=0`, les compositions dues ne sont téléchargées qu'à l'ouverture de la page Exposition réelle, d'une fiche d'ETF ou à l'enregistrement d'un ETF.
 - **Actions détenues en direct** : comptées pour le pays de leur ISIN (pays d'enregistrement), sans secteur.
 - **Périmètre** : actions et ETF, pour la part détenue des comptes joints. Les fonds, les obligations détenues en direct et les autres placements n'y figurent pas.
 
@@ -217,7 +218,7 @@ Gardées pour mémoire ; la piste 3 est retenue, complétée par l'ETF physique 
 
 ## 6. Concentration et risque
 
-**Statut :** fait le 11 novembre 2026. Calculs dans `core/src/concentration.ts` et `volatility` (`core/src/performance.ts`), carte « Concentration » sur la Synthèse, réglage « Concentration maximale » (Paramètres › Plan, 20 % par défaut, 0 = pas d'alerte), alertes au tableau de bord. Décisions : parts du patrimoine financier, pour la part détenue des comptes joints ; les ETF et fonds sont jugés comme les autres lignes ; une obligation se juge par son émetteur (pas d'alerte en double sur sa ligne) et les OAT ne déclenchent pas d'alerte ; les établissements sont montrés sans alerte (la protection en cas de faillite a la sienne). La plus forte baisse existait déjà sur la page Performance ; la volatilité (écart-type des rendements mensuels × √12, à partir de 12 mois) y est ajoutée. Non fait : exposition par devise (proposition 5).
+**Statut :** fait le 11 novembre 2026. Calculs dans `core/src/concentration.ts` et `volatility` (`core/src/performance.ts`), carte « Concentration » sur la Synthèse, réglage « Concentration maximale » (Paramètres › Plan, 20 % par défaut, 0 = pas d'alerte), alertes au tableau de bord. Décisions : parts du patrimoine financier, pour la part détenue des comptes joints ; les ETF et fonds sont jugés comme les autres lignes ; une obligation se juge par son émetteur (pas d'alerte en double sur sa ligne) et les OAT ne déclenchent pas d'alerte ; les établissements sont montrés sans alerte (la protection en cas de faillite a la sienne). La plus forte baisse existait déjà sur la page Performance ; la volatilité (écart-type des rendements mensuels × √12, à partir de 12 mois) y est ajoutée. Exposition par devise : sur la page « Exposition réelle » (proposition 5), sans alerte.
 
 **Pourquoi.** Voir d'un coup d'œil si le patrimoine dépend trop d'une seule ligne, d'un seul établissement ou d'un seul émetteur.
 

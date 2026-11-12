@@ -199,7 +199,7 @@ Toutes les variables se règlent dans ce fichier `.env`, facultatif, exclu de gi
 | `HAMAC_DB_PASSWORD` | `hamac` | Mot de passe PostgreSQL, lettres et chiffres ; la base n'est jamais exposée hors de Docker |
 | `HAMAC_PORT` | `8080` | Port publié sur la machine |
 | `HAMAC_SESSION_DAYS` | `30` | Durée d'une session avant de devoir se reconnecter |
-| `HAMAC_PRICES` | `1` | `0` pour ne pas actualiser les cours automatiquement |
+| `HAMAC_PRICES` | `1` | `0` pour ne pas actualiser les cours automatiquement, ni remettre à jour chaque trimestre les compositions d'ETF (elles le sont alors à l'ouverture de la page Exposition réelle) |
 | `HAMAC_REFRESH_MINUTES` | `30` | Minutes entre deux actualisations des cours, 10 au minimum ; le quota de Twelve Data peut ralentir ce rythme |
 | `HAMAC_TWELVEDATA_KEY` | vide | Clé [Twelve Data](https://twelvedata.com), facultative. C'est le seul endroit où elle se règle : ni en base, ni dans l'interface |
 | `HAMAC_TWELVEDATA_DAILY_LIMIT` | `800` | Requêtes par jour de votre offre Twelve Data |

@@ -15,7 +15,7 @@ import { databaseUrl, intFromEnv } from "./env";
  *   HAMAC_SECURE     1 pour considérer toute requête comme HTTPS (sinon détecté d'après le proxy de confiance)
  *   HAMAC_ALLOW_HTTP 1 pour autoriser le HTTP simple hors de cette machine (déconseillé)
  *   HAMAC_UI_DIR     dossier de l'interface construite (défaut : ./ui à côté du serveur)
- *   HAMAC_PRICES     0 pour ne pas actualiser les cours automatiquement
+ *   HAMAC_PRICES     0 pour ne pas actualiser les cours ni les compositions d'ETF automatiquement
  *   HAMAC_TWELVEDATA_KEY          clé Twelve Data (facultative, jamais stockée en base)
  *   HAMAC_TWELVEDATA_DAILY_LIMIT  requêtes Twelve Data par jour selon l'offre (défaut : 800)
  *   HAMAC_REFRESH_MINUTES         minutes entre deux actualisations des cours, 10 au minimum (défaut : 30)
