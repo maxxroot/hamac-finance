@@ -5,6 +5,10 @@
  * Tout est ramené ici à un code pays ISO 3166-1 et à une liste fixe de secteurs, pour additionner des ETF de deux émetteurs.
  */
 
+import type { AssetKind } from "./domain";
+import type { PortfolioState } from "./engine";
+import { roundCents } from "./money";
+
 /** Nature d'une ligne : seuls les actions et les obligations portent un pays et un secteur qui ont un sens. */
 export type HoldingKind = "action" | "obligation" | "liquidites" | "derive" | "autre";
 
@@ -352,4 +356,135 @@ export function resolveComposition(
   if (link) return viaEquivalent("link", link);
   if (own.state === "ok") return { used: null, gap: "synthetic" };
   return { used: null, gap: own.state };
+}
+
+// ——— Exposition du portefeuille ———
+
+export interface ExposureItem {
+  key: string;
+  value: number;
+  /** Part de la valeur dont la composition est connue. */
+  share: number;
+}
+
+export interface ExposureLine {
+  key: string;
+  name: string;
+  isin: string | null;
+  value: number;
+  share: number;
+  /** Titres par lesquels on la détient : noms des ETF, ou « en direct ». */
+  via: string[];
+}
+
+export interface ExposedAsset {
+  assetId: string;
+  name: string;
+  kind: AssetKind;
+  value: number;
+  /** Composition connue (ETF), ou action détenue en direct. */
+  covered: boolean;
+}
+
+export interface PortfolioExposure {
+  /** Actions et ETF, pour la part détenue des comptes joints. */
+  total: number;
+  /** Dont la composition est connue. */
+  covered: number;
+  assets: ExposedAsset[];
+  countries: ExposureItem[];
+  sectors: ExposureItem[];
+  currencies: ExposureItem[];
+  kinds: ExposureItem[];
+  /** Plus grosses lignes, tous titres confondus. */
+  top: ExposureLine[];
+}
+
+/** Préfixes d'ISIN qui ne sont pas des pays (titres internationaux, zone euro). */
+const NOT_COUNTRIES = new Set(["XS", "EU", "XA", "XB", "XC", "XD", "QS", "QT"]);
+
+/** Pays d'une action détenue en direct : celui de son ISIN, c'est-à-dire où elle est enregistrée. */
+export function isinCountry(isin: string | null): string | null {
+  const p = isin?.slice(0, 2).toUpperCase() ?? "";
+  return /^[A-Z]{2}$/.test(p) && !NOT_COUNTRIES.has(p) ? p : null;
+}
+
+const lineKey = (isin: string | null, name: string) => (isin ? `isin:${isin}` : `nom:${name.trim().toLocaleLowerCase("fr-FR").replace(/\s+/g, " ")}`);
+
+/**
+ * Ce que contiennent vraiment les actions et ETF du portefeuille : pays, secteurs, devises, types de ligne
+ * et plus grosses lignes. Un ETF compte selon la composition qui sert pour lui (`summaries`, par identifiant de titre) ;
+ * sans composition, il est compté à part. Une action détenue en direct compte pour le pays de son ISIN.
+ * Les lignes d'un ETF iShares n'ont pas d'ISIN : elles ne se regroupent avec celles d'un autre émetteur que par le nom.
+ */
+export function portfolioExposure(state: PortfolioState, summaries: ReadonlyMap<string, CompositionSummary>, topCount = 15): PortfolioExposure {
+  const byAsset = new Map<string, { name: string; kind: AssetKind; isin: string | null; value: number }>();
+  for (const a of state.accounts) {
+    const held = a.account.share ?? 1;
+    for (const p of a.positions) {
+      if (p.asset.kind !== "etf" && p.asset.kind !== "action") continue;
+      const e = byAsset.get(p.asset.id) ?? { name: p.asset.name, kind: p.asset.kind, isin: p.asset.isin, value: 0 };
+      e.value += p.value * held;
+      byAsset.set(p.asset.id, e);
+    }
+  }
+  const countries = new Map<string, number>();
+  const sectors = new Map<string, number>();
+  const currencies = new Map<string, number>();
+  const kinds = new Map<string, number>();
+  const lines = new Map<string, { name: string; isin: string | null; value: number; via: Set<string> }>();
+  const add = (map: Map<string, number>, key: string, v: number) => map.set(key, (map.get(key) ?? 0) + v);
+  const addLine = (isin: string | null, name: string, v: number, via: string) => {
+    const k = lineKey(isin, name);
+    const l = lines.get(k) ?? { name, isin, value: 0, via: new Set<string>() };
+    l.value += v;
+    l.via.add(via);
+    lines.set(k, l);
+  };
+
+  const assets: ExposedAsset[] = [];
+  let total = 0;
+  let covered = 0;
+  for (const [assetId, e] of byAsset) {
+    if (e.value <= 0) continue;
+    total += e.value;
+    const summary = e.kind === "etf" ? summaries.get(assetId) : undefined;
+    const isCovered = e.kind === "action" || !!summary;
+    assets.push({ assetId, name: e.name, kind: e.kind, value: roundCents(e.value), covered: isCovered });
+    if (!isCovered) continue;
+    covered += e.value;
+    if (!summary) {
+      add(countries, isinCountry(e.isin) ?? "", e.value);
+      add(sectors, "", e.value);
+      add(currencies, "", e.value);
+      add(kinds, "action", e.value);
+      addLine(e.isin, e.name, e.value, "en direct");
+      continue;
+    }
+    for (const [k, w] of Object.entries(summary.countries)) add(countries, k, e.value * w);
+    for (const [k, w] of Object.entries(summary.sectors)) add(sectors, k, e.value * w);
+    for (const [k, w] of Object.entries(summary.currencies)) add(currencies, k, e.value * w);
+    for (const [k, w] of Object.entries(summary.kinds)) add(kinds, k, e.value * (w ?? 0));
+    for (const t of summary.top) addLine(t.isin, t.name, e.value * t.weight, e.name);
+  }
+
+  const items = (map: Map<string, number>): ExposureItem[] =>
+    [...map.entries()]
+      .filter(([, v]) => Math.abs(v) >= 0.005)
+      .map(([key, v]) => ({ key, value: roundCents(v), share: covered > 0 ? v / covered : 0 }))
+      .sort((x, y) => y.value - x.value);
+  const top = [...lines.entries()]
+    .map(([key, l]): ExposureLine => ({ key, name: l.name, isin: l.isin, value: roundCents(l.value), share: covered > 0 ? l.value / covered : 0, via: [...l.via] }))
+    .sort((x, y) => y.value - x.value)
+    .slice(0, topCount);
+  return {
+    total: roundCents(total),
+    covered: roundCents(covered),
+    assets: assets.sort((x, y) => y.value - x.value),
+    countries: items(countries),
+    sectors: items(sectors),
+    currencies: items(currencies),
+    kinds: items(kinds),
+    top,
+  };
 }

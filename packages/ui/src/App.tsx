@@ -32,6 +32,7 @@ import { Placeholder } from "@/pages/Placeholder";
 import { AutresBiens } from "@/pages/AutresBiens";
 import { Compteurs } from "@/pages/Compteurs";
 import { Projets } from "@/pages/Projets";
+import { Exposition } from "@/pages/Exposition";
 
 const PAGES: Record<string, ReactNode> = {
   "/": <TableauDeBord />,
@@ -45,6 +46,7 @@ const PAGES: Record<string, ReactNode> = {
   "/fonds-euros": <FondsEuros />,
   "/obligations": <Obligations />,
   "/actions": <Actions />,
+  "/exposition": <Exposition />,
   "/crypto": <Crypto />,
   "/crowdlending": <Crowdlending />,
   "/immobilier": <Immobilier />,
