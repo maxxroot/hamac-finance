@@ -25,7 +25,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLot, mapPropertyReminder, mapRenter, mapRentPayment, mapRentWaiver, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLot, mapPropertyReminder, mapRenter, mapRentNotice, mapRentPayment, mapRentWaiver, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -899,6 +899,18 @@ export const handlers: Handlers = {
       .onConflictDoUpdate({ target: [t.rentWaivers.leaseId, t.rentWaivers.month], set })
       .returning();
     return mapRentWaiver(saved[0]);
+  },
+
+  async "rentNotices.add"(input, ctx) {
+    const lease = await ctx.db.select().from(t.leases).where(eq(t.leases.id, input.leaseId)).limit(1).then(one);
+    if (!lease) throw new RpcError("NOT_FOUND", "Bail introuvable.");
+    const saved = await ctx.db.insert(t.rentNotices).values({ id: newId(), leaseId: input.leaseId, level: input.level, sentOn: input.sentOn, amountCents: toCents(input.amount), comment: input.comment }).returning();
+    return mapRentNotice(saved[0]);
+  },
+
+  async "rentNotices.delete"({ id }, ctx) {
+    await ctx.db.delete(t.rentNotices).where(eq(t.rentNotices.id, id));
+    return OK;
   },
 
   async "rentWaivers.delete"({ id }, ctx) {

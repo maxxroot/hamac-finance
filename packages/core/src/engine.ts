@@ -27,6 +27,7 @@ import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./
 import type { Lease, LeaseRent, RentPayment, RentWaiver } from "./leases";
 import type { Lot as RentalLot } from "./lots";
 import type { LeaseGuarantee } from "./renters";
+import type { RentNotice } from "./rentNotices";
 import type { PropertyDocument, PropertyExpense } from "./rental";
 import { otherAssetHeldValueAt, type OtherAsset, type OtherAssetValue } from "./otherAssets";
 import { loanState, propertyValue, type Loan, type LoanState, type Property, type PropertyValue } from "./realestate";
@@ -59,6 +60,8 @@ export interface EngineData {
   /** Loyers pointés et mois remis. */
   rentPayments?: readonly RentPayment[];
   rentWaivers?: readonly RentWaiver[];
+  /** Courriers de relance envoyés. */
+  rentNotices?: readonly RentNotice[];
   propertyExpenses?: readonly PropertyExpense[];
   propertyValues?: readonly PropertyValue[];
   propertyDocuments?: readonly PropertyDocument[];

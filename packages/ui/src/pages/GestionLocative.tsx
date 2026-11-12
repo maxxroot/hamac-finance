@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { RENT_GRACE_DAYS, formatEur, settlingPayment, SCHEDULE_KIND_LABELS, addMonths, lotIsActive, parkDebts, parkMonth, parkOccupancy, parkProperties, parkPropertyRows, parkSchedule, parkVacancies, type ParkData, type PropertyReminder, type ScheduleItem } from "@hamac/core";
+import { NOTICE_LEVEL_LABELS, RENT_GRACE_DAYS, formatEur, leaseArrears, noticeStep, rentLedgerOf, settlingPayment, type Lease, SCHEDULE_KIND_LABELS, addMonths, lotIsActive, parkDebts, parkMonth, parkOccupancy, parkProperties, parkPropertyRows, parkSchedule, parkVacancies, type ParkData, type PropertyReminder, type ScheduleItem } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Select } from "@/components/form";
 import { RowActions } from "@/components/RowActions";
@@ -61,6 +61,12 @@ export function GestionLocative() {
   const current = month === thisMonth ? rentMonth : parkMonth(data, thisMonth, today);
   const debts = parkDebts(data, today);
   const due = debts.reduce((s, d) => s + d.due, 0);
+  const stepLabel = (lease: Lease) => {
+    const step = noticeStep(leaseArrears(lease, ws.leaseRents, rentLedgerOf(ws), today), ws.rentNotices, lease.id, ws.params.alerts);
+    if (!step) return "—";
+    const last = step.sent.at(-1);
+    return step.done && last ? `${NOTICE_LEVEL_LABELS[last.level]} le ${formatDate(last.sentOn)}` : `${NOTICE_LEVEL_LABELS[step.level]} à envoyer`;
+  };
   const vacancies = parkVacancies(data, today);
   const activeLots = properties.reduce((n, p) => n + Math.max(1, ws.lots.filter((l) => l.propertyId === p.id && lotIsActive(l, p.rentalMode)).length), 0);
   const thisYear = Number(today.slice(0, 4));
@@ -181,6 +187,7 @@ export function GestionLocative() {
                   <tr>
                     <Th>Bail</Th>
                     <Th>Mois</Th>
+                    <Th>Relance</Th>
                     <Th align="right">Dû</Th>
                   </tr>
                 </thead>
@@ -192,6 +199,7 @@ export function GestionLocative() {
                         {d.renters && <div className="text-xs text-fg-faint">{d.renters}</div>}
                       </Td>
                       <Td>{d.months.length === 1 ? capitalize(formatMonth(d.months[0])) : `${d.months.length} mois, depuis ${formatMonth(d.months[0])}`}</Td>
+                      <Td>{stepLabel(d.lease)}</Td>
                       <Td align="right" className="text-negative"><Amount value={d.due} /></Td>
                     </Tr>
                   ))}

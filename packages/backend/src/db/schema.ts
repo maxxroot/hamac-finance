@@ -653,6 +653,23 @@ export const rentPayments = pgTable(
   (t) => [index("rent_payments_lease_idx").on(t.leaseId)],
 );
 
+/** Courriers de relance envoyés pour des loyers non reçus. */
+export const rentNotices = pgTable(
+  "rent_notices",
+  {
+    id: text("id").primaryKey(),
+    leaseId: text("lease_id")
+      .notNull()
+      .references(() => leases.id, { onDelete: "cascade" }),
+    level: text("level").notNull(),
+    sentOn: text("sent_on").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    comment: text("comment").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [index("rent_notices_lease_idx").on(t.leaseId)],
+);
+
 /** Mois remis au locataire : rien n'est dû. */
 export const rentWaivers = pgTable(
   "rent_waivers",

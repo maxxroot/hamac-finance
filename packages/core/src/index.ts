@@ -18,6 +18,7 @@ export * from "./irl";
 export * from "./energy";
 export * from "./rental";
 export * from "./rentalPark";
+export * from "./rentNotices";
 export * from "./crowdlending";
 export * from "./allocationTargets";
 export * from "./bricksImport";

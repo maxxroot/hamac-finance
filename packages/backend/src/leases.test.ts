@@ -119,6 +119,17 @@ describe("loyers signalés et dépenses", () => {
     expect((await data(backend)).rentPayments).toHaveLength(2);
   });
 
+  it("courriers de relance : notés avec la somme réclamée, retirés, refusés sans bail", async () => {
+    backend = await testBackend();
+    const { leaseId } = await start(backend);
+    const n = await call<{ id: string }>(backend, "rentNotices.add", { leaseId, level: "relance", sentOn: "2025-04-20", amount: 850 });
+    expect((await call<{ rentNotices: Rows }>(backend, "workspace.load")).rentNotices).toMatchObject([{ id: n.id, leaseId, level: "relance", sentOn: "2025-04-20", amount: 850, comment: "" }]);
+    await expect(call(backend, "rentNotices.add", { leaseId: "inconnu", level: "rappel", sentOn: "2025-04-20", amount: 1 })).rejects.toThrow("introuvable");
+    await expect(call(backend, "rentNotices.add", { leaseId, level: "huissier", sentOn: "2025-04-20", amount: 1 })).rejects.toThrow();
+    await call(backend, "rentNotices.delete", { id: n.id });
+    expect((await call<{ rentNotices: Rows }>(backend, "workspace.load")).rentNotices).toEqual([]);
+  });
+
   it("mois remis : un par mois, commentaire remplacé, retiré à la suppression", async () => {
     backend = await testBackend();
     const { leaseId } = await start(backend);

@@ -30,6 +30,7 @@ import type {
   PropertyExpense,
   PropertyIncome,
   PropertyValue,
+  RentNotice,
   RentPayment,
   RentWaiver,
   Property,
@@ -72,6 +73,7 @@ import {
   RentPaymentInput,
   RentPaymentsInput,
   RentWaiverInput,
+  RentNoticeInput,
   SkipInput,
   StatementInput,
   TransactionInput,
@@ -128,6 +130,8 @@ export interface Workspace {
   /** Loyers pointés, mois par mois, et mois remis. */
   rentPayments: RentPayment[];
   rentWaivers: RentWaiver[];
+  /** Courriers de relance envoyés. */
+  rentNotices: RentNotice[];
   propertyExpenses: PropertyExpense[];
   propertyValues: PropertyValue[];
   propertyIncomes: PropertyIncome[];
@@ -328,6 +332,8 @@ export const procedures = {
   "rentPayments.delete": { input: byId, output: ok },
   "rentWaivers.set": { input: RentWaiverInput, output: entity<RentWaiver>() },
   "rentWaivers.delete": { input: byId, output: ok },
+  "rentNotices.add": { input: RentNoticeInput, output: entity<RentNotice>() },
+  "rentNotices.delete": { input: byId, output: ok },
   "propertyExpenses.upsert": { input: PropertyExpenseInput, output: entity<PropertyExpense>() },
   "propertyExpenses.delete": { input: byId, output: ok },
   "propertyIncomes.upsert": { input: PropertyIncomeInput, output: entity<PropertyIncome>() },

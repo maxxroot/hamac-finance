@@ -32,6 +32,7 @@ const TABLES = [
   "lease_rents",
   "rent_payments",
   "rent_waivers",
+  "rent_notices",
   "property_expenses",
   "property_values",
   "property_incomes",

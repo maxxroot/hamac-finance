@@ -293,6 +293,12 @@ function PlanTab({ draft }: { draft: PlanDraft }) {
           {eurField("Garantie des assureurs (FGAP)", ["alerts", "fgapGuarantee"], "Par personne et par assureur.")}
           {pctField("Concentration maximale", ["alerts", "concentrationMax"], "Part du patrimoine financier sur un seul titre, émetteur ou plateforme. 0 : pas d'alerte.")}
         </FormGrid>
+        <div className="mt-4 mb-2 text-xs font-medium text-fg-muted">Loyers non reçus : jours après l'échéance</div>
+        <FormGrid cols={3}>
+          {intField("Rappel amiable", ["alerts", "rentReminderDays"])}
+          {intField("Relance", ["alerts", "rentRelanceDays"])}
+          {intField("Mise en demeure", ["alerts", "rentFormalNoticeDays"])}
+        </FormGrid>
       </Section>
     </div>
   );

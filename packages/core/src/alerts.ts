@@ -6,6 +6,7 @@ import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioS
 import { currentLease, leaseRevisionDue, leaseState, rentIsLate, rentMonths } from "./leases";
 import { lotIsActive, sortLots } from "./lots";
 import { LEASE_GUARANTEE_LABELS } from "./renters";
+import { NOTICE_LEVEL_LABELS, leaseArrears, noticeStep } from "./rentNotices";
 import { formatEur } from "./money";
 import { isRetirementPlan } from "./params";
 import { GUARANTEE_LABELS, protectionOf } from "./protection";
@@ -247,7 +248,7 @@ export function computeAlerts(
     if (defaults.length) out.push({ id: `crowd-defaut-${a.account.id}`, level: "info", title: `${defaults.length} projet${defaults.length > 1 ? "s" : ""} en défaut sur ${a.account.name}`, detail: `${eur(defaults.reduce((s, x) => s + x.outstanding, 0))} de capital, compté${defaults.length > 1 ? "s" : ""} pour ${eur(defaults.reduce((s, x) => s + x.value, 0))}.`, link: "/crowdlending" });
   }
 
-  out.push(...leaseAlerts(data, today));
+  out.push(...leaseAlerts(data, today, p.alerts));
   out.push(...energyAlerts(data, today));
   out.push(...documentAlerts(data, today));
 
@@ -312,7 +313,7 @@ export function documentAlerts(data: Pick<EngineData, "properties" | "propertyDo
 const LEASE_ALERT_DAYS = 60;
 
 /** Rappels des biens en location, lot par lot : fin de bail, départ du locataire, date limite pour donner congé, garanties et loyers impayés. */
-export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents" | "rentPayments" | "rentWaivers" | "lots" | "leaseGuarantees">, today: string): Alert[] {
+export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents" | "rentPayments" | "rentWaivers" | "rentNotices" | "lots" | "leaseGuarantees">, today: string, days?: Parameters<typeof noticeStep>[3]): Alert[] {
   const out: Alert[] = [];
   const soon = (date: string | null): date is string => date != null && daysBetween(today, date) >= 0 && daysBetween(today, date) <= LEASE_ALERT_DAYS;
   for (const property of (data.properties ?? []).filter((p) => p.kind === "locatif" && !p.archived)) {
@@ -333,7 +334,9 @@ export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "le
         if (!late.length) continue;
         const due = late.reduce((sum, m) => sum + m.outstanding, 0);
         const n = late.length;
-        out.push({ id: `loyers-non-recus-${st.lease.id}`, level: "attention", title: `${where} : ${n} loyer${n > 1 ? "s" : ""} non reçu${n > 1 ? "s" : ""}`, detail: `${eur(due)} attendus, depuis ${late[0].month.slice(5)}/${late[0].month.slice(0, 4)}. Pointez ce qui est arrivé dans l'onglet Location.`, link: `${link}?onglet=location` });
+        const step = days ? noticeStep(leaseArrears(st.lease, data.leaseRents ?? [], ledger, today), data.rentNotices ?? [], st.lease.id, days) : null;
+        const next = step && !step.done ? ` Étape conseillée : ${NOTICE_LEVEL_LABELS[step.level].toLowerCase()}.` : "";
+        out.push({ id: `loyers-non-recus-${st.lease.id}`, level: "attention", title: `${where} : ${n} loyer${n > 1 ? "s" : ""} non reçu${n > 1 ? "s" : ""}`, detail: `${eur(due)} attendus, depuis ${late[0].month.slice(5)}/${late[0].month.slice(0, 4)}. Pointez ce qui est arrivé dans l'onglet Location.${next}`, link: `${link}?onglet=location` });
       }
       const current = currentLease(states);
       if (!current) continue;

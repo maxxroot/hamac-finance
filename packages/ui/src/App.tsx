@@ -14,6 +14,9 @@ import { Historique } from "@/pages/Historique";
 import { Simulateurs } from "@/pages/Simulateurs";
 import { Immobilier } from "@/pages/Immobilier";
 import { GestionLocative } from "@/pages/GestionLocative";
+import { AttestationLoyer } from "@/pages/AttestationLoyer";
+import { AvisEcheance } from "@/pages/AvisEcheance";
+import { Relance } from "@/pages/Relance";
 import { ImpressionBien } from "@/pages/ImpressionBien";
 import { Quittance } from "@/pages/Quittance";
 import { Declaration } from "@/pages/Declaration";
@@ -82,6 +85,9 @@ const router = createHashRouter([
   { path: "/impression/bien/:id", element: <ImpressionBien />, errorElement: <RouteError /> },
   { path: "/impression/quittance/:leaseId/:month", element: <Quittance />, errorElement: <RouteError /> },
   { path: "/impression/revision/:rentId", element: <CourrierRevision />, errorElement: <RouteError /> },
+  { path: "/impression/relance/:leaseId/:level", element: <Relance />, errorElement: <RouteError /> },
+  { path: "/impression/avis/:leaseId/:month", element: <AvisEcheance />, errorElement: <RouteError /> },
+  { path: "/impression/attestation/:leaseId", element: <AttestationLoyer />, errorElement: <RouteError /> },
 ]);
 
 export function App() {

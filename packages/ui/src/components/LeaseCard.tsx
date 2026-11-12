@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { LEASE_GUARANTEE_LABELS, LEASE_KIND_LABELS, LEASE_STATUS_LABELS, leaseRenterNames, type Lot, NO_IRL_DATA, currentLease, depositRetained, dpeFreezesRent, irlQuarterLabel, leaseState, pendingRevisionAnniversary, proposeRevision, type Lease, type LeaseRent, type LeaseState, type Property, type RevisionProposal } from "@hamac/core";
 import { Amount } from "@/components/Amount";
+import { ArrearsPanel } from "@/components/ArrearsPanel";
 import { DetailLine } from "@/components/DetailLine";
 import { RowActions } from "@/components/RowActions";
 import { Table, Td, Th, Tr } from "@/components/table";
@@ -85,6 +86,7 @@ export function LeaseCard({ property, lot, named, leases, all, rents, today }: {
               )}
             </>
           )}
+          {ws && <ArrearsPanel lease={current.lease} ws={ws} today={today} />}
           {due && frozen && <p className="mt-3 rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg-muted">Anniversaire du {formatDate(due)} : avec une note DPE F ou G, le loyer ne peut pas être révisé.</p>}
           {proposal && (
             <div className="mt-3 rounded-lg bg-surface-2 px-3 py-2.5">
@@ -110,6 +112,9 @@ export function LeaseCard({ property, lot, named, leases, all, rents, today }: {
             <Button className="h-8" onClick={() => setNewRent(current)}>
               Nouveau loyer
             </Button>
+            <Link className="inline-flex h-8 items-center rounded-lg px-3 text-sm text-fg-muted hover:bg-surface-3 hover:text-fg" to={`/impression/attestation/${current.lease.id}`} target="_blank" rel="noopener">
+              Attestation de loyer
+            </Link>
             <Button className="h-8" variant="ghost" onClick={() => confirm("Supprimer ce bail et son historique ?") && deleteLease.mutate({ id: current.lease.id })}>
               Supprimer
             </Button>

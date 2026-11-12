@@ -86,6 +86,11 @@ export function RentsCard({ leases, rents, ledger, lots = [], today }: { leases:
                       Quittance
                     </Link>
                   )}
+                  {m.outstanding > 0 && (
+                    <Link className="mr-1 text-xs text-fg-muted underline hover:text-fg" to={`/impression/avis/${m.leaseId}/${m.month}`} target="_blank" rel="noopener" aria-label={`Avis d'échéance de ${formatMonth(m.month)}`}>
+                      Avis
+                    </Link>
+                  )}
                   {settle && (
                     <Button className="h-7 px-2 text-xs" variant="ghost" disabled={receive.isPending} aria-label={`Marquer reçu le loyer de ${formatMonth(m.month)}`} onClick={() => receive.mutate(settle)}>
                       Reçu

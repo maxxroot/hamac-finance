@@ -122,9 +122,17 @@ export const PlanParams = z
       concentrationMax: pct,
       stressEquity: z.tuple([pct, pct]),
       stressCrypto: z.tuple([pct, pct]),
+      /** Jours après l'échéance d'un loyer non reçu où proposer le rappel amiable, la relance, puis la mise en demeure. */
+      rentReminderDays: z.number().int().min(1).max(365),
+      rentRelanceDays: z.number().int().min(1).max(365),
+      rentFormalNoticeDays: z.number().int().min(1).max(365),
     }),
   })
   .superRefine((p, ctx) => {
+    const a = p.alerts;
+    if (a.rentReminderDays > a.rentRelanceDays || a.rentRelanceDays > a.rentFormalNoticeDays) {
+      ctx.addIssue({ code: "custom", path: ["alerts", "rentRelanceDays"], message: "Les relances se suivent : rappel, puis relance, puis mise en demeure." });
+    }
     const { birthYear: _b, retirementAge, securisationAge, horizonAge } = p.profile;
     const retraite = p.profile.goal === "retraite";
     if (retraite && securisationAge > retirementAge) {
@@ -201,6 +209,9 @@ export function defaultParams(today = new Date()): PlanParams {
       concentrationMax: 0.2,
       stressEquity: [0.3, 0.5],
       stressCrypto: [0.5, 0.8],
+      rentReminderDays: 10,
+      rentRelanceDays: 20,
+      rentFormalNoticeDays: 30,
     },
   };
 }

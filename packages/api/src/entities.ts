@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GOAL_ALLOCATION_MODES, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, LEASE_GUARANTEE_KINDS, LOT_KINDS, RENTAL_MODES, PAYMENT_METHODS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GOAL_ALLOCATION_MODES, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, LEASE_GUARANTEE_KINDS, LOT_KINDS, RENTAL_MODES, PAYMENT_METHODS, NOTICE_LEVELS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -327,6 +327,9 @@ export type RentPaymentsInput = z.input<typeof RentPaymentsInput>;
 
 export const RentWaiverInput = z.object({ leaseId: id, month, comment: text(200).default("") });
 export type RentWaiverInput = z.input<typeof RentWaiverInput>;
+
+export const RentNoticeInput = z.object({ leaseId: id, level: z.enum(NOTICE_LEVELS), sentOn: isoDate, amount: money.min(0), comment: text(200).default("") });
+export type RentNoticeInput = z.input<typeof RentNoticeInput>;
 
 export const PropertyExpenseInput = z.object({
   id: id.optional(),

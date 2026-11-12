@@ -107,5 +107,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0026_dazzling_random",
     "sql": "DROP TABLE \"rent_exceptions\" CASCADE;"
+  },
+  {
+    "tag": "0027_abandoned_blonde_phantom",
+    "sql": "CREATE TABLE \"rent_notices\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"lease_id\" text NOT NULL,\n\t\"level\" text NOT NULL,\n\t\"sent_on\" text NOT NULL,\n\t\"amount_cents\" bigint NOT NULL,\n\t\"comment\" text DEFAULT '' NOT NULL,\n\t\"created_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\t\"updated_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL\n);\n--> statement-breakpoint\nALTER TABLE \"rent_notices\" ADD CONSTRAINT \"rent_notices_lease_id_leases_id_fk\" FOREIGN KEY (\"lease_id\") REFERENCES \"leases\"(\"id\") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint\nCREATE INDEX \"rent_notices_lease_idx\" ON \"rent_notices\" USING btree (\"lease_id\");"
   }
 ];

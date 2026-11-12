@@ -8,7 +8,11 @@ import { NO_RENT_LEDGER, addDays, addMonths, rentMonths, type Lease } from "@ham
 import { testBackend } from "@hamac/backend/testkit";
 import { todayIso } from "@/lib/numbers";
 import { ToastProvider } from "@/lib/toast";
+import { AttestationLoyer } from "@/pages/AttestationLoyer";
+import { AvisEcheance } from "@/pages/AvisEcheance";
+import { Bien } from "@/pages/Bien";
 import { GestionLocative } from "@/pages/GestionLocative";
+import { Relance } from "@/pages/Relance";
 
 /** Parcours réel de la vue du parc, sur le vrai backend en mémoire. Montants et noms fictifs. */
 const h = vi.hoisted(() => ({ backend: null as unknown as import("@hamac/backend").Backend, confirm: true }));
@@ -37,6 +41,25 @@ function show(ui: ReactNode) {
         <MemoryRouter initialEntries={["/gestion-locative"]}>
           <Routes>
             <Route path="/gestion-locative" element={ui} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+
+/** Fiche d'un bien et pages à imprimer, à une adresse donnée. */
+function showAt(path: string) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/immobilier/:id" element={<Bien />} />
+            <Route path="/impression/relance/:leaseId/:level" element={<Relance />} />
+            <Route path="/impression/avis/:leaseId/:month" element={<AvisEcheance />} />
+            <Route path="/impression/attestation/:leaseId" element={<AttestationLoyer />} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -171,5 +194,76 @@ describe("Gestion locative", () => {
     expect(screen.getByText("Tous les lots proposés à la location sont loués.")).toBeTruthy();
     await user.selectOptions(screen.getByLabelText("Mois des loyers"), lastMonth);
     expect(await screen.findByText("Aucun loyer attendu ce mois-là.")).toBeTruthy();
+  });
+
+  it("loyers en retard : étape conseillée, courrier préparé, envoi noté puis retiré ; caution et CAF rappelées", async () => {
+    const user = userEvent.setup();
+    const studio = await rpc<Id>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000, address: "1 rue Fictive", postalCode: "75001", city: "Paris" });
+    const start = addMonths(`${thisMonth}-01`, -3);
+    const bail = await rpc<Lease>("leases.upsert", { propertyId: studio.id, kind: "vide", startDate: start, durationMonths: 36, rent: 600, charges: 50, dueDay: 1, landlord: "Propriétaire fictif", renters: [{ firstName: "Alice", lastName: "Fictive" }], guarantees: [{ kind: "caution", name: "Parent fictif" }] });
+    await rpc("rentPayments.upsert", { leaseId: bail.id, month: start.slice(0, 7), date: start, amount: 300, method: "caf" });
+    showAt(`/immobilier/${studio.id}?onglet=location`);
+    const panel = within(await screen.findByRole("region", { name: "Loyers en retard" }));
+    expect(panel.getByText(/Étape conseillée : mise en demeure\./)).toBeTruthy();
+    expect(panel.getByRole("link", { name: "Préparer : mise en demeure" }).getAttribute("href")).toBe(`/impression/relance/${bail.id}/mise_en_demeure`);
+    expect(panel.getByText(/caution/)).toBeTruthy();
+    expect(panel.getByText(/CAF/)).toBeTruthy();
+    await user.click(panel.getByRole("button", { name: "Noter l'envoi aujourd'hui" }));
+    await waitFor(async () => expect((await workspace()).rentNotices).toMatchObject([{ leaseId: bail.id, level: "mise_en_demeure", sentOn: today }]));
+    expect(await panel.findByText(/Mise en demeure déjà envoyé\./)).toBeTruthy();
+    await user.click(panel.getByRole("button", { name: `Retirer l'envoi du ${today.split("-").reverse().join("/")}` }));
+    await waitFor(async () => expect((await workspace()).rentNotices).toEqual([]));
+    expect(screen.getByRole("link", { name: "Attestation de loyer" }).getAttribute("href")).toBe(`/impression/attestation/${bail.id}`);
+    expect(screen.getAllByRole("link", { name: /^Avis d'échéance de / })[0]!.getAttribute("href")).toMatch(new RegExp(`/impression/avis/${bail.id}/`));
+  });
+
+  it("courriers à imprimer : relance à chaque étape avec le décompte, avis d'échéance, attestation", async () => {
+    const studio = await rpc<Id>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
+    const start = addMonths(`${thisMonth}-01`, -2);
+    const bail = await rpc<Lease>("leases.upsert", { propertyId: studio.id, kind: "vide", startDate: start, durationMonths: 36, rent: 600, charges: 50, landlord: "Propriétaire fictif", landlordAddress: "2 rue Fictive", renters: [{ firstName: "Alice", lastName: "Fictive" }], guarantees: [{ kind: "caution", name: "Parent fictif" }] });
+    await rpc("rentPayments.upsert", { leaseId: bail.id, month: start.slice(0, 7), date: start, amount: 650 });
+    const second = addMonths(start, 1).slice(0, 7);
+    await rpc("rentPayments.upsert", { leaseId: bail.id, month: second, date: `${second}-01`, amount: 200 });
+
+    let page = showAt(`/impression/relance/${bail.id}/rappel`);
+    expect(await screen.findByText("Objet : loyer non reçu")).toBeTruthy();
+    expect(screen.getByText("Alice Fictive")).toBeTruthy();
+    expect(screen.getByText(/Décompte des sommes dues/)).toBeTruthy();
+    page.unmount();
+    page = showAt(`/impression/relance/${bail.id}/relance`);
+    expect(await screen.findByText("Objet : relance pour loyer impayé")).toBeTruthy();
+    page.unmount();
+    page = showAt(`/impression/relance/${bail.id}/mise_en_demeure`);
+    expect(await screen.findByText("Objet : mise en demeure de payer")).toBeTruthy();
+    expect(screen.getByText("Lettre recommandée avec accusé de réception")).toBeTruthy();
+    expect(screen.getByText(/personne qui s'est portée caution/)).toBeTruthy();
+    page.unmount();
+    // Étape inconnue : rappel amiable.
+    page = showAt(`/impression/relance/${bail.id}/autre`);
+    expect(await screen.findByText("Objet : loyer non reçu")).toBeTruthy();
+    page.unmount();
+
+    page = showAt(`/impression/avis/${bail.id}/${thisMonth}`);
+    expect(await screen.findByRole("heading", { name: "Avis d'échéance" })).toBeTruthy();
+    expect(screen.getByText("Reste dû des mois précédents")).toBeTruthy();
+    page.unmount();
+    page = showAt(`/impression/avis/${bail.id}/2000-01`);
+    expect(await screen.findByText("Aucune échéance pour ce mois.")).toBeTruthy();
+    page.unmount();
+
+    page = showAt(`/impression/attestation/${bail.id}`);
+    expect(await screen.findByRole("heading", { name: "Attestation de loyer" })).toBeTruthy();
+    expect(screen.getByText(/il reste dû/)).toBeTruthy();
+    page.unmount();
+    // Tout pointé : à jour, et plus rien à relancer.
+    await rpc("rentPayments.addMany", { payments: [{ leaseId: bail.id, month: second, date: `${second}-02`, amount: 450 }, { leaseId: bail.id, month: thisMonth, date: today, amount: 650 }] });
+    page = showAt(`/impression/attestation/${bail.id}`);
+    expect(await screen.findByText(/est à jour du paiement de ses loyers et charges/)).toBeTruthy();
+    page.unmount();
+    page = showAt(`/impression/relance/${bail.id}/rappel`);
+    expect(await screen.findByText("Aucun loyer en retard sur ce bail.")).toBeTruthy();
+    page.unmount();
+    showAt("/impression/attestation/inconnu");
+    expect(await screen.findByText("Bail introuvable.")).toBeTruthy();
   });
 });
