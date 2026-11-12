@@ -55,8 +55,7 @@ export function EquivalentDialog({ etf, onClose }: { etf: EtfExposure | null; on
       <div className="space-y-4 text-sm">
         <p className="text-fg-muted">{compositionStatus(etf).text}</p>
         <p className="text-fg-muted">
-          Choisissez un ETF <strong className="text-fg">physique</strong> qui suit le même indice : Hamac reprendra sa composition pour l'exposition réelle. Il doit être publié par Amundi ou iShares. Ce
-          choix ne vaut que pour vous.
+          Hamac reprendra la composition de l'ETF <strong className="text-fg">physique</strong> choisi, qui doit être publié par Amundi ou iShares. Ce choix ne vaut que pour vous.
         </p>
         {suggestion && (
           <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2">
@@ -76,7 +75,7 @@ export function EquivalentDialog({ etf, onClose }: { etf: EtfExposure | null; on
           }}
         >
           <Field label={suggestion ? "Ou un autre ETF physique (ISIN)" : "ETF physique équivalent (ISIN)"} className="flex-1">
-            {(id) => <TextInput id={id} value={isin} onChange={(e) => setIsin(e.target.value.toUpperCase().trim())} placeholder="IE00B4L5Y983" className="font-mono" />}
+            {(id) => <TextInput id={id} value={isin} onChange={(e) => setIsin(e.target.value.toUpperCase().trim())} placeholder="12 caractères, ex. IE00B4L5Y983" className="font-mono" />}
           </Field>
           <Button type="submit" disabled={!valid || choose.isPending}>
             {choose.isPending ? "Vérification…" : "Vérifier et utiliser"}

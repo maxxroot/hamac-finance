@@ -88,7 +88,7 @@ export function CompositionAdminCard() {
                         if (ISIN_RE.test(isin)) save.mutate({ isin: l.isin, proxyIsin: isin });
                       }}
                     >
-                      <TextInput value={isin} onChange={(e) => setIsin(e.target.value.toUpperCase().trim())} className="h-8 font-mono" placeholder="IE00B4L5Y983" aria-label={`Nouvel équivalent de ${l.isin}`} autoFocus />
+                      <TextInput value={isin} onChange={(e) => setIsin(e.target.value.toUpperCase().trim())} className="h-8 font-mono" placeholder="ex. IE00B4L5Y983" aria-label={`Nouvel équivalent de ${l.isin}`} autoFocus />
                       <Button type="submit" className="h-8" disabled={!ISIN_RE.test(isin) || save.isPending}>
                         {save.isPending ? "…" : "Vérifier"}
                       </Button>
