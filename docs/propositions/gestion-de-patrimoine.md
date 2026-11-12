@@ -17,7 +17,7 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 
 - **Concentration et risque (proposition 6)** : carte « Concentration » sur la Synthèse (titres tous comptes confondus, émetteurs d'obligations, plateformes de crowdlending et projets en difficulté, établissements), alerte au-delà de 20 %, volatilité ajoutée à la page Performance.
 
-- **Exposition réelle derrière les ETF (proposition 5)** : page « Exposition réelle » (Enveloppes, module Actions) ; répartition par pays, secteur, devise et type de ligne, plus grosses lignes tous titres confondus, d'après la composition publiée par Amundi ou iShares, récupérée dès le choix de l'ETF et mise à jour chaque trimestre ; ETF physique équivalent pour un ETF synthétique ou d'un émetteur non géré.
+- **Exposition réelle derrière les ETF (proposition 5)** : page « Exposition réelle » (Vue d'ensemble, après Performance, module Actions) ; répartition par pays, secteur, devise et type de ligne, plus grosses lignes tous titres confondus, d'après la composition publiée par Amundi ou iShares, récupérée dès le choix de l'ETF et mise à jour chaque trimestre ; ETF physique équivalent pour un ETF synthétique ou d'un émetteur non géré.
 
 - **Objectifs par projet (proposition 11)** : page « Projets » (Vue d'ensemble) et carte « Projets en cours » au tableau de bord ; somme, date, comptes affectés en pourcentage ou en montant réservé, avancement, avance ou retard, versement mensuel nécessaire au taux du projet.
 
