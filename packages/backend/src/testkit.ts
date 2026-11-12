@@ -47,9 +47,14 @@ export async function testBackend(opts: Partial<BackendOptions> = {}): Promise<B
   return createBackend({ provider, tenantId: crypto.randomUUID(), appVersion: "test", backupsDir: null, isAdmin: true, ...opts, market: opts.market ?? (await testMarket(opts.fetcher)) });
 }
 
+/** Sans client réseau fourni, les tests ne sortent jamais : toute requête échoue comme une panne. */
+export const offlineFetcher: Fetcher = async () => {
+  throw new Error("Réseau coupé pendant les tests.");
+};
+
 /** Une base de cours vide. */
 export async function testMarket(fetcher?: Fetcher, config?: Partial<MarketConfig>): Promise<SharedMarket> {
-  const market = await SharedMarket.open(testProvider(), fetcher, undefined, config);
-  await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config, marche.series CASCADE");
+  const market = await SharedMarket.open(testProvider(), fetcher ?? offlineFetcher, undefined, { compositionSpacingMs: 0, ...config });
+  await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config, marche.series, marche.compositions, marche.composition_links CASCADE");
   return market;
 }

@@ -8,6 +8,7 @@ import { normalizeOrder, twelveDataAssets, type MarketState } from "./config";
 import { MarketError } from "./http";
 import { chainFor, defaultFetcher, fetchFrom, fetchLongHistory, instrumentKey, type Fetcher, type LongHistory, type MarketAsset, type ProviderSetting } from "./index";
 import { BASE_REFRESH_MINUTES, refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget, type TwelveDataUsage } from "./twelvedata";
+import { COMPOSITION_TABLES, CompositionStore } from "./compositionStore";
 
 const today = () => new Date().toISOString().slice(0, 10);
 /** Un même titre n'est pas réinterrogé avant ce délai, quels que soient les utilisateurs qui le demandent. */
@@ -34,6 +35,8 @@ export interface MarketConfig {
   twelveDataKey: string | null;
   refreshMinutes: number;
   twelveDataDailyLimit: number;
+  /** Pause entre deux téléchargements de composition d'ETF (0 dans les tests). */
+  compositionSpacingMs?: number;
 }
 
 export interface Instrument {
@@ -78,13 +81,17 @@ export class SharedMarket {
   private seriesFailures = new Map<string, { at: number; message: string }>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
+  /** Compositions des ETF et liens vers un ETF physique équivalent. */
+  readonly compositions: CompositionStore;
 
   private constructor(
     private session: PgSession,
     private db: RawDb,
     private fetcher: Fetcher,
     private config: MarketConfig,
-  ) {}
+  ) {
+    this.compositions = new CompositionStore(db, fetcher, { spacingMs: config.compositionSpacingMs });
+  }
 
   static async open(provider: PgProvider, fetcher: Fetcher = defaultFetcher, onLost?: () => void, config: Partial<MarketConfig> = {}): Promise<SharedMarket> {
     const session = await provider.session(onLost);
@@ -119,6 +126,7 @@ export class SharedMarket {
         price DOUBLE PRECISION NOT NULL,
         PRIMARY KEY (key, date)
       )`,
+      ...COMPOSITION_TABLES,
       // Une clé saisie autrefois dans l'interface ne doit pas rester en base.
       "DELETE FROM marche.config WHERE key = 'twelveDataKey'",
     ])
@@ -318,6 +326,33 @@ export class SharedMarket {
     return out;
   }
 
+  /**
+   * ETF de tous les tenants dont la composition sert : leur ISIN, et l'équivalent choisi par chacun.
+   * Un tenant pas encore mis à jour n'a pas la colonne du choix : on ne lit alors que l'ISIN.
+   */
+  async collectCompositionIsins(tenantIds: readonly string[]): Promise<string[]> {
+    const out = new Set<string>();
+    for (const id of tenantIds) {
+      const { schema } = tenantNames(id);
+      if (!(await this.db.get<{ t: string | null }>(`SELECT to_regclass('"${schema}".assets')::text AS t`))?.t) continue;
+      const hasChoice = !!(await this.db.get("SELECT 1 AS x FROM information_schema.columns WHERE table_schema = ? AND table_name = 'assets' AND column_name = 'composition_isin'", [schema]));
+      const rows = await this.db.all<{ isin: string | null; choice: string | null }>(
+        `SELECT isin, ${hasChoice ? "composition_isin" : "NULL"} AS choice FROM "${schema}".assets WHERE NOT archived AND kind = 'etf'`,
+      );
+      for (const r of rows) for (const i of [r.isin, r.choice]) if (i) out.add(i);
+    }
+    // Les équivalents des liens communs servent aux ETF qui y renvoient.
+    for (const [, link] of await this.compositions.links([...out])) out.add(link.proxyIsin);
+    return [...out];
+  }
+
+  /** Compositions dues de toute l'instance : remises à jour chaque trimestre, oubliées quand plus personne n'en a besoin. */
+  async refreshCompositions(tenantIds: readonly string[]): Promise<void> {
+    const isins = await this.collectCompositionIsins(tenantIds);
+    await this.compositions.refresh(isins);
+    await this.compositions.prune(new Set(isins));
+  }
+
   /** Boucle d'actualisation de l'instance, au rythme imposé par le quota des sources. */
   start(listTenants: () => Promise<string[]>): void {
     const tick = async () => {
@@ -325,6 +360,11 @@ export class SharedMarket {
         await this.refresh(await this.collect(await listTenants()));
       } catch (err) {
         console.error("[hamac] actualisation des cours :", err);
+      }
+      try {
+        await this.refreshCompositions(await listTenants());
+      } catch (err) {
+        console.error("[hamac] compositions des ETF :", err);
       }
       if (this.stopped) return;
       const minutes = this.intervalMinutes(await this.twelveDataCount(await this.state()).catch(() => 0));
@@ -338,6 +378,7 @@ export class SharedMarket {
   async close(): Promise<void> {
     this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
+    await this.compositions.stop();
     await this.session.end();
   }
 }
