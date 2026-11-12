@@ -4,13 +4,20 @@
 
 **Suivre son patrimoine, préparer sa retraite, avec la fiscalité française.**
 
-Livrets · assurance-vie · PEA · PER · compte-titres · obligations · crypto · crowdlending · immobilier · crédits
+Livrets · assurance-vie · PEA · PER · compte-titres · obligations · crypto · crowdlending · immobilier locatif · crédits · autres biens
 
 [![Licence : AGPL v3](https://img.shields.io/badge/licence-AGPL--3.0-blue.svg)](LICENSE)
 ![Application web auto-hébergée](https://img.shields.io/badge/application-web%20auto--h%C3%A9berg%C3%A9e-green)
+![PostgreSQL](https://img.shields.io/badge/base-PostgreSQL-336791)
 ![Statut : en développement](https://img.shields.io/badge/statut-en%20d%C3%A9veloppement-orange)
 
-<img src="docs/captures/dashboard.png" alt="Tableau de bord de Hamac : patrimoine, évolution, allocation réelle et cible, comptes, projection et points à regarder" width="900">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/captures/dashboard.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/captures/dashboard-clair.png">
+  <img src="docs/captures/dashboard.png" alt="Tableau de bord de Hamac : patrimoine net, évolution, allocation réelle face à la cible" width="900">
+</picture>
+
+<sub>Thème sombre « Nocturne » ou clair « Maison », au choix ou selon le système.</sub>
 
 </div>
 
@@ -55,8 +62,15 @@ en la fiabilisant.
   projection (ou actifs et dettes) et seulement ce qui demande une action.
 - **Évolution de chaque compte et de chaque titre** : valeur totale et montant investi, avec une courbe par
   titre dans un compte. Un clic sur une ligne suffit pour voir un compte ou un titre seul.
-- **Mes comptes** côte à côte, **performance** (rendement annualisé par enveloppe, placement ou compte) et **historique**
-  reconstruit mois par mois depuis le journal : corriger une opération passée corrige tout l'historique.
+- **Mes comptes** côte à côte, avec leur rôle, leur part du patrimoine et la garantie en cas de faillite.
+- **Performance** : rendement annualisé (TRI) par enveloppe, placement ou compte, rendement cumulé hors
+  versements, plus forte baisse, volatilité, et d'où vient le gain.
+- **Historique** : la situation à deux dates et ce qui a changé entre les deux, reconstruit mois par mois depuis
+  le journal. Corriger une opération passée corrige tout l'historique.
+- **Exposition réelle** : ce que contiennent vraiment vos ETF (pays, secteurs, devises, plus grosses lignes), d'après
+  la composition publiée par l'émetteur (Amundi, iShares).
+- **Projets** : un achat, des études, des travaux, avec la somme à réunir, la date, les comptes affectés et le
+  versement mensuel nécessaire.
 
 ### Suivre chaque placement
 
@@ -71,7 +85,14 @@ en la fiabilisant.
 - **Crypto** : positions, plus-values de chaque cession et impôt de l'année.
 - **Crowdlending** : prêts projet par projet, intérêts déclarés par mois et par plateforme, paiements
   partiels, échéances prolongées, retards et défauts, import du fichier Bricks.
-- **Immobilier et SCPI** : biens, fiche descriptive et DPE, statut, frais d'achat et part détenue, pour obtenir le patrimoine net ; suivi locatif avec bail, rappels, loyers, dépenses et rentabilité, résultats par année, valeur dans le temps, vente, documents, quittances, révision du loyer selon l'indice INSEE avec courrier, et fiche imprimable.
+- **Immobilier et SCPI** : biens, fiche descriptive et DPE, statut, frais d'achat et part détenue, pour obtenir
+  le patrimoine net ; dépenses et rentabilité, résultats par année, valeur dans le temps, vente, documents et fiche
+  imprimable.
+- **Gestion locative** : tout le parc loué comme le suivrait une agence. Lots, baux, locataires et garanties,
+  loyers du mois pointés un par un, impayés, lots vides, occupation, révision du loyer selon l'indice INSEE, et
+  courriers prêts à imprimer (quittance, avis d'échéance, relance, attestation, révision).
+- **Autres biens** : or, objets de valeur, véhicules, parts de société non cotée, argent prêté, avec la valeur en
+  cas de vente rapide et l'impôt à la vente.
 - **Crédits** immobiliers, travaux, consommation ou auto, avec différé et remboursements anticipés : échéance et capital restant dû calculés ou repris
   d'un relevé, assurance en montant fixe ou en taux (capital emprunté ou restant dû), coût année par année.
 
@@ -84,8 +105,12 @@ en la fiabilisant.
   établissements et les grosses dépenses prévues, puis la phase de retraits jusqu'à l'âge horizon.
 - **Fourchette de résultats** selon les marchés (simulation de Monte-Carlo) et simulateur « et si »
   (versement en plus, âge de départ, rendement, inflation).
-- **Impôts** : ce que coûterait un retrait aujourd'hui, rendements nets comparés, impôts de chaque année
-  (acompte, régularisation, prélèvements sociaux).
+- **Simulateurs** : rendement brut et net d'impôts d'un placement avant d'investir (obligation, ETF ou actions,
+  fonds euros, crowdlending…), comparés côte à côte pour un même montant.
+- **Impôts** : ce qu'il faudra payer à la prochaine déclaration, ce que coûterait un retrait aujourd'hui,
+  rendements nets comparés, impôts de chaque année (acompte, régularisation, prélèvements sociaux).
+- **Compteurs et plafonds** : ancienneté des PEA et assurances-vie, plafonds de versement, abattement annuel de
+  l'assurance-vie et abattements de donation restants.
 - **Aide à la déclaration** : cases à reporter par année de revenus, fiche par établissement et récapitulatif
   complet, contrôles de cohérence, comparaison avec le document reçu, export PDF et CSV. Un document d'aide, qui
   ne remplace ni l'IFU ni la notice officielle.
@@ -107,54 +132,63 @@ en la fiabilisant.
 - **Recherche de titres** par nom ou par ISIN (actions, ETF, obligations d'État et d'entreprise, crypto).
 - **Import des relevés** de banque ou de courtier en CSV, OFX ou QIF (aperçu avant import, doublons repérés) et export CSV.
 - **Sauvegarde complète** exportable et restaurable, pour passer d'une instance à une autre.
-- Barre latérale réductible, tableaux triables, mode discret qui masque les montants, interface sombre.
+- Barre latérale réductible, tableaux triables, mode discret qui masque les montants, thème clair ou sombre,
+  modules à afficher ou masquer.
 
 ## Captures
 
 <table>
   <tr>
-    <td><img src="docs/captures/evolution.png" alt="Évolution d'un compte : valeur totale, montant investi et une courbe par titre"></td>
-    <td><img src="docs/captures/credits.png" alt="Crédits : taux, assurance, coût total et graphique année par année"></td>
+    <td width="50%"><img src="docs/captures/comptes.png" alt="Mes comptes : valeur, versé net, gain et part du patrimoine de chaque compte"></td>
+    <td width="50%"><img src="docs/captures/performance.png" alt="Performance : rendement annualisé, rendement cumulé et origine du gain"></td>
   </tr>
   <tr>
-    <td align="center">Évolution d'un compte, titre par titre</td>
-    <td align="center">Crédits : coût année par année</td>
+    <td align="center">Mes comptes côte à côte</td>
+    <td align="center">Performance et origine du gain</td>
   </tr>
   <tr>
-    <td><img src="docs/captures/projection.png" alt="Projection jusqu'à la retraite avec fourchette et simulateur"></td>
-    <td><img src="docs/captures/obligations.png" alt="Obligations : prochain coupon, rendement à l'échéance, plus-value"></td>
+    <td width="50%"><img src="docs/captures/projection.png" alt="Projection jusqu'à la retraite par classe d'actifs, avec fourchette et simulateur"></td>
+    <td width="50%"><img src="docs/captures/exposition.png" alt="Exposition réelle : pays et secteurs contenus dans les ETF"></td>
   </tr>
   <tr>
     <td align="center">Projection et simulateur « et si »</td>
-    <td align="center">Obligations détenues et achats prévus</td>
+    <td align="center">Exposition réelle des ETF</td>
   </tr>
   <tr>
-    <td><img src="docs/captures/crowdlending.png" alt="Crowdlending : plateformes et suivi projet par projet"></td>
-    <td><img src="docs/captures/declaration.png" alt="Aide à la déclaration : cases à reporter et contrôles"></td>
+    <td width="50%"><img src="docs/captures/historique.png" alt="Historique : situation à deux dates et évolution mois par mois"></td>
+    <td width="50%"><img src="docs/captures/gestion-locative.png" alt="Gestion locative : loyers du mois, lots vides, occupation et rentabilité"></td>
+  </tr>
+  <tr>
+    <td align="center">Historique reconstruit depuis le journal</td>
+    <td align="center">Gestion locative</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/captures/credits.png" alt="Crédits : mensualités, capital restant dû et poids des crédits"></td>
+    <td width="50%"><img src="docs/captures/obligations.png" alt="Obligations : prochaine échéance, coupons et rendement à l'échéance"></td>
+  </tr>
+  <tr>
+    <td align="center">Crédits et capital restant dû</td>
+    <td align="center">Obligations gardées jusqu'à l'échéance</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/captures/crowdlending.png" alt="Crowdlending : plateformes et suivi projet par projet"></td>
+    <td width="50%"><img src="docs/captures/impots.png" alt="Impôts : à payer à la prochaine déclaration et impôt si tout était retiré"></td>
   </tr>
   <tr>
     <td align="center">Crowdlending, projet par projet</td>
+    <td align="center">Impôts de l'année et en cas de retrait</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/captures/declaration.png" alt="Aide à la déclaration : cases à reporter et contrôles de cohérence"></td>
+    <td width="50%"><img src="docs/captures/journal.png" alt="Journal des opérations, avec recherche et filtres"></td>
+  </tr>
+  <tr>
     <td align="center">Aide à la déclaration</td>
-  </tr>
-  <tr>
-    <td><img src="docs/captures/repartition.png" alt="Répartition cible par classe d'actifs, avec rendement attendu"></td>
-    <td><img src="docs/captures/etablissements.png" alt="Établissements avec leurs grilles de frais"></td>
-  </tr>
-  <tr>
-    <td align="center">Répartition cible</td>
-    <td align="center">Établissements et frais</td>
-  </tr>
-  <tr>
-    <td><img src="docs/captures/journal.png" alt="Journal des opérations, triable et filtrable"></td>
-    <td><img src="docs/captures/historique.png" alt="Historique du patrimoine reconstruit depuis le journal"></td>
-  </tr>
-  <tr>
     <td align="center">Journal des opérations</td>
-    <td align="center">Historique reconstruit depuis le journal</td>
   </tr>
 </table>
 
-Les captures utilisent uniquement des données fictives.
+Les captures utilisent uniquement le jeu de démonstration, entièrement fictif.
 
 ## Installation
 
@@ -316,7 +350,7 @@ Les contributions sont bienvenues : signalements, idées, corrections, nouvelles
 - Première version publiée
 - Affichage adapté au téléphone et installation en application (PWA)
 - Alertes par bots Discord, Telegram et Matrix
-- Double authentification, journal des connexions et vérification de l'e-mail, pour une instance ouverte au public
+- Journal des connexions et vérification de l'e-mail, pour une instance ouverte au public
 - Modèles d'établissements pré-remplis (grilles de frais datées, à vérifier)
 - Formats d'import CSV prêts à l'emploi pour les principaux courtiers
 - Mémorisation des tris et des filtres
