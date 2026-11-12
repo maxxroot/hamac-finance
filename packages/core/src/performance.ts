@@ -547,7 +547,11 @@ export interface AssetPerformance {
 function assetFlows(data: EngineData, state: PortfolioState, assetId: string, accounts: ReadonlySet<string>): Flow[] {
   const flows: Flow[] = [];
   for (const tx of data.transactions) {
-    if (tx.assetId !== assetId || tx.date > state.asOf || !accounts.has(tx.accountId)) continue;
+    if (tx.date > state.asOf || !accounts.has(tx.accountId)) continue;
+    // Arbitrage : le titre reçu est acheté, le titre cédé est vendu, pour la valeur de l'échange.
+    if (tx.type === "arbitrage" && tx.counterAssetId === assetId) flows.push({ date: tx.date, amount: -tx.amount });
+    if (tx.assetId !== assetId) continue;
+    if (tx.type === "arbitrage") flows.push({ date: tx.date, amount: tx.amount });
     if (tx.type === "achat") flows.push({ date: tx.date, amount: -tx.amount });
     if (tx.type === "vente" || tx.type === "dividende" || tx.type === "interets") flows.push({ date: tx.date, amount: tx.amount });
   }

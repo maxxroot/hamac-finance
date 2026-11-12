@@ -1,4 +1,4 @@
-import { ACCOUNT_KIND_LABELS, BUCKETS, CASH_BUCKET, type Bucket } from "./domain";
+import { ACCOUNT_KIND_LABELS, BUCKETS, CASH_BUCKET, type Bucket, type Transaction } from "./domain";
 import type { EngineData } from "./engine";
 import type { HistoryPoint } from "./history";
 import { formatEur, formatPct, roundCents } from "./money";
@@ -76,7 +76,11 @@ export function milestones(data: EngineData, history: readonly HistoryPoint[], a
   // Titres : premier achat de chaque titre, puis chaque vente qui vide une ligne.
   const bought = new Set<string>();
   const qty = new Map<string, number>();
-  for (const t of txs) {
+  // Un arbitrage cède un titre et en reçoit un autre.
+  const legs = txs.flatMap((t): Transaction[] =>
+    t.type === "arbitrage" ? [{ ...t, type: "vente" }, { ...t, type: "achat", assetId: t.counterAssetId ?? null, quantity: t.counterQuantity ?? null }] : [t],
+  );
+  for (const t of legs) {
     if (!t.assetId || !t.quantity || (t.type !== "achat" && t.type !== "vente")) continue;
     const key = `${t.accountId}:${t.assetId}`;
     const before = qty.get(key) ?? 0;

@@ -49,7 +49,9 @@ export interface CryptoTaxReport {
 
 /**
  * Plus-value de chaque cession : PV = prix de cession net − PTA × prix de cession brut / valeur globale du portefeuille.
- * Le portefeuille est global (toutes plateformes). Seules les ventes contre des euros sont imposables.
+ * Le portefeuille est global (toutes plateformes). Seules les ventes contre des euros sont imposables :
+ * un arbitrage d'une crypto à une autre (stablecoins compris) n'est pas une cession et laisse le prix total
+ * d'acquisition inchangé (CGI, art. 150 VH bis, II).
  */
 export function cryptoTax(data: EngineData, asOf: string): CryptoTaxReport {
   const { params } = data;
@@ -57,7 +59,14 @@ export function cryptoTax(data: EngineData, asOf: string): CryptoTaxReport {
   const assets = new Map<string, Asset>(data.assets.map((a) => [a.id, a]));
   const book = new PriceBook(data.prices, data.assets);
   const txs = data.transactions
-    .filter((t) => t.date <= asOf && cryptoAccounts.has(t.accountId) && t.assetId && assets.get(t.assetId)?.kind === "crypto" && (t.type === "achat" || t.type === "vente"))
+    .filter(
+      (t) =>
+        t.date <= asOf &&
+        cryptoAccounts.has(t.accountId) &&
+        t.assetId &&
+        assets.get(t.assetId)?.kind === "crypto" &&
+        (t.type === "achat" || t.type === "vente" || (t.type === "arbitrage" && !!t.counterAssetId && assets.get(t.counterAssetId)?.kind === "crypto")),
+    )
     .sort((a, b) => (a.date === b.date ? (a.type === "achat" ? -1 : 1) : a.date.localeCompare(b.date)));
 
   const qty = new Map<string, number>();
@@ -68,6 +77,19 @@ export function cryptoTax(data: EngineData, asOf: string): CryptoTaxReport {
   for (const t of txs) {
     const id = t.assetId!;
     const q = t.quantity ?? 0;
+    if (t.type === "arbitrage") {
+      // Les quantités changent de crypto, le prix total d'acquisition ne bouge pas.
+      const to = t.counterAssetId!;
+      qty.set(id, Math.max(0, (qty.get(id) ?? 0) - q));
+      qty.set(to, (qty.get(to) ?? 0) + (t.counterQuantity ?? 0));
+      const c = costPerUnit.get(id) ?? { qty: 0, cost: 0 };
+      const out = Math.min(q, c.qty);
+      const moved = c.qty > 0 ? (c.cost * out) / c.qty : 0;
+      costPerUnit.set(id, { qty: c.qty - out, cost: c.cost - moved });
+      const d = costPerUnit.get(to) ?? { qty: 0, cost: 0 };
+      costPerUnit.set(to, { qty: d.qty + (t.counterQuantity ?? 0), cost: d.cost + moved });
+      continue;
+    }
     if (t.type === "achat") {
       pta += t.amount;
       qty.set(id, (qty.get(id) ?? 0) + q);

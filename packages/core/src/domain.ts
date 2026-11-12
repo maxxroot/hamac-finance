@@ -154,6 +154,7 @@ export const TX_TYPES = [
   "dividende",
   "achat",
   "vente",
+  "arbitrage",
   "transfert",
   "frais",
   "impots",
@@ -169,6 +170,7 @@ export const TX_LABELS: Record<TxType, string> = {
   dividende: "Dividende",
   achat: "Achat",
   vente: "Vente",
+  arbitrage: "Arbitrage",
   transfert: "Transfert",
   frais: "Frais",
   impots: "Impôts",
@@ -183,6 +185,7 @@ export const TX_HELP: Record<TxType, string> = {
   dividende: "Dividende versé en espèces sur le compte.",
   achat: "Montant = total débité, frais compris. Quantité = parts, BTC, ou nominal pour une obligation.",
   vente: "Montant = total reçu, frais déduits.",
+  arbitrage: "D'un support à un autre dans le même compte, sans passer par les espèces : du fonds euros vers une unité de compte, ou d'une crypto à une autre. Montant = valeur du support cédé, en euros. Rien d'imposable : l'argent reste dans le contrat, ou en crypto.",
   transfert: "D'un compte vers un autre, en une seule opération (ex. excédent des livrets vers le fonds euros).",
   frais: "Frais facturés à part (droits de garde, frais de gestion…).",
   impots: "Impôts ou prélèvements sociaux débités à part, par exemple ceux qu'une plateforme de crowdlending retient sur ses intérêts.",
@@ -278,8 +281,10 @@ export interface Transaction {
   assetId: string | null;
   /** Compte de destination d'un transfert. */
   counterAccountId: string | null;
-  /** Fonds euros d'arrivée d'un transfert vers un contrat ; null = son support par défaut. */
+  /** Fonds euros d'arrivée d'un transfert vers un contrat ; null = son support par défaut. Arbitrage : support reçu. */
   counterAssetId?: string | null;
+  /** Arbitrage : quantité reçue du support d'arrivée (null pour un fonds euros, qui reçoit des euros). */
+  counterQuantity?: number | null;
   /** Montant en euros, toujours positif sauf pour une correction. */
   amount: number;
   quantity: number | null;

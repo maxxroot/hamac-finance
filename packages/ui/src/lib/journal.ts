@@ -17,3 +17,12 @@ export function useJournal(): Transaction[] {
     return [...idx.ws.transactions, ...scheduled];
   }, [idx, today]);
 }
+
+/** Titres d'une opération, tels qu'affichés : « cédé → reçu » pour un arbitrage, le fonds d'arrivée d'un transfert. */
+export function supportsLabel(t: Pick<Transaction, "type" | "assetId" | "counterAssetId">, nameOf: (id: string) => string | undefined): string {
+  const from = t.assetId ? (nameOf(t.assetId) ?? "") : "";
+  const to = t.counterAssetId ? (nameOf(t.counterAssetId) ?? "") : "";
+  if (t.type === "arbitrage") return `${from} → ${to}`;
+  if (to) return from ? `${from} → ${to}` : `→ ${to}`;
+  return from;
+}

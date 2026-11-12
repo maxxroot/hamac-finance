@@ -286,6 +286,7 @@ export const handlers: Handlers = {
       counterAssetId: input.counterAssetId,
       amountCents: toCents(input.amount),
       quantity: input.quantity,
+      counterQuantity: input.counterQuantity,
       feeCents: input.fee == null ? null : toCents(input.fee),
       comment: input.comment,
       grossCents: input.gross == null ? null : toCents(input.gross),

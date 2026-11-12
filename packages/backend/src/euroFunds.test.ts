@@ -83,6 +83,21 @@ describe("fonds euros : contrats", () => {
   });
 });
 
+describe("arbitrage", () => {
+  it("s'enregistre avec ses deux supports et leurs quantités ; refusé sur un PEA", async () => {
+    backend = await testBackend();
+    const w = await call<Account>(backend, "accounts.upsert", { kind: "crypto", name: "Plateforme" });
+    const pea = await call<Account>(backend, "accounts.upsert", { kind: "pea", name: "PEA" });
+    const btc = await call<Asset>(backend, "assets.upsert", { kind: "crypto", name: "Bitcoin" });
+    const eth = await call<Asset>(backend, "assets.upsert", { kind: "crypto", name: "Ether" });
+    await call(backend, "transactions.upsert", { date: "2025-03-01", type: "arbitrage", accountId: w.id, assetId: btc.id, quantity: 0.1, counterAssetId: eth.id, counterQuantity: 2.5, amount: 5_000, fee: 4.5 });
+    expect((await ws(backend)).transactions).toMatchObject([{ type: "arbitrage", assetId: btc.id, quantity: 0.1, counterAssetId: eth.id, counterQuantity: 2.5, amount: 5_000, fee: 4.5 }]);
+    const etf = await call<Asset>(backend, "assets.upsert", { kind: "etf", name: "ETF" });
+    const refused = await backend.dispatch("transactions.upsert", { date: "2025-03-01", type: "arbitrage", accountId: pea.id, assetId: etf.id, quantity: 1, counterAssetId: etf.id, counterQuantity: 1, amount: 100 });
+    expect(refused.ok).toBe(false);
+  });
+});
+
 describe("fonds euros : reprise des données", () => {
   it("migration : un fonds euros par contrat, support par défaut, taux rattachés", async () => {
     const provider = pgliteProvider();

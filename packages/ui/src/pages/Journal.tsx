@@ -13,7 +13,7 @@ import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { TransactionDialog } from "@/dialogs/TransactionDialog";
 import { Onboarding } from "@/pages/Onboarding";
 import { formatDate, formatQty } from "@/lib/numbers";
-import { useJournal } from "@/lib/journal";
+import { supportsLabel, useJournal } from "@/lib/journal";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 
 /** Sens de l'opération pour le compte principal : + entrée, − sortie, 0 interne. */
@@ -33,6 +33,8 @@ function direction(t: Transaction): 1 | -1 | 0 {
       return -1;
     case "correction":
       return 1;
+    case "arbitrage":
+      return 0;
   }
 }
 
@@ -222,7 +224,6 @@ export function Journal() {
           {sorted.map((t) => {
             const acc = idx.accountById.get(t.accountId);
             const counter = t.counterAccountId ? idx.accountById.get(t.counterAccountId) : null;
-            const asset = t.assetId ? idx.assetById.get(t.assetId) : null;
             const dir = direction(t);
             const planned = isScheduled(t);
             return (
@@ -234,15 +235,16 @@ export function Journal() {
                 </Td>
                 <Td className="whitespace-nowrap">
                   <span title={planned ? "Versement programmé : calculé depuis la page Versements" : undefined}>
-                    <Badge tone={t.type === "achat" || t.type === "vente" ? "accent" : "neutral"}>
+                    <Badge tone={t.type === "achat" || t.type === "vente" || t.type === "arbitrage" ? "accent" : "neutral"}>
                       {planned && <CalendarClock size={12} className="mr-1" aria-label="programmé" />}
                       {TX_LABELS[t.type]}
                     </Badge>
                   </span>
                 </Td>
-                <Td className="max-w-48 truncate">{asset?.name ?? ""}</Td>
+                <Td className="max-w-48 truncate">{supportsLabel(t, (id) => idx.assetById.get(id)?.name)}</Td>
                 <Td align="right">
-                  <Amount value={dir * t.amount} signed={t.type !== "transfert" && t.type !== "achat"} />
+                  {/* Un arbitrage ne fait ni entrer ni sortir d'argent : son montant s'affiche sans signe. */}
+                  <Amount value={dir === 0 ? t.amount : dir * t.amount} signed={t.type !== "transfert" && t.type !== "achat" && dir !== 0} />
                 </Td>
                 <Td align="right" className="text-fg-muted">
                   {formatQty(t.quantity)}

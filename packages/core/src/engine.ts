@@ -262,6 +262,7 @@ const RANK: Record<TxType, number> = {
   dividende: 4,
   correction: 5,
   vente: 6,
+  arbitrage: 6.5,
   achat: 7,
   retrait: 8,
   frais: 9,
@@ -318,6 +319,34 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       if (acc) acc.cash += amount;
     }
     return fund;
+  };
+
+  /**
+   * Sort `quantity` d'un titre au prix de revient moyen pondéré, pour `proceeds` : le gain est réalisé.
+   * Renvoie le prix de revient sorti et si la quantité dépassait celle détenue.
+   */
+  const takeOut = (p: PosAcc, tx: Transaction, quantity: number, proceeds: number): { costOut: number; oversold: boolean } => {
+    const oversold = quantity > p.qty + 1e-9;
+    if (oversold) {
+      const verb = tx.type === "vente" ? "Vente" : "Arbitrage";
+      warnings.push(`${verb} du ${tx.date} : ${quantity} « ${p.asset.name} » ${tx.type === "vente" ? "vendus" : "cédés"}, mais seulement ${roundQty(p.qty)} détenus.`);
+    }
+    const sold = Math.min(quantity, p.qty);
+    const frac = p.qty > 0 ? sold / p.qty : 0;
+    const costOut = p.cost * frac;
+    p.realized += proceeds - costOut;
+    p.cost -= costOut;
+    p.qty -= sold;
+    for (const lot of p.lots) {
+      lot.cost *= 1 - frac;
+      lot.qty *= 1 - frac;
+    }
+    if (p.qty < 1e-9) {
+      p.qty = 0;
+      p.cost = 0;
+      p.lots = [];
+    }
+    return { costOut, oversold };
   };
 
   // Événements jusqu'à la date de calcul, + remboursements d'obligations échues.
@@ -428,24 +457,25 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
         moveMoney(accountId, tx.amount);
         p.fees += tx.fee ?? 0;
         acc.fees += tx.fee ?? 0;
-        if (tx.quantity > p.qty + 1e-9) {
-          warnings.push(`Vente du ${tx.date} : ${tx.quantity} « ${asset.name} » vendus, mais seulement ${roundQty(p.qty)} détenus.`);
-        }
-        const sold = Math.min(tx.quantity, p.qty);
-        const frac = p.qty > 0 ? sold / p.qty : 0;
-        const costOut = p.cost * frac;
-        p.realized += tx.amount - costOut;
-        disposals.push({ txId: tx.id, kind: "vente", date: tx.date, accountId: tx.accountId, assetId: asset.id, quantity: tx.quantity, proceeds: tx.amount, fee: tx.fee ?? 0, cost: roundCents(costOut), gain: roundCents(tx.amount - costOut), oversold: tx.quantity > p.qty + 1e-9 });
-        p.cost -= costOut;
-        p.qty -= sold;
-        for (const lot of p.lots) {
-          lot.cost *= 1 - frac;
-          lot.qty *= 1 - frac;
-        }
-        if (p.qty < 1e-9) {
-          p.qty = 0;
-          p.cost = 0;
-          p.lots = [];
+        const { costOut, oversold } = takeOut(p, tx, tx.quantity, tx.amount);
+        disposals.push({ txId: tx.id, kind: "vente", date: tx.date, accountId: tx.accountId, assetId: asset.id, quantity: tx.quantity, proceeds: tx.amount, fee: tx.fee ?? 0, cost: roundCents(costOut), gain: roundCents(tx.amount - costOut), oversold });
+        break;
+      }
+      case "arbitrage": {
+        // D'un support à l'autre sans passer par les espèces : pas une cession imposable, donc pas de « Disposal ».
+        const target = tx.counterAssetId ? assetById.get(tx.counterAssetId) : undefined;
+        if (!asset || !target) break;
+        const fee = tx.fee ?? 0;
+        acc.fees += fee;
+        if (asset.kind === "fonds_euros") moveMoney(accountId, -tx.amount, asset);
+        else if (tx.quantity) takeOut(position(acc, asset), tx, tx.quantity, tx.amount);
+        // Le support reçu : des euros sur un fonds euros, frais déduits ; sinon des parts, frais compris dans leur prix de revient.
+        if (target.kind === "fonds_euros") moveMoney(accountId, tx.amount - fee, target);
+        else if (tx.counterQuantity) {
+          const q = position(acc, target);
+          q.qty += tx.counterQuantity;
+          q.cost += tx.amount;
+          q.fees += fee;
         }
         break;
       }

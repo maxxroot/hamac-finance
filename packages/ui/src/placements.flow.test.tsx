@@ -496,6 +496,28 @@ describe("Fonds euros", () => {
     expect(texte(within(defaut).getByText("Solde").nextElementSibling)).toBe("1 030,00 €");
   });
 
+  it("arbitrage : du fonds euros vers une unité de compte, sans passer par les espèces", async () => {
+    const user = userEvent.setup();
+    const av = await compte("assurance_vie", "Contrat principal", { openedOn: "2020-01-15" });
+    const etf = await rpc<Id>("assets.upsert", { kind: "etf", name: "ETF Monde Fictif" });
+    await operation("2024-01-05", "versement", av.id, 1_000);
+    show(<FondsEuros />);
+    await user.click(await screen.findByRole("button", { name: "Arbitrage" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(within(dialog).getByLabelText("Support cédé"), fondsDe(av));
+    // Un fonds euros se compte en euros : pas de quantité cédée.
+    expect(within(dialog).queryByLabelText("Quantité cédée")).toBeNull();
+    await user.selectOptions(within(dialog).getByLabelText("Support reçu"), etf.id);
+    await user.type(within(dialog).getByLabelText("Quantité reçue"), "4");
+    await user.type(within(dialog).getByLabelText("Valeur de l'échange"), "400");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () =>
+      expect((await workspace()).transactions.find((t: { type: string }) => t.type === "arbitrage")).toMatchObject({ accountId: av.id, assetId: fondsDe(av), quantity: null, counterAssetId: etf.id, counterQuantity: 4, amount: 400 }),
+    );
+    const defaut = carteDe("Fonds euros (Contrat principal)", (await screen.findAllByText("Fonds euros (Contrat principal)"))[0]);
+    expect(texte(within(defaut).getByText("Solde").nextElementSibling)).toBe("600,00 €");
+  });
+
   it("le bouton d'évolution du contrat déplie son historique", async () => {
     const user = userEvent.setup();
     const av = await compte("assurance_vie", "Contrat principal");

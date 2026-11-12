@@ -20,14 +20,14 @@ export const ALLOWED_ASSETS: Record<AccountKind, readonly AssetKind[]> = {
 /** Opérations possibles selon le type de compte. */
 export const ALLOWED_TYPES: Record<AccountKind, readonly TxType[]> = {
   livret: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "impots", "correction"],
-  assurance_vie: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  assurance_vie: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "arbitrage", "transfert", "frais", "impots", "correction"],
   pea: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
   pea_pme: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
-  per: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  per: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "arbitrage", "transfert", "frais", "impots", "correction"],
   crowdlending: ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "impots", "correction"],
-  epargne_salariale: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  epargne_salariale: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "arbitrage", "transfert", "frais", "impots", "correction"],
   cto: ["apport_initial", "versement", "retrait", "interets", "dividende", "achat", "vente", "transfert", "frais", "impots", "correction"],
-  crypto: ["apport_initial", "versement", "retrait", "interets", "achat", "vente", "transfert", "frais", "impots", "correction"],
+  crypto: ["apport_initial", "versement", "retrait", "interets", "achat", "vente", "arbitrage", "transfert", "frais", "impots", "correction"],
 };
 
 export interface FieldError {
@@ -58,12 +58,14 @@ export function validateTransaction(
   const optionalAsset = TX_OPTIONAL_ASSET.includes(tx.type);
   // Un fonds euros est le support d'un mouvement d'argent : il ne s'achète ni ne se vend.
   const euroFund = tx.assetId != null && assets.get(tx.assetId)?.kind === "fonds_euros";
+  const isArbitrage = tx.type === "arbitrage";
   if (needsAsset && !tx.assetId) errors.push({ field: "assetId", message: "Choisissez le titre." });
-  if (euroFund && !EURO_FUND_TYPES.includes(tx.type)) {
+  if (isArbitrage) errors.push(...arbitrageErrors(tx, account, assets));
+  else if (euroFund && !EURO_FUND_TYPES.includes(tx.type)) {
     errors.push({ field: "assetId", message: "Un fonds euros ne s'achète pas et ne se vend pas : faites un versement, un retrait ou un transfert sur ce support." });
   } else if (!needsAsset && !optionalAsset && tx.assetId && !euroFund) errors.push({ field: "assetId", message: "Ce type d'opération ne porte pas sur un titre." });
 
-  if (tx.assetId) {
+  if (tx.assetId && !isArbitrage) {
     const asset = assets.get(tx.assetId);
     if (!asset) errors.push({ field: "assetId", message: "Titre introuvable." });
     else if (!ALLOWED_ASSETS[account.kind].includes(asset.kind)) {
@@ -74,7 +76,7 @@ export function validateTransaction(
   if (needsAsset && !(tx.quantity && tx.quantity > 0)) {
     errors.push({ field: "quantity", message: "Indiquez la quantité (parts, BTC ou nominal pour une obligation)." });
   }
-  if (!needsAsset && tx.quantity != null) errors.push({ field: "quantity", message: "Pas de quantité pour ce type d'opération." });
+  if (!needsAsset && !isArbitrage && tx.quantity != null) errors.push({ field: "quantity", message: "Pas de quantité pour ce type d'opération." });
 
   const isIncome = tx.type === "dividende" || tx.type === "interets";
   if (!isIncome && (tx.gross != null || tx.withheldIncomeTax != null || tx.withheldSocial != null || tx.withheldForeign != null)) {
@@ -96,15 +98,39 @@ export function validateTransaction(
     }
   } else if (tx.counterAccountId) {
     errors.push({ field: "counterAccountId", message: "Seul un transfert a un compte de destination." });
-  } else if (tx.counterAssetId) {
-    errors.push({ field: "counterAssetId", message: "Seul un transfert a un support d'arrivée." });
+  } else if (tx.counterAssetId && !isArbitrage) {
+    errors.push({ field: "counterAssetId", message: "Seul un transfert ou un arbitrage a un support d'arrivée." });
   }
+  if (!isArbitrage && tx.counterQuantity != null) errors.push({ field: "counterQuantity", message: "Seul un arbitrage a une quantité reçue." });
 
   if (tx.fee != null) {
-    if (tx.type !== "achat" && tx.type !== "vente") errors.push({ field: "fee", message: "Les frais inclus ne concernent que les achats et ventes." });
+    if (tx.type !== "achat" && tx.type !== "vente" && !isArbitrage) errors.push({ field: "fee", message: "Les frais inclus ne concernent que les achats, les ventes et les arbitrages." });
     else if (tx.fee >= Math.abs(tx.amount)) errors.push({ field: "fee", message: "Les frais dépassent le montant." });
   }
 
+  return errors;
+}
+
+/**
+ * Arbitrage : d'un support à un autre du même compte. Un fonds euros donne ou reçoit des euros (pas de quantité) ;
+ * un titre, une quantité. Une obligation s'achète et se vend : son prix de revient suit ses lots.
+ */
+function arbitrageErrors(tx: Omit<Transaction, "id">, account: Account, assets: ReadonlyMap<string, Asset>): FieldError[] {
+  const errors: FieldError[] = [];
+  const side = (assetId: string | null | undefined, field: "assetId" | "counterAssetId", quantity: number | null | undefined, quantityField: "quantity" | "counterQuantity", what: string) => {
+    if (!assetId) return errors.push({ field, message: what === "cédé" ? "Choisissez le support cédé." : "Choisissez le support reçu." });
+    const asset = assets.get(assetId);
+    if (!asset) return errors.push({ field, message: "Support introuvable." });
+    if (!ALLOWED_ASSETS[account.kind].includes(asset.kind)) return errors.push({ field, message: "Ce support ne peut pas être détenu dans ce type de compte." });
+    if (asset.kind === "obligation") return errors.push({ field, message: "Une obligation s'achète et se vend : l'arbitrage ne la prend pas." });
+    if (asset.kind === "fonds_euros") {
+      if (quantity != null) errors.push({ field: quantityField, message: "Un fonds euros se compte en euros : pas de quantité." });
+    } else if (!(quantity && quantity > 0)) errors.push({ field: quantityField, message: what === "cédé" ? "Indiquez la quantité cédée." : "Indiquez la quantité reçue." });
+    return 0;
+  };
+  side(tx.assetId, "assetId", tx.quantity, "quantity", "cédé");
+  side(tx.counterAssetId, "counterAssetId", tx.counterQuantity, "counterQuantity", "reçu");
+  if (tx.assetId && tx.assetId === tx.counterAssetId) errors.push({ field: "counterAssetId", message: "Le support reçu doit être différent du support cédé." });
   return errors;
 }
 

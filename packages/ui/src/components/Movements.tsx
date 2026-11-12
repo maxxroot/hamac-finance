@@ -7,7 +7,7 @@ import { Amount } from "./Amount";
 import { EmptyRow, Table, Td, Tr } from "./table";
 import { Badge, Card } from "./ui";
 import { formatDate, formatQty } from "@/lib/numbers";
-import { useJournal } from "@/lib/journal";
+import { supportsLabel, useJournal } from "@/lib/journal";
 import { useWorkspaceIndex } from "@/lib/workspace";
 
 const OUT: TxType[] = ["retrait", "achat", "frais", "impots"];
@@ -36,8 +36,9 @@ export function Movements({
     ? all.filter((t) => {
         if (!(ids.has(t.accountId) || (t.counterAccountId && ids.has(t.counterAccountId)))) return false;
         if (!assetKinds || !t.assetId) return true;
-        const kind = idx.assetById.get(t.assetId)?.kind;
-        return kind != null && assetKinds.includes(kind);
+        // Un arbitrage concerne deux titres : il s'affiche si l'un des deux est du bon type.
+        const kinds = [t.assetId, t.counterAssetId].flatMap((id) => (id ? (idx.assetById.get(id)?.kind ?? []) : []));
+        return kinds.some((k) => assetKinds.includes(k));
       })
     : [];
   const incoming = (t: (typeof rows)[number]) => (t.type === "transfert" ? ids.has(t.counterAccountId ?? "") && !ids.has(t.accountId) : !OUT.includes(t.type));
@@ -91,9 +92,9 @@ export function Movements({
                     </Badge>
                   </span>
                 </Td>
-                <Td className="max-w-56 truncate">{t.assetId ? idx.assetById.get(t.assetId)?.name : ""}</Td>
+                <Td className="max-w-56 truncate">{supportsLabel(t, (id) => idx.assetById.get(id)?.name)}</Td>
                 <Td align="right">
-                  <Amount value={incoming(t) ? t.amount : -t.amount} signed={t.type !== "achat"} />
+                  {t.type === "arbitrage" ? <Amount value={t.amount} /> : <Amount value={incoming(t) ? t.amount : -t.amount} signed={t.type !== "achat"} />}
                 </Td>
                 <Td align="right" className="text-fg-muted">
                   {formatQty(t.quantity)}

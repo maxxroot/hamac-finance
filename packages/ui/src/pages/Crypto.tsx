@@ -44,7 +44,14 @@ export function Crypto() {
       <PageHeader
         title="Crypto"
         description="Par défaut hors allocation cible (réglable dans Paramètres › Répartition) : compte dans le patrimoine, l'historique et la performance, mais pas dans la répartition ni dans la projection."
-        actions={accounts.length > 0 && <AddTransactionButton accountId={accounts[0].account.id} type="achat" />}
+        actions={
+          accounts.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <AddTransactionButton accountId={accounts[0].account.id} type="arbitrage" label="Échanger une crypto" variant="secondary" />
+              <AddTransactionButton accountId={accounts[0].account.id} type="achat" />
+            </div>
+          )
+        }
       />
       {accounts.length === 0 && (
         <EmptyAccount kind="crypto" label="Ajouter une plateforme">

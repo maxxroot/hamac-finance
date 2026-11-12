@@ -121,6 +121,7 @@ export function mapTx(r: typeof t.transactions.$inferSelect): Transaction {
     assetId: r.assetId,
     counterAccountId: r.counterAccountId,
     counterAssetId: r.counterAssetId,
+    counterQuantity: r.counterQuantity,
     amount: fromCents(r.amountCents),
     quantity: r.quantity,
     fee: fromCentsOrNull(r.feeCents),

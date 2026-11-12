@@ -123,6 +123,8 @@ export const transactions = pgTable(
     counterAccountId: text("counter_account_id").references(() => accounts.id, { onDelete: "restrict" }),
     /** Fonds euros d'arrivée d'un transfert vers un contrat ; null = son support par défaut. */
     counterAssetId: text("counter_asset_id").references(() => assets.id, { onDelete: "restrict" }),
+    /** Arbitrage : quantité reçue du support d'arrivée (null pour un fonds euros). */
+    counterQuantity: doublePrecision("counter_quantity"),
     amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
     quantity: doublePrecision("quantity"),
     feeCents: bigint("fee_cents", { mode: "number" }),

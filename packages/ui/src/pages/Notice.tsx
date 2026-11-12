@@ -381,6 +381,9 @@ export function Notice() {
         <p>
           Pour le fonds euros, notez aussi le taux servi dans la page <L to="/fonds-euros">Fonds euros</L>. Si vous avez un excédent sur vos livrets, un <B>Transfert</B> vers l'assurance-vie le déplace en une seule ligne.
         </p>
+        <p>
+          <B>Les supports d'un contrat.</B> Le fonds euros est un support de votre contrat d'assurance-vie ou de PER, comme les unités de compte (ETF, fonds). Chaque contrat a un fonds euros par défaut, choisi dans sa fiche : il reçoit l'argent quand une opération ne précise pas de support. Si votre contrat en propose plusieurs, choisissez le support dans la saisie. Pour passer d'un support à l'autre sans sortir du contrat, notez un <B>Arbitrage</B> : support cédé, support reçu et valeur de l'échange. Rien n'est imposable tant que l'argent reste dans le contrat.
+        </p>
       </Fold>
 
       <Fold id="etf" title="Actions et ETF">
@@ -418,11 +421,12 @@ export function Notice() {
             ["J'ai envoyé des euros sur la plateforme", "Versement"],
             ["J'ai acheté une crypto", "Achat, avec la quantité reçue"],
             ["J'ai vendu contre des euros", "Vente"],
+            ["J'ai échangé une crypto contre une autre (stablecoins compris)", "Arbitrage, avec les deux quantités et la valeur de l'échange en euros"],
           ]}
         />
         <p>La crypto compte dans votre patrimoine, mais reste par défaut hors de la répartition et de la projection.</p>
         <p>
-          <B>Côté impôts :</B> seules les ventes contre des euros sont imposables, et seulement si le total des ventes de l'année dépasse 305 €. Pour des cryptos déjà détenues, notez ce que vous avez réellement payé, au plus près des dates d'achat : sinon la plus-value et l'impôt seront faux.
+          <B>Côté impôts :</B> seules les ventes contre des euros sont imposables, pas les échanges entre cryptos, et seulement si le total des ventes de l'année dépasse 305 €. Pour des cryptos déjà détenues, notez ce que vous avez réellement payé, au plus près des dates d'achat : sinon la plus-value et l'impôt seront faux.
         </p>
       </Fold>
 

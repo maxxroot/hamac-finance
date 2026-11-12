@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ADD COLUMN "counter_quantity" double precision;

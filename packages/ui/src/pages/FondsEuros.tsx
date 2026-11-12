@@ -125,7 +125,10 @@ function Contract({ s }: { s: AccountState }) {
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-fg-muted">Fonds euros du contrat</h3>
-        <AddTransactionButton accountId={account.id} type="versement" assetId={NEW_FUND_PRESET} variant="ghost" label="Verser sur un autre fonds euros" />
+        <div className="flex flex-wrap gap-1">
+          <AddTransactionButton accountId={account.id} type="arbitrage" variant="ghost" label="Arbitrage" />
+          <AddTransactionButton accountId={account.id} type="versement" assetId={NEW_FUND_PRESET} variant="ghost" label="Verser sur un autre fonds euros" />
+        </div>
       </div>
       {funds.length === 0 && (
         <p className="mb-5 text-sm text-fg-muted">Aucun fonds euros : l'argent du contrat hors unités de compte reste en espèces. Choisissez son fonds euros dans la fiche du contrat (crayon).</p>

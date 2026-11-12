@@ -89,6 +89,8 @@ export const TransactionInput = z.object({
   counterAssetId: id.nullable().default(null),
   amount: money,
   quantity: z.number().positive().nullable().default(null),
+  /** Arbitrage : quantité reçue du support d'arrivée. */
+  counterQuantity: z.number().positive().nullable().default(null),
   fee: money.min(0).nullable().default(null),
   comment: text(500).default(""),
   gross: money.min(0).nullable().default(null),
