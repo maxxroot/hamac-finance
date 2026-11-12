@@ -105,17 +105,19 @@ export function LeaseCard({ property, lot, named, leases, all, rents, today }: {
               </Button>
             </div>
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <DetailLine label="Documents">
+            <Link className="text-xs text-fg-muted underline hover:text-fg" to={`/impression/attestation/${current.lease.id}`} target="_blank" rel="noopener">
+              Attestation de loyer
+            </Link>
+          </DetailLine>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button className="h-8" onClick={() => setEditing(current.lease)}>
               Modifier ou donner congé
             </Button>
             <Button className="h-8" onClick={() => setNewRent(current)}>
               Nouveau loyer
             </Button>
-            <Link className="inline-flex h-8 items-center rounded-lg px-3 text-sm text-fg-muted hover:bg-surface-3 hover:text-fg" to={`/impression/attestation/${current.lease.id}`} target="_blank" rel="noopener">
-              Attestation de loyer
-            </Link>
-            <Button className="h-8" variant="ghost" onClick={() => confirm("Supprimer ce bail et son historique ?") && deleteLease.mutate({ id: current.lease.id })}>
+            <Button className="ml-auto h-8" variant="ghost" onClick={() => confirm("Supprimer ce bail et son historique ?") && deleteLease.mutate({ id: current.lease.id })}>
               Supprimer
             </Button>
           </div>
