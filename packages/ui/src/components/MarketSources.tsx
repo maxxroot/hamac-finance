@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
 import { PRICE_PROVIDER_LABELS, type PriceProvider } from "@hamac/core";
 import type { MarketSettings, ProcInput } from "@hamac/api";
+import { CompositionAdminCard } from "./CompositionAdminCard";
 import { Checkbox } from "./form";
 import { EmptyRow, Table, Td, Th, Tr } from "./table";
 import { Badge, Button, Card, CardTitle } from "./ui";
@@ -144,6 +145,8 @@ export function MarketSources() {
           </tbody>
         </Table>
       </Card>
+
+      <CompositionAdminCard />
     </div>
   );
 }

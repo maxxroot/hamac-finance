@@ -5,11 +5,12 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { amundiFake, testBackend, testMarket } from "@hamac/backend/testkit";
 import { ToastProvider } from "@/lib/toast";
+import { CompositionAdminCard } from "@/components/CompositionAdminCard";
 import { AssetDialog } from "@/dialogs/AssetDialog";
 import { Exposition } from "@/pages/Exposition";
 
 /** Parcours réel de la page : l'interface parle au vrai backend, sur une base en mémoire et un faux site Amundi. */
-const h = vi.hoisted(() => ({ backend: null as unknown as import("@hamac/backend").Backend, market: null as unknown as import("@hamac/backend").SharedMarket }));
+const h = vi.hoisted(() => ({ backend: null as unknown as import("@hamac/backend").Backend, market: null as unknown as import("@hamac/backend").SharedMarket, down: false }));
 
 vi.mock("@/lib/transport", () => ({
   call: async (name: string, input?: unknown) => {
@@ -53,8 +54,9 @@ beforeEach(async () => {
       IE000BI8OT95: { replication: "Direct(Physical)", name: "Amundi Core MSCI World UCITS ETF Acc" },
       LU1681043599: { replication: "Indirect(Swap Based)", name: "Amundi MSCI World Swap UCITS ETF EUR Acc" },
       IE00B4L5Y983: { replication: "Direct(Physical)", name: "iShares Core MSCI World UCITS ETF" },
-    }),
+    }, { down: () => h.down }),
   );
+  h.down = false;
   h.backend = await testBackend({ market: h.market });
 });
 afterEach(() => {
@@ -114,5 +116,36 @@ describe("page Exposition réelle", () => {
     expect(await screen.findByText(/Récupération de la composition/)).toBeTruthy();
     await h.market.compositions.idle();
     expect((await h.market.compositions.info(["IE000BI8OT95"])).get("IE000BI8OT95")!.state).toBe("ok");
+  });
+
+  it("l'administrateur voit les échecs et corrige ou supprime un lien commun", async () => {
+    const user = userEvent.setup();
+    await h.market.compositions.ensure("LU1681043599");
+    await h.market.compositions.ensure("IE000BI8OT95");
+    await h.market.compositions.setLink("LU1681043599", "IE000BI8OT95");
+    h.down = true;
+    await h.market.compositions.ensure("FR0011871128");
+    h.down = false;
+    show(<CompositionAdminCard />);
+
+    expect(await screen.findByText("1 en échec")).toBeTruthy();
+    expect(screen.getByText("FR0011871128")).toBeTruthy();
+    expect(screen.getByText("Amundi Core MSCI World UCITS ETF Acc")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Corriger" }));
+    await user.type(screen.getByLabelText("Nouvel équivalent de LU1681043599"), "IE00B4L5Y983");
+    await user.click(screen.getByRole("button", { name: "Vérifier" }));
+    expect(await screen.findByText("iShares Core MSCI World UCITS ETF")).toBeTruthy();
+    expect((await h.market.compositions.allLinks()).map((l) => l.proxyIsin)).toEqual(["IE00B4L5Y983"]);
+
+    await user.click(screen.getByRole("button", { name: "Supprimer" }));
+    expect(await screen.findByText("Aucun lien pour l'instant.")).toBeTruthy();
+  });
+
+  it("rien pour un utilisateur qui n'administre pas l'instance", async () => {
+    h.backend.close();
+    h.backend = await testBackend({ market: h.market, isAdmin: false });
+    const { container } = show(<CompositionAdminCard />);
+    await waitFor(() => expect(container.textContent).toBe(""));
   });
 });

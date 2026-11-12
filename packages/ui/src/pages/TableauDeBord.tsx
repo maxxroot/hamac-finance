@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { computeAlerts, goalProgress, isRetirementPlan, retirementYear, type Alert, type HistoryPoint, type PlanParams, type PortfolioState } from "@hamac/core";
@@ -10,9 +11,11 @@ import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS } from "@/lib/colors";
 import { cn } from "@/lib/cn";
 import { allocationBars, alertsToReview, envelopeRows, gainSinceLastMonth, type PeriodKey } from "@/lib/dashboard";
+import { EXPOSURE_KEY } from "@/lib/exposure";
 import { formatDate, formatMonth } from "@/lib/numbers";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
 import { useProjection } from "@/lib/projection";
+import { call } from "@/lib/transport";
 
 const ACTION = { renforcer: "Renforcer", alleger: "Alléger" } as const;
 const MAX_ALERTS = 5;
@@ -23,7 +26,10 @@ export function TableauDeBord() {
   const retraite = pf ? isRetirementPlan(pf.data.params) : true;
   const proj = useProjection(null, retraite);
   const history = useHistory();
-  const alerts = useMemo(() => (pf ? computeAlerts(pf.data, pf.state, { priceErrors: pf.idx.ws.priceStatus?.errors }) : []), [pf]);
+  // Réservé à l'administrateur : la réponse est vide pour les autres comptes.
+  const compositions = useQuery({ queryKey: [EXPOSURE_KEY, "admin"], queryFn: () => call("exposure.admin"), staleTime: 10 * 60_000 });
+  const compositionFailures = compositions.data?.failures.length ?? 0;
+  const alerts = useMemo(() => (pf ? computeAlerts(pf.data, pf.state, { priceErrors: pf.idx.ws.priceStatus?.errors, compositionFailures }) : []), [pf, compositionFailures]);
 
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;

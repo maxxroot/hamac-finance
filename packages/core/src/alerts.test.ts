@@ -42,3 +42,20 @@ describe("alertes", () => {
     expect(alerts.some((a) => a.id === "anniv-pea")).toBe(true);
   });
 });
+
+describe("alertes : compositions des ETF", () => {
+  const data = (): EngineData => {
+    const params = defaultParams(new Date(2026, 0, 1));
+    return { params, accounts: [acc("pea", "pea")], assets: [], transactions: [tx("2026-01-05", "apport_initial", "pea", 1000)], plans: [], skips: [], prices: [] };
+  };
+  it("échecs de téléchargement signalés à l'administrateur, avec le lien vers Paramètres › Cours", () => {
+    const d = data();
+    const state = computePortfolio(d, "2026-06-01");
+    expect(computeAlerts(d, state).find((a) => a.id === "compositions-echecs")).toBeUndefined();
+    expect(computeAlerts(d, state, { compositionFailures: 2 }).find((a) => a.id === "compositions-echecs")).toMatchObject({
+      level: "attention",
+      title: "Compositions d'ETF : 2 téléchargements en échec",
+      link: "/parametres?onglet=Cours",
+    });
+  });
+});

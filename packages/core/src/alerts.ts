@@ -28,7 +28,12 @@ export interface Alert {
 const eur = (v: number) => formatEur(v, { compact: true });
 const RANK: Record<AlertLevel, number> = { critique: 0, attention: 1, info: 2, ok: 3 };
 
-export function computeAlerts(data: EngineData, state: PortfolioState, opts: { priceErrors?: Array<{ name: string; message: string }> } = {}): Alert[] {
+export function computeAlerts(
+  data: EngineData,
+  state: PortfolioState,
+  /** `compositionFailures` : compositions d'ETF en échec sur l'instance, connues de l'administrateur seulement. */
+  opts: { priceErrors?: Array<{ name: string; message: string }>; compositionFailures?: number } = {},
+): Alert[] {
   const p = data.params;
   const today = state.asOf;
   const out: Alert[] = [];
@@ -139,6 +144,14 @@ export function computeAlerts(data: EngineData, state: PortfolioState, opts: { p
   if (missing.length) out.push({ id: "cours-manquants", level: "attention", title: `Cours indisponible : ${missing.map((x) => x.asset.name).join(", ")}`, detail: "Valorisé au prix de revient. Saisissez le cours à la main.", link: "/actions" });
   const stale = held.filter((x) => x.priceDate && x.priceUsed !== "cout" && daysBetween(x.priceDate, today) > 7);
   if (stale.length) out.push({ id: "cours-anciens", level: "info", title: `Cours de plus d'une semaine : ${stale.map((x) => x.asset.name).join(", ")}` });
+  if (opts.compositionFailures)
+    out.push({
+      id: "compositions-echecs",
+      level: "attention",
+      title: `Compositions d'ETF : ${opts.compositionFailures} téléchargement${opts.compositionFailures > 1 ? "s" : ""} en échec`,
+      detail: "Amundi ou iShares n'a pas répondu, ou son format a changé. Détail dans Paramètres › Cours.",
+      link: "/parametres?onglet=Cours",
+    });
   if (opts.priceErrors?.length) out.push({ id: "cours-erreurs", level: "attention", title: `Actualisation des cours impossible pour ${opts.priceErrors.length} titre(s)`, detail: opts.priceErrors.map((e) => `${e.name} : ${e.message}`).join(" · ") });
 
   // Parts cibles.
