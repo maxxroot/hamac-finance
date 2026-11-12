@@ -1,14 +1,13 @@
-import { NO_IRL_DATA, type IrlData } from "@hamac/core";
-import { fetchIrl } from "./irl";
-import { addMonths, type PriceProvider } from "@hamac/core";
+import { addMonths, NO_IRL_DATA, type IrlData, type PriceProvider } from "@hamac/core";
+import { fetchIrl } from "./sources/irl";
 import type { PgProvider, PgSession, RawDb } from "../db/driver";
 import { rawFor, tenantNames } from "../db/postgres";
 import { assertPlausible } from "./plausible";
 import { normalizeOrder, twelveDataAssets, type MarketState } from "./config";
 import { MarketError } from "./http";
 import { chainFor, defaultFetcher, fetchFrom, fetchLongHistory, instrumentKey, type Fetcher, type LongHistory, type MarketAsset, type ProviderSetting } from "./index";
-import { BASE_REFRESH_MINUTES, refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget, type TwelveDataUsage } from "./twelvedata";
-import { COMPOSITION_TABLES, CompositionStore } from "./compositionStore";
+import { BASE_REFRESH_MINUTES, refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget, type TwelveDataUsage } from "./sources/twelvedata";
+import { COMPOSITION_TABLES, CompositionStore } from "./compositions/compositionStore";
 
 const today = () => new Date().toISOString().slice(0, 10);
 /** Un même titre n'est pas réinterrogé avant ce délai, quels que soient les utilisateurs qui le demandent. */

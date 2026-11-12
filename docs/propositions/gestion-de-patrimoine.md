@@ -158,10 +158,10 @@ Pour chaque bien :
 
 **Statut :** fait le 12 novembre 2026 (commits `c6f7460` à `0c45fed`, puis `1c88b8a` et `f3ce259` pour la fenêtre de l'équivalent et la place de la page). Où se trouve quoi :
 
-- téléchargement et lecture : `backend/src/market/composition.ts` (`findComposition` par ISIN, `fetchComposition` par source connue) ;
-- stockage commun, mise à jour trimestrielle, liens communs : `backend/src/market/compositionStore.ts`, tables `marche.compositions` et `marche.composition_links`, passage dans la boucle de `SharedMarket` ;
+- téléchargement et lecture : `backend/src/market/compositions/composition.ts` (`findComposition` par ISIN, `fetchComposition` par source connue) ;
+- stockage commun, mise à jour trimestrielle, liens communs : `backend/src/market/compositions/compositionStore.ts`, tables `marche.compositions` et `marche.composition_links`, passage dans la boucle de `SharedMarket` ;
 - choix propre à chaque utilisateur : colonne `assets.composition_isin` (dans la sauvegarde) ;
-- procédures `exposure.load`, `exposure.lookup`, `exposure.choose`, `exposure.admin`, `exposure.adminLink` : `backend/src/exposure.ts` ;
+- procédures `exposure.load`, `exposure.lookup`, `exposure.choose`, `exposure.admin`, `exposure.adminLink` : `backend/src/market/compositions/exposure.ts` ;
 - règles et calculs : `core/src/analysis/exposure.ts` (libellés harmonisés, résumé d'une composition, ETF de référence par indice, composition utilisée, exposition du portefeuille) ;
 - interface : page `/exposition`, annonce dans la fiche d'un titre et à l'achat d'un nouveau titre (`CompositionNotice`), fenêtre de choix de l'équivalent, carte « Compositions des ETF » et « ETF équivalents » dans Paramètres › Cours pour l'administrateur, alerte « À regarder » en cas d'échec.
 

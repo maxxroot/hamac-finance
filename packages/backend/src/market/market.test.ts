@@ -4,13 +4,13 @@ import { rawFor } from "../db/postgres";
 import { testBackend, testMarket, testProvider } from "../testkit";
 import { SharedMarket } from "./shared";
 import type { Fetcher } from "./http";
-import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./custom";
-import { euronextHistory, parseEuronextCsv } from "./euronext";
-import { withoutBondSuffix } from "./openfigi";
+import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./sources/custom";
+import { euronextHistory, parseEuronextCsv } from "./sources/euronext";
+import { withoutBondSuffix } from "./sources/openfigi";
 import { chainFor, defaultProviderSettings, instrumentKey, parseBondTicker, searchAssets } from "./index";
 import { assertPlausible } from "./plausible";
-import { yahooRange } from "./yahoo";
-import { refreshIntervalMinutes, TD_DAILY_LIMIT, TD_SAFE_LIMIT, TwelveDataBudget, twelveDataSymbol } from "./twelvedata";
+import { yahooRange } from "./sources/yahoo";
+import { refreshIntervalMinutes, TD_DAILY_LIMIT, TD_SAFE_LIMIT, TwelveDataBudget, twelveDataSymbol } from "./sources/twelvedata";
 
 /** Faux réseau : répond selon l'URL, enregistre les appels. */
 function fakeFetcher(routes: Array<[RegExp, unknown, number?]>): Fetcher & { calls: string[] } {

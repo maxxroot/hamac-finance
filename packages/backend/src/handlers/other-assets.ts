@@ -4,7 +4,8 @@ import { RpcError, type otherAssetsProcedures } from "@hamac/api";
 import { canBeDismembered } from "@hamac/core";
 import type { BackendContext } from "../context";
 import * as t from "../db/schema";
-import { newId, nowIso, toCents, mapOtherAsset } from "../repo";
+import { mapOtherAsset } from "../repo";
+import { newId, nowIso, toCents } from "../db/units";
 import { OK, type DomainHandlers } from "./_types";
 
 /** Autres biens et leurs estimations. */

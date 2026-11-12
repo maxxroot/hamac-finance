@@ -1,4 +1,4 @@
-import { chooseEquivalent, compositionAdmin, loadExposure, lookupComposition, setAdminLink } from "../exposure";
+import { chooseEquivalent, compositionAdmin, loadExposure, lookupComposition, setAdminLink } from "../market/compositions/exposure";
 import { OK, type DomainHandlers } from "./_types";
 import type { exposureProcedures } from "@hamac/api";
 

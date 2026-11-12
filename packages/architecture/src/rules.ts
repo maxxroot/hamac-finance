@@ -27,7 +27,7 @@ export interface BoundaryReport {
   violations: Violation[];
   /** Cycles entre domaines. */
   domainCycles: string[][];
-  /** Cycles entre fichiers (y compris à l'intérieur d'un domaine). */
+  /** Cycles entre fichiers (y compris à l'intérieur d'un domaine), par les imports réels seulement. */
   fileCycles: string[][];
 }
 
@@ -60,7 +60,8 @@ export function checkBoundaries(graph: SourceGraph, rules: LayerRules): Boundary
   return {
     violations,
     domainCycles: findCycles(domains, domainEdges),
-    fileCycles: findCycles(graph.files, graph.edges.map((e) => [e.from, e.to] as const)),
+    // Entre fichiers, seuls les imports réels créent un cycle : un `import type` disparaît à la compilation.
+    fileCycles: findCycles(graph.files, graph.edges.filter((e) => !e.typeOnly).map((e) => [e.from, e.to] as const)),
   };
 }
 

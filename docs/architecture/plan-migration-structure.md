@@ -139,23 +139,20 @@ packages/api/src/
 
 ```
 packages/backend/src/
-  index.ts  context.ts  testkit.ts
-  rpc/        dispatch, file d'attente, RpcError (sortis de index.ts si besoin)
-  handlers/   index.ts (assemble ; le mapped type garde l'erreur de compilation si un handler manque)
-              accounts.ts  transactions.ts  realestate/ (properties, lots, leases, rents…)  investments.ts  …
-  repo/       index.ts  loadWorkspace.ts  mappers/<domaine>.ts
-  db/         driver.ts  migrate.ts  postgres.ts  migrations.generated.ts
-              schema/  index.ts  <domaine>.ts       (drizzle.config.ts → "./src/db/schema/index.ts")
-  backup/     backup.ts  dump.ts  dumpUpgrade.ts  (TABLES reste à un seul endroit)
-  market/
-    index.ts  shared.ts  refresh.ts  merge.ts  config.ts  http.ts
-    sources/       yahoo.ts  euronext.ts  coingecko.ts  twelvedata.ts  justetf.ts  openfigi.ts  custom.ts  plausible.ts
-    compositions/  composition.ts  compositionStore.ts  (+ exposure.ts, aujourd'hui à la racine)
-    irl.ts
-  demo/       demo.ts
+  index.ts  context.ts  testkit.ts  demo.ts      dispatch, contexte d'un tenant, kit de test, jeu fictif
+  db/         driver  migrate  postgres  units (centimes, identifiants, horodatage)  migrations.generated.ts
+              schema/  index.ts  _columns.ts  <domaine>.ts       (drizzle.config.ts → "./src/db/schema/index.ts")
+  market/     cours de l'instance : index (chaîne de sources)  shared  merge  plausible  config  http
+              sources/       yahoo  euronext  coingecko  twelvedata  justetf  openfigi  custom  irl
+              compositions/  composition  compositionStore  exposure
+  repo/       données du tenant : index (façade)  params  loadWorkspace  mappers/<domaine>.ts
+  prices/     refresh (actualisation des cours d'un tenant)
+  backup/     backup  dump  dumpUpgrade        (TABLES reste dans dump.ts)
+  handlers/   index.ts (assemble ; le type exige un handler par procédure)  _types.ts  _shared.ts
+              <domaine>.ts, et realestate/ (properties, leases, rents)
 ```
 
-Les tests de la racine (`bonds.test.ts`, `leases.test.ts`, `lots.test.ts`, `loans.test.ts`, `exposure.test.ts`) vont à côté de leurs handlers.
+Couches : `db` → `market` → `repo` → `prices`, `backup` → `handlers`. Entre handlers : `system` → `accounts` → `journal` → `assets`, les autres domaines sont indépendants. Les tests d'un domaine sont à côté de ses handlers.
 
 ### 3.6 `packages/ui`
 
@@ -285,4 +282,5 @@ La table des couches tient en une dizaine de lignes dans le test. Comme dans Arg
 | 1 | Fait | 98 fichiers déplacés, tous reconnus comme renommages. Les 461 exports d'exécution de `@hamac/core` sont identiques avant et après. |
 | 2 | Fait | Prêt sorti dans `loans/loan.ts` ; `debtOverview` et `MAX_EFFORT_RATE` dans `analysis/debt.ts` ; réglages de protection dans `model/institutionProtection.ts` ; `lots.ts` ne lit plus les baux (`leaseKindsFor` et `rentalModeFromLeases` dans `leases.ts`, état d'un lot dans `lotStatus.ts`) ; impôt crypto dans `tax/cryptoTax.ts`. Aucun cycle ni aucune exception. Le test de `core` est **bloquant** dès maintenant. |
 | 3 | Fait | `contract.ts` et `entities.ts` découpés en dix domaines. Les exports de `@hamac/api`, la liste des procédures et l'empreinte de leurs schémas (JSON Schema) sont identiques avant et après ; seuls s'ajoutent les objets de procédures de chaque domaine (`realestateProcedures`…). Test des frontières de `api` bloquant. |
+| 4 | Fait | `handlers.ts` (1 164 lignes) en dix domaines, typés chacun sur les procédures de son domaine (`DomainHandlers`) ; l'immobilier en trois fichiers. `repo.ts` en mappers par domaine, `params`, `loadWorkspace` ; conversions dans `db/units.ts`. `schema.ts` en un fichier de tables par domaine : `db:generate` ne produit aucune migration. Sources de cours dans `market/sources/`, compositions dans `market/compositions/`, actualisation dans `prices/`, sauvegardes dans `backup/`. Les cycles de fichiers ne comptent plus que les imports réels : deux cycles de types existants (`context` ↔ `market`, `index` ↔ `demo`) sont sans effet à l'exécution. Test des frontières du backend bloquant. |
 

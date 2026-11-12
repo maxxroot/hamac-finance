@@ -285,7 +285,7 @@ pnpm build          # interface et serveur, dans apps/server/dist
 HAMAC_LIVE=1 pnpm test   # inclut les tests sur les vraies sources de cours
 ```
 
-**Modifier le schéma de la base** : éditer `packages/backend/src/db/schema.ts` puis lancer
+**Modifier le schéma de la base** : éditer la table dans `packages/backend/src/db/schema/<domaine>.ts` puis lancer
 `pnpm --filter @hamac/backend db:generate`, qui crée la migration SQL et l'embarque dans le code. Elle
 s'applique à chaque tenant à sa prochaine ouverture. Une reprise de données s'écrit à la main dans le
 fichier SQL généré.

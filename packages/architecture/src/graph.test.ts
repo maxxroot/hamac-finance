@@ -71,3 +71,17 @@ describe("règles de couches", () => {
     expect(report.violations.some((v) => v.from.startsWith("peer"))).toBe(false);
   });
 });
+
+describe("cycles de fichiers", () => {
+  it("ignorent les imports de types, effacés à la compilation", () => {
+    const graph = {
+      files: ["a.ts", "b.ts"],
+      edges: [
+        { from: "a.ts", to: "b.ts", typeOnly: false },
+        { from: "b.ts", to: "a.ts", typeOnly: true },
+      ],
+      packages: new Map(),
+    };
+    expect(checkBoundaries(graph, { layers: {}, domainOf: () => null }).fileCycles).toEqual([]);
+  });
+});

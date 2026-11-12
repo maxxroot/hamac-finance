@@ -3,7 +3,8 @@ import { one } from "../db/driver";
 import { RpcError, type loansProcedures } from "@hamac/api";
 import { loanHasProperty } from "@hamac/core";
 import * as t from "../db/schema";
-import { newId, nowIso, toCents, mapLoan, mapLoanPrepayment } from "../repo";
+import { mapLoan, mapLoanPrepayment } from "../repo";
+import { newId, nowIso, toCents } from "../db/units";
 import { OK, type DomainHandlers } from "./_types";
 
 /** Crédits et remboursements anticipés. */

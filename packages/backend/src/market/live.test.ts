@@ -1,8 +1,8 @@
-import { fetchIrl } from "./irl";
+import { fetchIrl } from "./sources/irl";
 import { describe, expect, it } from "vitest";
 import { defaultFetcher } from "./http";
 import { fetchFrom, fetchLongHistory, searchAssets } from "./index";
-import { fetchComposition, findComposition } from "./composition";
+import { fetchComposition, findComposition } from "./compositions/composition";
 
 /** Tests sur les vraies sources : HAMAC_LIVE=1 pnpm test */
 const live = process.env.HAMAC_LIVE === "1";

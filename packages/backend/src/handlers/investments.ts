@@ -3,7 +3,8 @@ import { one } from "../db/driver";
 import { RpcError, type investmentsProcedures } from "@hamac/api";
 import { crowdExtensionError } from "@hamac/core";
 import * as t from "../db/schema";
-import { mapBondPlan, newId, nowIso, toCents, mapCrowdProject } from "../repo";
+import { mapBondPlan, mapCrowdProject } from "../repo";
+import { newId, nowIso, toCents } from "../db/units";
 import { OK, type DomainHandlers } from "./_types";
 
 /** Obligations gardées jusqu'à l'échéance et projets de crowdlending. */

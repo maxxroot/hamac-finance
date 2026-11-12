@@ -1,16 +1,16 @@
 import { addMonths, PRICE_PROVIDER_LABELS, type Asset, type PriceProvider } from "@hamac/core";
-import { coingeckoHistory, coingeckoSearch } from "./coingecko";
-import { customQuote } from "./custom";
-import { euronextHistory, euronextSearch } from "./euronext";
+import { coingeckoHistory, coingeckoSearch } from "./sources/coingecko";
+import { customQuote } from "./sources/custom";
+import { euronextHistory, euronextSearch } from "./sources/euronext";
 import { type Fetcher, MarketError, type Quote } from "./http";
-import { justEtfHistory } from "./justetf";
-import { figiByIsin, figiSearch, ISIN_RE, type Candidate } from "./openfigi";
-import { twelveDataHistory, type TwelveDataBudget } from "./twelvedata";
-import { yahooHistory, yahooRange } from "./yahoo";
+import { justEtfHistory } from "./sources/justetf";
+import { figiByIsin, figiSearch, ISIN_RE, type Candidate } from "./sources/openfigi";
+import { twelveDataHistory, type TwelveDataBudget } from "./sources/twelvedata";
+import { yahooHistory, yahooRange } from "./sources/yahoo";
 
 export type { Candidate, Fetcher, Quote };
 export { defaultFetcher } from "./http";
-export { parseBondTicker } from "./openfigi";
+export { parseBondTicker } from "./sources/openfigi";
 
 /** Ordre par défaut de la chaîne : sources sans clé d'abord, Yahoo en dernier recours. */
 export const DEFAULT_PROVIDER_ORDER: PriceProvider[] = ["justetf", "euronext", "twelvedata", "yahoo", "coingecko"];

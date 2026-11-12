@@ -5,7 +5,8 @@ import type { output } from "zod";
 import { dpeFreezesRent, leaseCanBeRevised, revisedRent, revisionStillPossible, revisionEffectiveDate, validateLease, defaultLotName, leaseKindsFor, lotIsActive, lotIsAnnex, RENTAL_MODE_LABELS, type RentalMode, type Lot, type EnergyLetter } from "@hamac/core";
 import type { BackendContext } from "../../context";
 import * as t from "../../db/schema";
-import { newId, nowIso, toCents, mapLease, mapLeaseRent, mapLot, mapRenter } from "../../repo";
+import { mapLease, mapLeaseRent, mapLot, mapRenter } from "../../repo";
+import { newId, nowIso, toCents } from "../../db/units";
 import { OK, type DomainHandlers } from "../_types";
 
 /** Lots, locataires, baux et loyers des baux (révisions comprises). */

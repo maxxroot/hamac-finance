@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { backupBeforeMigration } from "../backup";
-import { pgliteProvider } from "../testkit";
-import { testBackend } from "../testkit";
+import { backupBeforeMigration } from "../backup/backup";
+import { pgliteProvider, testBackend } from "../testkit";
 import { enterTenant, positional, rawFor, tenantNames } from "./postgres";
 import { migrate, pendingMigrations } from "./migrate";
 

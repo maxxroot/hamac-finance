@@ -9,7 +9,7 @@ Le code est rangé par **couche**, puis par **domaine**. Le paquet `packages/arc
 
 - un domaine n'importe que des domaines de couches **inférieures** ;
 - un domaine n'importe un autre domaine **que par sa façade** (`<domaine>/index.ts`) ;
-- il n'y a **aucun cycle**, ni entre domaines ni entre fichiers ;
+- il n'y a **aucun cycle**, ni entre domaines ni entre fichiers (entre fichiers, seuls les imports réels comptent : un `import type` disparaît à la compilation) ;
 - `@hamac/core` n'importe jamais `node:`, car il tourne dans le navigateur.
 
 Ce paquet ne contient que des tests et ne livre aucun code. Il a les types Node (il lit les fichiers sur le disque), ce que `core` ne doit pas avoir : c'est pour cela qu'il est à part.
@@ -23,6 +23,7 @@ Ce paquet ne contient que des tests et ne livre aucun code. Il a les types Node 
 | `src/graph.test.ts` | Tests de l'outil lui-même. |
 | `src/core.test.ts` | Règles de `@hamac/core` : table des couches et domaine de chaque fichier. |
 | `src/api.test.ts` | Règles de `@hamac/api`. |
+| `src/backend.test.ts` | Règles de `@hamac/backend`. |
 
 ## Couches de `@hamac/core`
 
@@ -40,7 +41,8 @@ Une exception (un import qui enfreint la règle mais qu'on garde) se déclare da
 
 - `@hamac/core` : **bloquant** depuis l'étape 2 du plan. Aucun cycle, aucune exception.
 - `@hamac/api` : **bloquant** depuis l'étape 3. Les domaines sont indépendants, sauf `journal` (lit `assets`) et `system` (lit `assets` pour l'état des cours).
-- Les autres paquets seront ajoutés au fil des étapes 4 à 7.
+- `@hamac/backend` : **bloquant** depuis l'étape 4, à deux niveaux : les dossiers (`db` → `market` → `repo` → `prices`, `backup` → `handlers`), puis les handlers entre eux (`system` → `accounts` → `journal` → `assets`). Pas de règle de façade : ces dossiers sont des briques techniques, pas des domaines.
+- Les autres paquets seront ajoutés au fil des étapes 5 à 7.
 
 Pour voir les écarts d'un paquet, lancer son test ; le message d'échec liste un problème par ligne :
 

@@ -1,12 +1,12 @@
 import { procedures, RpcError, type ProcName, type RpcResult } from "@hamac/api";
-import { backupBeforeMigration } from "./backup";
+import { backupBeforeMigration } from "./backup/backup";
 import type { BackendContext } from "./context";
 import type { PgProvider } from "./db/driver";
 import { migrate, pendingMigrations } from "./db/migrate";
 import { drizzleFor, enterTenant, rawFor } from "./db/postgres";
 import { handlers } from "./handlers";
 import { defaultFetcher, type Fetcher } from "./market";
-import { refreshPrices } from "./market/refresh";
+import { refreshPrices } from "./prices/refresh";
 import type { SharedMarket } from "./market/shared";
 
 export interface BackendOptions {
