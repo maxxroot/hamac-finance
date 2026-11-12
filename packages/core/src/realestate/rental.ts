@@ -1,7 +1,8 @@
 import { addDays, addMonths, daysBetween, roundCents } from "../base";
 import { daysInMonth, depositRetained, leaseEnd, leaseRentAt, rentMonths, type Lease, type LeaseRent, type RentLedger, type RentMonth } from "./leases";
 import { lotIsActive, type Lot } from "./lots";
-import { loanYears, propertyTotalCost, type Loan, type Property } from "./realestate";
+import { propertyTotalCost, type Property } from "./realestate";
+import { loanYears, type Loan } from "../loans";
 
 /** Suivi financier d'un bien en location : dépenses, et résultats année par année. */
 

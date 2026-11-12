@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Account, AccountKind } from "./domain";
 import { roundCents } from "../base";
 import type { PlanParams } from "./params";
-import type { InstitutionProtection } from "./protection";
+import type { InstitutionProtection } from "./institutionProtection";
 
 /**
  * Établissements (banques, courtiers, assureurs, plateformes crypto) et leurs grilles de frais,

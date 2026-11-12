@@ -2,7 +2,7 @@ import { crowdTaxOf, grossFromNet, institutionWithholds, NO_INSTITUTION_TAX, typ
 import { computePortfolio, securitiesGains, type Disposal, type EngineData, type SecuritiesYear } from "../portfolio";
 import { fiscalRulesFor, LAST_VERIFIED_INCOME_YEAR, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
 import { roundCents } from "../base";
-import { type CryptoSale, type CryptoTaxReport, type CryptoYear } from "./taxes";
+import type { CryptoSale, CryptoTaxReport, CryptoYear } from "./cryptoTax";
 
 /**
  * Récapitulatif fiscal : un seul calcul, deux vues (une fiche par établissement, un total).

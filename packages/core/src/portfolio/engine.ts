@@ -1,7 +1,8 @@
 import { accruedFraction, crowdProjectState, heldToMaturityValue, yieldToMaturity, type BondTerms, type CrowdProject, type CrowdProjectState } from "../investments";
 import { addMonths, daysBetween, formatEur, monthsBetween, roundCents, xirr, yearsBetween, type Flow } from "../base";
 import { ageInYear, ASSET_BUCKET, BUCKETS, cashBucketOf, cashInAllocation, classEnabled, classLabel, classTargets, holdsEuroFunds, monthOf, positionInAllocation, PriceBook, Schedule, type Account, type AccountKind, type Asset, type BondPlan, type Bucket, type ContributionPlan, type ContributionSkip, type FundRate, type Institution, type PlanParams, type PricePoint, type Statement, type Transaction, type TxType } from "../model";
-import { loanState, propertyValue, type Lease, type LeaseGuarantee, type LeaseRent, type Loan, type LoanState, type Lot as RentalLot, type Property, type PropertyDocument, type PropertyExpense, type PropertyValue, type RentNotice, type RentPayment, type RentWaiver } from "../realestate";
+import { propertyValue, type Lease, type LeaseGuarantee, type LeaseRent, type Lot as RentalLot, type Property, type PropertyDocument, type PropertyExpense, type PropertyValue, type RentNotice, type RentPayment, type RentWaiver } from "../realestate";
+import { loanState, type Loan, type LoanState } from "../loans";
 import { otherAssetHeldValueAt, type OtherAsset, type OtherAssetValue } from "../other-assets";
 
 /** Données brutes nécessaires au calcul (= l'espace de travail). */

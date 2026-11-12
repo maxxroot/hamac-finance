@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dismembermentRatio, fixedUsufructPeriods, heldShareLabel, lifeUsufructRate, usufructRate, withCompanyShares } from "./ownership";
-import { NO_PROPERTY_DETAILS, companySummary, propertyValue, type Loan, type Property } from "../realestate";
+import { NO_PROPERTY_DETAILS, companySummary, propertyValue, type Property } from "../realestate";
+import type { Loan } from "../loans";
 
 describe("barème de l'usufruit (CGI, art. 669)", () => {
   it("suit l'âge révolu de l'usufruitier, par tranches de dix ans", () => {

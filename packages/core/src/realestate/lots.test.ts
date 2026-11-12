@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NO_RENT_LEDGER, validateLease, type Lease } from "./leases";
-import { defaultLotName, leaseKindsFor, lotFitsMode, lotIsActive, lotKindsFor, rentalModeFromLeases, sortLots, type Lot } from "./lots";
+import { leaseKindsFor, NO_RENT_LEDGER, rentalModeFromLeases, validateLease, type Lease } from "./leases";
+import { defaultLotName, lotFitsMode, lotIsActive, lotKindsFor, sortLots, type Lot } from "./lots";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 import { propertyYears, type RentalData } from "./rental";
 import { joinNames, leaseRenterNames, leaseRenters, renterName, type Renter } from "./renters";
@@ -117,7 +117,7 @@ describe("locataires", () => {
 
 describe("état d'un lot", () => {
   it("loué, vide depuis le lendemain du départ, ou bientôt loué", async () => {
-    const { lotStatus } = await import("./lots");
+    const { lotStatus } = await import("./lotStatus");
     const { monthlyRentNow } = await import("./leases");
     const c1 = lot("c1", "chambre");
     const parti = bail("a", "c1", { actualEnd: "2025-06-30" });

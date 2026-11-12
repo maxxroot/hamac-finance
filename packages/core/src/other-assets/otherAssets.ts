@@ -1,6 +1,6 @@
 import { addMonths, monthsBetween, roundCents, yearsBetween } from "../base";
 import { dismembermentRatio, type DismembermentFields } from "../model";
-import { loanState, type Loan } from "../realestate";
+import { loanState, type Loan } from "../loans";
 
 /**
  * Biens qui ne sont ni des comptes ni de l'immobilier : or, objets de valeur, véhicules, parts de société

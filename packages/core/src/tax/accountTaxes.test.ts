@@ -4,7 +4,8 @@ import { crowdInterestEntries } from "../investments";
 import { crowdWithholding, defaultParams, institutionWithholds, type Account, type Asset, type Institution, type Transaction } from "../model";
 import { computePortfolio, type EngineData } from "../portfolio";
 import { socialRateFor } from "./fiscalRules";
-import { cryptoTax, yearlyTaxes } from "./taxes";
+import { yearlyTaxes } from "./taxes";
+import { cryptoTax } from "./cryptoTax";
 
 const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): Account => ({
   id, kind, livretType: kind === "livret" ? "LEP" : null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "",

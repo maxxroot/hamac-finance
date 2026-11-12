@@ -1,6 +1,7 @@
 export * from "./realestate";
 export * from "./leases";
 export * from "./lots";
+export * from "./lotStatus";
 export * from "./renters";
 export * from "./irl";
 export * from "./energy";

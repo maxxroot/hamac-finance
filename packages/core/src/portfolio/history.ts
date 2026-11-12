@@ -2,7 +2,8 @@ import { addMonth, BUCKETS, monthOf, type Bucket, type Month } from "../model";
 import { computePortfolio, type EngineData } from "./engine";
 import { roundCents } from "../base";
 import { otherAssetHeldValueAt } from "../other-assets";
-import { loanHeldBalanceAt, propertyHeldValueAt } from "../realestate";
+import { propertyHeldValueAt } from "../realestate";
+import { loanHeldBalanceAt } from "../loans";
 
 /** Montants cumulés d'un compte à une date : la différence entre deux dates donne ceux de la période. */
 export interface AccountHistoryDetail {

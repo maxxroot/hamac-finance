@@ -2,8 +2,10 @@ import { addDays, addMonths, daysBetween, roundCents } from "../base";
 import { dpeExpiry, dpeFreezesRent } from "./energy";
 import { leaseCanBeRevised } from "./irl";
 import { daysInMonth, leaseEnd, leaseRentAt, leaseState, rentMonths, type Lease, type LeaseRent, type RentLedger, type RentMonth, type RentPayment, type RentWaiver, rentIsLate } from "./leases";
-import { lotIsActive, lotStatus, sortLots, type Lot } from "./lots";
-import type { Loan, Property } from "./realestate";
+import { lotIsActive, sortLots, type Lot } from "./lots";
+import { lotStatus } from "./lotStatus";
+import type { Property } from "./realestate";
+import type { Loan } from "../loans";
 import { LEASE_GUARANTEE_LABELS, leaseRenterNames, type LeaseGuarantee, type LeaseRenter, type Renter } from "./renters";
 import { EXPENSE_CATEGORY_LABELS, propertyProfitability, propertyYears, rentalWindows, windowOverlapDays, type PropertyDocument, type PropertyExpense, type PropertyIncome, type RentalData } from "./rental";
 

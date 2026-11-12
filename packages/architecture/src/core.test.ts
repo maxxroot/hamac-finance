@@ -5,8 +5,7 @@ import { checkBoundaries, forbiddenPackages, formatReport } from "./rules";
 
 /**
  * Frontières de @hamac/core (plan : docs/architecture/plan-migration-structure.md, § 3.1 et 3.2).
- * Le domaine d'un fichier se lit dans son chemin (`realestate/leases.ts`).
- * Tant que l'étape 9 du plan n'est pas faite, le test rapporte les écarts sans échouer, sauf pour les règles déjà tenues.
+ * Le domaine d'un fichier se lit dans son chemin (`realestate/leases.ts`). Bloquant : un écart fait échouer la CI.
  */
 
 const ROOT = fileURLToPath(new URL("../../core/src", import.meta.url));
@@ -42,10 +41,7 @@ describe("frontières de @hamac/core", () => {
     expect(graph.files.filter((f) => f !== "index.ts" && !(domainOf(f)! in LAYERS))).toEqual([]);
   });
 
-  it("rapport des écarts au plan (n'échoue pas avant l'étape 9)", () => {
-    const report = checkBoundaries(graph, { layers: LAYERS, domainOf, facadeOf });
-    const text = formatReport(report);
-    if (text) console.info(`Écarts au plan de @hamac/core :\n${text}`);
-    expect(report).toBeDefined();
+  it("respecte les couches, passe par les façades et n'a aucun cycle", () => {
+    expect(formatReport(checkBoundaries(graph, { layers: LAYERS, domainOf, facadeOf }))).toBe("");
   });
 });

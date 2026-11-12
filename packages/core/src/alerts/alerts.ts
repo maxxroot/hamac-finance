@@ -3,9 +3,8 @@ import { proposeContributions } from "../planning";
 import { addDays, addMonths, daysBetween, formatEur, monthsBetween } from "../base";
 import { currentLease, dpeExpiry, dpeFreezesRent, dpeRentalBan, LEASE_GUARANTEE_LABELS, leaseArrears, leaseRevisionDue, leaseState, lotIsActive, NOTICE_LEVEL_LABELS, noticeStep, rentIsLate, rentMonths, sortLots } from "../realestate";
 import { advisedMonthlyPurchase, monthsElapsed, reconcile, type EngineData, type PortfolioState } from "../portfolio";
-import { MAX_EFFORT_RATE } from "../loans";
 import { yearEndChecklist, yearEndSeason } from "../tax";
-import { concentrationReport } from "../analysis";
+import { concentrationReport, MAX_EFFORT_RATE } from "../analysis";
 
 /** Niveaux réservés : toujours affichés avec une icône et un libellé, jamais par la couleur seule. */
 export type AlertLevel = "critique" | "attention" | "info" | "ok";

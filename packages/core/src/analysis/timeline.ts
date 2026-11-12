@@ -2,7 +2,7 @@ import { ACCOUNT_KIND_LABELS, addMonth, BUCKETS, cashBucketOf, monthOf, Schedule
 import type { EngineData, HistoryPoint } from "../portfolio";
 import { formatEur, formatPct, roundCents } from "../base";
 import { accountFlows, gainSources, maxDrawdown, monthlyReturns, type GainSources } from "./performance";
-import { loanState } from "../realestate";
+import { loanState } from "../loans";
 
 /**
  * Page Historique : remonter le temps. Les grandes étapes du parcours, la situation à deux dates

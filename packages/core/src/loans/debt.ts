@@ -1,21 +1,18 @@
 import { addMonths, monthsBetween, roundCents } from "../base";
-import type { PortfolioState } from "../portfolio";
 import type { PlanParams } from "../model";
-import { loanSchedule, loanState, propertyValue, type Loan, type LoanPrepaymentMode, type LoanScheduleStep, type Property } from "../realestate";
+import { loanSchedule, loanState, type Loan, type LoanPrepaymentMode, type LoanScheduleStep } from "./loan";
 
 /**
- * Poids des crédits et aide à la décision « rembourser par avance ou placer ».
+ * Coût restant d'un crédit et aide à la décision « rembourser par avance ou placer ».
+ * La vue d'endettement du patrimoine (taux d'effort, part financée à crédit) est dans analysis/debt.ts.
  *
  * Règles vérifiées le 11 novembre 2026 (sources secondaires, textes officiels à relire) :
- * - taux d'effort : 35 % des revenus nets au plus, assurance comprise, pour un nouveau crédit immobilier
- *   (Haut Conseil de stabilité financière, décision du 29 septembre 2021) ;
  * - indemnité de remboursement anticipé d'un crédit immobilier : au plus 6 mois d'intérêts sur la somme remboursée,
  *   au taux du prêt, et au plus 3 % du capital restant dû avant le remboursement (Code de la consommation, art. R313-25) ;
  * - crédit à la consommation : au plus 1 % de la somme remboursée s'il reste plus d'un an, 0,5 % sinon, et rien
  *   pour moins de 10 000 € remboursés sur douze mois (Code de la consommation, art. L312-34, à vérifier).
  */
 
-export const MAX_EFFORT_RATE = 0.35;
 export const DEBT_SOURCES: Array<{ label: string; url: string }> = [
   { label: "Remboursement anticipé d'un crédit immobilier (La finance pour tous)", url: "https://www.lafinancepourtous.com/pratique/credit/credit-immobilier/pret-immo-l-essentiel-a-savoir/le-remboursement-anticipe/" },
   { label: "Code de la consommation, art. R313-25 et L312-34", url: "https://www.legifrance.gouv.fr/codes/texte_lc/LEGITEXT000006069565" },
@@ -28,20 +25,6 @@ export interface LoanCost {
   /** Intérêts et assurance encore à payer. */
   remainingInterest: number;
   remainingInsurance: number;
-}
-
-export interface DebtOverview {
-  /** Tout ce qui est détenu, avant dettes. */
-  assets: number;
-  debts: number;
-  /** Part du patrimoine financée à crédit. */
-  debtRatio: number | null;
-  monthly: number;
-  income: number | null;
-  /** Mensualités / revenus nets. */
-  effortRate: number | null;
-  properties: Array<{ property: Property; value: number; debt: number; ratio: number | null }>;
-  loans: LoanCost[];
 }
 
 /** Taux mensuel i tel que la somme actualisée des paiements égale `present` (bissection). */
@@ -69,31 +52,6 @@ export function loanCost(loan: Loan, date: string): LoanCost {
     rateWithInsurance: monthlyRate == null ? null : Math.round(monthlyRate * 12 * 1e5) / 1e5,
     remainingInterest: roundCents(future.reduce((t, s) => t + s.interest, 0) * loan.share),
     remainingInsurance: roundCents(future.reduce((t, s) => t + s.insurance, 0) * loan.share),
-  };
-}
-
-/** Indicateurs d'endettement, à partir de l'état du patrimoine (parts de SCI déjà appliquées). */
-export function debtOverview(state: PortfolioState, properties: readonly Property[], params: Pick<PlanParams, "profile">): DebtOverview {
-  const nw = state.netWorth;
-  const assets = roundCents(nw.financial + nw.realEstate + nw.otherAssets);
-  const income = params.profile.netMonthlyIncome > 0 ? params.profile.netMonthlyIncome : null;
-  const active = nw.loans.filter((l) => l.paymentsLeft > 0);
-  return {
-    assets,
-    debts: nw.debts,
-    debtRatio: assets > 0 ? nw.debts / assets : null,
-    monthly: nw.monthlyLoans,
-    income,
-    effortRate: income ? nw.monthlyLoans / income : null,
-    properties: properties
-      .filter((p) => !p.archived)
-      .map((p) => {
-        const value = propertyValue(p, state.asOf);
-        const debt = roundCents(active.filter((l) => l.loan.propertyId === p.id).reduce((s, l) => s + l.heldBalance, 0));
-        return { property: p, value, debt, ratio: value > 0 ? debt / value : null };
-      })
-      .filter((x) => x.debt > 0),
-    loans: active.map((l) => loanCost(l.loan, state.asOf)),
   };
 }
 

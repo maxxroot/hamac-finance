@@ -3,7 +3,7 @@ import { securitiesGains, type AccountState, type EngineData, type PortfolioStat
 import { socialRateFor } from "./fiscalRules";
 import { crowdTaxOf, incomeTaxRate } from "../model";
 import { accountWithholds, resolveIncome, securityDisposals } from "./taxReport";
-import type { CryptoTaxReport } from "./taxes";
+import type { CryptoTaxReport } from "./cryptoTax";
 
 /**
  * Impôts compte par compte : ce qui a été retenu à la source, ce qui passe par la déclaration, ce qui reste à payer.

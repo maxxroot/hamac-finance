@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NO_RENT_LEDGER, rentMonths, type Lease, type RentLedger } from "./leases";
-import { NO_PROPERTY_DETAILS, type Loan, type Property } from "./realestate";
+import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
+import type { Loan } from "../loans";
 import { expenseDates, incomeSigned, propertyImprovements, propertyProfitability, propertyYears, type PropertyExpense, type RentalData } from "./rental";
 
 /** Tous les loyers pointés reçus, à l'échéance, sauf les mois « bail:AAAA-MM » de `skip`. */

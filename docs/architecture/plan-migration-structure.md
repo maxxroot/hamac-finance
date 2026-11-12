@@ -1,6 +1,6 @@
 # Plan de migration : réorganiser la structure du code
 
-> Statut : **validé le 2026-11-12** (décisions au § 7). Aucun code n'a encore été déplacé.
+> Statut : **validé le 2026-11-12** (décisions au § 7), **en cours** sur la branche `structure` (avancement au § 8).
 > Rédigé le 2026-11-12, sur la branche `gestion-locative` (commit `f317f63`).
 > Démarrage : **après la fusion de `gestion-locative` dans `main`**, dans un **worktree dédié** (§ 4).
 > Modèle : l'organisation d'Argonis-paysage (couches, puis domaines, frontières vérifiées par la CI, une doc par sujet), adaptée à un monorepo TypeScript.
@@ -274,3 +274,12 @@ La table des couches tient en une dizaine de lignes dans le test. Comme dans Arg
 3. **Moment et lieu** : après la fusion de `gestion-locative` dans `main`, dans un worktree dédié.
 4. **Outil de frontières** : le test Vitest maison (§ 5).
 5. **Documentation** : `guide.md` + `technique.md` sont **obligatoires pour chaque fonctionnalité** ; tout doit être documenté. La règle est inscrite dans le `CLAUDE.md` racine et s'applique dès maintenant, sans attendre la migration. L'étape 8 rattrape les fonctionnalités existantes.
+
+## 8. Avancement
+
+| Étape | État | Notes |
+|---|---|---|
+| 0 | Fait | Paquet `packages/architecture` ([doc technique](../frontieres-du-code/technique.md)). Le premier rapport a déplacé `exposure` vers `analysis` et `csv` vers `imports`, et placé `tax` sous `analysis` et `planning`. |
+| 1 | Fait | 98 fichiers déplacés, tous reconnus comme renommages. Les 461 exports d'exécution de `@hamac/core` sont identiques avant et après. |
+| 2 | Fait | Prêt sorti dans `loans/loan.ts` ; `debtOverview` et `MAX_EFFORT_RATE` dans `analysis/debt.ts` ; réglages de protection dans `model/institutionProtection.ts` ; `lots.ts` ne lit plus les baux (`leaseKindsFor` et `rentalModeFromLeases` dans `leases.ts`, état d'un lot dans `lotStatus.ts`) ; impôt crypto dans `tax/cryptoTax.ts`. Aucun cycle ni aucune exception. Le test de `core` est **bloquant** dès maintenant. |
+

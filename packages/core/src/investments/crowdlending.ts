@@ -1,6 +1,6 @@
 import { addMonths, monthsBetween, roundCents } from "../base";
 import type { Transaction } from "../model";
-import { loanState } from "../realestate";
+import { loanState } from "../loans";
 
 /**
  * Crowdlending : chaque plateforme est un compte, chaque prêt un projet.

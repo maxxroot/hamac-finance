@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NO_PROPERTY_DETAILS, estimateNotaryFees, loanPayment, loanState, loanYears, loanHeldBalanceAt, loanPayoffAt, propertyHeldValueAt, propertySale, propertySqm, propertySummary, propertyTotalCost, propertyValue, type Loan, type Property, type PropertyValue } from "./realestate";
+import { NO_PROPERTY_DETAILS, estimateNotaryFees, loanPayoffAt, propertyHeldValueAt, propertySale, propertySqm, propertySummary, propertyTotalCost, propertyValue, type Property, type PropertyValue } from "./realestate";
+import { loanPayment, loanState, loanYears, loanHeldBalanceAt, type Loan } from "../loans";
 
 const loan: Loan = { id: "l", kind: "immobilier", name: "Prêt", propertyId: null, share: 1, principal: 200_000, rate: 0.03, termMonths: 240, firstPayment: "2024-01-05", insuranceMode: "montant", insurance: 30, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null, deferredMonths: 0, deferredKind: "partiel", prepayments: [] };
 

@@ -37,10 +37,11 @@ Une exception (un import qui enfreint la règle mais qu'on garde) se déclare da
 
 ## État
 
-Depuis l'étape 1 du plan, les fichiers de `core` sont rangés dans leurs domaines et le domaine se lit dans le chemin. Le test **rapporte** les écarts sans échouer, sauf pour les règles déjà tenues (`node:`, et chaque fichier rangé dans un domaine connu). Pour lire le rapport :
+- `@hamac/core` : **bloquant** depuis l'étape 2 du plan. Aucun cycle, aucune exception.
+- Les autres paquets seront ajoutés au fil des étapes 3 à 7.
+
+Pour voir les écarts d'un paquet, lancer son test ; le message d'échec liste un problème par ligne :
 
 ```bash
-pnpm vitest run packages/architecture/src/core.test.ts --silent=false
+pnpm vitest run packages/architecture
 ```
-
-Le test deviendra bloquant à l'étape 9.

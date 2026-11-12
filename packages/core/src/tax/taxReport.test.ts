@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { defaultParams, type Account, type Asset, type Institution, type InstitutionTax, type Transaction } from "../model";
 import { computePortfolio, type EngineData } from "../portfolio";
 import { buildTaxReport, compareWithStatement, reportTotalsMismatches, resolveIncome, rulesValidityLabel, taxReportAlerts, taxReportCsvRows, taxReportYears, worstStatus } from "./taxReport";
-import { cryptoTax, yearlyTaxes } from "./taxes";
+import { yearlyTaxes } from "./taxes";
+import { cryptoTax } from "./cryptoTax";
 
 const acc = (id: string, kind: Account["kind"], institutionId: string | null = null): Account => ({
   id, kind, livretType: null, name: id, institutionId, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false,

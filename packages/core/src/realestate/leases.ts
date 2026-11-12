@@ -1,5 +1,5 @@
 import { addDays, addMonths, daysBetween, isIsoDate, roundCents } from "../base";
-import type { Lot } from "./lots";
+import { lotIsAnnex, type Lot, type LotKind, type RentalMode } from "./lots";
 import type { PropertyOwnership } from "./realestate";
 
 /**
@@ -435,4 +435,25 @@ export function rentReceipt(m: RentMonth): { kind: "quittance" | "recu"; rent: n
   const total = roundCents(m.receivedRent + m.receivedCharges);
   if (total <= 0) return null;
   return { kind: m.outstanding > 0 ? "recu" : "quittance", rent: m.receivedRent, charges: m.receivedCharges, total };
+}
+
+// ——— Baux possibles selon le mode de location et le lot ———
+
+/** Types de bail possibles pour un lot, selon le mode de location du bien. */
+export function leaseKindsFor(mode: RentalMode, lotKind: LotKind): LeaseKind[] {
+  if (lotIsAnnex(lotKind)) return ["autre"];
+  switch (mode) {
+    case "vide":
+      return ["vide", "autre"];
+    case "meuble":
+      return ["meuble", "etudiant", "mobilite", "autre"];
+    default:
+      return ["vide", "meuble", "etudiant", "mobilite", "autre"];
+  }
+}
+
+/** Mode de location déduit des baux d'un bien, pour les données d'avant les lots : celui du bail le plus récent. */
+export function rentalModeFromLeases(leases: readonly { kind: LeaseKind; startDate: string }[]): RentalMode {
+  const last = [...leases].sort((a, b) => a.startDate.localeCompare(b.startDate)).at(-1);
+  return last == null || last.kind === "vide" || last.kind === "autre" ? "vide" : "meuble";
 }

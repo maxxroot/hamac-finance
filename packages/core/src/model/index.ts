@@ -4,6 +4,7 @@ export * from "./ownership";
 export * from "./schedule";
 export * from "./validation";
 export * from "./prices";
+export * from "./institutionProtection";
 export * from "./institutions";
 export * from "./protection";
 export * from "./rates";

@@ -4,7 +4,8 @@ import { advisedMonthlyPurchase, computePortfolio, splitByTarget, type EngineDat
 import { embeddedFee } from "../base";
 import { crowdInterestEntries } from "../investments";
 import { buildHistory } from "./history";
-import { NO_PROPERTY_DETAILS, type Loan, type Property } from "../realestate";
+import { NO_PROPERTY_DETAILS, type Property } from "../realestate";
+import type { Loan } from "../loans";
 import { cryptoTax, withdrawalTaxes, yearlyTaxes } from "../tax";
 
 // ——— Fabriques ———
