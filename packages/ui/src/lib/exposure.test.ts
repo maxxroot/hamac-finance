@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CompositionLookup, EtfExposure } from "@hamac/api";
 import type { CompositionInfo } from "@hamac/core";
-import { compositionStatus, countryLabel, currencyLabel, lookupMessage, sectorLabel, withOthers } from "./exposure";
+import { compositionStatus, countryLabel, currencyLabel, lookupMessage, lookupPending, sectorLabel, withOthers } from "./exposure";
 
 const info = (over: Partial<CompositionInfo> = {}): CompositionInfo => ({ isin: "IE00B4L5Y983", state: "ok", issuer: "ishares", fundName: "iShares Core MSCI World UCITS ETF", replication: "physique", asOf: "2026-11-10", lineCount: 1285, checkedAt: null, fetchedAt: null, message: null, ...over });
 const etf = (over: Partial<EtfExposure>): EtfExposure => ({ assetId: "a", isin: "LU1681043599", name: "CW8", own: info({ isin: "LU1681043599", issuer: "amundi", replication: "synthetique" }), choice: null, link: null, used: null, gap: null, suggestion: null, ...over });
@@ -55,6 +55,12 @@ describe("exposition : annonce au choix d'un ETF", () => {
   it("synthétique sans lien : l'équivalent proposé est annoncé", () => {
     const m = lookupMessage(lookup({ own: info({ replication: "synthetique" }), suggestion: { isin: "IE00B4L5Y983", name: "iShares Core MSCI World UCITS ETF", index: "MSCI World" } }));
     expect(m).toMatchObject({ tone: "warning", text: expect.stringMatching(/proposera iShares Core MSCI World UCITS ETF \(MSCI World\)/) });
+  });
+
+  it("on relit tant que la composition ou celle de l'équivalent commun est attendue", () => {
+    expect(lookupPending(lookup({ own: info({ state: "pending" }) }))).toBe(true);
+    expect(lookupPending(lookup({ own: info({ replication: "synthetique" }), link: { proxyIsin: "IE00B4L5Y983", info: info({ state: "pending" }) } }))).toBe(true);
+    expect(lookupPending(lookup({}))).toBe(false);
   });
 
   it("en attente, émetteur non géré", () => {

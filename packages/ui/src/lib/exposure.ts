@@ -118,6 +118,9 @@ export function compositionStatus(e: EtfExposure): CompositionStatus {
   }
 }
 
+/** La composition de l'ETF, ou celle de son équivalent commun, est encore attendue. */
+export const lookupPending = (l: CompositionLookup): boolean => l.own.state === "pending" || l.link?.info.state === "pending";
+
 /** Annonce au moment où l'on choisit un ETF : ce que Hamac sait déjà de sa composition. */
 export function lookupMessage(l: CompositionLookup): { text: string; tone: "ok" | "warning" | "muted" } {
   const own = l.own;

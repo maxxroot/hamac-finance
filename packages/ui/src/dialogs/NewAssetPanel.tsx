@@ -15,6 +15,7 @@ import {
 } from "@hamac/core";
 import { Field, FormGrid, PercentInput, Select, TextInput } from "@/components/form";
 import { Button } from "@/components/ui";
+import { CompositionNotice } from "@/components/CompositionNotice";
 import { cn } from "@/lib/cn";
 import { call } from "@/lib/transport";
 
@@ -231,6 +232,7 @@ export function NewAssetPanel({
         )}
       </FormGrid>
 
+      <CompositionNotice kind={value.kind} isin={value.isin} />
       {searchError && <p className="text-xs text-warning">{searchError}</p>}
       {results && (
         <ul className="max-h-44 overflow-y-auto rounded-lg border border-line bg-surface">

@@ -4,6 +4,7 @@ import type { AssetCandidate } from "@hamac/api";
 import type { AssetInput } from "@hamac/api";
 import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, OAT_MATURITY_DAY, PRICE_PROVIDER_LABELS, maturityFromMonth, type BondKind, type Asset, type AssetKind, type PriceProvider, type PriceSource } from "@hamac/core";
 import { Button } from "@/components/ui";
+import { CompositionNotice } from "@/components/CompositionNotice";
 import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 import { todayIso } from "@/lib/numbers";
@@ -186,6 +187,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
             {(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={isBond ? "ex. OAT 3,5 % 25/11/2033" : "ex. Amundi PEA S&P 500"} />}
           </Field>
         </FormGrid>
+        <CompositionNotice kind={d.kind} isin={d.isin} />
 
         {isBond && (
           <Field label="Type d'obligation">

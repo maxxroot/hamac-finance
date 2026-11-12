@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { amundiFake, testBackend, testMarket } from "@hamac/backend/testkit";
 import { ToastProvider } from "@/lib/toast";
+import { AssetDialog } from "@/dialogs/AssetDialog";
 import { Exposition } from "@/pages/Exposition";
 
 /** Parcours réel de la page : l'interface parle au vrai backend, sur une base en mémoire et un faux site Amundi. */
@@ -24,14 +25,12 @@ async function rpc<T = unknown>(name: string, input?: unknown): Promise<T> {
   return r.data as T;
 }
 
-function show() {
+function show(ui = <Exposition />) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <MemoryRouter>
-          <Exposition />
-        </MemoryRouter>
+        <MemoryRouter>{ui}</MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -96,5 +95,24 @@ describe("page Exposition réelle", () => {
     await user.type(dialog.getByLabelText("Ou un autre ETF physique (ISIN)"), "LU1681043599");
     await user.click(dialog.getByRole("button", { name: "Vérifier et utiliser" }));
     expect(await dialog.findByText(/Choisissez un autre ETF que celui-ci/)).toBeTruthy();
+  });
+
+  it("au choix d'un ETF, la composition déjà reliée à un équivalent est annoncée, sans dire qui l'a choisi", async () => {
+    const user = userEvent.setup();
+    await h.market.compositions.ensure("LU1681043599");
+    await h.market.compositions.ensure("IE00B4L5Y983");
+    await h.market.compositions.setLink("LU1681043599", "IE00B4L5Y983");
+    show(<AssetDialog open onClose={() => undefined} />);
+    await user.type(screen.getByLabelText("ISIN"), "LU1681043599");
+    expect(await screen.findByText(/^ETF synthétique : sa composition sera reprise de l'ETF iShares Core MSCI World UCITS ETF \(physique, même indice\)/)).toBeTruthy();
+  });
+
+  it("au choix d'un ETF inconnu, la composition est demandée tout de suite", async () => {
+    const user = userEvent.setup();
+    show(<AssetDialog open onClose={() => undefined} />);
+    await user.type(screen.getByLabelText("ISIN"), "IE000BI8OT95");
+    expect(await screen.findByText(/Récupération de la composition/)).toBeTruthy();
+    await h.market.compositions.idle();
+    expect((await h.market.compositions.info(["IE000BI8OT95"])).get("IE000BI8OT95")!.state).toBe("ok");
   });
 });
