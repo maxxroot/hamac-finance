@@ -45,3 +45,4 @@ export * from "./contributions";
 export * from "./timeline";
 export * from "./simulation";
 export * from "./simulators";
+export * from "./exposure";

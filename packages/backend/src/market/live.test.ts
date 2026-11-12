@@ -2,6 +2,7 @@ import { fetchIrl } from "./irl";
 import { describe, expect, it } from "vitest";
 import { defaultFetcher } from "./http";
 import { fetchFrom, fetchLongHistory, searchAssets } from "./index";
+import { fetchComposition, findComposition } from "./composition";
 
 /** Tests sur les vraies sources : HAMAC_LIVE=1 pnpm test */
 const live = process.env.HAMAC_LIVE === "1";
@@ -78,4 +79,27 @@ describe.runIf(process.env.HAMAC_LIVE)("indice des loyers de l'INSEE, en réel",
       expect(last.published).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
   }, 40_000);
+});
+
+describe.skipIf(!live)("compositions réelles des ETF", () => {
+  const total = (c: { lines: Array<{ weight: number }> }) => c.lines.reduce((s, l) => s + l.weight, 0);
+  it("Amundi : ETF physique complet, ETF à swap reconnu", async () => {
+    const world = await findComposition(defaultFetcher, "IE000BI8OT95");
+    expect(world).toMatchObject({ issuer: "amundi", replication: "physique" });
+    expect(world!.lines.length).toBeGreaterThan(1000);
+    expect(total(world!)).toBeGreaterThan(0.95);
+    expect(world!.lines.filter((l) => l.kind === "action").every((l) => l.country)).toBe(true);
+    const cw8 = await findComposition(defaultFetcher, "LU1681043599");
+    expect(cw8).toMatchObject({ issuer: "amundi", replication: "synthetique" });
+  }, 60_000);
+  it("iShares : ISIN → numéro de produit → CSV, physique et à swap", async () => {
+    const swda = await findComposition(defaultFetcher, "IE00B4L5Y983");
+    expect(swda).toMatchObject({ issuer: "ishares", issuerId: "251882", replication: "physique" });
+    expect(swda!.lines.length).toBeGreaterThan(1000);
+    expect(total(swda!)).toBeGreaterThan(0.95);
+    const swap = await fetchComposition(defaultFetcher, { issuer: "ishares", issuerId: "335184" });
+    expect(swap.replication).toBe("synthetique");
+    const bonds = await findComposition(defaultFetcher, "IE00B3F81R35");
+    expect(bonds!.lines.filter((l) => l.kind === "obligation").length).toBeGreaterThan(1000);
+  }, 90_000);
 });

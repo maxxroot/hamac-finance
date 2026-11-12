@@ -34,7 +34,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 2 | Calcul de l'IFI | Reporté |
 | 3 | Qui possède quoi | Fait le 11 novembre 2026 (commit `c92ceb0`) |
 | 4 | Biens qui ne sont pas des placements | Fait le 11 novembre 2026, sans les actions de l'employeur (commit `adc3eb5`) |
-| 5 | Exposition réelle derrière les ETF | À étudier : faisabilité des données incertaine |
+| 5 | Exposition réelle derrière les ETF | En cours : étude faite le 11 novembre 2026, compositions Amundi et iShares |
 | 6 | Concentration et risque | Fait le 11 novembre 2026 |
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
 | 8 | Poids des crédits et aide à la décision | Fait le 11 novembre 2026 |
@@ -154,11 +154,42 @@ Pour chaque bien :
 
 ## 5. Exposition réelle derrière les ETF
 
-**Statut :** à étudier. Utile, mais les données sont difficiles à obtenir automatiquement à partir de l'ISIN.
+**Statut :** en cours depuis le 11 novembre 2026. Étude faite : la composition se récupère automatiquement à partir de l'ISIN chez Amundi et chez iShares. Première étape faite le 11 novembre 2026, sans stockage : téléchargement et lecture dans `backend/src/market/composition.ts` (`findComposition` par ISIN, `fetchComposition` par source connue), pays, secteurs et types de ligne harmonisés dans `core/src/exposure.ts`, tests sur des exemples et sur les vrais sites (`HAMAC_LIVE=1`). Étape suivante : les tables de `marche`, la récupération au choix du titre et la mise à jour trimestrielle.
 
 **Pourquoi.** Un ETF MSCI World, c'est environ 70 % d'actions américaines. Un ETF du S&P 500 coté en euros reste exposé au dollar. La répartition par classe d'actifs ne le montre pas.
 
-**Pistes, de la plus simple à la plus ambitieuse :**
+### Ce que l'étude a montré (11 novembre 2026)
+
+Adresses non documentées, testées à cette date, susceptibles de changer sans prévenir.
+
+- **Amundi, une requête par ISIN** : `POST https://www.amundietf.fr/mapi/ProductAPI/getProductsData`. Elle renvoie chaque ligne (ISIN, nom, poids en fraction, secteur, pays de risque, devise, type, date) et la méthode de réplication (`FUND_REPLICATION_METHODOLOGY` : « Direct(Physical) » ou « Indirect(Swap Based) »). Un ISIN inconnu donne une liste vide. Deux ISIN français essayés (FR0011869353, FR0011550185) ne renvoient rien : à comprendre.
+- **iShares, deux requêtes** : la recherche du site accepte l'ISIN et renvoie le numéro de produit (`GET https://www.ishares.com/varnish-api/core-search/search/products?site=ishares-uk&locale=en-gb&userType=individual&rows=5&start=0&query=<ISIN>`), puis le CSV est à `https://www.ishares.com/uk/individual/en/products/<numéro>/x/latest-holdings.csv`. L'adresse doit contenir un nom de fonds, mais n'importe quel mot convient (`x`). Le CSV donne le ticker, le nom, le secteur, le type de ligne, le poids en pourcentage, le pays et la devise de cotation, sans ISIN par ligne. Les ETF obligataires ont des colonnes en plus (durée, échéance, coupon) et une autre liste de secteurs (« Banking », « Electric »…). La méthode de réplication se lit sur la page produit (`productStructure` : « Physical » ou « Synthetic »). L'ancien lien `.ajax?fileType=csv`, cité partout, ne marche plus depuis la refonte du site.
+- **Le piège des ETF synthétiques.** Un ETF à swap publie le panier qu'il détient, pas l'exposition qu'il donne. L'Amundi MSCI World Swap (LU1681043599) renvoie 153 lignes européennes (ASML, Airbus, Bayer…) ; l'Amundi MSCI Emerging Markets Swap a Amazon et NVIDIA en tête. Chez iShares, le CSV d'un ETF à swap commence par une ligne pour l'indice lui-même (« MSCI WORLD GROSS TR INDEX », 99,92 %) suivie du panier, soit environ 200 % au total. Or la plupart des ETF « monde » ou « États-Unis » éligibles au PEA sont synthétiques.
+
+### Décisions (11 novembre 2026)
+
+- **Récupération au choix du titre.** La composition se télécharge en tâche de fond quand l'utilisateur choisit l'ETF dans les résultats de recherche, pas pendant la recherche elle-même. Les ETF déjà saisis sont remplis lors d'un rafraîchissement.
+- **ETF physique équivalent.** Pour un ETF synthétique, ou d'un émetteur non géré (Xtrackers, SPDR, Vanguard…), la composition vient d'un ETF physique qui suit le même indice. Hamac en propose un d'après le nom de l'indice, l'utilisateur confirme, et ne saisit un ISIN qu'en dernier recours. L'équivalent doit être physique, avec une composition récupérable, sinon il est refusé avec la raison.
+- **Lien commun, choix propre à chaque utilisateur.** Le premier lien vérifié est gardé dans `marche` et proposé aux utilisateurs suivants. Chaque utilisateur peut choisir un autre équivalent, gardé dans son schéma, qui l'emporte sur le lien commun (comme un cours manuel l'emporte sur le cours partagé). L'administrateur peut corriger ou supprimer un lien commun. L'écran dit « Composition reprise de l'ETF … (physique, même indice), au … », avec un bouton « Changer », sans dire qu'un autre utilisateur l'a choisi.
+- **On garde l'émetteur et son identifiant, pas l'adresse.** En base : `ishares` et son numéro de produit, ou `amundi` et l'ISIN ; l'adresse est reconstruite dans le code. Un changement d'adresse se corrige en un seul endroit, et le serveur ne télécharge jamais une adresse saisie par un utilisateur.
+- **Mise à jour chaque trimestre**, au rythme des révisions des grands indices. On garde la dernière composition valable avec sa date, et une alerte pour l'administrateur si le téléchargement échoue.
+- **Libellés harmonisés** : pays en code ISO, secteurs ramenés à une liste fixe (les secteurs des obligations iShares compris), lignes classées en actions, obligations, liquidités, dérivés ou autres.
+
+### À prévoir en base
+
+- Dans `marche`, les sources de composition par ISIN : émetteur et identifiant, méthode de réplication, ISIN de l'équivalent physique, date du dernier téléchargement, dernier échec.
+- Dans `marche`, les compositions par ISIN : les lignes et leur date.
+- Dans le schéma de chaque utilisateur : son choix d'équivalent, s'il diffère du lien commun.
+
+### Questions encore ouvertes
+
+- Trouver l'indice suivi par un ETF synthétique pour proposer l'équivalent : pas de champ d'indice trouvé chez Amundi (`INDEX_NAME` n'existe pas), à déduire du nom (« MSCI World », « Nasdaq-100 ») à défaut.
+- Les parts couvertes contre le change (« EUR Hedged ») : la devise des titres ne reflète pas le risque de change réel.
+- Les titres en double d'un ETF à l'autre : rapprochés par ISIN chez Amundi, seulement par nom ou ticker chez iShares.
+
+### Pistes envisagées avant l'étude
+
+Gardées pour mémoire ; la piste 3 est retenue, complétée par l'ETF physique équivalent.
 
 1. **Répartition par indice, saisie une fois pour toute l'instance.** On rattache chaque ETF à son indice (MSCI World, S&P 500, Stoxx Europe 600, MSCI Emerging Markets…). L'administrateur tient la répartition de chaque indice par pays, secteur et devise, mise à jour une ou deux fois par an. C'est simple, assez juste pour les grands indices et sans source externe.
 2. **Saisie manuelle par ETF**, pour les fonds qui ne suivent pas un grand indice, à partir de la fiche de l'émetteur.
@@ -166,8 +197,6 @@ Pour chaque bien :
 4. Les sites tiers d'information sur les ETF sont écartés : conditions d'utilisation et risque de blocage.
 
 **Ce qu'on afficherait :** la répartition réelle par pays, par secteur et par devise de tout le patrimoine en actions. Les titres détenus en double d'un ETF à l'autre demandent la composition complète (piste 3) : seulement dans un second temps.
-
-**Questions ouvertes :** commencer par la piste 1 seule ? Quels indices fournir au départ ?
 
 ---
 
@@ -345,4 +374,4 @@ Pour chaque bien :
 7. ~~**Propositions 9 puis 10**, compteurs puis liste de fin d'année~~ : faites.
 8. ~~**Proposition 11**, objectifs par projet~~ : fait.
 9. **Proposition 12 b**, journal des décisions.
-10. **Proposition 5**, exposition réelle, après une étude de faisabilité.
+10. **Proposition 5**, exposition réelle : étude faite, développement en cours.
