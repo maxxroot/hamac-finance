@@ -35,6 +35,7 @@ const TABLES = [
   "property_values",
   "property_incomes",
   "property_documents",
+  "property_reminders",
   "crowd_projects",
   "loans",
   "loan_prepayments",

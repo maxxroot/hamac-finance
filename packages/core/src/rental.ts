@@ -82,7 +82,9 @@ export interface RentalData {
 }
 
 /** Période où un lot est proposé à la location, et son poids dans le taux d'occupation. */
-interface LotWindow {
+export interface LotWindow {
+  /** null : baux sans lot connu (anciennes données). */
+  lotId: string | null;
   from: string;
   to: string;
   weight: number;
@@ -120,7 +122,7 @@ function lotWindows(data: RentalData, leases: readonly Lease[], months: readonly
     const latestEnd = latest ? (leaseEnd(latest) ?? asOf) : asOf;
     const lastRent = latest ? leaseRentAt(latest, data.rents, (latestEnd < asOf ? latestEnd : asOf).slice(0, 7)).rent : 0;
     const ids = new Set(g.leases.map((l) => l.id));
-    out.push({ from, to, weight: target ?? (lastRent > 0 ? lastRent : 1), months: months.filter((m) => ids.has(m.leaseId)) });
+    out.push({ lotId: g.lot?.id ?? null, from, to, weight: target ?? (lastRent > 0 ? lastRent : 1), months: months.filter((m) => ids.has(m.leaseId)) });
   }
   return out;
 }
@@ -155,6 +157,24 @@ export interface PropertyYear {
   /** Part de la période de location où le logement est occupé ; null avant le premier bail. */
   occupancy: number | null;
 }
+
+/** Date de fin des calculs d'un bien : sa vente, sinon aujourd'hui ; et le dernier jour compté (fin du mois en cours). */
+function rentalHorizon(property: Property, today: string): { asOf: string; lastDay: string } {
+  const sold = property.saleDate != null && property.saleDate < today;
+  const asOf = sold ? property.saleDate! : today;
+  return { asOf, lastDay: sold ? asOf : addDays(addMonths(`${asOf.slice(0, 7)}-01`, 1), -1) };
+}
+
+/** Périodes de location de chaque lot du bien, avec leurs mois de loyer, jusqu'à la fin du mois en cours. */
+export function rentalWindows(data: RentalData, today: string): LotWindow[] {
+  const { asOf, lastDay } = rentalHorizon(data.property, today);
+  const leases = data.leases.filter((l) => l.propertyId === data.property.id);
+  const months = leases.flatMap((l) => rentMonths(l, data.rents, data.exceptions, asOf));
+  const firstLease = leases.filter((l) => l.startDate <= asOf).reduce<string | null>((first, l) => (first == null || l.startDate < first ? l.startDate : first), null);
+  return lotWindows(data, leases, months, asOf, lastDay, firstLease);
+}
+
+export const windowOverlapDays = (w: Pick<LotWindow, "from" | "to">, start: string, end: string) => overlapDays(w.from, w.to, start, end);
 
 /** Résultats du bien, de l'année du premier événement (achat, bail, dépense, crédit) à celle de `asOf`. */
 export function propertyYears(data: RentalData, today: string): PropertyYear[] {

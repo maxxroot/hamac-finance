@@ -597,6 +597,25 @@ export const propertyDocuments = pgTable(
   (t) => [index("property_documents_property_idx").on(t.propertyId)],
 );
 
+/** Rappels saisis à la main sur un bien : assemblée générale, entretien de la chaudière… */
+export const propertyReminders = pgTable(
+  "property_reminders",
+  {
+    id: text("id").primaryKey(),
+    propertyId: text("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    lotId: text("lot_id").references(() => lots.id, { onDelete: "set null" }),
+    date: text("date").notNull(),
+    yearly: boolean("yearly").notNull().default(false),
+    label: text("label").notNull(),
+    comment: text("comment").notNull().default(""),
+    doneOn: text("done_on"),
+    ...timestamps,
+  },
+  (t) => [index("property_reminders_property_idx").on(t.propertyId)],
+);
+
 /** Remboursements anticipés d'un crédit. */
 export const loanPrepayments = pgTable(
   "loan_prepayments",

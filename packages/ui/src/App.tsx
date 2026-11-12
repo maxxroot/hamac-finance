@@ -13,6 +13,7 @@ import { FondsEuros } from "@/pages/FondsEuros";
 import { Historique } from "@/pages/Historique";
 import { Simulateurs } from "@/pages/Simulateurs";
 import { Immobilier } from "@/pages/Immobilier";
+import { GestionLocative } from "@/pages/GestionLocative";
 import { ImpressionBien } from "@/pages/ImpressionBien";
 import { Quittance } from "@/pages/Quittance";
 import { Declaration } from "@/pages/Declaration";
@@ -50,6 +51,7 @@ const PAGES: Record<string, ReactNode> = {
   "/crypto": <Crypto />,
   "/crowdlending": <Crowdlending />,
   "/immobilier": <Immobilier />,
+  "/gestion-locative": <GestionLocative />,
   "/autres-biens": <AutresBiens />,
   "/credits": <Credits />,
   "/performance": <Performance />,

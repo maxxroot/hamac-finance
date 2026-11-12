@@ -26,6 +26,7 @@ import type {
   PlannedExpense,
   LoanPrepayment,
   PropertyDocument,
+  PropertyReminder,
   PropertyExpense,
   PropertyIncome,
   PropertyValue,
@@ -61,6 +62,7 @@ import {
   PlannedExpenseInput,
   LoanPrepaymentInput,
   PropertyDocumentInput,
+  PropertyReminderInput,
   PropertyExpenseInput,
   PropertyIncomeInput,
   PropertyInput,
@@ -125,6 +127,8 @@ export interface Workspace {
   propertyValues: PropertyValue[];
   propertyIncomes: PropertyIncome[];
   propertyDocuments: PropertyDocument[];
+  /** Rappels saisis à la main sur les biens loués. */
+  propertyReminders: PropertyReminder[];
   crowdProjects: CrowdProject[];
   loans: Loan[];
   institutions: Institution[];
@@ -321,6 +325,8 @@ export const procedures = {
   "propertyIncomes.delete": { input: byId, output: ok },
   "propertyDocuments.upsert": { input: PropertyDocumentInput, output: entity<PropertyDocument>() },
   "propertyDocuments.delete": { input: byId, output: ok },
+  "propertyReminders.upsert": { input: PropertyReminderInput, output: entity<PropertyReminder>() },
+  "propertyReminders.delete": { input: byId, output: ok },
   "loanPrepayments.upsert": { input: LoanPrepaymentInput, output: entity<LoanPrepayment>() },
   "loanPrepayments.delete": { input: byId, output: ok },
   "loans.upsert": { input: LoanInput, output: entity<Loan>() },

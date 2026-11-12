@@ -95,5 +95,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0023_shiny_vulture",
     "sql": "ALTER TABLE \"leases\" DROP COLUMN \"tenant\";--> statement-breakpoint\nALTER TABLE \"leases\" DROP COLUMN \"guarantor\";"
+  },
+  {
+    "tag": "0024_oval_lester",
+    "sql": "CREATE TABLE \"property_reminders\" (\n\t\"id\" text PRIMARY KEY NOT NULL,\n\t\"property_id\" text NOT NULL,\n\t\"lot_id\" text,\n\t\"date\" text NOT NULL,\n\t\"yearly\" boolean DEFAULT false NOT NULL,\n\t\"label\" text NOT NULL,\n\t\"comment\" text DEFAULT '' NOT NULL,\n\t\"done_on\" text,\n\t\"created_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL,\n\t\"updated_at\" text DEFAULT to_char(now() at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') NOT NULL\n);\n--> statement-breakpoint\nALTER TABLE \"property_reminders\" ADD CONSTRAINT \"property_reminders_property_id_properties_id_fk\" FOREIGN KEY (\"property_id\") REFERENCES \"properties\"(\"id\") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint\nALTER TABLE \"property_reminders\" ADD CONSTRAINT \"property_reminders_lot_id_lots_id_fk\" FOREIGN KEY (\"lot_id\") REFERENCES \"lots\"(\"id\") ON DELETE set null ON UPDATE no action;--> statement-breakpoint\nCREATE INDEX \"property_reminders_property_idx\" ON \"property_reminders\" USING btree (\"property_id\");"
   }
 ];

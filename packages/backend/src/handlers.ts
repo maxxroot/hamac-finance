@@ -25,7 +25,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLot, mapRenter, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLot, mapPropertyReminder, mapRenter, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -880,6 +880,25 @@ export const handlers: Handlers = {
     if (input.id) await ctx.db.update(t.propertyExpenses).set(row).where(eq(t.propertyExpenses.id, id));
     else await ctx.db.insert(t.propertyExpenses).values({ id, ...row });
     return mapPropertyExpense((await ctx.db.select().from(t.propertyExpenses).where(eq(t.propertyExpenses.id, id)).limit(1).then(one))!);
+  },
+
+  async "propertyReminders.upsert"(input, ctx) {
+    if (!(await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.propertyId)).limit(1).then(one))) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    if (input.lotId) {
+      const lot = await ctx.db.select().from(t.lots).where(eq(t.lots.id, input.lotId)).limit(1).then(one);
+      if (!lot || lot.propertyId !== input.propertyId) throw new RpcError("NOT_FOUND", "Lot introuvable.");
+    }
+    const id = input.id ?? newId();
+    // Un rappel annuel revient chaque année : il n'est jamais « fait ».
+    const row = { propertyId: input.propertyId, lotId: input.lotId, date: input.date, yearly: input.yearly, label: input.label, comment: input.comment, doneOn: input.yearly ? null : input.doneOn, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.propertyReminders).set(row).where(eq(t.propertyReminders.id, id));
+    else await ctx.db.insert(t.propertyReminders).values({ id, ...row });
+    return mapPropertyReminder((await ctx.db.select().from(t.propertyReminders).where(eq(t.propertyReminders.id, id)).limit(1).then(one))!);
+  },
+
+  async "propertyReminders.delete"({ id }, ctx) {
+    await ctx.db.delete(t.propertyReminders).where(eq(t.propertyReminders.id, id));
+    return OK;
   },
 
   async "propertyIncomes.upsert"(input, ctx) {

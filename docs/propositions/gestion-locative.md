@@ -77,7 +77,7 @@ Le mode peut changer dans le temps (une location entière qui devient une coloca
 
 ## 2. Vue du parc
 
-**Statut :** à faire, après la tranche 1.
+**Statut :** fait le 12 novembre 2026 (branche `gestion-locative`). Page « Gestion locative » (`/gestion-locative`, module Immobilier, juste après Immobilier dans le menu), calculs dans `core/src/rentalPark.ts`, table `property_reminders` (migration 0024). Décisions prises en codant : les montants sont ceux du bien entier (la part détenue ne s'applique qu'aux rendements) ; un parking ou une cave jamais loués ne comptent comme vides que s'ils ont un loyer espéré ; les loyers perdus d'un lot vide se comptent au loyer espéré, sinon au dernier loyer ; l'occupation physique compte les jours loués sur les jours proposés, l'occupation financière les loyers reçus sur les loyers possibles (lots loués au loyer du bail, lots vides au loyer possible) ; le dépôt à rendre apparaît deux mois après le départ (délai le plus long), en retard ensuite ; un rappel ponctuel se marque « Fait », un rappel annuel revient chaque année. En attendant la tranche 3, « reçu » et « impayé » viennent encore des signalements.
 
 **Pourquoi.** Une agence regarde d'abord le parc entier : ce qui est encaissé ce mois-ci, ce qui manque, ce qui est vide, ce qui arrive à échéance.
 

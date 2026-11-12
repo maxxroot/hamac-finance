@@ -19,11 +19,12 @@ async function memory() {
 }
 
 describe("backend", () => {
+  // Premier test du fichier : il paie le démarrage de PostgreSQL en mémoire et toutes les migrations.
   it("applique les migrations et renvoie les infos système", async () => {
     const res = await (await memory()).dispatch("system.info", undefined);
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.data).toMatchObject({ appVersion: "test" });
-  });
+  }, 20_000);
 
   it("renvoie null pour un réglage jamais enregistré", async () => {
     expect(await (await memory()).dispatch("settings.get", { key: "ui.lastRoute" })).toEqual({ ok: true, data: null });

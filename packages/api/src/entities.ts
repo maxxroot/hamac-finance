@@ -334,6 +334,18 @@ export const PropertyExpenseInput = z.object({
 });
 export type PropertyExpenseInput = z.input<typeof PropertyExpenseInput>;
 
+export const PropertyReminderInput = z.object({
+  id: id.optional(),
+  propertyId: id,
+  lotId: id.nullable().default(null),
+  date: isoDate,
+  yearly: z.boolean().default(false),
+  label: text(160).min(1, "Indiquez de quoi il s'agit"),
+  comment: text(500).default(""),
+  doneOn: isoDate.nullable().default(null),
+});
+export type PropertyReminderInput = z.input<typeof PropertyReminderInput>;
+
 export const PropertyIncomeInput = z.object({
   id: id.optional(),
   propertyId: id,
