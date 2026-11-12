@@ -911,7 +911,7 @@ describe("barre latérale et barre du haut", () => {
     showShell();
     await ready();
     expect(await nav().findByText("Vue d'ensemble")).toBeTruthy();
-    for (const group of ["Saisie", "Enveloppes", "Emprunts", "Fiscalité", "Aide"]) expect(nav().getByText(group)).toBeTruthy();
+    for (const group of ["Saisie", "Placements", "Emprunts", "Fiscalité", "Aide"]) expect(nav().getByText(group)).toBeTruthy();
     for (const page of ["Tableau de bord", "Projection", "Journal", "Actions & ETF", "Crédits", "Notice"]) expect(nav().getByRole("link", { name: page })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Paramètres" })).toBeTruthy();
     expect(screen.getByText(EMAIL)).toBeTruthy();

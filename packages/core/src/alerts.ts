@@ -66,7 +66,7 @@ export function computeAlerts(
         level: "attention",
         title: `Une classe d'actifs s'écarte de plus de ${Math.round(p.livrets.driftAlert * 100)} % de sa cible`,
         detail: under.length ? `Orienter les prochains versements vers : ${under.join(", ")}.` : "Alléger en versant ailleurs, sans vendre.",
-        link: "/enveloppes",
+        link: "/comptes",
       });
     } else out.push({ id: "allocation", level: "ok", title: "Chaque classe d'actifs est proche de sa cible" });
   }
@@ -180,7 +180,7 @@ export function computeAlerts(
 
   // Concentration : un titre, un émetteur ou une plateforme qui pèse trop lourd.
   for (const c of concentrationReport(data, state).alerts) {
-    out.push({ id: `concentration-${c.key}`, level: "info", title: `${c.label} : ${Math.round(c.share * 100)} % du patrimoine financier`, detail: `Au-delà du seuil de ${Math.round(p.alerts.concentrationMax * 100)} % (Paramètres › Plan). Pensez à orienter les prochains versements ailleurs.`, link: "/enveloppes" });
+    out.push({ id: `concentration-${c.key}`, level: "info", title: `${c.label} : ${Math.round(c.share * 100)} % du patrimoine financier`, detail: `Au-delà du seuil de ${Math.round(p.alerts.concentrationMax * 100)} % (Paramètres › Plan). Pensez à orienter les prochains versements ailleurs.`, link: "/comptes" });
   }
 
   // Crédits : taux d'effort au-delà de ce que prêtent les banques.
@@ -198,7 +198,7 @@ export function computeAlerts(
       level: titres ? "info" : "attention",
       title: `${eur(line.uncovered)} au-delà de la garantie chez ${who} (${GUARANTEE_LABELS[line.guarantee].toLowerCase()})`,
       detail: titres ? "Les titres restent à vous en cas de faillite : la garantie ne joue que s'ils ne peuvent pas être restitués." : line.guarantee === "assurance" ? "Plafond par assureur, tous contrats confondus : envisager un second assureur." : "Envisager de répartir ces sommes entre plusieurs établissements.",
-      link: "/enveloppes",
+      link: "/comptes",
     });
   }
 

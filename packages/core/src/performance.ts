@@ -441,7 +441,7 @@ export interface PeriodTables {
 
 /**
  * Année par année et mois par mois pour un ensemble de comptes, sans le reste de l'analyse :
- * sert au détail par enveloppe ou par compte. Un transfert entre deux ensembles compte comme
+ * sert au détail par enveloppe, par placement ou par compte. Un transfert entre deux ensembles compte comme
  * argent versé pour l'un et retiré pour l'autre.
  */
 export function periodTables(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], accountIds: readonly string[]): PeriodTables | null {
@@ -485,7 +485,7 @@ export function scopePerformance(data: EngineData, state: PortfolioState, histor
   };
 }
 
-// ——— Par enveloppe ———
+// ——— Par enveloppe et par placement ———
 
 export interface EnvelopePerformance {
   key: string;
@@ -502,7 +502,7 @@ export interface EnvelopePerformance {
   accounts: EnvelopePerformance[];
 }
 
-/** Lignes par enveloppe puis total. Depuis le début, elles reprennent les chiffres du tableau de bord. */
+/** Lignes par enveloppe et par placement, puis total. Depuis le début, elles reprennent les chiffres du tableau de bord. */
 export function envelopePerformance(data: EngineData, state: PortfolioState, history: readonly HistoryPoint[], taxes: readonly WithdrawalTaxRow[], monthsBack: number | null): EnvelopePerformance[] {
   const active = new Set(activeAccountIds(state));
   const taxOf = (ids: readonly string[]) => sum(taxes.filter((t) => ids.includes(t.accountId)), (t) => t.tax);

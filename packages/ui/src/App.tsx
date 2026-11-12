@@ -1,4 +1,4 @@
-import { createHashRouter, RouterProvider } from "react-router";
+import { createHashRouter, Navigate, RouterProvider } from "react-router";
 import { AuthGate } from "@/layout/AuthGate";
 import { RouteError } from "@/layout/RouteError";
 import { Shell } from "@/layout/Shell";
@@ -27,7 +27,7 @@ import { Obligations } from "@/pages/Obligations";
 import { Performance } from "@/pages/Performance";
 import { Notice } from "@/pages/Notice";
 import { Projection } from "@/pages/Projection";
-import { Synthese } from "@/pages/Synthese";
+import { Comptes } from "@/pages/Comptes";
 import { TableauDeBord } from "@/pages/TableauDeBord";
 import { Parametres } from "@/pages/Parametres";
 import { Versements } from "@/pages/Versements";
@@ -45,7 +45,7 @@ const PAGES: Record<string, ReactNode> = {
   "/parametres": <Parametres />,
   "/journal": <Journal />,
   "/versements": <Versements />,
-  "/enveloppes": <Synthese />,
+  "/comptes": <Comptes />,
   "/livrets": <Livrets />,
   "/fonds-euros": <FondsEuros />,
   "/obligations": <Obligations />,
@@ -79,6 +79,8 @@ const router = createHashRouter([
         errorElement: <RouteError />,
       })),
       { path: "/immobilier/:id", element: <Bien />, errorElement: <RouteError /> },
+      // Ancienne adresse de « Mes comptes » (favoris).
+      { path: "/enveloppes", element: <Navigate to="/comptes" replace /> },
     ],
   },
   // Pages à imprimer : sans menu ni fond sombre.

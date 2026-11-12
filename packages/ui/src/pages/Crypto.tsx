@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import type { Asset } from "@hamac/core";
 import { incomeTaxRate } from "@hamac/core";
-import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AddTransactionButton, EmptyAccount } from "@/components/TransactionButton";
 import { AccountEvolution, EvolutionToggle, PositionEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
@@ -47,9 +47,9 @@ export function Crypto() {
         actions={accounts.length > 0 && <AddTransactionButton accountId={accounts[0].account.id} type="achat" />}
       />
       {accounts.length === 0 && (
-        <EmptyEnvelope kind="crypto" label="Ajouter une plateforme">
+        <EmptyAccount kind="crypto" label="Ajouter une plateforme">
           Aucune plateforme crypto : créez-la, rattachée à son établissement, pour commencer.
-        </EmptyEnvelope>
+        </EmptyAccount>
       )}
       <StatGrid>
         <Stat label="Valeur totale" sub={<>{((value / (state.totals.value || 1)) * 100).toFixed(1).replace(".", ",")} % du patrimoine</>}>

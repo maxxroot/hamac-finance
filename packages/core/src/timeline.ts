@@ -13,10 +13,10 @@ import { addMonth, monthOf, Schedule, type Month } from "./schedule";
 
 // ——— Grandes étapes ———
 
-export const MILESTONE_CATEGORIES = ["enveloppes", "titres", "paliers", "mouvements", "marches", "immobilier"] as const;
+export const MILESTONE_CATEGORIES = ["comptes", "titres", "paliers", "mouvements", "marches", "immobilier"] as const;
 export type MilestoneCategory = (typeof MILESTONE_CATEGORIES)[number];
 export const MILESTONE_CATEGORY_LABELS: Record<MilestoneCategory, string> = {
-  enveloppes: "Enveloppes",
+  comptes: "Comptes et contrats",
   titres: "Titres",
   paliers: "Paliers",
   mouvements: "Gros versements et retraits",
@@ -64,13 +64,13 @@ export function milestones(data: EngineData, history: readonly HistoryPoint[], a
   const txs = data.transactions.filter((t) => t.date <= asOf).sort((a, b) => a.date.localeCompare(b.date));
   const schedule = new Schedule(data.plans, data.skips, data.params.profile.startMonth, data.params.profile.contributionDay);
 
-  // Enveloppes : ouverture (date saisie, sinon première opération) et clôture (dernière opération d'un compte archivé).
+  // Comptes : ouverture (date saisie, sinon première opération) et clôture (dernière opération d'un compte archivé).
   for (const a of data.accounts) {
     const dates = [...txs.filter((t) => t.accountId === a.id || t.counterAccountId === a.id).map((t) => t.date), ...schedule.paidFlows(a.id, asOf).map((f) => f.date)].sort((x, y) => x.localeCompare(y));
     const opened = a.openedOn ?? dates[0];
-    if (opened) push({ id: `ouverture:${a.id}`, date: opened, category: "enveloppes", title: `Ouverture de ${quoted(a.name)}`, detail: ACCOUNT_KIND_LABELS[a.kind], accountId: a.id });
+    if (opened) push({ id: `ouverture:${a.id}`, date: opened, category: "comptes", title: `Ouverture de ${quoted(a.name)}`, detail: ACCOUNT_KIND_LABELS[a.kind], accountId: a.id });
     const last = dates.at(-1);
-    if (a.archived && last) push({ id: `cloture:${a.id}`, date: last, category: "enveloppes", title: `Clôture de ${quoted(a.name)}`, detail: ACCOUNT_KIND_LABELS[a.kind], accountId: a.id });
+    if (a.archived && last) push({ id: `cloture:${a.id}`, date: last, category: "comptes", title: `Clôture de ${quoted(a.name)}`, detail: ACCOUNT_KIND_LABELS[a.kind], accountId: a.id });
   }
 
   // Titres : premier achat de chaque titre, puis chaque vente qui vide une ligne.
@@ -308,7 +308,7 @@ export function compareSnapshots(from: HistoryPoint | null, to: HistoryPoint): S
 
 export interface MonthChange {
   month: Month;
-  /** Argent apporté net : versements moins retraits (les transferts entre enveloppes s'annulent). */
+  /** Argent apporté net : versements moins retraits (les transferts entre comptes s'annulent). */
   money: number;
   /** Versements bruts du mois : nuls, c'est un mois sans versement. */
   deposits: number;

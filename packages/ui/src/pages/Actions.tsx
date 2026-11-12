@@ -2,7 +2,7 @@ import { RefreshCw } from "lucide-react";
 import { Fragment, useState } from "react";
 import { advisedMonthlyPurchase, describeOrderFees, fiscalAnniversary, monthsElapsed, splitByTarget, tradeFeeFor, type AccountState, type Asset, type PositionState } from "@hamac/core";
 import { AddAccountButton, EditAccountButton } from "@/components/AccountButtons";
-import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AddTransactionButton, EmptyAccount } from "@/components/TransactionButton";
 import { AccountEvolution, EvolutionToggle, PositionEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Movements } from "@/components/Movements";
@@ -44,9 +44,9 @@ export function Actions() {
       />
       {pea.length === 0 && (
         <div className="mb-6">
-          <EmptyEnvelope kind="pea" label="Ajouter un PEA">
+          <EmptyAccount kind="pea" label="Ajouter un PEA">
             Pas encore de PEA (un seul par personne) : créez-le avec son établissement et sa date d'ouverture (règle des 5 ans).
-          </EmptyEnvelope>
+          </EmptyAccount>
         </div>
       )}
       <div className="space-y-8">

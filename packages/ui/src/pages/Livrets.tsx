@@ -3,14 +3,14 @@ import { Fragment, useMemo, useState } from "react";
 import { LIVRET_LABELS, livretInterest, rateAt } from "@hamac/core";
 import { AccountEvolution } from "@/components/AccountEvolution";
 import { EditAccountButton } from "@/components/AccountButtons";
-import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AddTransactionButton, EmptyAccount } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, PercentInput, Select, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
 import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr, DetailRow, ExpandButton, stopRowClick, useExpandedRow } from "@/components/table";
 import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
-import { LivretsStatus } from "@/pages/Synthese";
+import { LivretsStatus } from "@/pages/Comptes";
 import { Onboarding } from "@/pages/Onboarding";
 import { cn } from "@/lib/cn";
 import { formatDate, todayIso } from "@/lib/numbers";
@@ -64,9 +64,9 @@ export function Livrets() {
         actions={rows.length > 0 && <AddTransactionButton accountId={rows[0].s.account.id} type="versement" />}
       />
       {rows.length === 0 ? (
-        <EmptyEnvelope kind="livret" label="Ajouter un livret">
+        <EmptyAccount kind="livret" label="Ajouter un livret">
           Aucun livret pour l'instant : créez-le avec son type (LEP, LDDS, Livret A…), son établissement, son taux actuel et son plafond.
-        </EmptyEnvelope>
+        </EmptyAccount>
       ) : (
         <>
           <StatGrid>

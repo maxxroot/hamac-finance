@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { PERIODS, type PeriodKey } from "@/lib/dashboard";
 import { capitalize, formatMonth } from "@/lib/numbers";
-import { ALL_SCOPE, breakdownParts, envelopesForScope, findScope, pctText, scopeOptions } from "@/lib/performance";
+import { ALL_SCOPE, breakdownParts, envelopesForScope, findScope, groupSections, pctText, scopeOptions } from "@/lib/performance";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
 
 export function Performance() {
@@ -60,10 +60,12 @@ export function Performance() {
         <div className="w-full max-w-72">
           <Select aria-label="Ce qui est analysé" value={scope.key} onChange={(e) => setScopeKey(e.target.value)}>
             <option value={options.all.key}>{options.all.label}</option>
-            <optgroup label="Enveloppes">
-              {options.groups.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </optgroup>
-            <optgroup label="Comptes">
+            {groupSections(options).map((s) => (
+              <optgroup key={s.label} label={s.label}>
+                {s.options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+              </optgroup>
+            ))}
+            <optgroup label="Comptes et contrats">
               {options.accounts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             </optgroup>
           </Select>
@@ -120,7 +122,7 @@ export function Performance() {
 
           <p className="text-xs text-fg-faint">
             Le <b>rendement annualisé</b> tient compte de la date de chaque versement. Il s'affiche à partir d'un an : sur quelques jours, annualiser n'a pas de sens. Le <b>rendement cumulé</b> et le calendrier mesurent seulement les placements, sans l'effet de l'argent ajouté, mois par mois. Le <b>gain cumulé</b>, en euros, est ce que les placements ont rapporté depuis le début de la période, versements déduits. Une
-            baisse et sa remontée dans un même mois n'y apparaissent donc pas. Les transferts entre enveloppes comptent pour chaque enveloppe, mais pas pour le total. « Gain après impôts » : ce qui resterait si tout était retiré aujourd'hui.
+            baisse et sa remontée dans un même mois n'y apparaissent donc pas. Les transferts entre comptes comptent pour chaque compte, mais pas pour le total. « Gain après impôts » : ce qui resterait si tout était retiré aujourd'hui.
           </p>
         </div>
       )}

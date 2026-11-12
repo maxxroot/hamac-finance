@@ -2,7 +2,7 @@ import { ACCOUNT_KIND_LABELS } from "@hamac/core";
 import { Fragment } from "react";
 import { SortTh, useSortable } from "@/lib/sort";
 import type { AccountState, PortfolioState } from "@hamac/core";
-import { AccountEvolution, EnvelopesEvolution } from "@/components/AccountEvolution";
+import { AccountEvolution, AccountsEvolution } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { ProtectionCard } from "@/components/ProtectionCard";
 import { ConcentrationCard } from "@/components/ConcentrationCard";
@@ -16,7 +16,7 @@ import { formatEur } from "@hamac/core";
 
 const ACTION_LABEL = { ok: "OK", renforcer: "Renforcer", alleger: "Alléger (verser ailleurs)" } as const;
 
-export function Synthese() {
+export function Comptes() {
   const pf = usePortfolio();
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
@@ -25,12 +25,12 @@ export function Synthese() {
 
   return (
     <>
-      <PageHeader title="Synthèse des enveloppes" description="Tout est calculé depuis le journal : apports, versements mensuels passés et mouvements." />
+      <PageHeader title="Mes comptes" description="Chaque compte et contrat, calculé depuis le journal : apports, versements mensuels passés et mouvements." />
       <AccountsTable rows={rows} totals={state.totals} />
 
       <Card className="mb-6">
-        <CardTitle hint="Cliquer sur la légende masque ou réaffiche une courbe">Évolution par enveloppe</CardTitle>
-        <EnvelopesEvolution className="p-0" />
+        <CardTitle hint="Cliquer sur la légende masque ou réaffiche une courbe">Évolution par compte</CardTitle>
+        <AccountsEvolution className="p-0" />
       </Card>
 
       <ConcentrationCard />
@@ -130,7 +130,7 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
     <Table className="mb-6">
       <thead>
         <tr>
-          <SortTh {...by("name")}>Compte</SortTh>
+          <SortTh {...by("name")}>Compte ou contrat</SortTh>
           <SortTh {...by("role")}>Rôle</SortTh>
           <SortTh {...by("monthly")} align="right">
             Versement mensuel

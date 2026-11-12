@@ -2,6 +2,15 @@
 
 Hamac reprend la logique d'un Google Sheet de plan d'épargne retraite, en corrigeant ses limites structurelles.
 
+## Vocabulaire
+
+Ces termes ont un sens précis, dans l'interface comme dans le code :
+
+- **Enveloppe** : le cadre fiscal et juridique, c'est-à-dire un type de compte (livret réglementé, assurance-vie, PEA, PEA-PME, compte-titres, PER, épargne salariale). Les plateformes crypto et de crowdlending ne sont pas des enveloppes : ce sont des placements détenus en direct (`isEnvelope`).
+- **Compte** ou **contrat** : une enveloppe précise ouverte chez un établissement, ou une plateforme (Binance, une plateforme de crowdlending). On dit « contrat » pour l'assurance-vie et le PER, « compte » pour le reste (`accountNoun`).
+- **Support** ou **placement** : ce qu'on met dans un compte (fonds euros, ETF, action, obligation, crypto…). Le fonds euros est un support d'un contrat, jamais une enveloppe.
+- **Classe d'actifs** : le regroupement des supports pour l'allocation cible.
+
 ## Entités
 
 | Entité | Rôle | Remarques |

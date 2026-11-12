@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AccountState, Alert, AllocationRow, HistoryPoint } from "@hamac/core";
-import { accountHistory, assetLines, envelopeLines, positionHistory, allocationBars, alertsToReview, envelopeRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
+import { accountHistory, assetLines, accountLines, positionHistory, allocationBars, alertsToReview, accountRows, gainBand, gainSinceLastMonth, historyForPeriod } from "./dashboard";
 
 const point = (i: number, value = 100, netContrib = 80): HistoryPoint => ({ date: `m${i}`, month: `2026-${String(i).padStart(2, "0")}`, value, netContrib, gain: value - netContrib, realEstate: 0, otherAssets: 0, debts: 0, netWorth: value, buckets: {} as HistoryPoint["buckets"], byAccount: {}, contribByAccount: {}, byPosition: {}, detailByAccount: {}, positionResults: {} });
 const history = Array.from({ length: 20 }, (_, i) => point(i + 1));
@@ -33,7 +33,7 @@ describe("tableau de bord", () => {
       { id: "av", name: "Épargne" },
       { id: "vide", name: "Vide" },
     ];
-    expect(envelopeLines(h, accountHistory(h, ["pea", "av", "vide"]), accounts).map((l) => [l.key, l.name, l.values])).toEqual([
+    expect(accountLines(h, accountHistory(h, ["pea", "av", "vide"]), accounts).map((l) => [l.key, l.name, l.values])).toEqual([
       ["av", "Épargne", [0, 300]],
       ["pea", "Épargne (2)", [100, 120]],
     ]);
@@ -100,18 +100,18 @@ describe("tableau de bord", () => {
   });
 
   it("classe les comptes, ignore les comptes vides et calcule le gain", () => {
-    const rows = envelopeRows([account("petit", 100, 80, 20), account("vide", 0), account("grand", 400, 500, -100), account("rien-verse", 50, 0, 50)]);
+    const rows = accountRows([account("petit", 100, 80, 20), account("vide", 0), account("grand", 400, 500, -100), account("rien-verse", 50, 0, 50)]);
     expect(rows.map((r) => r.key)).toEqual(["grand", "petit", "rien-verse"]);
     expect(rows.map((r) => r.width)).toEqual([100, 25, 12.5]);
     expect(rows.map((r) => r.gainPct)).toEqual([-0.2, 0.25, null]);
   });
 
   it("regroupe les plus petits comptes sans perdre de valeur", () => {
-    const rows = envelopeRows([500, 400, 300, 200, 100, 50, 25].map((v) => account(`c${v}`, v)), 6);
+    const rows = accountRows([500, 400, 300, 200, 100, 50, 25].map((v) => account(`c${v}`, v)), 6);
     expect(rows).toHaveLength(6);
     expect(rows.at(-1)).toMatchObject({ key: "autres", name: "2 autres comptes", value: 75, gainPct: null });
     expect(rows.reduce((s, r) => s + r.value, 0)).toBe(1575);
-    expect(envelopeRows([1, 2, 3, 4, 5, 6].map((v) => account(`c${v}`, v)), 6).some((r) => r.key === "autres")).toBe(false);
+    expect(accountRows([1, 2, 3, 4, 5, 6].map((v) => account(`c${v}`, v)), 6).some((r) => r.key === "autres")).toBe(false);
   });
 
   it("place barres et repères sur une même échelle", () => {

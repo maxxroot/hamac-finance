@@ -1,9 +1,14 @@
 /**
  * Vocabulaire métier de Hamac.
  *
- * Compte  = un contenant avec ses propres espèces (un livret, un contrat d'assurance-vie, un PEA,
- *           un compte-titres, une plateforme crypto).
- * Titre   = ce qu'on achète dans un compte (ETF, action, obligation, crypto, fonds).
+ * Enveloppe = le cadre fiscal et juridique, c'est-à-dire un type : livret réglementé, assurance-vie,
+ *             PEA, PEA-PME, compte-titres, PER, épargne salariale. Les plateformes crypto et de
+ *             crowdlending ne sont pas des enveloppes : ce sont des placements détenus en direct.
+ * Compte    = une enveloppe précise ouverte chez un établissement (« PEA Bourso »), ou une plateforme
+ *             (« Binance »), avec ses propres espèces. On dit « contrat » pour l'assurance-vie et le PER.
+ * Support / placement = ce qu'on met dans un compte (fonds euros, ETF, action, obligation, crypto…).
+ * Titre     = un support identifié, acheté dans un compte (entité `Asset`).
+ * Classe d'actifs = le regroupement des supports pour l'allocation cible.
  * Opération = un mouvement daté dans un compte (versement, achat, coupon, transfert…).
  */
 
@@ -22,6 +27,18 @@ export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
   crypto: "Plateforme crypto",
 };
 
+/** Types de compte qui sont des enveloppes fiscales ; les autres sont des plateformes de placement. */
+export const ENVELOPE_KINDS: readonly AccountKind[] = ["livret", "assurance_vie", "pea", "pea_pme", "cto", "per", "epargne_salariale"];
+
+export function isEnvelope(kind: AccountKind): boolean {
+  return ENVELOPE_KINDS.includes(kind);
+}
+
+/** « contrat » pour l'assurance-vie et le PER, « compte » pour le reste. */
+export function accountNoun(kind: AccountKind): "contrat" | "compte" {
+  return kind === "assurance_vie" || kind === "per" ? "contrat" : "compte";
+}
+
 export const LIVRET_TYPES = ["LEP", "LDDS", "LIVRET_A", "AUTRE"] as const;
 export type LivretType = (typeof LIVRET_TYPES)[number];
 export const LIVRET_LABELS: Record<LivretType, string> = {
@@ -39,7 +56,7 @@ export const LIVRET_LEGAL_CEILINGS: Record<LivretType, number | null> = {
 };
 
 /**
- * Classes d'actifs (ce que contiennent les enveloppes). L'allocation cible se règle classe par classe
+ * Classes d'actifs (regroupements des supports). L'allocation cible se règle classe par classe
  * dans « Ma répartition cible », et chaque élément peut y déroger.
  * Identifiants techniques inchangés, libellés concrets.
  */

@@ -3,7 +3,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { BOND_KIND_LABELS, maturityLabel, nextCoupon, type PositionState } from "@hamac/core";
 import { PositionEvolution } from "@/components/AccountEvolution";
-import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AddTransactionButton, EmptyAccount } from "@/components/TransactionButton";
 import { Amount } from "@/components/Amount";
 import { Field, MoneyInput, NumberInput, TextInput } from "@/components/form";
 import { Movements } from "@/components/Movements";
@@ -75,9 +75,9 @@ export function Obligations() {
       />
       {!cto && (
         <div className="mb-6">
-          <EmptyEnvelope kind="cto" label="Ajouter un compte-titres">
+          <EmptyAccount kind="cto" label="Ajouter un compte-titres">
             Les obligations se détiennent dans un compte-titres (ou une assurance-vie). Créez d'abord le compte, rattaché à son courtier.
-          </EmptyEnvelope>
+          </EmptyAccount>
         </div>
       )}
       <StatGrid>

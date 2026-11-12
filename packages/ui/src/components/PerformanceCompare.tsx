@@ -14,7 +14,7 @@ import { ReferenceDialog } from "@/dialogs/ReferenceDialog";
 import { useChartColors } from "@/lib/colors";
 import { PERIODS, type PeriodKey } from "@/lib/dashboard";
 import { capitalize, formatDate, formatMonth } from "@/lib/numbers";
-import { ALL_SCOPE, assetKey, compareSide, findScope, loadCompareChoice, ownedAssetIds, referenceKey, saveCompareChoice, seriesRequest, withReference, type CompareChoice, type Reference, type ScopeOptions } from "@/lib/performance";
+import { ALL_SCOPE, assetKey, compareSide, findScope, groupSections, loadCompareChoice, ownedAssetIds, referenceKey, saveCompareChoice, seriesRequest, withReference, type CompareChoice, type Reference, type ScopeOptions } from "@/lib/performance";
 import { call } from "@/lib/transport";
 import type { useWorkspaceIndex } from "@/lib/workspace";
 
@@ -79,10 +79,12 @@ export function PerformanceCompare({ data, state, history, idx, options }: { dat
   const choices = (
     <>
       <option value={options.all.key}>{options.all.label}</option>
-      <optgroup label="Enveloppes">
-        {options.groups.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-      </optgroup>
-      <optgroup label="Comptes">
+      {groupSections(options).map((s) => (
+        <optgroup key={s.label} label={s.label}>
+          {s.options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </optgroup>
+      ))}
+      <optgroup label="Comptes et contrats">
         {options.accounts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
       </optgroup>
       {assetKeys.length > 0 && (

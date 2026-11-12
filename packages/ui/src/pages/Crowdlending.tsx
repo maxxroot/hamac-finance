@@ -6,7 +6,7 @@ import { AddAccountButton } from "@/components/AccountButtons";
 import { Amount } from "@/components/Amount";
 import { RowActions } from "@/components/RowActions";
 import { Stat, StatGrid } from "@/components/Stat";
-import { EmptyEnvelope } from "@/components/TransactionButton";
+import { EmptyAccount } from "@/components/TransactionButton";
 import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/components/table";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { BricksImportDialog } from "@/dialogs/BricksImportDialog";
@@ -57,9 +57,9 @@ export function Crowdlending() {
       />
 
       {platforms.length === 0 ? (
-        <EmptyEnvelope kind="crowdlending" label="Ajouter un compte">
+        <EmptyAccount kind="crowdlending" label="Ajouter un compte">
           Créez votre plateforme (Bricks, par exemple) dans Paramètres › Établissements, ajoutez-lui un compte de crowdlending, puis vos projets.
-        </EmptyEnvelope>
+        </EmptyAccount>
       ) : (
         <>
           {states.length > 0 && <p className="-mt-6 mb-6 text-xs text-fg-muted">{crowdCountsLabel(states)}</p>}

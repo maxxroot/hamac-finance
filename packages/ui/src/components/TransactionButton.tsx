@@ -36,8 +36,8 @@ export function AddTransactionButton({
   );
 }
 
-/** Page d'enveloppe sans compte : on propose de créer le premier. */
-export function EmptyEnvelope({ kind, label, children }: { kind: AccountKind; label: string; children: ReactNode }) {
+/** Page de placement sans compte : on propose de créer le premier. */
+export function EmptyAccount({ kind, label, children }: { kind: AccountKind; label: string; children: ReactNode }) {
   return (
     <Card className={cn("flex flex-col items-start gap-3 py-8")}>
       <p className="text-sm text-fg-muted">{children}</p>

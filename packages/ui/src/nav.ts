@@ -54,7 +54,8 @@ export const NAV: NavGroup[] = [
     label: "Vue d'ensemble",
     items: [
       { path: "/", label: "Tableau de bord", icon: Gauge, sheetTab: "Tableau de bord", step: 4, description: "Patrimoine, projection retraite, alertes et répartition." },
-      { path: "/performance", module: "performance", label: "Performance", icon: TrendingUp, sheetTab: "Performance", step: 3, description: "Rendement annualisé (TRI) et plus-values par enveloppe." },
+      { path: "/comptes", label: "Mes comptes", icon: ChartPie, sheetTab: "Enveloppe", step: 3, description: "Valeur, versé net et allocation cible de chaque compte et contrat, garanties en cas de faillite." },
+      { path: "/performance", module: "performance", label: "Performance", icon: TrendingUp, sheetTab: "Performance", step: 3, description: "Rendement annualisé (TRI) et plus-values par enveloppe, par placement et par compte." },
       { path: "/exposition", module: "actions", label: "Exposition réelle", icon: Globe, sheetTab: "Actions", step: 5, description: "Ce que contiennent vraiment vos ETF : pays, secteurs, devises et plus grosses lignes." },
       { path: "/projection", label: "Projection", icon: ChartLine, sheetTab: "Projection", step: 4, description: "Projection année par année jusqu'à la retraite et simulations.", retirementOnly: true },
       { path: "/historique", module: "historique", label: "Historique", icon: History, sheetTab: "Historique", step: 3, description: "La situation à deux dates, ce qui a changé entre les deux et les grandes étapes." },
@@ -70,11 +71,10 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    label: "Enveloppes",
+    label: "Placements",
     items: [
-      { path: "/enveloppes", label: "Synthèse", icon: ChartPie, sheetTab: "Enveloppe", step: 3, description: "Valeur, versé net et allocation cible de chaque enveloppe." },
       { path: "/livrets", module: "livrets", label: "Livrets", icon: PiggyBank, sheetTab: "Livrets", step: 2, description: "Épargne de précaution : LEP, LDDS, Livret A, plancher et plafond." },
-      { path: "/fonds-euros", module: "fondsEuros", label: "Fonds euros", icon: ShieldCheck, sheetTab: "Fonds euros", step: 2, description: "Assurance-vie : valeur, rapprochement et taux servis." },
+      { path: "/fonds-euros", module: "fondsEuros", label: "Fonds euros", icon: ShieldCheck, sheetTab: "Fonds euros", step: 2, description: "Le fonds euros de vos contrats d'assurance-vie : valeur, relevé et taux servis." },
       { path: "/obligations", module: "obligations", label: "Obligations", icon: Landmark, sheetTab: "OAT", step: 2, description: "OAT et obligations d'entreprise gardées jusqu'à l'échéance." },
       { path: "/actions", module: "actions", label: "Actions & ETF", icon: ChartLine, sheetTab: "Actions", step: 2, description: "Positions du PEA, PRU, cours et investissement mensuel conseillé." },
       { path: "/immobilier", module: "immobilier", label: "Immobilier", icon: House, sheetTab: "Immobilier", step: 5, description: "Biens immobiliers et SCPI." },

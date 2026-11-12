@@ -34,7 +34,7 @@ import { SortTh, useSortable } from "@/lib/sort";
 
 /** Une couleur par famille d'étapes, prise parmi celles des classes d'actifs (validées dans les deux thèmes). */
 export const CATEGORY_COLORS: Record<MilestoneCategory, string> = {
-  enveloppes: "var(--color-garanti)",
+  comptes: "var(--color-garanti)",
   titres: "var(--color-croissance)",
   paliers: "var(--color-gold)",
   mouvements: "var(--color-precaution)",
@@ -452,7 +452,7 @@ export function CascadeCard({ w, scope, scopes, onScope, journalHref, operations
   );
 }
 
-// ——— Par enveloppe ———
+// ——— Par compte ———
 
 export function AccountsCard({ rows, nameOf, closed }: { rows: readonly AccountChange[]; nameOf: (id: string) => string; closed: (id: string) => boolean }) {
   const { sorted, by } = useSortable(
@@ -470,11 +470,11 @@ export function AccountsCard({ rows, nameOf, closed }: { rows: readonly AccountC
   const total = (f: (a: AccountChange) => number) => rows.reduce((t, a) => t + f(a), 0);
   return (
     <Card>
-      <CardTitle hint="transferts entre enveloppes compris">Enveloppe par enveloppe</CardTitle>
+      <CardTitle hint="transferts entre comptes compris">Compte par compte</CardTitle>
       <Table>
         <thead>
           <tr>
-            <SortTh {...by("compte")}>Enveloppe</SortTh>
+            <SortTh {...by("compte")}>Compte</SortTh>
             <SortTh {...by("debut")} align="right">Au début</SortTh>
             <SortTh {...by("fin")} align="right">À la fin</SortTh>
             <SortTh {...by("apport")} align="right">Argent apporté</SortTh>
@@ -603,7 +603,7 @@ export function PositionsCard({ rows, assetName, accountName }: { rows: readonly
         <thead>
           <tr>
             <SortTh {...by("titre")}>Titre</SortTh>
-            <SortTh {...by("compte")}>Enveloppe</SortTh>
+            <SortTh {...by("compte")}>Compte</SortTh>
             <SortTh {...by("mouvement")}>Mouvement</SortTh>
             <SortTh {...by("investi")} align="right">Investi en plus</SortTh>
             <SortTh {...by("debut")} align="right">Au début</SortTh>

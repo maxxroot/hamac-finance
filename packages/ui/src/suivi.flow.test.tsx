@@ -12,7 +12,7 @@ import { ToastProvider } from "@/lib/toast";
 import { Impots } from "@/pages/Impots";
 import { TransactionDialog, type TxPreset } from "@/dialogs/TransactionDialog";
 import { useWorkspaceIndex } from "@/lib/workspace";
-import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AddTransactionButton, EmptyAccount } from "@/components/TransactionButton";
 import { EditAccountButton } from "@/components/AccountButtons";
 import { Movements } from "@/components/Movements";
 import { PositionEvolution, EvolutionToggle } from "@/components/AccountEvolution";
@@ -26,7 +26,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { Compteurs } from "@/pages/Compteurs";
 import { Journal } from "@/pages/Journal";
 import { Projection } from "@/pages/Projection";
-import { Synthese } from "@/pages/Synthese";
+import { Comptes } from "@/pages/Comptes";
 import { Versements } from "@/pages/Versements";
 import { TableauDeBord } from "@/pages/TableauDeBord";
 
@@ -157,10 +157,10 @@ describe("tableau de bord", () => {
     expect(screen.getByText(/départ visé à 64 ans/)).toBeTruthy();
     // Biens et crédits au jeu de démonstration : le patrimoine est dit « net ».
     expect(screen.getByText("Patrimoine net")).toBeTruthy();
-    for (const label of ["Versé net", "Gain / perte", "Rendement annualisé", "Épargne par mois", "Mes enveloppes", "Allocation", "À regarder"]) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    for (const label of ["Versé net", "Gain / perte", "Rendement annualisé", "Épargne par mois", "Mes comptes", "Allocation", "À regarder"]) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     expect(screen.getByText("Immobilier")).toBeTruthy();
     expect(screen.getByText("Crédits")).toBeTruthy();
-    const envelopes = screen.getByText("Mes enveloppes").closest("div.rounded-2xl") as HTMLElement;
+    const envelopes = screen.getByText("Mes comptes").closest("div.rounded-2xl") as HTMLElement;
     expect(within(envelopes).getByText("LEP")).toBeTruthy();
     expect(within(envelopes).getByText("PEA")).toBeTruthy();
     // Plan de retraite : la carte de projection est là, avec son lien vers le simulateur.
@@ -243,7 +243,7 @@ describe("tableau de bord", () => {
     expect(screen.getByText("Patrimoine financier")).toBeTruthy();
     expect(screen.getByText("Précaution")).toBeTruthy();
     // Un seul compte garni : une seule ligne dans les enveloppes.
-    const envelopes = screen.getByText("Mes enveloppes").closest("div.rounded-2xl") as HTMLElement;
+    const envelopes = screen.getByText("Mes comptes").closest("div.rounded-2xl") as HTMLElement;
     expect(within(envelopes).getByText("Livret fictif")).toBeTruthy();
     expect(within(envelopes).queryByText("Compte vide fictif")).toBeNull();
     expect(screen.queryByText("Actifs et dettes")).toBeNull();
@@ -252,9 +252,9 @@ describe("tableau de bord", () => {
   it("comptes sans argent : les enveloppes invitent à saisir les apports ; l'évolution attend un mois d'historique", async () => {
     await rpc("accounts.upsert", { kind: "cto", name: "Compte vide fictif" });
     show(<TableauDeBord />);
-    expect(await screen.findByText("Saisissez vos apports pour voir vos enveloppes.", {}, { timeout: 30_000 })).toBeTruthy();
+    expect(await screen.findByText("Saisissez vos apports pour voir vos comptes.", {}, { timeout: 30_000 })).toBeTruthy();
     expect(screen.getByText("L'évolution apparaîtra après un mois d'historique.")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Détail" }).getAttribute("href")).toBe("/enveloppes");
+    expect(screen.getByRole("link", { name: "Détail" }).getAttribute("href")).toBe("/comptes");
   });
 
   it("à un an du départ : « 1 an de versements restants » au singulier", async () => {
@@ -299,23 +299,23 @@ describe("tableau de bord", () => {
   });
 });
 
-describe("synthèse des enveloppes", () => {
+describe("mes comptes", () => {
   it("sans compte : l'accueil ; avec le jeu de démonstration : tableau trié, détail d'un compte, allocation et livrets", async () => {
-    const empty = show(<Synthese />);
+    const empty = show(<Comptes />);
     expect(await screen.findByText("Bienvenue dans Hamac")).toBeTruthy();
     empty.unmount();
 
     const user = userEvent.setup();
     await seedDemo(h.backend);
-    show(<Synthese />);
-    expect(await screen.findByText("Synthèse des enveloppes", {}, { timeout: 30_000 })).toBeTruthy();
+    show(<Comptes />);
+    expect(await screen.findByText("Chaque compte et contrat", { exact: false }, { timeout: 30_000 })).toBeTruthy();
     const table = screen.getAllByRole("table")[0] as HTMLElement;
     const firstRow = () => within(table).getAllByRole("row")[1]!.textContent ?? "";
     // Les types de compte sont rappelés sous le nom quand il diffère.
     expect(within(table).getByText("Total")).toBeTruthy();
-    await user.click(within(table).getByRole("button", { name: "Compte" }));
+    await user.click(within(table).getByRole("button", { name: "Compte ou contrat" }));
     expect(firstRow()).toMatch(/^Assurance-vie/);
-    await user.click(within(table).getByRole("button", { name: "Compte" }));
+    await user.click(within(table).getByRole("button", { name: "Compte ou contrat" }));
     expect(firstRow()).toMatch(/^Plateforme E/);
     for (const col of ["Rôle", "Versement mensuel", "Valeur", "Part du patrimoine", "Versé net", "Gain / perte", "Gain (%)"]) {
       await user.click(within(table).getByRole("button", { name: col }));
@@ -354,13 +354,13 @@ describe("synthèse des enveloppes", () => {
     await rpc("transactions.upsert", { date: "2025-01-10", type: "apport_initial", accountId: livret.id, amount: 4_000 });
     const ws = await workspace();
     await rpc("params.update", { ...ws.params, livrets: { ...ws.params.livrets, floor: 7_500, ceiling: 15_000 } });
-    const first = show(<Synthese />);
+    const first = show(<Comptes />);
     expect(await screen.findByText(/Livrets sous le plancher/, {}, { timeout: 30_000 })).toBeTruthy();
     expect(screen.getByText(/reconstituer avant tout autre placement/)).toBeTruthy();
     first.unmount();
 
     await rpc("params.update", { ...ws.params, livrets: { ...ws.params.livrets, floor: 500, ceiling: 1_000 } });
-    show(<Synthese />);
+    show(<Comptes />);
     expect(await screen.findByText(/Livrets au-dessus du plafond/, {}, { timeout: 30_000 })).toBeTruthy();
     expect(screen.getByText(/transférer/)).toBeTruthy();
   });
@@ -377,7 +377,7 @@ describe("synthèse des enveloppes", () => {
       const etf = await rpc<{ id: string }>("assets.upsert", { kind: "etf", name: `ETF fictif ${i}`, priceSource: "manuel" });
       await rpc("transactions.upsert", { date: "2025-06-10", type: "achat", accountId: pea.id, assetId: etf.id, amount: 100 * i, quantity: i });
     }
-    show(<Synthese />);
+    show(<Comptes />);
     const card = (await screen.findByText("Concentration", {}, { timeout: 30_000 })).closest("div.rounded-2xl") as HTMLElement;
     for (const label of ["Première ligne", "Cinq premières lignes", "Patrimoine financier", "Au-delà du seuil"]) expect(within(card).getByText(label)).toBeTruthy();
     for (const block of ["Titres, tous comptes confondus", "Établissements", "Émetteurs d'obligations", "Plateformes de crowdlending"]) expect(within(card).getByText(block)).toBeTruthy();
@@ -399,7 +399,7 @@ describe("synthèse des enveloppes", () => {
     const etf = await rpc<{ id: string }>("assets.upsert", { kind: "etf", name: "ETF unique fictif", priceSource: "manuel" });
     await rpc("transactions.upsert", { date: "2025-01-10", type: "apport_initial", accountId: compte.id, amount: 5_000 });
     await rpc("transactions.upsert", { date: "2025-01-11", type: "achat", accountId: compte.id, assetId: etf.id, amount: 5_000, quantity: 50 });
-    const first = show(<Synthese />);
+    const first = show(<Comptes />);
     const card = (await screen.findByText("Concentration", {}, { timeout: 30_000 })).closest("div.rounded-2xl") as HTMLElement;
     expect(within(card).getAllByText("au-delà du seuil").length).toBeGreaterThan(0);
     expect(within(card).getByText(/alerte au-delà de/)).toBeTruthy();
@@ -407,7 +407,7 @@ describe("synthèse des enveloppes", () => {
 
     const ws = await workspace();
     await rpc("params.update", { ...ws.params, alerts: { ...ws.params.alerts, concentrationMax: 0 } });
-    show(<Synthese />);
+    show(<Comptes />);
     expect(await screen.findByText("alertes désactivées")).toBeTruthy();
   });
 });
@@ -1457,7 +1457,7 @@ describe("boutons d'ajout", () => {
 
   it("enveloppe sans compte : proposer de créer le premier ; crayon pour modifier un compte", async () => {
     const user = userEvent.setup();
-    const first = show(<EmptyEnvelope kind="livret" label="Ajouter un livret">Aucun livret pour l'instant.</EmptyEnvelope>);
+    const first = show(<EmptyAccount kind="livret" label="Ajouter un livret">Aucun livret pour l'instant.</EmptyAccount>);
     expect(screen.getByText("Aucun livret pour l'instant.")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Ajouter un livret/ }));
     expect(await screen.findByRole("dialog")).toBeTruthy();
@@ -1824,8 +1824,8 @@ describe("historique", () => {
     await user.selectOptions(scope, "all");
 
     // Enveloppe par enveloppe : chaque colonne se trie.
-    const accounts = card("Enveloppe par enveloppe");
-    for (const col of ["Enveloppe", "Au début", "À la fin", "Argent apporté", "Gain"]) {
+    const accounts = card("Compte par compte");
+    for (const col of ["Compte", "Au début", "À la fin", "Argent apporté", "Gain"]) {
       await user.click(within(accounts).getByRole("button", { name: col }));
       expect(within(accounts).getByRole("columnheader", { name: col }).getAttribute("aria-sort")).not.toBe("none");
     }
@@ -1833,7 +1833,7 @@ describe("historique", () => {
 
     // Titres achetés et vendus : tri, et lignes inchangées à la demande.
     const positions = card("Titres achetés et vendus");
-    for (const col of ["Titre", "Enveloppe", "Mouvement", "Investi en plus", "Au début", "À la fin"]) {
+    for (const col of ["Titre", "Compte", "Mouvement", "Investi en plus", "Au début", "À la fin"]) {
       await user.click(within(positions).getByRole("button", { name: col }));
       expect(within(positions).getByRole("columnheader", { name: col }).getAttribute("aria-sort")).not.toBe("none");
     }
@@ -2018,8 +2018,8 @@ describe("performance", () => {
     expect(bars.option.tooltip.axisPointer.type).toBe("none");
 
     // Chaque colonne du tableau par enveloppe se trie.
-    const table = screen.getByRole("columnheader", { name: "Enveloppe" }).closest("table") as HTMLElement;
-    for (const col of ["Enveloppe", "Valeur", "Montant investi", "Gain (€)", "Gain (%)", "Rendement annualisé", "Hypothèse du plan", "Écart", "Gain après impôts"]) {
+    const table = screen.getByRole("columnheader", { name: "Enveloppe ou placement" }).closest("table") as HTMLElement;
+    for (const col of ["Enveloppe ou placement", "Valeur", "Montant investi", "Gain (€)", "Gain (%)", "Rendement annualisé", "Hypothèse du plan", "Écart", "Gain après impôts"]) {
       await user.click(within(table).getByRole("button", { name: col }));
       expect(within(table).getByRole("columnheader", { name: col }).getAttribute("aria-sort")).not.toBe("none");
     }
@@ -2054,7 +2054,7 @@ describe("performance", () => {
     const scope = screen.getByLabelText("Ce qui est analysé") as HTMLSelectElement;
     const comptes = [...scope.options].map((o) => o.textContent);
     expect(comptes).toEqual(expect.arrayContaining(["PEA", "Compte-titres"]));
-    await user.selectOptions(scope, [...scope.options].find((o) => o.textContent === "PEA" && o.parentElement?.getAttribute("label") === "Comptes")!.value);
+    await user.selectOptions(scope, [...scope.options].find((o) => o.textContent === "PEA" && o.parentElement?.getAttribute("label") === "Comptes et contrats")!.value);
     expect(scope.selectedOptions[0]!.textContent).toBe("PEA");
     await user.click(screen.getAllByRole("button", { name: "3M" })[0]!);
     await waitFor(() => expect(screen.getByText("Versé sur la période")).toBeTruthy());

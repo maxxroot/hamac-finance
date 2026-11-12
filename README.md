@@ -10,13 +10,13 @@ Livrets · assurance-vie · PEA · PER · compte-titres · obligations · crypto
 ![Application web auto-hébergée](https://img.shields.io/badge/application-web%20auto--h%C3%A9berg%C3%A9e-green)
 ![Statut : en développement](https://img.shields.io/badge/statut-en%20d%C3%A9veloppement-orange)
 
-<img src="docs/captures/dashboard.png" alt="Tableau de bord de Hamac : patrimoine, évolution, allocation réelle et cible, enveloppes, projection et points à regarder" width="900">
+<img src="docs/captures/dashboard.png" alt="Tableau de bord de Hamac : patrimoine, évolution, allocation réelle et cible, comptes, projection et points à regarder" width="900">
 
 </div>
 
 Hamac est un logiciel libre, à héberger soi-même, pour suivre tout son patrimoine et préparer sa retraite
 sur le long terme. On y note ce qui se passe (versements, achats, intérêts, coupons) ; Hamac calcule le reste :
-valeur de chaque enveloppe, plus-values, rendement annualisé, impôts, projection jusqu'au départ et revenu
+valeur de chaque compte, plus-values, rendement annualisé, impôts, projection jusqu'au départ et revenu
 mensuel possible ensuite. Il est né d'un tableur personnel devenu trop fragile, et en reprend toute la logique
 en la fiabilisant.
 
@@ -51,11 +51,11 @@ en la fiabilisant.
 
 ### Voir l'essentiel d'un coup d'œil
 
-- **Tableau de bord** : patrimoine net, évolution par période, allocation réelle face à la cible, enveloppes,
+- **Tableau de bord** : patrimoine net, évolution par période, allocation réelle face à la cible, comptes,
   projection (ou actifs et dettes) et seulement ce qui demande une action.
 - **Évolution de chaque compte et de chaque titre** : valeur totale et montant investi, avec une courbe par
-  titre dans une enveloppe. Un clic sur une ligne suffit pour voir un compte ou un titre seul.
-- **Synthèse** de toutes les enveloppes, **performance** (rendement annualisé par enveloppe) et **historique**
+  titre dans un compte. Un clic sur une ligne suffit pour voir un compte ou un titre seul.
+- **Mes comptes** côte à côte, **performance** (rendement annualisé par enveloppe, placement ou compte) et **historique**
   reconstruit mois par mois depuis le journal : corriger une opération passée corrige tout l'historique.
 
 ### Suivre chaque placement
@@ -113,11 +113,11 @@ en la fiabilisant.
 
 <table>
   <tr>
-    <td><img src="docs/captures/evolution.png" alt="Évolution d'une enveloppe : valeur totale, montant investi et une courbe par titre"></td>
+    <td><img src="docs/captures/evolution.png" alt="Évolution d'un compte : valeur totale, montant investi et une courbe par titre"></td>
     <td><img src="docs/captures/credits.png" alt="Crédits : taux, assurance, coût total et graphique année par année"></td>
   </tr>
   <tr>
-    <td align="center">Évolution d'une enveloppe, titre par titre</td>
+    <td align="center">Évolution d'un compte, titre par titre</td>
     <td align="center">Crédits : coût année par année</td>
   </tr>
   <tr>

@@ -147,17 +147,18 @@ function Rows({ head, rows, firstNowrap }: { head: readonly string[]; rows: Read
 const LEXIQUE: ReadonlyArray<readonly [string, string]> = [
   ["Action", "Une part d'une entreprise. Sa valeur monte et descend avec la bourse."],
   ["Allocation cible", "La répartition que vous visez entre vos types de placements. Hamac la compare à ce que vous détenez."],
-  ["Assurance-vie", "Une enveloppe d'épargne proposée par un assureur, qui peut contenir un fonds euros et d'autres placements."],
+  ["Assurance-vie", "Une enveloppe d'épargne proposée par un assureur. Chaque contrat contient des supports : un ou plusieurs fonds euros, et des unités de compte (ETF, fonds…)."],
   ["Brut / net", "Le brut est le montant avant impôts et prélèvements. Le net est ce qui arrive réellement sur le compte."],
   ["Capital restant dû", "Ce qu'il reste à rembourser sur un crédit, hors intérêts à venir."],
   ["Classe d'actifs", "Un type de placement : livrets, fonds euros, obligations, actions, immobilier, crypto, ou une classe que vous créez."],
+  ["Compte (ou contrat)", "Une enveloppe précise, ouverte chez un établissement : votre PEA chez tel courtier, votre contrat d'assurance-vie chez tel assureur. On dit « contrat » pour l'assurance-vie et le PER. Une plateforme crypto ou de crowdlending est aussi un compte."],
   ["Compte-titres", "Une enveloppe sans limite ni avantage fiscal pour détenir des actions, des ETF ou des obligations."],
   ["Coupon", "L'intérêt versé régulièrement par une obligation, exprimé en % du nominal."],
   ["Crowdlending", "Un prêt à des entreprises ou à des projets via une plateforme, en échange d'intérêts, avec un risque de perdre le capital."],
-  ["Enveloppe (compte)", "Le cadre fiscal qui contient vos placements : livret, assurance-vie, PEA, compte-titres, PER…"],
+  ["Enveloppe", "Le cadre fiscal qui contient vos placements : livret réglementé, assurance-vie, PEA, compte-titres, PER, épargne salariale. La crypto et le crowdlending n'en sont pas : ce sont des placements détenus en direct."],
   ["Espèces", "L'argent arrivé sur un compte mais pas encore investi."],
   ["ETF", "Un fonds coté en bourse qui suit un indice, par exemple les grandes entreprises mondiales. Une part d'ETF revient à détenir un peu de chacune."],
-  ["Fonds euros", "La partie d'une assurance-vie dont le capital est garanti par l'assureur, avec un taux annoncé chaque année."],
+  ["Fonds euros", "Un support d'assurance-vie ou de PER dont le capital est garanti par l'assureur, avec un taux annoncé chaque année. Ce n'est pas une enveloppe : c'est un placement dans un contrat."],
   ["Gain", "La valeur actuelle moins le versé net."],
   ["IFU", "Le récapitulatif fiscal annuel envoyé par une banque ou un courtier."],
   ["ISIN", "Le code de 12 caractères qui identifie un titre, par exemple FR0011871128."],
@@ -173,6 +174,7 @@ const LEXIQUE: ReadonlyArray<readonly [string, string]> = [
   ["Rendement annualisé", "Ce que l'argent a rapporté par an, en tenant compte de la date de chaque versement."],
   ["SCPI", "Une société qui détient de l'immobilier, dont on achète des parts et qui reverse des loyers."],
   ["Sécurisation", "La période avant le départ où la part d'actions baisse peu à peu au profit du fonds euros."],
+  ["Support", "Ce que vous mettez dans un compte ou un contrat : fonds euros, ETF, action, obligation, crypto…"],
   ["TER", "Les frais de gestion annuels d'un ETF, déjà déduits de son cours."],
   ["Tranche d'imposition", "Le taux d'impôt qui s'applique à la dernière partie de vos revenus. Il figure sur votre avis d'imposition."],
   ["Versé net", "Tout l'argent mis de votre poche, moins ce que vous avez retiré."],
@@ -348,27 +350,27 @@ export function Notice() {
           head={["Page", "Ce que vous y trouvez"]}
           rows={[
             [<L to="/" key="d">Tableau de bord</L>, "Votre patrimoine, votre répartition et les points à regarder. Commencez par là."],
-            [<L to="/performance" key="p">Performance</L>, "Ce que votre argent a réellement rapporté, enveloppe par enveloppe, sa plus forte baisse et ses variations (volatilité), et sa comparaison avec un ETF ou un autre titre, même sans le détenir."],
+            [<L to="/performance" key="p">Performance</L>, "Ce que votre argent a réellement rapporté, par enveloppe, par placement et par compte, sa plus forte baisse et ses variations (volatilité), et sa comparaison avec un ETF ou un autre titre, même sans le détenir."],
             [<L to="/exposition" key="x">Exposition réelle</L>, "Ce que contiennent vraiment vos actions et ETF : pays, secteurs, devises et plus grosses lignes."],
             [<L to="/projection" key="j">Projection</L>, "Votre patrimoine à la retraite et le revenu mensuel possible."],
             [<L to="/historique" key="h">Historique</L>, "Où en était votre patrimoine à une date, ce qui a changé depuis, et si vous êtes en avance sur votre plan."],
             [<L to="/projets" key="o">Projets</L>, "Ce que vous préparez : la somme réunie pour chaque projet, l'avance ou le retard, et ce qu'il faut mettre de côté chaque mois."],
             [<L to="/simulateurs" key="m">Simulateurs</L>, "Avant d'investir : ce qu'un placement rapporterait avant et après impôts, et plusieurs placements côte à côte."],
-            [<L to="/enveloppes" key="s">Synthèse</L>, "Tous vos comptes côte à côte, et ce qui est garanti si un établissement fait faillite."],
+            [<L to="/comptes" key="s">Mes comptes</L>, "Tous vos comptes et contrats côte à côte, et ce qui est garanti si un établissement fait faillite."],
           ]}
         />
-        <p>Pour voir l'évolution d'un compte, cliquez sur sa ligne (Synthèse, Livrets, Crowdlending) ou sur « Évolution » dans les blocs Fonds euros, Actions et Crypto. Pour un titre seul, cliquez sur sa ligne. Sur le graphique, cliquez sur un nom de la légende pour masquer sa courbe.</p>
+        <p>Pour voir l'évolution d'un compte, cliquez sur sa ligne (Mes comptes, Livrets, Crowdlending) ou sur « Évolution » dans les blocs Fonds euros, Actions et Crypto. Pour un titre seul, cliquez sur sa ligne. Sur le graphique, cliquez sur un nom de la légende pour masquer sa courbe.</p>
         <p>
           <B>Projets.</B> Dans <L to="/projets">Projets</L>, notez ce que vous préparez : la somme, la date, et les comptes où vous mettez l'argent de côté, soit en pourcentage du compte (la somme suit sa valeur), soit en montant réservé. Hamac montre la somme réunie, si vous êtes en avance ou en retard, et ce qu'il faut mettre de côté chaque mois, au rendement que vous indiquez sur le projet (0 % par défaut). Il prévient si l'échéance approche alors que l'argent est en actions ou en crypto, et si un compte est affecté à plus que ce qu'il contient.
         </p>
         <p>
-          <B>Concentration.</B> La Synthèse montre aussi ce qui pèse le plus dans votre patrimoine financier : chaque titre (tous comptes confondus), chaque émetteur d'obligations, chaque plateforme de crowdlending avec ses projets en retard ou en défaut, et chaque établissement. Au-delà de 20 % sur un seul titre, émetteur ou plateforme, le tableau de bord vous le signale ; le seuil se règle dans Paramètres › Plan. Les obligations de l'État français ne déclenchent pas d'alerte.
+          <B>Concentration.</B> La page Mes comptes montre aussi ce qui pèse le plus dans votre patrimoine financier : chaque titre (tous comptes confondus), chaque émetteur d'obligations, chaque plateforme de crowdlending avec ses projets en retard ou en défaut, et chaque établissement. Au-delà de 20 % sur un seul titre, émetteur ou plateforme, le tableau de bord vous le signale ; le seuil se règle dans Paramètres › Plan. Les obligations de l'État français ne déclenchent pas d'alerte.
         </p>
         <p>
           <B>Exposition réelle.</B> Un ETF MSCI World, c'est environ 70 % d'actions américaines : la page <L to="/exposition">Exposition réelle</L> le montre, d'après la composition publiée par Amundi ou iShares, que Hamac récupère dès que vous choisissez l'ETF (il suffit de son ISIN) et met à jour chaque trimestre. Un ETF synthétique, comme la plupart des ETF « monde » ou « États-Unis » du PEA, publie le panier d'actions européennes qu'il détient, pas l'exposition qu'il donne : choisissez alors un ETF physique qui suit le même indice, Hamac vous en propose un et reprend sa composition. Faites de même pour un ETF d'un autre émetteur. Le premier équivalent choisi sur l'instance est proposé aux autres utilisateurs, qui peuvent en choisir un autre pour eux seuls. Une action détenue en direct compte pour le pays de son ISIN.
         </p>
         <p>
-          <B>Protection en cas de faillite.</B> La Synthèse compare ce que vous avez chez chaque établissement aux garanties légales : 100 000 € de dépôts par banque, 100 000 € de plus pour Livret A, LDDS et LEP, 70 000 € de titres, 70 000 € par assureur pour l'assurance-vie et le PER. Le plafond vaut par établissement agréé, pas par marque : sur la fiche d'un établissement (Paramètres › Établissements), indiquez l'établissement garant s'il diffère, et son pays. Pour l'assurance-vie, c'est l'assureur de l'offre qui compte.
+          <B>Protection en cas de faillite.</B> La page Mes comptes compare ce que vous avez chez chaque établissement aux garanties légales : 100 000 € de dépôts par banque, 100 000 € de plus pour Livret A, LDDS et LEP, 70 000 € de titres, 70 000 € par assureur pour l'assurance-vie et le PER. Le plafond vaut par établissement agréé, pas par marque : sur la fiche d'un établissement (Paramètres › Établissements), indiquez l'établissement garant s'il diffère, et son pays. Pour l'assurance-vie, c'est l'assureur de l'offre qui compte.
         </p>
       </Section>
 

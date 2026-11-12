@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AccountInput } from "@hamac/api";
-import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, canBeJoint, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, accountNoun, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, canBeJoint, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
@@ -63,7 +63,7 @@ export function AccountDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title={account ? `Modifier « ${account.name} »` : "Nouveau compte"}
+      title={account ? `Modifier « ${account.name} »` : `Nouveau ${accountNoun(d.kind)}`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

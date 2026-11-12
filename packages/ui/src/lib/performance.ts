@@ -1,5 +1,5 @@
 import type { MarketSeries, MarketSeriesInput } from "@hamac/api";
-import { activeAccountIds, PERF_GROUPS, type Asset, type AssetKind, type AssetPerformance, type CompareSide, type EngineData, type EnvelopePerformance, type PortfolioState } from "@hamac/core";
+import { activeAccountIds, isEnvelope, PERF_GROUPS, type Asset, type AssetKind, type AssetPerformance, type CompareSide, type EngineData, type EnvelopePerformance, type PortfolioState } from "@hamac/core";
 
 /** Logique d'affichage de la page Performance, sans React pour pouvoir la tester. */
 
@@ -7,12 +7,22 @@ export interface ScopeOption {
   key: string;
   label: string;
   accountIds: string[];
+  /** Regroupement par type : une enveloppe fiscale (PEA, assurance-vie…) ou un placement (crypto, crowdlending). */
+  family?: "enveloppe" | "placement";
 }
 
 export interface ScopeOptions {
   all: ScopeOption;
   groups: ScopeOption[];
   accounts: ScopeOption[];
+}
+
+/** Rubriques du sélecteur : enveloppes, puis placements détenus en direct. */
+export function groupSections(options: ScopeOptions): Array<{ label: string; options: ScopeOption[] }> {
+  return [
+    { label: "Enveloppes", options: options.groups.filter((g) => g.family === "enveloppe") },
+    { label: "Placements", options: options.groups.filter((g) => g.family === "placement") },
+  ].filter((s) => s.options.length > 0);
 }
 
 export const ALL_SCOPE = "all";
@@ -24,7 +34,7 @@ export function scopeOptions(state: PortfolioState): ScopeOptions {
     all: { key: ALL_SCOPE, label: "Tout le patrimoine financier", accountIds: [...active] },
     groups: PERF_GROUPS.flatMap((g) => {
       const accountIds = states.filter((a) => g.kinds.includes(a.account.kind)).map((a) => a.account.id);
-      return accountIds.length ? [{ key: `group:${g.key}`, label: g.label, accountIds }] : [];
+      return accountIds.length ? [{ key: `group:${g.key}`, label: g.label, accountIds, family: isEnvelope(g.kinds[0]!) ? ("enveloppe" as const) : ("placement" as const) }] : [];
     }),
     accounts: states.map((a) => ({ key: `account:${a.account.id}`, label: a.account.name, accountIds: [a.account.id] })),
   };
@@ -35,8 +45,8 @@ export function findScope(options: ScopeOptions, key: string): ScopeOption | nul
 }
 
 /**
- * Sous-lignes du tableau année par année : les enveloppes sur tout le patrimoine, les comptes
- * d'une enveloppe qui en a plusieurs ; rien pour un seul compte.
+ * Sous-lignes du tableau année par année : les enveloppes et placements sur tout le patrimoine,
+ * les comptes d'un regroupement qui en a plusieurs ; rien pour un seul compte.
  */
 export function breakdownParts(options: ScopeOptions, scope: ScopeOption): ScopeOption[] {
   if (scope.key === ALL_SCOPE) return options.groups;

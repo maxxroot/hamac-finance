@@ -180,7 +180,7 @@ const GRANULARITY_OPTIONS = [
 
 type PeriodRow = PeriodFigures & { key: string; label: string; short: string };
 
-/** Une enveloppe (ou un compte), avec ses propres chiffres année par année et mois par mois. */
+/** Une enveloppe, un placement ou un compte, avec ses propres chiffres année par année et mois par mois. */
 export interface PeriodPart {
   key: string;
   label: string;
@@ -204,7 +204,7 @@ function PeriodCells({ p }: { p: PeriodFigures }) {
 
 /**
  * Chaque année, ou chaque mois d'une année choisie : rendement en %, ou gain en euros
- * (variation de valeur moins l'argent versé). Une ligne se déplie sur ses parts (enveloppes ou comptes),
+ * (variation de valeur moins l'argent versé). Une ligne se déplie sur ses parts (enveloppes, placements ou comptes),
  * dont les montants s'additionnent : un transfert entre deux parts s'y annule.
  */
 export function PeriodsCard({ years, monthly, parts = [] }: { years: readonly YearPerformance[]; monthly: readonly MonthPerformance[]; parts?: readonly PeriodPart[] }) {
@@ -437,7 +437,7 @@ export function EnvelopeTable({ rows, wholeHistory }: { rows: readonly EnvelopeP
     <Table>
       <thead>
         <tr>
-          <SortTh {...by("label")}>Enveloppe</SortTh>
+          <SortTh {...by("label")}>Enveloppe ou placement</SortTh>
           <SortTh {...by("value")} align="right">Valeur</SortTh>
           <SortTh {...by("net")} align="right">{wholeHistory ? "Montant investi" : "Versé sur la période"}</SortTh>
           <SortTh {...by("gain")} align="right">Gain (€)</SortTh>

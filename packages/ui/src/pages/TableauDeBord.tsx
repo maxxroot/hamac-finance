@@ -10,7 +10,7 @@ import { Badge, Card, CardTitle, PageTitle } from "@/components/ui";
 import { Onboarding } from "@/pages/Onboarding";
 import { BUCKET_COLORS } from "@/lib/colors";
 import { cn } from "@/lib/cn";
-import { allocationBars, alertsToReview, envelopeRows, gainSinceLastMonth, type PeriodKey } from "@/lib/dashboard";
+import { allocationBars, alertsToReview, accountRows, gainSinceLastMonth, type PeriodKey } from "@/lib/dashboard";
 import { EXPOSURE_KEY } from "@/lib/exposure";
 import { formatDate, formatMonth } from "@/lib/numbers";
 import { useHistory, usePortfolio } from "@/lib/portfolio";
@@ -120,7 +120,7 @@ export function TableauDeBord() {
       </div>
 
       <div className={cn("grid gap-5 @3xl:grid-cols-2", middle && "@5xl:grid-cols-3")}>
-        <EnvelopesCard accounts={state.accounts} />
+        <AccountsCard accounts={state.accounts} />
         {middle}
         <div className={cn(middle && "@3xl:col-span-2 @5xl:col-span-1")}>
           <ReviewCard alerts={alerts} />
@@ -235,12 +235,12 @@ function AllocationCard({ allocation }: { allocation: PortfolioState["allocation
   );
 }
 
-function EnvelopesCard({ accounts }: { accounts: PortfolioState["accounts"] }) {
-  const rows = envelopeRows(accounts);
+function AccountsCard({ accounts }: { accounts: PortfolioState["accounts"] }) {
+  const rows = accountRows(accounts);
   return (
     <Card>
-      <CardTitle hint={<Link to="/enveloppes" className="text-accent hover:underline">Détail</Link>}>Mes enveloppes</CardTitle>
-      {rows.length === 0 && <p className="py-12 text-center text-sm text-fg-muted">Saisissez vos apports pour voir vos enveloppes.</p>}
+      <CardTitle hint={<Link to="/comptes" className="text-accent hover:underline">Détail</Link>}>Mes comptes</CardTitle>
+      {rows.length === 0 && <p className="py-12 text-center text-sm text-fg-muted">Saisissez vos apports pour voir vos comptes.</p>}
       <ul className="space-y-3">
         {rows.map((r) => (
           <li key={r.key}>

@@ -79,10 +79,10 @@ export function assetLines(history: readonly HistoryPoint[], points: readonly Ev
 }
 
 /**
- * Une courbe par enveloppe, la plus grosse d'abord : leur somme redonne la valeur totale.
+ * Une courbe par compte, la plus grosse d'abord : leur somme redonne la valeur totale.
  * Les comptes restés vides sur tout l'historique sont omis ; deux comptes du même nom sont numérotés.
  */
-export function envelopeLines(history: readonly HistoryPoint[], points: readonly EvolutionPoint[], accounts: readonly { id: string; name: string }[]): AssetLine[] {
+export function accountLines(history: readonly HistoryPoint[], points: readonly EvolutionPoint[], accounts: readonly { id: string; name: string }[]): AssetLine[] {
   const byMonth = new Map(history.map((h) => [h.month, h]));
   const months = points.map((p) => byMonth.get(p.month));
   const seen = new Map<string, number>();
@@ -120,7 +120,7 @@ export function alertsToReview(alerts: readonly Alert[]): Alert[] {
   return alerts.filter((a) => a.level !== "ok");
 }
 
-export interface EnvelopeRow {
+export interface AccountRow {
   key: string;
   name: string;
   value: number;
@@ -131,10 +131,10 @@ export interface EnvelopeRow {
 }
 
 /** Comptes par valeur décroissante ; au-delà de `max` lignes, les plus petits sont regroupés. */
-export function envelopeRows(accounts: readonly AccountState[], max = 6): EnvelopeRow[] {
+export function accountRows(accounts: readonly AccountState[], max = 6): AccountRow[] {
   const held = accounts.filter((a) => a.value > 0).sort((a, b) => b.value - a.value);
   const largest = held[0]?.value ?? 0;
-  const row = (key: string, name: string, value: number, gainPct: number | null): EnvelopeRow => ({ key, name, value, width: largest > 0 ? (value / largest) * 100 : 0, gainPct });
+  const row = (key: string, name: string, value: number, gainPct: number | null): AccountRow => ({ key, name, value, width: largest > 0 ? (value / largest) * 100 : 0, gainPct });
   const fits = held.length <= max;
   const shown = fits ? held : held.slice(0, max - 1);
   const rest = fits ? [] : held.slice(max - 1);

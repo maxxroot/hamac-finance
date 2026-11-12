@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AssetPerformance, EnvelopePerformance } from "@hamac/core";
-import { ALL_SCOPE, breakdownParts, envelopesForScope, heatShare, pctText, rankingView, type ScopeOptions } from "./performance";
+import { ALL_SCOPE, breakdownParts, envelopesForScope, groupSections, heatShare, pctText, rankingView, type ScopeOptions } from "./performance";
 
 const row = (key: string, accounts: string[] = []): EnvelopePerformance => ({ key, label: key, value: 0, inflow: 0, gain: 0, gainPct: null, annualized: null, annualizedReason: null, assumption: null, afterTax: null, accounts: accounts.map((a) => row(a)) });
 const asset = (assetId: string, gain: number): AssetPerformance => ({ assetId, value: 0, gain, income: 0, rate: null });
@@ -36,6 +36,21 @@ describe("détail du tableau année par année", () => {
     expect(breakdownParts(options, options.groups[0]!).map((o) => o.label)).toEqual(["PEA 1", "PEA 2"]);
     expect(breakdownParts(options, options.groups[1]!)).toEqual([]);
     expect(breakdownParts(options, options.accounts[0]!)).toEqual([]);
+  });
+});
+
+describe("rubriques du sélecteur", () => {
+  const group = (key: string, family: "enveloppe" | "placement") => ({ key: `group:${key}`, label: key, accountIds: [key], family });
+  const all = { key: ALL_SCOPE, label: "Tout", accountIds: [] };
+  it("les enveloppes d'abord, puis la crypto et le crowdlending comme placements", () => {
+    const sections = groupSections({ all, groups: [group("pea", "enveloppe"), group("crypto", "placement"), group("assurance_vie", "enveloppe")], accounts: [] });
+    expect(sections.map((s) => [s.label, s.options.map((o) => o.label)])).toEqual([
+      ["Enveloppes", ["pea", "assurance_vie"]],
+      ["Placements", ["crypto"]],
+    ]);
+  });
+  it("une rubrique vide n'est pas affichée", () => {
+    expect(groupSections({ all, groups: [group("pea", "enveloppe")], accounts: [] }).map((s) => s.label)).toEqual(["Enveloppes"]);
   });
 });
 

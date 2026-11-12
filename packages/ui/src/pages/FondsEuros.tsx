@@ -2,7 +2,7 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { accountAgeYears, fiscalAnniversary, monthsBetween, reconcile, type AccountState } from "@hamac/core";
 import { EditAccountButton } from "@/components/AccountButtons";
-import { AddTransactionButton, EmptyEnvelope } from "@/components/TransactionButton";
+import { AddTransactionButton, EmptyAccount } from "@/components/TransactionButton";
 import { AccountEvolution, EvolutionToggle } from "@/components/AccountEvolution";
 import { Amount } from "@/components/Amount";
 import { Field, FormGrid, MoneyInput, NumberInput, PercentInput, TextInput } from "@/components/form";
@@ -24,13 +24,13 @@ export function FondsEuros() {
     <>
       <PageHeader
         title="Fonds euros"
-        description="Assurance-vie, capital garanti. Les mouvements se saisissent dans le journal ; ici : fiche du contrat, valeur relevée et taux servis."
+        description="Le support à capital garanti de vos contrats d'assurance-vie. Les mouvements se saisissent dans le journal ; ici : fiche du contrat, valeur relevée et taux servis."
         actions={contracts.length > 0 && <AddTransactionButton accountId={contracts[0].account.id} type="versement" />}
       />
       {contracts.length === 0 && (
-        <EmptyEnvelope kind="assurance_vie" label="Ajouter un contrat">
+        <EmptyAccount kind="assurance_vie" label="Ajouter un contrat">
           Aucun contrat d'assurance-vie : créez-le avec son établissement, sa date d'ouverture (règle des 8 ans) et sa clause bénéficiaire.
-        </EmptyEnvelope>
+        </EmptyAccount>
       )}
       <div className="space-y-8">
         {contracts.map((c) => (

@@ -38,7 +38,7 @@ export function Historique() {
     const from = at(rangeFrom);
     const to = at(rangeTo)!;
     const cmp = compareSnapshots(from, to);
-    // Une enveloppe absente de la période choisie : retour à tout le patrimoine.
+    // Un compte absent de la période choisie : retour à tout le patrimoine.
     const scoped = scope !== ALL && cmp.accounts.some((a) => a.accountId === scope) ? scope : ALL;
     const ids = scoped === ALL ? pf.data.accounts.map((a) => a.id) : [scoped];
     return { from, to, cmp, scope: scoped, change: periodChange(pf.data, from, to, ids) };
@@ -142,7 +142,7 @@ export function Historique() {
       </div>
 
       <p className="mt-4 text-xs text-fg-faint">
-        Chaque mois est valorisé avec le dernier cours connu à sa date ; sans cours, au prix de revient. Les enveloppes clôturées restent comptées : leur argent versé et leur gain font partie du parcours. Les transferts entre enveloppes s'annulent sur le total, mais comptent pour chacune.
+        Chaque mois est valorisé avec le dernier cours connu à sa date ; sans cours, au prix de revient. Les comptes clôturés restent comptés : leur argent versé et leur gain font partie du parcours. Les transferts entre comptes s'annulent sur le total, mais comptent pour chacun.
       </p>
     </>
   );
