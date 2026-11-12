@@ -484,6 +484,8 @@ export const leases = pgTable(
     revisable: boolean("revisable").notNull().default(true),
     irlQuarter: bigint("irl_quarter", { mode: "number" }),
     landlordAddress: text("landlord_address").notNull().default(""),
+    /** Jour du mois où le loyer est dû. */
+    dueDay: bigint("due_day", { mode: "number" }).notNull().default(1),
     ...timestamps,
   },
   (t) => [index("leases_property_idx").on(t.propertyId), index("leases_lot_idx").on(t.lotId)],
@@ -633,21 +635,37 @@ export const loanPrepayments = pgTable(
   (t) => [index("loan_prepayments_loan_idx").on(t.loanId)],
 );
 
-/** Écarts signalés sur les loyers : sans ligne ici, le loyer prévu du mois est réputé perçu. */
-export const rentExceptions = pgTable(
-  "rent_exceptions",
+/** Sommes reçues pour le loyer et les charges d'un mois : suivi strict, un loyer n'est reçu que pointé ici. */
+export const rentPayments = pgTable(
+  "rent_payments",
   {
     id: text("id").primaryKey(),
     leaseId: text("lease_id")
       .notNull()
       .references(() => leases.id, { onDelete: "cascade" }),
     month: text("month").notNull(),
-    kind: text("kind").notNull(),
-    amountCents: bigint("amount_cents", { mode: "number" }),
+    date: text("date").notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    method: text("method").notNull().default("virement"),
     comment: text("comment").notNull().default(""),
     ...timestamps,
   },
-  (t) => [uniqueIndex("rent_exceptions_lease_month_uq").on(t.leaseId, t.month)],
+  (t) => [index("rent_payments_lease_idx").on(t.leaseId)],
+);
+
+/** Mois remis au locataire : rien n'est dû. */
+export const rentWaivers = pgTable(
+  "rent_waivers",
+  {
+    id: text("id").primaryKey(),
+    leaseId: text("lease_id")
+      .notNull()
+      .references(() => leases.id, { onDelete: "cascade" }),
+    month: text("month").notNull(),
+    comment: text("comment").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("rent_waivers_lease_month_uq").on(t.leaseId, t.month)],
 );
 
 /** Dépenses d'un bien en location, pour le bien entier ; `yearly` les répète à la même date chaque année. */

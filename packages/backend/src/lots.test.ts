@@ -122,6 +122,59 @@ describe("locataires et garanties", () => {
   });
 });
 
+describe("reprise des signalements d'avant le suivi strict", () => {
+  it("migration : montant différent → paiement charges comprises, mois vide → remise, impayé → rien", async () => {
+    const provider = pgliteProvider();
+    const session = await provider.session();
+    await enterTenant(session, crypto.randomUUID());
+    const raw = rawFor(session);
+    await raw.exec("CREATE TABLE IF NOT EXISTS _hamac_migrations (tag TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+    for (const m of migrations.filter((x) => x.tag < "0025")) {
+      for (const statement of m.sql.split("--> statement-breakpoint")) if (statement.trim()) await raw.exec(statement);
+      await raw.run("INSERT INTO _hamac_migrations (tag, applied_at) VALUES (?, ?)", [m.tag, "2026-01-01"]);
+    }
+    await raw.exec("INSERT INTO properties (id, kind, name, value_cents) VALUES ('p', 'locatif', 'Studio', 10000000)");
+    await raw.exec("INSERT INTO lots (id, property_id, name, kind) VALUES ('lot', 'p', 'Logement', 'logement')");
+    await raw.exec("INSERT INTO leases (id, property_id, lot_id, kind, start_date, duration_months, rent_cents, charges_cents) VALUES ('l', 'p', 'lot', 'vide', '2024-01-01', 36, 80000, 5000)");
+    await raw.exec("INSERT INTO lease_rents (id, lease_id, from_month, rent_cents, charges_cents) VALUES ('r', 'l', '2025-01', 82000, 6000)");
+    await raw.exec("INSERT INTO rent_exceptions (id, lease_id, month, kind, amount_cents, comment) VALUES ('a', 'l', '2024-06', 'montant', 70000, ''), ('b', 'l', '2025-02', 'montant', 82000, ''), ('c', 'l', '2025-03', 'vide', NULL, ''), ('d', 'l', '2025-04', 'impaye', NULL, '')");
+    await migrate(raw);
+    expect(await raw.all("SELECT month, date, amount_cents, method FROM rent_payments ORDER BY month")).toEqual([
+      { month: "2024-06", date: "2024-06-01", amount_cents: 75000, method: "autre" },
+      { month: "2025-02", date: "2025-02-01", amount_cents: 88000, method: "autre" },
+    ]);
+    expect(await raw.all("SELECT month, comment FROM rent_waivers")).toEqual([{ month: "2025-03", comment: "Ancien « mois vide »" }]);
+    expect(await raw.get("SELECT to_regclass('rent_exceptions')::text AS t")).toEqual({ t: null });
+    await provider.close();
+  });
+
+  it("restaure une sauvegarde qui contient des signalements", async () => {
+    backend = await testBackend();
+    const dump = {
+      format: "hamac",
+      version: 1,
+      engine: "postgres",
+      schemaVersion: "0024_oval_lester",
+      exportedAt: "x",
+      appVersion: "test",
+      tables: {
+        properties: [{ id: "p1", kind: "locatif", name: "Studio", value_cents: 10_000_000, rental_mode: "vide" }],
+        lots: [{ id: "lot", property_id: "p1", name: "Logement", kind: "logement" }],
+        leases: [{ id: "l1", property_id: "p1", lot_id: "lot", kind: "vide", start_date: "2024-01-01", duration_months: 36, rent_cents: 60_000, charges_cents: 4_000 }],
+        rent_exceptions: [
+          { id: "a", lease_id: "l1", month: "2024-05", kind: "montant", amount_cents: 50_000, comment: "" },
+          { id: "b", lease_id: "l1", month: "2024-06", kind: "vide", amount_cents: null, comment: "Travaux" },
+          { id: "c", lease_id: "l1", month: "2024-07", kind: "impaye", amount_cents: null, comment: "" },
+        ],
+      },
+    };
+    expect((await backend.dispatch("data.import", { dump, confirm: "REMPLACER" })).ok).toBe(true);
+    const w = await call<{ rentPayments: Rows; rentWaivers: Rows }>(backend, "workspace.load");
+    expect(w.rentPayments).toMatchObject([{ leaseId: "l1", month: "2024-05", amount: 540 }]);
+    expect(w.rentWaivers).toMatchObject([{ leaseId: "l1", month: "2024-06", comment: "Travaux" }]);
+  });
+});
+
 describe("reprise des données d'avant les lots", () => {
   it("migration : un lot par bien loué, le mode du dernier bail, un locataire par nom, le garant en caution", async () => {
     const provider = pgliteProvider();

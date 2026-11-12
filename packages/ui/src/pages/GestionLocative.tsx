@@ -1,13 +1,14 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { RENT_EXCEPTION_LABELS, SCHEDULE_KIND_LABELS, addMonths, lotIsActive, parkDebts, parkMonth, parkOccupancy, parkProperties, parkPropertyRows, parkSchedule, parkVacancies, type ParkData, type PropertyReminder, type ScheduleItem } from "@hamac/core";
+import { RENT_GRACE_DAYS, formatEur, settlingPayment, SCHEDULE_KIND_LABELS, addMonths, lotIsActive, parkDebts, parkMonth, parkOccupancy, parkProperties, parkPropertyRows, parkSchedule, parkVacancies, type ParkData, type PropertyReminder, type ScheduleItem } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { Select } from "@/components/form";
 import { RowActions } from "@/components/RowActions";
+import { RentStatusBadge } from "@/components/RentStatusBadge";
 import { Pct, Stat, StatGrid } from "@/components/Stat";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/table";
-import { Badge, Button, Card, CardTitle, PageHeader } from "@/components/ui";
+import { Button, Card, CardTitle, PageHeader } from "@/components/ui";
 import { ReminderDialog } from "@/dialogs/ReminderDialog";
 import { capitalize, formatDate, formatMonth } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -28,6 +29,8 @@ export function GestionLocative() {
   const [chosenYear, setChosenYear] = useState<number | null>(null);
   const [editing, setEditing] = useState<PropertyReminder | "new" | null>(null);
   const saveReminder = useMutate("propertyReminders.upsert", { success: "Rappel marqué fait" });
+  const receive = useMutate("rentPayments.upsert", { success: "Loyer reçu" });
+  const validateMonth = useMutate("rentPayments.addMany", { success: "Mois validé" });
   const deleteReminder = useMutate("propertyReminders.delete", { success: "Rappel supprimé" });
   if (!pf) return null;
   const { ws } = pf.idx;
@@ -52,6 +55,9 @@ export function GestionLocative() {
   const months = Array.from({ length: 12 }, (_, k) => addMonths(`${thisMonth}-01`, -k).slice(0, 7));
   const month = chosenMonth ?? thisMonth;
   const rentMonth = parkMonth(data, month, today);
+  // « Valider le mois » : chaque loyer du mois qui n'est pas soldé, au reste dû.
+  const toValidate = rentMonth.lines.map((l) => settlingPayment(l.month, today)).filter((p) => p != null);
+  const toValidateTotal = toValidate.reduce((s, p) => s + p.amount, 0);
   const current = month === thisMonth ? rentMonth : parkMonth(data, thisMonth, today);
   const debts = parkDebts(data, today);
   const due = debts.reduce((s, d) => s + d.due, 0);
@@ -82,7 +88,7 @@ export function GestionLocative() {
         <Stat label="Reçu ce mois-ci" sub="loyers et charges">
           <Amount value={current.received} />
         </Stat>
-        <Stat label="Impayés" sub={debts.length ? `${debts.length} bail${debts.length > 1 ? "x" : ""} concerné${debts.length > 1 ? "s" : ""}` : "aucun"} tone={due > 0 ? "negative" : undefined}>
+        <Stat label="Non reçus" sub={debts.length ? `${debts.length} bail${debts.length > 1 ? "x" : ""}, passé ${RENT_GRACE_DAYS} jours` : "aucun"} tone={due > 0 ? "negative" : undefined}>
           <Amount value={due} />
         </Stat>
         <Stat label="Lots vides" sub={`sur ${activeLots} proposé${activeLots > 1 ? "s" : ""} à la location`} tone={vacancies.length ? "warning" : undefined}>
@@ -105,6 +111,21 @@ export function GestionLocative() {
           >
             Loyers du mois
           </CardTitle>
+          {toValidate.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm">
+              <span>
+                {toValidate.length} loyer{toValidate.length > 1 ? "s" : ""} à pointer (<Amount value={toValidateTotal} />).
+              </span>
+              <Button
+                className="h-8"
+                variant="primary"
+                disabled={validateMonth.isPending}
+                onClick={() => confirm(`Valider ${formatMonth(month)} : marquer reçus ${toValidate.length} loyer${toValidate.length > 1 ? "s" : ""} pour ${formatEur(toValidateTotal)} ?`) && validateMonth.mutate({ payments: toValidate })}
+              >
+                Valider le mois
+              </Button>
+            </div>
+          )}
           <Table>
             <thead>
               <tr>
@@ -112,19 +133,27 @@ export function GestionLocative() {
                 <Th align="right">Attendu</Th>
                 <Th align="right">Reçu</Th>
                 <Th>État</Th>
+                <Th />
               </tr>
             </thead>
             <tbody>
-              {rentMonth.lines.length === 0 && <EmptyRow cols={4}>Aucun loyer attendu ce mois-là.</EmptyRow>}
+              {rentMonth.lines.length === 0 && <EmptyRow cols={5}>Aucun loyer attendu ce mois-là.</EmptyRow>}
               {rentMonth.lines.map((l) => (
                 <Tr key={l.lease.id}>
                   <Td>
                     <BienLink id={l.property.id} name={l.property.name} lot={l.lotName} />
                     {l.renters && <div className="text-xs text-fg-faint">{l.renters}</div>}
                   </Td>
-                  <Td align="right"><Amount value={l.month.expectedRent + l.month.expectedCharges} /></Td>
-                  <Td align="right"><Amount value={l.month.receivedRent + l.month.receivedCharges} /></Td>
-                  <Td>{l.month.status === "paye" ? <Badge tone="positive">Reçu</Badge> : <Badge tone={l.month.status === "impaye" ? "negative" : "neutral"}>{RENT_EXCEPTION_LABELS[l.month.status]}</Badge>}</Td>
+                  <Td align="right"><Amount value={l.month.due} /></Td>
+                  <Td align="right"><Amount value={l.month.paid} /></Td>
+                  <Td><RentStatusBadge status={l.month.status} /></Td>
+                  <Td align="right">
+                    {settlingPayment(l.month, today) && (
+                      <Button className="h-7 px-2 text-xs" variant="ghost" disabled={receive.isPending} aria-label={`Marquer reçu : ${where(l.property.name, l.lotName)}`} onClick={() => receive.mutate(settlingPayment(l.month, today)!)}>
+                        Reçu
+                      </Button>
+                    )}
+                  </Td>
                 </Tr>
               ))}
             </tbody>
@@ -134,7 +163,7 @@ export function GestionLocative() {
                   <Td>Total</Td>
                   <Td align="right"><Amount value={rentMonth.expected} /></Td>
                   <Td align="right"><Amount value={rentMonth.received} /></Td>
-                  <Td />
+                  <Td colSpan={2} />
                 </tr>
               </tfoot>
             )}
@@ -143,9 +172,9 @@ export function GestionLocative() {
 
         <div className="space-y-5">
           <Card>
-            <CardTitle>Impayés</CardTitle>
+            <CardTitle hint={`passé ${RENT_GRACE_DAYS} jours après l'échéance`}>Loyers non reçus</CardTitle>
             {debts.length === 0 ? (
-              <p className="text-sm text-fg-muted">Aucun loyer signalé impayé.</p>
+              <p className="text-sm text-fg-muted">Tous les loyers échus sont pointés.</p>
             ) : (
               <Table>
                 <thead>

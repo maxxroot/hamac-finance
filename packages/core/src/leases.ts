@@ -112,6 +112,8 @@ export interface Lease {
   /** Trimestre de référence de l'indice (1 à 4) ; null = celui du dernier indice publié à la date du bail. */
   irlQuarter: number | null;
   landlordAddress: string;
+  /** Jour du mois où le loyer est dû (1 à 31, ramené au dernier jour des mois plus courts). */
+  dueDay: number;
 }
 
 /** Nouveau loyer (révision annuelle…), en vigueur à partir d'un mois. */
@@ -270,40 +272,100 @@ export function validateLease(lease: LeaseDates & LotRef & { id?: string }, othe
   return null;
 }
 
-export const RENT_EXCEPTION_KINDS = ["impaye", "vide", "montant"] as const;
-export type RentExceptionKind = (typeof RENT_EXCEPTION_KINDS)[number];
-export const RENT_EXCEPTION_LABELS: Record<RentExceptionKind, string> = { impaye: "Impayé", vide: "Mois vide", montant: "Montant différent" };
+/** Jours après l'échéance avant qu'un loyer non pointé soit signalé : sans rapprochement bancaire, le temps de le voir arriver. */
+export const RENT_GRACE_DAYS = 10;
 
-/** Écart signalé sur un mois : sans signalement, le loyer prévu est réputé perçu. */
-export interface RentException {
+export const PAYMENT_METHODS = ["virement", "prelevement", "cheque", "especes", "caf", "garant", "autre"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  virement: "Virement",
+  prelevement: "Prélèvement",
+  cheque: "Chèque",
+  especes: "Espèces",
+  caf: "Aide au logement (CAF)",
+  garant: "Garant",
+  autre: "Autre",
+};
+
+/** Somme reçue pour le loyer et les charges d'un mois ; un mois peut en recevoir plusieurs. */
+export interface RentPayment {
   id: string;
   leaseId: string;
-  /** AAAA-MM */
+  /** Mois concerné, AAAA-MM. */
   month: string;
-  kind: RentExceptionKind;
-  /** Loyer reçu hors charges (kind « montant »). */
-  amount: number | null;
+  /** Date de réception. */
+  date: string;
+  amount: number;
+  method: PaymentMethod;
   comment: string;
 }
+
+/** Mois remis au locataire (mois offert, franchise après travaux) : rien n'est dû. */
+export interface RentWaiver {
+  id: string;
+  leaseId: string;
+  month: string;
+  comment: string;
+}
+
+/** Ce qui a été pointé : paiements reçus et mois remis. */
+export interface RentLedger {
+  payments: readonly RentPayment[];
+  waivers: readonly RentWaiver[];
+}
+export const NO_RENT_LEDGER: RentLedger = { payments: [], waivers: [] };
+/** Registre des loyers à partir des données chargées. */
+export const rentLedgerOf = (d: { rentPayments?: readonly RentPayment[]; rentWaivers?: readonly RentWaiver[] }): RentLedger => ({ payments: d.rentPayments ?? [], waivers: d.rentWaivers ?? [] });
+
+export const RENT_STATUSES = ["a_venir", "attendu", "recu", "partiel", "non_recu", "remis"] as const;
+export type RentStatus = (typeof RENT_STATUSES)[number];
+export const RENT_STATUS_LABELS: Record<RentStatus, string> = {
+  a_venir: "À venir",
+  attendu: "Attendu",
+  recu: "Reçu",
+  partiel: "Reçu en partie",
+  non_recu: "Non reçu",
+  remis: "Remis",
+};
 
 export interface RentMonth {
   leaseId: string;
   month: string;
   /** Part du mois où le logement est occupé (0 à 1). */
   occupied: number;
+  /** Loyer et charges prévus par le bail pour ce mois, au prorata des jours. */
   expectedRent: number;
   expectedCharges: number;
+  /** Ce que le locataire doit pour ce mois : rien si le mois est remis. */
+  due: number;
+  /** Total pointé pour ce mois, trop-perçu compris. */
+  paid: number;
+  /** Part de ce qui est dû qui a été reçue, répartie entre loyer et charges au prorata. */
   receivedRent: number;
   receivedCharges: number;
-  status: "paye" | RentExceptionKind;
-  exception: RentException | null;
+  /** Reste dû ; 0 une fois tout reçu. */
+  outstanding: number;
+  /** Date à laquelle le loyer est dû. */
+  dueDate: string;
+  status: RentStatus;
+  payments: RentPayment[];
+  waiver: RentWaiver | null;
 }
 
 const nextMonthStart = (month: string) => addMonths(`${month}-01`, 1);
 export const daysInMonth = (month: string) => daysBetween(`${month}-01`, nextMonthStart(month));
 
-/** Mois du bail échus ou en cours à `asOf`, pour le bien entier ; le premier et le dernier sont au prorata des jours. */
-export function rentMonths(lease: Lease, rents: readonly LeaseRent[], exceptions: readonly RentException[], asOf: string): RentMonth[] {
+/** Date d'échéance d'un mois : le jour prévu au bail, au plus le dernier jour du mois. */
+export const rentDueDate = (month: string, dueDay: number) => `${month}-${String(Math.min(Math.max(1, dueDay), daysInMonth(month))).padStart(2, "0")}`;
+
+/** Le loyer est-il dû et non réglé, passé le délai de tolérance ? */
+export const rentIsLate = (m: Pick<RentMonth, "status">) => m.status === "non_recu" || m.status === "partiel";
+
+/**
+ * Mois du bail échus ou en cours à `asOf`, pour le bien entier ; le premier et le dernier sont au prorata des jours.
+ * Suivi strict : un loyer n'est reçu que s'il a été pointé.
+ */
+export function rentMonths(lease: Lease, rents: readonly LeaseRent[], ledger: RentLedger, asOf: string): RentMonth[] {
   if (asOf < lease.startDate) return [];
   const end = leaseEnd(lease);
   const lastMonth = end != null && end.slice(0, 7) < asOf.slice(0, 7) ? end.slice(0, 7) : asOf.slice(0, 7);
@@ -317,14 +379,34 @@ export function rentMonths(lease: Lease, rents: readonly LeaseRent[], exceptions
     const { rent, charges } = leaseRentAt(lease, rents, month);
     const expectedRent = roundCents(rent * fraction);
     const expectedCharges = roundCents(charges * fraction);
-    const exception = exceptions.find((e) => e.leaseId === lease.id && e.month === month) ?? null;
-    const base = { leaseId: lease.id, month, exception };
-    if (exception?.kind === "impaye") out.push({ ...base, occupied: fraction, expectedRent, expectedCharges, receivedRent: 0, receivedCharges: 0, status: "impaye" });
-    else if (exception?.kind === "vide") out.push({ ...base, occupied: 0, expectedRent: 0, expectedCharges: 0, receivedRent: 0, receivedCharges: 0, status: "vide" });
-    else if (exception?.kind === "montant") out.push({ ...base, occupied: fraction, expectedRent, expectedCharges, receivedRent: exception.amount ?? expectedRent, receivedCharges: expectedCharges, status: "montant" });
-    else out.push({ ...base, occupied: fraction, expectedRent, expectedCharges, receivedRent: expectedRent, receivedCharges: expectedCharges, status: "paye" });
+    const waiver = ledger.waivers.find((w) => w.leaseId === lease.id && w.month === month) ?? null;
+    const payments = ledger.payments.filter((p) => p.leaseId === lease.id && p.month === month).sort((a, b) => a.date.localeCompare(b.date));
+    const paid = roundCents(payments.reduce((s, p) => s + p.amount, 0));
+    const due = waiver ? 0 : roundCents(expectedRent + expectedCharges);
+    const share = Math.min(paid, due);
+    const receivedRent = due > 0 ? roundCents((share * expectedRent) / due) : 0;
+    const dueDate = rentDueDate(month, lease.dueDay);
+    const outstanding = roundCents(Math.max(0, due - paid));
+    const status: RentStatus = waiver ? "remis" : outstanding === 0 ? "recu" : dueDate > asOf ? "a_venir" : daysBetween(dueDate, asOf) <= RENT_GRACE_DAYS ? "attendu" : paid > 0 ? "partiel" : "non_recu";
+    out.push({ leaseId: lease.id, month, occupied: fraction, expectedRent, expectedCharges, due, paid, receivedRent, receivedCharges: roundCents(share - receivedRent), outstanding, dueDate, status, payments, waiver });
   }
   return out;
+}
+
+/**
+ * Paiement qui solde un mois : le reste dû, daté de l'échéance si elle est passée (rattrapage d'un mois déjà arrivé),
+ * sinon d'aujourd'hui. null s'il ne reste rien à recevoir.
+ */
+export function settlingPayment(m: RentMonth, today: string, method: PaymentMethod = "virement"): Omit<RentPayment, "id"> | null {
+  if (m.outstanding <= 0) return null;
+  return { leaseId: m.leaseId, month: m.month, date: m.dueDate < today ? m.dueDate : today, amount: m.outstanding, method, comment: "" };
+}
+
+/** Solde du locataire à `asOf` : ce qui est dû sur les mois échus, moins tout ce qui a été reçu. Négatif : il a payé d'avance. */
+export function leaseBalance(lease: Lease, rents: readonly LeaseRent[], ledger: RentLedger, asOf: string): number {
+  const months = rentMonths(lease, rents, ledger, asOf).filter((m) => m.dueDate <= asOf);
+  const paid = ledger.payments.filter((p) => p.leaseId === lease.id && p.date <= asOf).reduce((s, p) => s + p.amount, 0);
+  return roundCents(months.reduce((s, m) => s + m.due, 0) - paid);
 }
 
 /** Somme gardée sur le dépôt à la sortie : elle compte comme une recette. */
@@ -354,6 +436,5 @@ export function leaseRevisionDue(lease: Pick<Lease, "id" | "kind" | "startDate" 
 export function rentReceipt(m: RentMonth): { kind: "quittance" | "recu"; rent: number; charges: number; total: number } | null {
   const total = roundCents(m.receivedRent + m.receivedCharges);
   if (total <= 0) return null;
-  const partial = m.receivedRent < m.expectedRent;
-  return { kind: partial ? "recu" : "quittance", rent: m.receivedRent, charges: m.receivedCharges, total };
+  return { kind: m.outstanding > 0 ? "recu" : "quittance", rent: m.receivedRent, charges: m.receivedCharges, total };
 }

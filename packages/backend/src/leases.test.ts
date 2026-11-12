@@ -88,22 +88,45 @@ describe("loyers signalés et dépenses", () => {
     const { id: leaseId } = await call<{ id: string }>(b, "leases.upsert", lease(propertyId));
     return { propertyId, leaseId };
   };
-  const data = (b: Backend) => call<{ rentExceptions: Array<Record<string, unknown>>; propertyExpenses: Array<Record<string, unknown>> }>(b, "workspace.load");
+  type Rows = Array<Record<string, unknown>>;
+  const data = (b: Backend) => call<{ rentPayments: Rows; rentWaivers: Rows; propertyExpenses: Rows; leases: Rows }>(b, "workspace.load");
 
-  it("un seul écart par mois : le dernier signalement remplace le précédent", async () => {
+  it("paiements pointés : plusieurs par mois, modifiés, supprimés ; jour d'échéance du bail", async () => {
     backend = await testBackend();
-    const { leaseId } = await start(backend);
-    await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "impaye" });
-    await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "montant", amount: 500 });
-    expect((await data(backend)).rentExceptions).toMatchObject([{ leaseId, month: "2025-03", kind: "montant", amount: 500 }]);
+    const propertyId = await newProperty(backend);
+    const { id: leaseId } = await call<{ id: string }>(backend, "leases.upsert", { ...lease(propertyId), startDate: "2030-01-01", dueDay: 5 });
+    expect((await data(backend)).leases.find((l) => l.id === leaseId)).toMatchObject({ dueDay: 5 });
+    const first = await call<{ id: string }>(backend, "rentPayments.upsert", { leaseId, month: "2030-03", date: "2030-03-04", amount: 400, method: "caf" });
+    await call(backend, "rentPayments.upsert", { leaseId, month: "2030-03", date: "2030-03-06", amount: 450 });
+    await call(backend, "rentPayments.upsert", { id: first.id, leaseId, month: "2030-03", date: "2030-03-04", amount: 420, method: "caf", comment: "Aide au logement" });
+    expect((await data(backend)).rentPayments).toMatchObject([
+      { leaseId, month: "2030-03", date: "2030-03-04", amount: 420, method: "caf", comment: "Aide au logement" },
+      { leaseId, month: "2030-03", date: "2030-03-06", amount: 450, method: "virement" },
+    ]);
+    await call(backend, "rentPayments.delete", { id: first.id });
+    expect((await data(backend)).rentPayments).toHaveLength(1);
   });
 
-  it("refuse un montant manquant ou un mois avant le bail, ne garde pas de montant inutile", async () => {
+  it("« Valider le mois » : tout ou rien, mois pendant le bail seulement", async () => {
+    backend = await testBackend();
+    const { propertyId, leaseId } = await start(backend);
+    const ended = await call<{ id: string }>(backend, "leases.upsert", { ...lease(propertyId), startDate: "2010-01-01", durationMonths: 36, actualEnd: "2012-12-31" });
+    expect(await call(backend, "rentPayments.addMany", { payments: [{ leaseId, month: "2025-03", date: "2025-03-01", amount: 850 }, { leaseId, month: "2025-04", date: "2025-04-01", amount: 850 }] })).toEqual({ count: 2 });
+    await expect(call(backend, "rentPayments.addMany", { payments: [{ leaseId, month: "2025-05", date: "2025-05-01", amount: 850 }, { leaseId, month: "2023-12", date: "2023-12-01", amount: 850 }] })).rejects.toThrow("précède");
+    await expect(call(backend, "rentPayments.upsert", { leaseId: ended.id, month: "2013-01", date: "2013-01-01", amount: 850 })).rejects.toThrow("suit la fin");
+    await expect(call(backend, "rentPayments.upsert", { leaseId: "inconnu", month: "2025-01", date: "2025-01-01", amount: 1 })).rejects.toThrow("introuvable");
+    await expect(call(backend, "rentPayments.upsert", { leaseId, month: "2025-01", date: "2025-01-01", amount: 0 })).rejects.toThrow();
+    expect((await data(backend)).rentPayments).toHaveLength(2);
+  });
+
+  it("mois remis : un par mois, commentaire remplacé, retiré à la suppression", async () => {
     backend = await testBackend();
     const { leaseId } = await start(backend);
-    await expect(call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "montant" })).rejects.toThrow();
-    await expect(call(backend, "rentExceptions.set", { leaseId, month: "2023-12", kind: "impaye" })).rejects.toThrow("précède");
-    expect(await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "vide", amount: 100 })).toMatchObject({ amount: null });
+    await call(backend, "rentWaivers.set", { leaseId, month: "2025-03", comment: "Travaux" });
+    const w = await call<{ id: string }>(backend, "rentWaivers.set", { leaseId, month: "2025-03", comment: "Franchise" });
+    expect((await data(backend)).rentWaivers).toMatchObject([{ id: w.id, leaseId, month: "2025-03", comment: "Franchise" }]);
+    await call(backend, "rentWaivers.delete", { id: w.id });
+    expect((await data(backend)).rentWaivers).toEqual([]);
   });
 
   it("dépense annuelle, dernière année contrôlée, retirée à la suppression", async () => {
@@ -122,12 +145,14 @@ describe("loyers signalés et dépenses", () => {
   it("présents dans les sauvegardes", async () => {
     backend = await testBackend();
     const { propertyId, leaseId } = await start(backend);
-    await call(backend, "rentExceptions.set", { leaseId, month: "2025-03", kind: "impaye" });
+    await call(backend, "rentPayments.upsert", { leaseId, month: "2025-03", date: "2025-03-02", amount: 850 });
+    await call(backend, "rentWaivers.set", { leaseId, month: "2025-04" });
     await call(backend, "propertyExpenses.upsert", { propertyId, date: "2025-10-15", category: "assurance", amount: 120 });
     const dump = await call(backend, "data.export");
     await call(backend, "data.import", { dump, confirm: "REMPLACER" });
     const after = await data(backend);
-    expect(after.rentExceptions).toHaveLength(1);
+    expect(after.rentPayments).toHaveLength(1);
+    expect(after.rentWaivers).toHaveLength(1);
     expect(after.propertyExpenses).toHaveLength(1);
   });
 });

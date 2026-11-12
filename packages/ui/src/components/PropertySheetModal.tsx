@@ -18,6 +18,7 @@ import {
   propertySummary,
   propertyYears,
   type Property,
+  rentLedgerOf,
 } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine as Line } from "@/components/DetailLine";
@@ -65,7 +66,7 @@ function Sheet({ property: p, onClose }: { property: Property; onClose: () => vo
   const heldLoans = pf.data.loans ?? ws.loans;
   const summary = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
   const sale = propertySale(held, improvements, p.saleDate ? loanPayoffAt(heldLoans, p.id, p.saleDate) : 0);
-  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans, lots: ws.lots }, pf.today) : [];
+  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, ledger: rentLedgerOf(ws), expenses: ws.propertyExpenses, loans: heldLoans, lots: ws.lots }, pf.today) : [];
   const profit = propertyProfitability(years);
   const monthlyRent = rented ? monthlyRentNow(leases, ws.leaseRents, pf.today) : null;
   const sqm = propertySqm(p, monthlyRent);

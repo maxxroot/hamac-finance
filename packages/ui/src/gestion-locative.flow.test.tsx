@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { addDays, addMonths } from "@hamac/core";
+import { NO_RENT_LEDGER, addDays, addMonths, rentMonths, type Lease } from "@hamac/core";
 import { testBackend } from "@hamac/backend/testkit";
 import { todayIso } from "@/lib/numbers";
 import { ToastProvider } from "@/lib/toast";
@@ -59,6 +59,8 @@ afterEach(() => {
 const today = todayIso();
 const thisMonth = today.slice(0, 7);
 const lastMonth = addMonths(`${thisMonth}-01`, -1).slice(0, 7);
+// Échéance le jour même : le loyer du mois en cours est « attendu », quel que soit le jour où tourne le test.
+const dueDay = Number(today.slice(8, 10));
 const texte = (el: Element | null) => (el?.textContent ?? "").replace(/[  ]/g, " ");
 
 describe("Gestion locative", () => {
@@ -74,9 +76,15 @@ describe("Gestion locative", () => {
     const c1 = await rpc<Id>("lots.upsert", { propertyId: maison.id, name: "Chambre 1", kind: "chambre", targetRent: 500 });
     const c2 = await rpc<Id>("lots.upsert", { propertyId: maison.id, name: "Chambre 2", kind: "chambre" });
     await rpc("lots.upsert", { propertyId: maison.id, name: "Parking", kind: "parking", targetRent: 80 });
-    const a = await rpc<Id>("leases.upsert", { propertyId: maison.id, lotId: c1.id, kind: "meuble", startDate: addMonths(`${thisMonth}-01`, -24), durationMonths: 12, rent: 500, charges: 50, renters: [{ firstName: "Alice", lastName: "Fictive" }] });
+    const a = await rpc<Id>("leases.upsert", { propertyId: maison.id, lotId: c1.id, kind: "meuble", startDate: addMonths(`${thisMonth}-01`, -24), durationMonths: 12, rent: 500, charges: 50, dueDay, renters: [{ firstName: "Alice", lastName: "Fictive" }] });
     await rpc("leases.upsert", { propertyId: maison.id, lotId: c2.id, kind: "meuble", startDate: addMonths(`${thisMonth}-01`, -20), durationMonths: 12, rent: 400, deposit: 800, actualEnd: addDays(today, -80) });
-    await rpc("rentExceptions.set", { leaseId: a.id, month: lastMonth, kind: "impaye" });
+    // Tout est pointé reçu, sauf le loyer du mois dernier de la chambre 1 et celui du mois en cours.
+    const payments = (await workspace()).leases.flatMap((l: Lease) =>
+      rentMonths(l, [], NO_RENT_LEDGER, today)
+        .filter((m) => m.month < thisMonth && !(l.id === a.id && m.month === lastMonth))
+        .map((m) => ({ leaseId: l.id, month: m.month, date: m.dueDate, amount: m.due })),
+    );
+    await rpc("rentPayments.addMany", { payments });
     await rpc("propertyExpenses.upsert", { propertyId: maison.id, date: addMonths(today, -10), category: "taxe_fonciere", amount: 1_200, yearly: true });
     await rpc("propertyReminders.upsert", { propertyId: maison.id, date: addDays(today, -5), label: "Relancer le syndic" });
     await rpc("properties.upsert", { kind: "residence_principale", name: "Résidence", value: 200_000 });
@@ -84,15 +92,28 @@ describe("Gestion locative", () => {
     show(<GestionLocative />);
     expect(await screen.findByRole("heading", { name: "Gestion locative" })).toBeTruthy();
     // Impayés : un bail, le mois dernier, loyer et charges.
-    const impayes = screen.getByText("Impayés", { selector: "span" }).closest("div") as HTMLElement;
+    const impayes = screen.getByText("Non reçus", { selector: "span" }).closest("div") as HTMLElement;
     expect(texte(impayes)).toContain("550");
     expect(screen.getAllByText("Alice Fictive").length).toBeGreaterThan(0);
     // Lots vides : la chambre partie, et le parking jamais loué mais proposé.
     expect(screen.getAllByRole("link", { name: "Maison, Chambre 2" }).length).toBeGreaterThan(0);
     expect(screen.getByText("Jamais loué")).toBeTruthy();
-    // Le mois dernier : impayé sur la chambre 1.
+    // Le mois dernier : non reçu sur la chambre 1, qui se pointe d'un clic depuis la liste… ou par « Valider le mois ».
     await user.selectOptions(screen.getByLabelText("Mois des loyers"), lastMonth);
-    expect(await screen.findByText("Impayé")).toBeTruthy();
+    expect(await screen.findAllByText("Non reçu")).toBeTruthy();
+    expect(screen.getByText(/1 loyer à pointer/)).toBeTruthy();
+    h.confirm = false;
+    await user.click(screen.getByRole("button", { name: "Valider le mois" }));
+    expect((await workspace()).rentPayments).toHaveLength(payments.length);
+    h.confirm = true;
+    await user.click(screen.getByRole("button", { name: "Valider le mois" }));
+    await waitFor(async () => expect((await workspace()).rentPayments).toHaveLength(payments.length + 1));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Valider le mois" })).toBeNull());
+    expect(await screen.findByText("Tous les loyers échus sont pointés.")).toBeTruthy();
+    // Le mois en cours se pointe d'un clic.
+    await user.selectOptions(screen.getByLabelText("Mois des loyers"), thisMonth);
+    await user.click(await screen.findByRole("button", { name: "Marquer reçu : Maison, Chambre 1" }));
+    await waitFor(async () => expect((await workspace()).rentPayments).toHaveLength(payments.length + 2));
     // Biens : lots loués et loyer du mois ; la résidence principale n'y figure pas.
     expect(screen.queryByText("Résidence")).toBeNull();
     expect(screen.getByText("1 / 3")).toBeTruthy();
@@ -141,12 +162,12 @@ describe("Gestion locative", () => {
     const user = userEvent.setup();
     for (const name of ["Studio A", "Studio B"]) {
       const p = await rpc<Id>("properties.upsert", { kind: "locatif", name, value: 100_000 });
-      await rpc("leases.upsert", { propertyId: p.id, kind: "vide", startDate: `${thisMonth}-01`, durationMonths: 36, rent: 600 });
+      await rpc("leases.upsert", { propertyId: p.id, kind: "vide", startDate: `${thisMonth}-01`, durationMonths: 36, rent: 600, dueDay });
     }
     show(<GestionLocative />);
     expect(await screen.findByText("Tout le parc")).toBeTruthy();
     expect(screen.getByText("Total")).toBeTruthy();
-    expect(screen.getByText("Aucun loyer signalé impayé.")).toBeTruthy();
+    expect(screen.getByText("Tous les loyers échus sont pointés.")).toBeTruthy();
     expect(screen.getByText("Tous les lots proposés à la location sont loués.")).toBeTruthy();
     await user.selectOptions(screen.getByLabelText("Mois des loyers"), lastMonth);
     expect(await screen.findByText("Aucun loyer attendu ce mois-là.")).toBeTruthy();

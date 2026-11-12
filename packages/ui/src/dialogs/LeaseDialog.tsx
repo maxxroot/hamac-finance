@@ -15,7 +15,7 @@ type LeaseDraft = Required<Omit<LeaseInput, "id" | "renters" | "guarantees">> & 
 const emptyRenter = (): RenterRow => ({ firstName: "", lastName: "", email: "", phone: "", forwardingAddress: "", comment: "" });
 const emptyGuarantee = (): GuaranteeRow => ({ kind: "caution", name: "", contact: "", amount: null, until: null, comment: "" });
 
-const emptyLease = (property: Property, lot: Lot | null, kind: LeaseKind): LeaseDraft => ({ propertyId: property.id, lotId: lot?.id ?? null, kind, renters: [emptyRenter()], guarantees: [], startDate: todayIso(), durationMonths: defaultLeaseMonths(kind, property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "" });
+const emptyLease = (property: Property, lot: Lot | null, kind: LeaseKind): LeaseDraft => ({ propertyId: property.id, lotId: lot?.id ?? null, kind, renters: [emptyRenter()], guarantees: [], startDate: todayIso(), durationMonths: defaultLeaseMonths(kind, property.ownership), rent: 0, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", dueDay: 1 });
 
 /** Bail d'un lot : `lot` null pour un bien sans lot, dont le logement sera créé au premier bail. */
 export function LeaseDialog({ open, property, lot, lease, others, onClose }: { open: boolean; property: Property; lot: Lot | null; lease: Lease | null; others: readonly Lease[]; onClose: () => void }) {
@@ -96,6 +96,11 @@ export function LeaseDialog({ open, property, lot, lease, others, onClose }: { o
           <Field label="Durée (mois)" help={leaseDurationNote(d.kind, property.ownership, d.durationMonths) ?? `Soit ${Math.round((d.durationMonths / 12) * 10) / 10} ans.`}>
             {(id) => <NumberInput id={id} decimals={0} grouping={false} value={d.durationMonths} onChange={(v) => update({ durationMonths: v == null ? 0 : Math.round(v) })} />}
           </Field>
+          <Field label="Loyer dû le" help="Jour du mois prévu au bail.">
+            {(id) => <NumberInput id={id} decimals={0} grouping={false} value={d.dueDay} onChange={(v) => update({ dueDay: v == null ? 1 : Math.min(31, Math.max(1, Math.round(v))) })} />}
+          </Field>
+        </FormGrid>
+        <FormGrid>
           <Field label="Assurance du locataire valable jusqu'au">{(id) => <TextInput id={id} type="date" value={d.tenantInsuranceUntil ?? ""} onChange={(e) => update({ tenantInsuranceUntil: e.target.value || null })} />}</Field>
         </FormGrid>
         <FormGrid cols={3}>

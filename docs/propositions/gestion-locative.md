@@ -96,7 +96,7 @@ Le mode peut changer dans le temps (une location entière qui devient une coloca
 
 ## 3. Encaissements
 
-**Statut :** à faire, après la tranche 2.
+**Statut :** première partie faite le 12 novembre 2026 (branche `gestion-locative`) : suivi strict, paiements pointés (`rent_payments`), mois remis (`rent_waivers`), jour d'échéance du bail (`leases.due_day`), reprise des signalements (migrations 0025 et 0026, et `upgradeLegacyRentExceptions` pour les anciennes sauvegardes), boutons « Reçu », « Détail », « Valider l'année » (onglet Location) et « Valider le mois » (Gestion locative), alerte par bail des loyers non reçus. Décisions prises en codant : un paiement partiel se répartit entre loyer et charges au prorata ; un trop-perçu reste dans le total pointé du mois et fait baisser le solde du locataire, sans s'imputer tout seul au mois suivant ; un mois remis reste occupé (seule la vacance entre deux baux fait baisser l'occupation) ; « Reçu » et « Valider » datent le paiement de l'échéance quand elle est passée, d'aujourd'hui sinon ; un « montant différent » repris compte les charges du mois en plus du loyer indiqué. Reste à faire (seconde partie) : relances et courriers, avis d'échéance, attestation de loyer, décompte des sommes dues, part de chaque colocataire, import CSV d'un relevé.
 
 **Pourquoi.** Remplacer « réputé perçu » par un vrai suivi des paiements : c'est ce qui permet de savoir qui doit quoi, de relancer à temps et de délivrer des quittances justes.
 

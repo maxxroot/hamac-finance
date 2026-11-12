@@ -3,7 +3,7 @@ import { proposeContributions } from "./contributions";
 import { addDays, addMonths, monthsBetween } from "./dates";
 import { dpeExpiry, dpeFreezesRent, dpeRentalBan } from "./energy";
 import { advisedMonthlyPurchase, monthsElapsed, type EngineData, type PortfolioState } from "./engine";
-import { currentLease, leaseRevisionDue, leaseState, rentMonths } from "./leases";
+import { currentLease, leaseRevisionDue, leaseState, rentIsLate, rentMonths } from "./leases";
 import { lotIsActive, sortLots } from "./lots";
 import { LEASE_GUARANTEE_LABELS } from "./renters";
 import { formatEur } from "./money";
@@ -312,18 +312,14 @@ export function documentAlerts(data: Pick<EngineData, "properties" | "propertyDo
 const LEASE_ALERT_DAYS = 60;
 
 /** Rappels des biens en location, lot par lot : fin de bail, départ du locataire, date limite pour donner congé, garanties et loyers impayés. */
-export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents" | "rentExceptions" | "lots" | "leaseGuarantees">, today: string): Alert[] {
+export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "leaseRents" | "rentPayments" | "rentWaivers" | "lots" | "leaseGuarantees">, today: string): Alert[] {
   const out: Alert[] = [];
   const soon = (date: string | null): date is string => date != null && daysBetween(today, date) >= 0 && daysBetween(today, date) <= LEASE_ALERT_DAYS;
   for (const property of (data.properties ?? []).filter((p) => p.kind === "locatif" && !p.archived)) {
     const leases = (data.leases ?? []).filter((l) => l.propertyId === property.id);
     const link = `/immobilier/${property.id}`;
+    const ledger = { payments: data.rentPayments ?? [], waivers: data.rentWaivers ?? [] };
     const allStates = leases.map((l) => leaseState(l, data.leaseRents ?? [], today));
-    const unpaid = allStates.flatMap((s) => rentMonths(s.lease, data.leaseRents ?? [], data.rentExceptions ?? [], today)).filter((m) => m.status === "impaye");
-    if (unpaid.length) {
-      const due = unpaid.reduce((sum, m) => sum + m.expectedRent + m.expectedCharges, 0);
-      out.push({ id: `loyers-impayes-${property.id}`, level: "attention", title: `${property.name} : ${unpaid.length} loyer${unpaid.length > 1 ? "s" : ""} impayé${unpaid.length > 1 ? "s" : ""}`, detail: `${eur(due)} à recevoir.`, link });
-    }
     // Un groupe par lot ; les baux sans lot connu forment le logement du bien.
     const lots = sortLots((data.lots ?? []).filter((l) => l.propertyId === property.id && (lotIsActive(l, property.rentalMode) || leases.some((x) => x.lotId === l.id))));
     const known = new Set(lots.map((l) => l.id));
@@ -331,6 +327,14 @@ export function leaseAlerts(data: Pick<EngineData, "properties" | "leases" | "le
     const named = groups.length > 1;
     for (const { lot, states } of groups) {
       const where = named && lot ? `${property.name}, ${lot.name}` : property.name;
+      // Suivi strict : chaque loyer non pointé passé le délai de tolérance est signalé, bail par bail.
+      for (const st of states) {
+        const late = rentMonths(st.lease, data.leaseRents ?? [], ledger, today).filter(rentIsLate);
+        if (!late.length) continue;
+        const due = late.reduce((sum, m) => sum + m.outstanding, 0);
+        const n = late.length;
+        out.push({ id: `loyers-non-recus-${st.lease.id}`, level: "attention", title: `${where} : ${n} loyer${n > 1 ? "s" : ""} non reçu${n > 1 ? "s" : ""}`, detail: `${eur(due)} attendus, depuis ${late[0].month.slice(5)}/${late[0].month.slice(0, 4)}. Pointez ce qui est arrivé dans l'onglet Location.`, link: `${link}?onglet=location` });
+      }
       const current = currentLease(states);
       if (!current) continue;
       for (const s of states.filter((x) => x.status === "termine" && x.lease.reminders && x.lease.deposit > 0 && x.lease.depositReturned == null)) {

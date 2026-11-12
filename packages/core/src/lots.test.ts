@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { validateLease, type Lease } from "./leases";
+import { NO_RENT_LEDGER, validateLease, type Lease } from "./leases";
 import { defaultLotName, leaseKindsFor, lotFitsMode, lotIsActive, lotKindsFor, rentalModeFromLeases, sortLots, type Lot } from "./lots";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 import { propertyYears, type RentalData } from "./rental";
 import { joinNames, leaseRenterNames, leaseRenters, renterName, type Renter } from "./renters";
 
 const lot = (id: string, kind: Lot["kind"], extra: Partial<Lot> = {}): Lot => ({ id, propertyId: "b", name: id, kind, surface: null, targetRent: null, comment: "", archived: false, sortOrder: 0, ...extra });
-const bail = (id: string, lotId: string, extra: Partial<Lease> = {}): Lease => ({ id, propertyId: "b", lotId, kind: "meuble", startDate: "2025-01-01", durationMonths: 12, rent: 500, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", ...extra });
+const bail = (id: string, lotId: string, extra: Partial<Lease> = {}): Lease => ({ id, propertyId: "b", lotId, kind: "meuble", startDate: "2025-01-01", durationMonths: 12, rent: 500, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", dueDay: 1, ...extra });
 
 describe("mode de location", () => {
   it("propose le logement entier, ou les chambres en colocation par chambre, avec les annexes", () => {
@@ -64,7 +64,7 @@ describe("baux de plusieurs lots", () => {
 
 describe("occupation pondérée par le loyer", () => {
   const property: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Maison", value: 300_000, valueDate: null, purchasePrice: 250_000, purchaseDate: "2024-06-01", newBuild: false, ...NO_PROPERTY_DETAILS, rentalMode: "chambres", notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
-  const base: RentalData = { incomes: [], property, leases: [], rents: [], exceptions: [], expenses: [], loans: [], lots: [] };
+  const base: RentalData = { incomes: [], property, leases: [], rents: [], ledger: NO_RENT_LEDGER, expenses: [], loans: [], lots: [] };
 
   it("une chambre à 600 € vide six mois pèse plus qu'un parking à 100 € vide toute l'année", () => {
     const lots = [lot("c1", "chambre"), lot("c2", "chambre"), lot("p", "parking", { targetRent: 100 })];
@@ -149,6 +149,8 @@ describe("alertes lot par lot", () => {
     expect(titles.some((t) => t.startsWith("Maison, Logement : aucun bail"))).toBe(false);
     // Un bien à lot unique garde son nom seul.
     const single = leaseAlerts({ properties: [{ ...property, rentalMode: "meuble" }], leases: [bail("x", "old", { actualEnd: "2025-06-30" })], lots: [lots[2]] }, "2025-11-15");
-    expect(single.map((a) => [a.id, a.title])).toEqual([["bail-vacant-b", "Maison : aucun bail en cours"]]);
+    expect(single.filter((a) => !a.id.startsWith("loyers-non-recus")).map((a) => [a.id, a.title])).toEqual([["bail-vacant-b", "Maison : aucun bail en cours"]]);
+    // Sans paiement pointé, le bail parti a des loyers non reçus, nommés par lot.
+    expect(titles).toContain("Maison, Chambre 2 : 10 loyers non reçus");
   });
 });

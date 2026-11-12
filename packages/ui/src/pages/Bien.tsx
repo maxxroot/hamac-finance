@@ -1,7 +1,7 @@
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { lotIsActive, lotIsAnnex, sortLots, LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, heldShareLabel, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost } from "@hamac/core";
+import { lotIsActive, lotIsAnnex, sortLots, LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, heldShareLabel, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost, rentLedgerOf } from "@hamac/core";
 import { Amount } from "@/components/Amount";
 import { DetailLine as Line } from "@/components/DetailLine";
 import { ExpensesCard } from "@/components/ExpensesCard";
@@ -65,7 +65,7 @@ export function Bien() {
   const requested = search.get("onglet");
   const tab = tabs.find(([key]) => key === requested)?.[0] ?? tabs[0][0];
   const lots = sortLots(ws.lots.filter((l) => l.propertyId === property.id));
-  const rentalData = { property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans, lots };
+  const rentalData = { property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, ledger: rentLedgerOf(ws), expenses: ws.propertyExpenses, loans: heldLoans, lots };
   // Une carte de bail par lot proposé à la location (annexes : dès qu'elles ont un bail), et par lot sorti du mode qui a encore un bail en cours.
   const running = (lotId: string) => leases.some((l) => l.lotId === lotId && (l.actualEnd == null || l.actualEnd >= pf.today));
   const leaseLots = lots.filter((l) => (lotIsActive(l, property.rentalMode) && (!lotIsAnnex(l.kind) || leases.some((x) => x.lotId === l.id))) || running(l.id));
@@ -137,7 +137,7 @@ export function Bien() {
           {cards.map((lot) => (
             <LeaseCard key={lot?.id ?? "logement"} property={property} lot={lot} named={lots.length > 1} leases={lot ? leases.filter((l) => l.lotId === lot.id) : leases} all={leases} rents={ws.leaseRents} today={pf.today} />
           ))}
-          <RentsCard leases={leases} rents={ws.leaseRents} exceptions={ws.rentExceptions} lots={lots} today={pf.today} />
+          <RentsCard leases={leases} rents={ws.leaseRents} ledger={rentLedgerOf(ws)} lots={lots} today={pf.today} />
           <LotsCard property={property} lots={lots} leases={leases} rents={ws.leaseRents} renters={ws.renters} links={ws.leaseRenters} today={pf.today} />
         </div>
       )}

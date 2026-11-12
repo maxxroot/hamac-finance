@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { documentAlerts, leaseAlerts } from "./alerts";
-import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseRevisionDue, leaseState, rentReceipt, depositRetained, maxDeposit, rentMonths, validateLease, type Lease, type LeaseRent, type RentException } from "./leases";
+import { currentLease, defaultLeaseMonths, leaseDurationNote, leaseEnd, leaseRentAt, leaseRevisionDue, leaseState, rentReceipt, depositRetained, maxDeposit, rentMonths, rentDueDate, leaseBalance, settlingPayment, NO_RENT_LEDGER, validateLease, type Lease, type LeaseRent, type RentLedger, type RentPayment, type RentWaiver } from "./leases";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 
-const vide: Lease = { id: "l", propertyId: "b", lotId: "lot", kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "" };
+const vide: Lease = { id: "l", propertyId: "b", lotId: "lot", kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", dueDay: 1 };
 const meuble: Lease = { ...vide, kind: "meuble", durationMonths: 12, startDate: "2025-03-01" };
 
 describe("règles légales", () => {
@@ -156,7 +156,8 @@ describe("bail à mettre en avant", () => {
 
 describe("rappels", () => {
   const bien: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Studio", value: 100_000, valueDate: null, purchasePrice: null, purchaseDate: null, newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
-  const run = (lease: Lease, today: string, property = bien) => leaseAlerts({ properties: [property], leases: [lease], leaseRents: [] }, today);
+  // Échéances du bail seules : les loyers non pointés ont leurs propres tests.
+  const run = (lease: Lease, today: string, property = bien) => leaseAlerts({ properties: [property], leases: [lease], leaseRents: [] }, today).filter((a) => !a.id.startsWith("loyers-non-recus"));
 
   it("date limite pour donner congé : rappelée 60 jours avant, pas au-delà ni après", () => {
     expect(run(vide, "2026-05-14")).toHaveLength(0);
@@ -182,13 +183,12 @@ describe("rappels", () => {
     expect(run({ ...meuble, actualEnd: "2025-06-01" }, "2026-01-01").map((a) => a.id)).toEqual(["bail-depot-l", "bail-vacant-b"]);
   });
 
-  it("rappels décochés : plus aucun rappel de bail, l'impayé reste signalé", () => {
+  it("rappels décochés : plus aucun rappel de bail, les loyers non reçus restent signalés", () => {
     const silencieux = { ...vide, reminders: false };
     expect(run(silencieux, "2026-05-15")).toHaveLength(0);
     expect(run({ ...silencieux, actualEnd: "2025-06-01" }, "2026-01-01")).toHaveLength(0);
     const bien2 = { id: "b", kind: "locatif", name: "Studio", archived: false } as Property;
-    const impaye: RentException = { id: "x", leaseId: "l", month: "2026-02", kind: "impaye", amount: null, comment: "" };
-    expect(leaseAlerts({ properties: [bien2], leases: [silencieux], leaseRents: [], rentExceptions: [impaye] }, "2026-05-15").map((a) => a.id)).toEqual(["loyers-impayes-b"]);
+    expect(leaseAlerts({ properties: [bien2], leases: [silencieux], leaseRents: [] }, "2026-05-15").map((a) => a.id)).toEqual(["loyers-non-recus-l"]);
   });
 
   it("rien pour un bien qui n'est plus en location ou archivé", () => {
@@ -197,51 +197,77 @@ describe("rappels", () => {
   });
 });
 
-describe("loyers automatiques", () => {
-  const bail: Lease = { ...vide, startDate: "2026-01-16", durationMonths: 36, rent: 620, charges: 62 };
-  const exception = (month: string, kind: RentException["kind"], amount: number | null = null): RentException => ({ id: month, leaseId: "l", month, kind, amount, comment: "" });
+describe("loyers pointés", () => {
+  const bail: Lease = { ...vide, startDate: "2026-01-16", durationMonths: 36, rent: 620, charges: 62, dueDay: 5 };
+  const pay = (month: string, amount: number, date = `${month}-05`): RentPayment => ({ id: `${month}-${amount}`, leaseId: "l", month, date, amount, method: "virement", comment: "" });
+  const ledger = (payments: RentPayment[] = [], waivers: RentWaiver[] = []): RentLedger => ({ payments, waivers });
 
-  it("un mois par mois échu ou en cours, premier mois au prorata des jours", () => {
-    const months = rentMonths(bail, [], [], "2026-03-10");
+  it("un mois par mois échu ou en cours, premier mois au prorata des jours ; rien n'est reçu sans pointage", () => {
+    const months = rentMonths(bail, [], NO_RENT_LEDGER, "2026-03-10");
     expect(months.map((m) => m.month)).toEqual(["2026-01", "2026-02", "2026-03"]);
     // 16 jours sur 31 en janvier.
     expect(months[0].occupied).toBeCloseTo(16 / 31, 6);
-    expect(months[0]).toMatchObject({ expectedRent: 320, expectedCharges: 32, receivedRent: 320, status: "paye" });
-    expect(months[2]).toMatchObject({ occupied: 1, receivedRent: 620, receivedCharges: 62 });
+    expect(months[0]).toMatchObject({ expectedRent: 320, expectedCharges: 32, due: 352, paid: 0, receivedRent: 0, outstanding: 352, dueDate: "2026-01-05", status: "non_recu" });
+    // Échéance le 5 mars, tolérance de 10 jours : encore attendu le 10.
+    expect(months[2]).toMatchObject({ occupied: 1, due: 682, status: "attendu" });
+    expect(rentMonths(bail, [], NO_RENT_LEDGER, "2026-03-04")[2].status).toBe("a_venir");
+    expect(rentMonths(bail, [], NO_RENT_LEDGER, "2026-03-16")[2].status).toBe("non_recu");
+  });
+
+  it("échéance au-delà de la fin du mois : le dernier jour", () => {
+    expect(rentDueDate("2026-02", 31)).toBe("2026-02-28");
+    expect(rentDueDate("2026-03", 0)).toBe("2026-03-01");
   });
 
   it("dernier mois au prorata, rien après la fin du bail", () => {
-    const months = rentMonths({ ...bail, actualEnd: "2026-03-15" }, [], [], "2026-06-01");
+    const months = rentMonths({ ...bail, actualEnd: "2026-03-15" }, [], NO_RENT_LEDGER, "2026-06-01");
     expect(months.map((m) => m.month)).toEqual(["2026-01", "2026-02", "2026-03"]);
     expect(months[2].expectedRent).toBe(300); // 15 jours sur 31 de 620 €
   });
 
   it("nouveau loyer appliqué à partir de son mois", () => {
     const rents: LeaseRent[] = [{ id: "r", leaseId: "l", fromMonth: "2026-03", rent: 640, charges: 62 }];
-    const months = rentMonths(bail, rents, [], "2026-03-10");
+    const months = rentMonths(bail, rents, NO_RENT_LEDGER, "2026-03-10");
     expect(months[1].expectedRent).toBe(620);
     expect(months[2].expectedRent).toBe(640);
   });
 
-  it("impayé : rien de reçu, logement occupé", () => {
-    const [, m] = rentMonths(bail, [], [exception("2026-02", "impaye")], "2026-03-10");
-    expect(m).toMatchObject({ status: "impaye", occupied: 1, expectedRent: 620, receivedRent: 0, receivedCharges: 0 });
+  it("reçu en entier, en deux fois, ou en partie : loyer et charges au prorata", () => {
+    const [, entier] = rentMonths(bail, [], ledger([pay("2026-02", 682)]), "2026-03-10");
+    expect(entier).toMatchObject({ status: "recu", paid: 682, receivedRent: 620, receivedCharges: 62, outstanding: 0 });
+    const [, deuxFois] = rentMonths(bail, [], ledger([pay("2026-02", 400, "2026-02-20"), pay("2026-02", 282, "2026-02-04")]), "2026-03-10");
+    expect(deuxFois).toMatchObject({ status: "recu", paid: 682 });
+    expect(deuxFois.payments.map((p) => p.date)).toEqual(["2026-02-04", "2026-02-20"]);
+    const [, partiel] = rentMonths(bail, [], ledger([pay("2026-02", 341)]), "2026-03-10");
+    expect(partiel).toMatchObject({ status: "partiel", receivedRent: 310, receivedCharges: 31, outstanding: 341 });
+    // Trop-perçu : tout est reçu, le surplus reste dans le total pointé.
+    const [, trop] = rentMonths(bail, [], ledger([pay("2026-02", 700)]), "2026-03-10");
+    expect(trop).toMatchObject({ status: "recu", paid: 700, receivedRent: 620, receivedCharges: 62 });
   });
 
-  it("mois vide : rien de prévu ni d'occupé", () => {
-    const [, m] = rentMonths(bail, [], [exception("2026-02", "vide")], "2026-03-10");
-    expect(m).toMatchObject({ status: "vide", occupied: 0, expectedRent: 0, receivedRent: 0 });
+  it("mois remis : rien n'est dû, le logement reste occupé", () => {
+    const [, m] = rentMonths(bail, [], ledger([], [{ id: "w", leaseId: "l", month: "2026-02", comment: "Travaux" }]), "2026-03-10");
+    expect(m).toMatchObject({ status: "remis", occupied: 1, expectedRent: 620, due: 0, outstanding: 0, receivedRent: 0 });
   });
 
-  it("montant différent : le loyer reçu est celui indiqué, les charges restent prévues", () => {
-    const [, m] = rentMonths(bail, [], [exception("2026-02", "montant", 500)], "2026-03-10");
-    expect(m).toMatchObject({ status: "montant", expectedRent: 620, receivedRent: 500, receivedCharges: 62 });
+  it("paiement qui solde un mois : le reste dû, à l'échéance passée ou aujourd'hui", () => {
+    const [jan, fev, mars] = rentMonths(bail, [], ledger([pay("2026-02", 82)]), "2026-03-03");
+    expect(settlingPayment(jan, "2026-03-03")).toEqual({ leaseId: "l", month: "2026-01", date: "2026-01-05", amount: 352, method: "virement", comment: "" });
+    expect(settlingPayment(fev, "2026-03-03", "caf")).toMatchObject({ amount: 600, method: "caf" });
+    expect(settlingPayment(mars, "2026-03-03")).toMatchObject({ date: "2026-03-03", amount: 682 });
+    expect(settlingPayment({ ...jan, outstanding: 0 }, "2026-03-03")).toBeNull();
   });
 
-  it("alerte sur les loyers impayés", () => {
+  it("solde du locataire : dû sur les échéances passées, moins tout ce qui est reçu", () => {
+    expect(leaseBalance(bail, [], ledger([pay("2026-01", 352), pay("2026-02", 682)]), "2026-03-10")).toBe(682);
+    expect(leaseBalance(bail, [], ledger([pay("2026-01", 352), pay("2026-02", 682), pay("2026-03", 700, "2026-03-01")]), "2026-03-10")).toBe(-18);
+  });
+
+  it("alerte par bail sur les loyers non reçus passé le délai de tolérance", () => {
     const bien = { id: "b", kind: "locatif", name: "Studio", archived: false } as Property;
-    const alerts = leaseAlerts({ properties: [bien], leases: [bail], leaseRents: [], rentExceptions: [exception("2026-02", "impaye")] }, "2026-03-10");
-    expect(alerts.find((a) => a.id === "loyers-impayes-b")).toMatchObject({ level: "attention", title: "Studio : 1 loyer impayé" });
+    const alerts = leaseAlerts({ properties: [bien], leases: [bail], leaseRents: [], rentPayments: [pay("2026-01", 352), pay("2026-02", 300)] }, "2026-03-10");
+    expect(alerts.find((a) => a.id === "loyers-non-recus-l")).toMatchObject({ level: "attention", title: "Studio : 1 loyer non reçu", detail: expect.stringMatching(/^382\s€ attendus, depuis 02\/2026\. Pointez ce qui est arrivé/) });
+    expect(leaseAlerts({ properties: [bien], leases: [bail], leaseRents: [], rentPayments: [pay("2026-01", 352), pay("2026-02", 682)] }, "2026-03-10").some((a) => a.id.startsWith("loyers-non-recus"))).toBe(false);
   });
 });
 
@@ -284,13 +310,14 @@ describe("dépôt à la sortie et révision du loyer", () => {
 });
 
 describe("quittances", () => {
-  const month = { leaseId: "l", month: "2026-02", occupied: 1, expectedRent: 620, expectedCharges: 62, receivedRent: 620, receivedCharges: 62, status: "paye", exception: null } as const;
+  const bail: Lease = { ...vide, startDate: "2026-01-01", rent: 620, charges: 62 };
+  const month = (amount: number) => rentMonths(bail, [], { payments: amount ? [{ id: "p", leaseId: "l", month: "2026-02", date: "2026-02-03", amount, method: "virement", comment: "" }] : [], waivers: [] }, "2026-03-10")[1];
   it("loyer payé : quittance avec loyer et charges distingués", () => {
-    expect(rentReceipt(month)).toEqual({ kind: "quittance", rent: 620, charges: 62, total: 682 });
+    expect(rentReceipt(month(682))).toEqual({ kind: "quittance", rent: 620, charges: 62, total: 682 });
   });
   it("paiement partiel : un reçu ; rien reçu : aucun document", () => {
-    expect(rentReceipt({ ...month, status: "montant", receivedRent: 500 })).toEqual({ kind: "recu", rent: 500, charges: 62, total: 562 });
-    expect(rentReceipt({ ...month, status: "impaye", receivedRent: 0, receivedCharges: 0 })).toBeNull();
+    expect(rentReceipt(month(341))).toEqual({ kind: "recu", rent: 310, charges: 31, total: 341 });
+    expect(rentReceipt(month(0))).toBeNull();
   });
 });
 

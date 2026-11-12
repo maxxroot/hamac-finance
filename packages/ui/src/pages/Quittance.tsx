@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { formatEur, leaseRenterNames, rentMonths, rentReceipt } from "@hamac/core";
+import { formatEur, leaseRenterNames, rentLedgerOf, rentMonths, rentReceipt } from "@hamac/core";
 import { PrintLine, PrintPage, PrintSection } from "@/components/PrintPage";
 import { formatDate, formatMonth } from "@/lib/numbers";
 import { usePortfolio } from "@/lib/portfolio";
@@ -12,7 +12,7 @@ export function Quittance() {
   const { ws } = pf.idx;
   const lease = ws.leases.find((l) => l.id === leaseId);
   const property = lease && ws.properties.find((p) => p.id === lease.propertyId);
-  const rent = lease && rentMonths(lease, ws.leaseRents, ws.rentExceptions, pf.today).find((m) => m.month === month);
+  const rent = lease && rentMonths(lease, ws.leaseRents, rentLedgerOf(ws), pf.today).find((m) => m.month === month);
   const receipt = rent ? rentReceipt(rent) : null;
   if (!lease || !property || !rent || !receipt) return <PrintPage>Aucun paiement enregistré pour ce mois.</PrintPage>;
   const place = [property.address, [property.postalCode, property.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || property.name;

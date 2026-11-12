@@ -1,7 +1,7 @@
 import { addDays, addMonths } from "./dates";
 import { dpeExpiry, dpeFreezesRent } from "./energy";
 import { leaseCanBeRevised } from "./irl";
-import { daysInMonth, leaseEnd, leaseRentAt, leaseState, rentMonths, type Lease, type LeaseRent, type RentException, type RentMonth } from "./leases";
+import { daysInMonth, leaseEnd, leaseRentAt, leaseState, rentMonths, type Lease, type LeaseRent, type RentLedger, type RentMonth, type RentPayment, type RentWaiver, rentIsLate } from "./leases";
 import { lotIsActive, lotStatus, sortLots, type Lot } from "./lots";
 import { roundCents } from "./money";
 import type { Loan, Property } from "./realestate";
@@ -34,7 +34,8 @@ export interface ParkData {
   lots: readonly Lot[];
   leases: readonly Lease[];
   leaseRents: readonly LeaseRent[];
-  rentExceptions: readonly RentException[];
+  rentPayments: readonly RentPayment[];
+  rentWaivers: readonly RentWaiver[];
   renters: readonly Renter[];
   leaseRenters: readonly LeaseRenter[];
   leaseGuarantees: readonly LeaseGuarantee[];
@@ -66,8 +67,10 @@ export interface ParkMonth {
   lines: ParkRentLine[];
   expected: number;
   received: number;
-  /** Loyers signalés impayés ce mois-ci. */
-  unpaid: number;
+  /** Reste dû, passé le délai de tolérance. */
+  late: number;
+  /** Reste dû sur les loyers pas encore en retard. */
+  pending: number;
 }
 
 /** Loyers et charges attendus et reçus pour un mois AAAA-MM, bail par bail. */
@@ -76,8 +79,8 @@ export function parkMonth(data: ParkData, month: string, today: string): ParkMon
   const lines: ParkRentLine[] = [];
   for (const property of parkProperties(data)) {
     for (const lease of data.leases.filter((l) => l.propertyId === property.id)) {
-      const m = rentMonths(lease, data.leaseRents, data.rentExceptions, asOf).find((x) => x.month === month);
-      if (m && m.expectedRent + m.expectedCharges > 0) lines.push({ property, lease, lotName: shownLot(data, lease), renters: leaseRenterNames(lease.id, data.leaseRenters, data.renters), month: m });
+      const m = rentMonths(lease, data.leaseRents, ledgerOf(data), asOf).find((x) => x.month === month);
+      if (m && (m.due > 0 || m.waiver)) lines.push({ property, lease, lotName: shownLot(data, lease), renters: leaseRenterNames(lease.id, data.leaseRenters, data.renters), month: m });
     }
   }
   lines.sort((a, b) => a.property.name.localeCompare(b.property.name, "fr") || a.lotName.localeCompare(b.lotName, "fr", { numeric: true }));
@@ -85,9 +88,10 @@ export function parkMonth(data: ParkData, month: string, today: string): ParkMon
   return {
     month,
     lines,
-    expected: sum((l) => l.month.expectedRent + l.month.expectedCharges),
+    expected: sum((l) => l.month.due),
     received: sum((l) => l.month.receivedRent + l.month.receivedCharges),
-    unpaid: sum((l) => (l.month.status === "impaye" ? l.month.expectedRent + l.month.expectedCharges : 0)),
+    late: sum((l) => (rentIsLate(l.month) ? l.month.outstanding : 0)),
+    pending: sum((l) => (rentIsLate(l.month) ? 0 : l.month.outstanding)),
   };
 }
 
@@ -96,19 +100,19 @@ export interface ParkDebt {
   lease: Lease;
   lotName: string;
   renters: string;
-  /** Mois impayés, du plus ancien au plus récent. */
+  /** Mois non reçus ou reçus en partie, passé le délai de tolérance, du plus ancien au plus récent. */
   months: string[];
   due: number;
 }
 
-/** Ce que chaque bail doit encore, d'après les loyers signalés impayés. */
+/** Ce que chaque bail doit encore : les loyers non reçus ou reçus en partie, passé le délai de tolérance. */
 export function parkDebts(data: ParkData, today: string): ParkDebt[] {
   const out: ParkDebt[] = [];
   for (const property of parkProperties(data)) {
     for (const lease of data.leases.filter((l) => l.propertyId === property.id)) {
-      const unpaid = rentMonths(lease, data.leaseRents, data.rentExceptions, today).filter((m) => m.status === "impaye");
+      const unpaid = rentMonths(lease, data.leaseRents, ledgerOf(data), today).filter(rentIsLate);
       if (!unpaid.length) continue;
-      out.push({ property, lease, lotName: shownLot(data, lease), renters: leaseRenterNames(lease.id, data.leaseRenters, data.renters), months: unpaid.map((m) => m.month).sort(), due: roundCents(unpaid.reduce((s, m) => s + m.expectedRent + m.expectedCharges, 0)) });
+      out.push({ property, lease, lotName: shownLot(data, lease), renters: leaseRenterNames(lease.id, data.leaseRenters, data.renters), months: unpaid.map((m) => m.month).sort(), due: roundCents(unpaid.reduce((s, m) => s + m.outstanding, 0)) });
     }
   }
   return out.sort((a, b) => b.due - a.due);
@@ -221,8 +225,10 @@ export function parkOccupancy(data: ParkData, year: number, today: string): Occu
   return toOccupancy(total);
 }
 
+const ledgerOf = (data: Pick<ParkData, "rentPayments" | "rentWaivers">): RentLedger => ({ payments: data.rentPayments, waivers: data.rentWaivers });
+
 function rentalDataOf(data: ParkData, property: Property): RentalData {
-  return { property, incomes: data.propertyIncomes, leases: data.leases, rents: data.leaseRents, exceptions: data.rentExceptions, expenses: data.propertyExpenses, loans: data.loans, lots: data.lots };
+  return { property, incomes: data.propertyIncomes, leases: data.leases, rents: data.leaseRents, ledger: ledgerOf(data), expenses: data.propertyExpenses, loans: data.loans, lots: data.lots };
 }
 
 export interface ParkPropertyRow {

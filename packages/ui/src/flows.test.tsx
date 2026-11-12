@@ -282,7 +282,7 @@ describe("parcours de l'interface", () => {
   it("impression : fiche du bien et quittance d'un mois payé, reçu refusé sans paiement", async () => {
     const bien = await rpc<{ id: string }>("properties.upsert", { kind: "locatif", name: "Studio", value: 120_000, purchasePrice: 100_000, surface: 25, city: "Ville fictive", dpe: "D" });
     const bail = await rpc<{ id: string }>("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: "2024-01-01", durationMonths: 36, rent: 500, charges: 50, renters: [{ lastName: "Locataire fictif" }], landlord: "Propriétaire fictif" });
-    await rpc("rentExceptions.set", { leaseId: bail.id, month: "2024-03", kind: "impaye" });
+    await rpc("rentPayments.upsert", { leaseId: bail.id, month: "2024-02", date: "2024-02-03", amount: 550 });
     const routes = (
       <Routes>
         <Route path="/impression/bien/:id" element={<ImpressionBien />} />
@@ -396,7 +396,7 @@ describe("parcours de l'interface", () => {
     expect((await rpc<{ leases: unknown[] }>("workspace.load")).leases).toMatchObject([{ propertyId: bien.id, kind: "meuble", durationMonths: 12, rent: 800, deposit: 1600 }]);
   });
 
-  it("fiche d'un bien en location : signaler un impayé et ajouter une dépense", async () => {
+  it("fiche d'un bien en location : pointer un loyer reçu et ajouter une dépense", async () => {
     const user = userEvent.setup();
     const bien = await rpc<{ id: string }>("properties.upsert", { kind: "locatif", name: "Studio", value: 100_000 });
     await rpc("leases.upsert", { propertyId: bien.id, kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800 });
@@ -406,10 +406,9 @@ describe("parcours de l'interface", () => {
       </Routes>,
       `/immobilier/${bien.id}?onglet=location`,
     );
-    const [first] = await screen.findAllByRole("button", { name: /Signaler un écart/ });
+    const [first] = await screen.findAllByRole("button", { name: /^Marquer reçu le loyer de / });
     await user.click(first);
-    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
-    await waitFor(async () => expect((await rpc<{ rentExceptions: unknown[] }>("workspace.load")).rentExceptions).toMatchObject([{ kind: "impaye" }]));
+    await waitFor(async () => expect((await rpc<{ rentPayments: unknown[] }>("workspace.load")).rentPayments).toMatchObject([{ amount: 850, method: "virement" }]));
     await user.click(screen.getByRole("tab", { name: "Finances" }));
     expect(await screen.findByText("Résultats par année")).toBeTruthy();
     await user.click(await screen.findByRole("button", { name: /Nouvelle dépense/ }));

@@ -1,5 +1,5 @@
 import { addDays, addMonths } from "./dates";
-import { daysInMonth, depositRetained, leaseEnd, leaseRentAt, rentMonths, type Lease, type LeaseRent, type RentException, type RentMonth } from "./leases";
+import { daysInMonth, depositRetained, leaseEnd, leaseRentAt, rentMonths, type Lease, type LeaseRent, type RentLedger, type RentMonth } from "./leases";
 import { lotIsActive, type Lot } from "./lots";
 import { roundCents } from "./money";
 import { loanYears, propertyTotalCost, type Loan, type Property } from "./realestate";
@@ -74,7 +74,8 @@ export interface RentalData {
   property: Property;
   leases: readonly Lease[];
   rents: readonly LeaseRent[];
-  exceptions: readonly RentException[];
+  /** Paiements pointés et mois remis. */
+  ledger: RentLedger;
   expenses: readonly PropertyExpense[];
   loans: readonly Loan[];
   /** Lots du bien ; sans lot connu, tous les baux portent sur le même logement. */
@@ -169,7 +170,7 @@ function rentalHorizon(property: Property, today: string): { asOf: string; lastD
 export function rentalWindows(data: RentalData, today: string): LotWindow[] {
   const { asOf, lastDay } = rentalHorizon(data.property, today);
   const leases = data.leases.filter((l) => l.propertyId === data.property.id);
-  const months = leases.flatMap((l) => rentMonths(l, data.rents, data.exceptions, asOf));
+  const months = leases.flatMap((l) => rentMonths(l, data.rents, data.ledger, asOf));
   const firstLease = leases.filter((l) => l.startDate <= asOf).reduce<string | null>((first, l) => (first == null || l.startDate < first ? l.startDate : first), null);
   return lotWindows(data, leases, months, asOf, lastDay, firstLease);
 }
@@ -183,7 +184,7 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
   const sold = property.saleDate != null && property.saleDate < today;
   const asOf = sold ? property.saleDate! : today;
   const leases = data.leases.filter((l) => l.propertyId === property.id);
-  const months = leases.flatMap((l) => rentMonths(l, data.rents, data.exceptions, asOf));
+  const months = leases.flatMap((l) => rentMonths(l, data.rents, data.ledger, asOf));
   const expenses = data.expenses.filter((e) => e.propertyId === property.id).flatMap((e) => expenseDates(e, asOf).map((date) => ({ date, amount: e.amount, improvement: e.improvement })));
   const incomes = [
     ...data.incomes.filter((i) => i.propertyId === property.id && i.date <= asOf).map((i) => ({ date: i.date, amount: incomeSigned(i) })),

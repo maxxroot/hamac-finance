@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NO_IRL_DATA, irlQuarterLabel, irlZone, leaseCanBeRevised, leaseIrlQuarter, pendingRevisionAnniversary, proposeRevision, revisedRent, revisionEffectiveDate, revisionStillPossible, type IrlData, type IrlPoint } from "./irl";
 import type { Lease, LeaseRent } from "./leases";
 
-const bail: Lease = { id: "l", propertyId: "b", lotId: "lot", kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: 2, landlordAddress: "" };
+const bail: Lease = { id: "l", propertyId: "b", lotId: "lot", kind: "vide", startDate: "2024-01-15", durationMonths: 36, rent: 800, charges: 50, deposit: 800, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: 2, landlordAddress: "", dueDay: 1 };
 const point = (quarter: string, value: number, published: string): IrlPoint => ({ quarter, value, published });
 // Valeurs publiées par l'INSEE.
 const metropole = [point("2024-Q2", 145.17, "2024-07-13"), point("2025-Q2", 146.68, "2025-07-13"), point("2025-Q3", 145.77, "2025-10-17"), point("2026-Q2", 148.37, "2026-07-12"), point("2026-Q3", 148.06, "2026-10-16")];

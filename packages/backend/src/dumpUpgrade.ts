@@ -50,3 +50,29 @@ export function upgradeLegacyDump(tables: Tables): void {
     if (guarantor) guarantees.push({ id: randomUUID(), lease_id: l.id, kind: "caution", name: guarantor });
   }
 }
+
+const num = (v: SqlValue | undefined) => (typeof v === "number" ? v : typeof v === "bigint" ? Number(v) : typeof v === "string" && v.trim() !== "" ? Number(v) : 0);
+
+/**
+ * Sauvegarde d'avant le suivi strict des loyers (migration 0025) : mêmes reprises que la migration.
+ * « Montant différent » devient un paiement de ce montant plus les charges du mois ; « mois vide » devient une remise ;
+ * « impayé » ne crée rien, et le mois reste dû. Modifie `tables` en place.
+ */
+export function upgradeLegacyRentExceptions(tables: Tables): void {
+  const exceptions = Array.isArray(tables.rent_exceptions) ? tables.rent_exceptions : [];
+  delete tables.rent_exceptions;
+  if (!exceptions.length) return;
+  const leases = new Map((Array.isArray(tables.leases) ? tables.leases : []).map((l) => [String(l.id), l]));
+  const rents = Array.isArray(tables.lease_rents) ? tables.lease_rents : [];
+  const payments = (tables.rent_payments = Array.isArray(tables.rent_payments) ? tables.rent_payments : []);
+  const waivers = (tables.rent_waivers = Array.isArray(tables.rent_waivers) ? tables.rent_waivers : []);
+  for (const e of exceptions) {
+    const leaseId = String(e.lease_id);
+    const month = String(e.month);
+    if (e.kind === "montant" && e.amount_cents != null) {
+      const revision = rents.filter((r) => r.lease_id === leaseId && String(r.from_month) <= month).sort((a, b) => String(b.from_month).localeCompare(String(a.from_month)))[0];
+      const charges = revision ? num(revision.charges_cents) : num(leases.get(leaseId)?.charges_cents);
+      payments.push({ id: randomUUID(), lease_id: leaseId, month, date: `${month}-01`, amount_cents: num(e.amount_cents) + charges, method: "autre", comment: "Repris du montant signalé avant le suivi des paiements" });
+    } else if (e.kind === "vide") waivers.push({ id: randomUUID(), lease_id: leaseId, month, comment: str(e.comment) || "Ancien « mois vide »" });
+  }
+}

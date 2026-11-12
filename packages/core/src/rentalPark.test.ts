@@ -1,25 +1,31 @@
 import { describe, expect, it } from "vitest";
-import type { Lease, RentException } from "./leases";
+import { NO_RENT_LEDGER, rentMonths, type Lease, type RentPayment } from "./leases";
 import type { Lot } from "./lots";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 import { parkDebts, parkMonth, parkOccupancy, parkPropertyRows, parkSchedule, parkVacancies, propertyOccupancy, relocationGaps, type ParkData, type PropertyReminder } from "./rentalPark";
 
 const property: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Maison", value: 300_000, valueDate: null, purchasePrice: 240_000, purchaseDate: "2024-06-01", newBuild: false, ...NO_PROPERTY_DETAILS, rentalMode: "chambres", notaryFees: 0, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
 const lot = (id: string, kind: Lot["kind"], extra: Partial<Lot> = {}): Lot => ({ id, propertyId: "b", name: id, kind, surface: null, targetRent: null, comment: "", archived: false, sortOrder: 0, ...extra });
-const bail = (id: string, lotId: string, extra: Partial<Lease> = {}): Lease => ({ id, propertyId: "b", lotId, kind: "meuble", startDate: "2025-01-01", durationMonths: 12, rent: 500, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", ...extra });
+const bail = (id: string, lotId: string, extra: Partial<Lease> = {}): Lease => ({ id, propertyId: "b", lotId, kind: "meuble", startDate: "2025-01-01", durationMonths: 12, rent: 500, charges: 0, deposit: 0, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", dueDay: 1, ...extra });
 const reminder = (id: string, date: string, extra: Partial<PropertyReminder> = {}): PropertyReminder => ({ id, propertyId: "b", lotId: null, date, yearly: false, label: id, comment: "", doneOn: null, ...extra });
 
 const lots = [lot("Chambre 1", "chambre", { targetRent: 500 }), lot("Chambre 2", "chambre"), lot("Parking", "parking", { targetRent: 80 })];
 const a = bail("a", "Chambre 1", { charges: 50 });
 const b = bail("b", "Chambre 2", { rent: 400, actualEnd: "2025-06-30", deposit: 800 });
 const c = bail("c", "Chambre 2", { rent: 420, startDate: "2025-09-01" });
-const impaye: RentException = { id: "x", leaseId: "a", month: "2025-10", kind: "impaye", amount: null, comment: "" };
+// Tout est reçu à l'échéance, sauf le loyer d'octobre de la chambre 1.
+const payments: RentPayment[] = [a, b, c].flatMap((l) =>
+  rentMonths(l, [], NO_RENT_LEDGER, "2026-12-31")
+    .filter((m) => !(l.id === "a" && m.month === "2025-10"))
+    .map((m) => ({ id: `${l.id}-${m.month}`, leaseId: l.id, month: m.month, date: m.dueDate, amount: m.due, method: "virement" as const, comment: "" })),
+);
 const data: ParkData = {
   properties: [property, { ...property, id: "rp", kind: "residence_principale", name: "Résidence" }],
   lots,
   leases: [a, b, c],
   leaseRents: [],
-  rentExceptions: [impaye],
+  rentPayments: payments,
+  rentWaivers: [],
   renters: [{ id: "r", firstName: "Alice", lastName: "Fictive", email: "", phone: "", forwardingAddress: "", comment: "" }],
   leaseRenters: [{ leaseId: "a", renterId: "r", sortOrder: 0 }],
   leaseGuarantees: [{ id: "g", leaseId: "a", kind: "visale", name: "", contact: "", amount: null, until: "2026-03-01", comment: "", sortOrder: 0 }],
@@ -34,10 +40,10 @@ describe("vue du parc", () => {
   it("loyers d'un mois : attendus, reçus et impayés, bail par bail", () => {
     const m = parkMonth(data, "2025-10", "2025-11-15");
     expect(m.lines.map((l) => [l.lease.id, l.lotName, l.renters, l.month.status])).toEqual([
-      ["a", "Chambre 1", "Alice Fictive", "impaye"],
-      ["c", "Chambre 2", "", "paye"],
+      ["a", "Chambre 1", "Alice Fictive", "non_recu"],
+      ["c", "Chambre 2", "", "recu"],
     ]);
-    expect(m).toMatchObject({ expected: 970, received: 420, unpaid: 550 });
+    expect(m).toMatchObject({ expected: 970, received: 420, late: 550, pending: 0 });
     // Le mois en cours s'arrête à aujourd'hui ; un bien qui n'est pas en location n'apparaît pas.
     expect(parkMonth(data, "2025-11", "2025-11-15").lines).toHaveLength(2);
   });

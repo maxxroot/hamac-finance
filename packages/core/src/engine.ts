@@ -24,7 +24,7 @@ import { formatEur, roundCents } from "./money";
 import type { Institution } from "./institutions";
 import { ageInYear, classEnabled, classLabel, classTargets, type PlanParams } from "./params";
 import { crowdProjectState, type CrowdProject, type CrowdProjectState } from "./crowdlending";
-import type { Lease, LeaseRent, RentException } from "./leases";
+import type { Lease, LeaseRent, RentPayment, RentWaiver } from "./leases";
 import type { Lot as RentalLot } from "./lots";
 import type { LeaseGuarantee } from "./renters";
 import type { PropertyDocument, PropertyExpense } from "./rental";
@@ -56,7 +56,9 @@ export interface EngineData {
   lots?: readonly RentalLot[];
   leaseGuarantees?: readonly LeaseGuarantee[];
   leaseRents?: readonly LeaseRent[];
-  rentExceptions?: readonly RentException[];
+  /** Loyers pointés et mois remis. */
+  rentPayments?: readonly RentPayment[];
+  rentWaivers?: readonly RentWaiver[];
   propertyExpenses?: readonly PropertyExpense[];
   propertyValues?: readonly PropertyValue[];
   propertyDocuments?: readonly PropertyDocument[];

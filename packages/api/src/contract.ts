@@ -30,7 +30,8 @@ import type {
   PropertyExpense,
   PropertyIncome,
   PropertyValue,
-  RentException,
+  RentPayment,
+  RentWaiver,
   Property,
   PricePoint,
   Statement,
@@ -68,7 +69,9 @@ import {
   PropertyInput,
   PropertySaleInput,
   PropertyValueInput,
-  RentExceptionInput,
+  RentPaymentInput,
+  RentPaymentsInput,
+  RentWaiverInput,
   SkipInput,
   StatementInput,
   TransactionInput,
@@ -122,7 +125,9 @@ export interface Workspace {
   leaseRenters: LeaseRenter[];
   leaseGuarantees: LeaseGuarantee[];
   leaseRents: LeaseRent[];
-  rentExceptions: RentException[];
+  /** Loyers pointés, mois par mois, et mois remis. */
+  rentPayments: RentPayment[];
+  rentWaivers: RentWaiver[];
   propertyExpenses: PropertyExpense[];
   propertyValues: PropertyValue[];
   propertyIncomes: PropertyIncome[];
@@ -317,8 +322,12 @@ export const procedures = {
   "leases.delete": { input: byId, output: ok },
   "leaseRents.upsert": { input: LeaseRentInput, output: entity<LeaseRent>() },
   "leaseRents.delete": { input: byId, output: ok },
-  "rentExceptions.set": { input: RentExceptionInput, output: entity<RentException>() },
-  "rentExceptions.delete": { input: byId, output: ok },
+  "rentPayments.upsert": { input: RentPaymentInput, output: entity<RentPayment>() },
+  /** Plusieurs loyers pointés d'un coup (« Valider le mois »), en une transaction. */
+  "rentPayments.addMany": { input: RentPaymentsInput, output: z.object({ count: z.number() }) },
+  "rentPayments.delete": { input: byId, output: ok },
+  "rentWaivers.set": { input: RentWaiverInput, output: entity<RentWaiver>() },
+  "rentWaivers.delete": { input: byId, output: ok },
   "propertyExpenses.upsert": { input: PropertyExpenseInput, output: entity<PropertyExpense>() },
   "propertyExpenses.delete": { input: byId, output: ok },
   "propertyIncomes.upsert": { input: PropertyIncomeInput, output: entity<PropertyIncome>() },

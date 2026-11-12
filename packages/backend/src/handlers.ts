@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from "drizzle-orm";
 import { one } from "./db/driver";
 import { AccountInput, RenterInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeDismembered, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, defaultLotName, leaseKindsFor, lotIsActive, lotIsAnnex, RENTAL_MODE_LABELS, type RentalMode, type Lot, type EnergyLetter, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeDismembered, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, defaultLotName, leaseEnd, leaseKindsFor, lotIsActive, lotIsAnnex, RENTAL_MODE_LABELS, type RentalMode, type Lot, type EnergyLetter, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -25,7 +25,7 @@ import {
   newId,
   nowIso,
   saveParams,
-  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLot, mapPropertyReminder, mapRenter, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, mapRentException, loadParams } from "./repo";
+  toCents, mapCrowdProject, mapLease, mapLeaseRent, mapLot, mapPropertyReminder, mapRenter, mapRentPayment, mapRentWaiver, mapLoan, mapCompany, mapGift, mapGoal, mapOtherAsset, mapLoanPrepayment, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome, loadParams } from "./repo";
 
 /** Les handlers reçoivent l'entrée APRÈS validation zod (valeurs par défaut appliquées). */
 type Parsed<N extends ProcName> = output<Procedures[N]["input"]>;
@@ -91,6 +91,17 @@ async function defaultLot(ctx: BackendContext, propertyId: string, mode: RentalM
   const id = newId();
   await ctx.db.insert(t.lots).values({ id, propertyId, name: defaultLotName("logement", lots), kind: "logement" });
   return id;
+}
+
+/** Bail d'un loyer pointé ou remis ; le mois doit tomber pendant le bail. */
+async function rentMonthLease(ctx: BackendContext, leaseId: string, month: string) {
+  const row = await ctx.db.select().from(t.leases).where(eq(t.leases.id, leaseId)).limit(1).then(one);
+  if (!row) throw new RpcError("NOT_FOUND", "Bail introuvable.");
+  const lease = mapLease(row);
+  if (month < lease.startDate.slice(0, 7)) throw new RpcError("VALIDATION", "Ce mois précède le début du bail.");
+  const end = leaseEnd(lease);
+  if (end != null && month > end.slice(0, 7)) throw new RpcError("VALIDATION", "Ce mois suit la fin du bail.");
+  return lease;
 }
 
 async function count(query: Promise<{ n: number } | undefined>): Promise<number> {
@@ -779,6 +790,7 @@ export const handlers: Handlers = {
         revisable: input.revisable,
         irlQuarter: input.irlQuarter,
         landlordAddress: input.landlordAddress,
+        dueDay: input.dueDay,
         updatedAt: nowIso(),
       };
       if (input.id) await ctx.db.update(t.leases).set(row).where(eq(t.leases.id, id));
@@ -853,21 +865,44 @@ export const handlers: Handlers = {
     return OK;
   },
 
-  async "rentExceptions.set"(input, ctx) {
-    const lease = await ctx.db.select().from(t.leases).where(eq(t.leases.id, input.leaseId)).limit(1).then(one);
-    if (!lease) throw new RpcError("NOT_FOUND", "Bail introuvable.");
-    if (input.month < lease.startDate.slice(0, 7)) throw new RpcError("VALIDATION", "Ce mois précède le début du bail.");
-    const set = { kind: input.kind, amountCents: input.kind === "montant" ? toCents(input.amount!) : null, comment: input.comment, updatedAt: nowIso() };
-    const saved = await ctx.db
-      .insert(t.rentExceptions)
-      .values({ id: newId(), leaseId: input.leaseId, month: input.month, ...set })
-      .onConflictDoUpdate({ target: [t.rentExceptions.leaseId, t.rentExceptions.month], set })
-      .returning();
-    return mapRentException(saved[0]);
+  async "rentPayments.upsert"(input, ctx) {
+    await rentMonthLease(ctx, input.leaseId, input.month);
+    const id = input.id ?? newId();
+    const row = { leaseId: input.leaseId, month: input.month, date: input.date, amountCents: toCents(input.amount), method: input.method, comment: input.comment, updatedAt: nowIso() };
+    if (input.id) await ctx.db.update(t.rentPayments).set(row).where(eq(t.rentPayments.id, id));
+    else await ctx.db.insert(t.rentPayments).values({ id, ...row });
+    return mapRentPayment((await ctx.db.select().from(t.rentPayments).where(eq(t.rentPayments.id, id)).limit(1).then(one))!);
   },
 
-  async "rentExceptions.delete"({ id }, ctx) {
-    await ctx.db.delete(t.rentExceptions).where(eq(t.rentExceptions.id, id));
+  async "rentPayments.addMany"({ payments }, ctx) {
+    // Tout ou rien : un mois refusé n'en laisse pas d'autres à moitié pointés.
+    await ctx.raw.transaction(async () => {
+      for (const p of payments) {
+        await rentMonthLease(ctx, p.leaseId, p.month);
+        await ctx.db.insert(t.rentPayments).values({ id: newId(), leaseId: p.leaseId, month: p.month, date: p.date, amountCents: toCents(p.amount), method: p.method, comment: p.comment });
+      }
+    });
+    return { count: payments.length };
+  },
+
+  async "rentPayments.delete"({ id }, ctx) {
+    await ctx.db.delete(t.rentPayments).where(eq(t.rentPayments.id, id));
+    return OK;
+  },
+
+  async "rentWaivers.set"(input, ctx) {
+    await rentMonthLease(ctx, input.leaseId, input.month);
+    const set = { comment: input.comment, updatedAt: nowIso() };
+    const saved = await ctx.db
+      .insert(t.rentWaivers)
+      .values({ id: newId(), leaseId: input.leaseId, month: input.month, ...set })
+      .onConflictDoUpdate({ target: [t.rentWaivers.leaseId, t.rentWaivers.month], set })
+      .returning();
+    return mapRentWaiver(saved[0]);
+  },
+
+  async "rentWaivers.delete"({ id }, ctx) {
+    await ctx.db.delete(t.rentWaivers).where(eq(t.rentWaivers.id, id));
     return OK;
   },
 

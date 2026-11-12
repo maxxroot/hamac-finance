@@ -1,3 +1,4 @@
+import { NO_RENT_LEDGER, rentMonths, type Lease, type LeaseRent } from "@hamac/core";
 import type { Backend } from "./index";
 
 /**
@@ -74,7 +75,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
 
   const studio = await call("properties.upsert", { kind: "locatif", name: "Studio en location (fictif)", value: 125_000, valueDate: `${y}-01-15`, purchasePrice: 110_000, purchaseDate: `${y - 4}-05-10`, notaryFees: 8_900, agencyFees: 3_000, initialWorks: 4_000, propertyType: "appartement", city: "Ville fictive", surface: 24, rooms: 1, floor: 2, buildYear: 1985, outdoor: "Balcon", cellar: true, heating: "Individuel électrique", coOwnership: true, dpe: "D", ges: "B", dpeDate: `${y - 3}-06-20`, rentalMode: "meuble" });
   await call("loans.upsert", { kind: "immobilier", name: "Prêt du studio (fictif)", propertyId: studio.id, principal: 95_000, rate: 0.021, termMonths: 240, firstPayment: `${y - 4}-07-05`, insurance: 14 });
-  const bail = await call("leases.upsert", {
+  const bail = await call<Lease>("leases.upsert", {
     propertyId: studio.id,
     kind: "meuble",
     startDate: `${y - 3}-09-01`,
@@ -85,8 +86,13 @@ export async function seedDemo(backend: Backend): Promise<void> {
     renters: [{ firstName: "Camille", lastName: "Exemple", email: "camille@example.org" }],
     guarantees: [{ kind: "visale", name: "Visale (fictif)" }],
   });
-  await call("leaseRents.upsert", { leaseId: bail.id, fromMonth: `${y - 1}-09`, rent: 580, charges: 45 });
-  await call("rentExceptions.set", { leaseId: bail.id, month: `${y - 1}-03`, kind: "vide" });
+  const revision = await call<LeaseRent>("leaseRents.upsert", { leaseId: bail.id, fromMonth: `${y - 1}-09`, rent: 580, charges: 45 });
+  // Mois offert après des travaux ; tous les autres loyers échus sont arrivés à l'échéance.
+  const remis = `${y - 1}-03`;
+  await call("rentWaivers.set", { leaseId: bail.id, month: remis, comment: "Mois offert après les travaux de la salle de bains" });
+  const today = new Date().toISOString().slice(0, 10);
+  const echus = rentMonths(bail, [revision], NO_RENT_LEDGER, today).filter((m) => m.month !== remis && m.dueDate <= today);
+  if (echus.length) await call("rentPayments.addMany", { payments: echus.map((m) => ({ leaseId: bail.id, month: m.month, date: m.dueDate, amount: m.due, method: "virement" })) });
   await call("propertyExpenses.upsert", { propertyId: studio.id, date: `${y - 3}-10-15`, category: "taxe_fonciere", amount: 720, yearly: true });
   await call("propertyExpenses.upsert", { propertyId: studio.id, date: `${y - 3}-09-01`, category: "assurance", amount: 110, yearly: true });
   await call("propertyDocuments.upsert", { propertyId: studio.id, kind: "diagnostic", label: "DPE (fictif)", date: `${y - 3}-06-20`, location: "Dossier du studio" });

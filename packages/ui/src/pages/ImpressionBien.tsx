@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_TYPE_LABELS, dpeExpiry, formatEur, formatPct, heldShareLabel, propertyImprovements, propertyProfitability, propertySqm, propertySummary, propertyTotalCost, propertyYears } from "@hamac/core";
+import { PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, PROPERTY_TYPE_LABELS, dpeExpiry, formatEur, formatPct, heldShareLabel, propertyImprovements, propertyProfitability, propertySqm, propertySummary, propertyTotalCost, propertyYears, rentLedgerOf } from "@hamac/core";
 import { EnergyDiagram } from "@/components/EnergyDiagram";
 import { PrintLine, PrintPage, PrintSection } from "@/components/PrintPage";
 import { formatDate, formatNumber } from "@/lib/numbers";
@@ -22,7 +22,7 @@ export function ImpressionBien() {
   const s = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
   const sqm = propertySqm(p, null);
   const rented = p.kind === "locatif";
-  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases: ws.leases, rents: ws.leaseRents, exceptions: ws.rentExceptions, expenses: ws.propertyExpenses, loans: heldLoans, lots: ws.lots }, pf.today) : [];
+  const years = rented ? propertyYears({ property: held, incomes: ws.propertyIncomes, leases: ws.leases, rents: ws.leaseRents, ledger: rentLedgerOf(ws), expenses: ws.propertyExpenses, loans: heldLoans, lots: ws.lots }, pf.today) : [];
   const profit = propertyProfitability(years);
   const place = [p.address, [p.postalCode, p.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   return (

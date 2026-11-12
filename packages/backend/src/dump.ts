@@ -2,7 +2,7 @@ import type { DataDump } from "@hamac/api";
 import { RpcError } from "@hamac/api";
 import type { BackendContext } from "./context";
 import type { SqlValue } from "./db/driver";
-import { upgradeLegacyDump } from "./dumpUpgrade";
+import { upgradeLegacyDump, upgradeLegacyRentExceptions } from "./dumpUpgrade";
 import { MARKET_SECRETS_KEY } from "./market/config";
 
 /** Tables exportées, dans l'ordre d'insertion (clés étrangères). */
@@ -30,7 +30,8 @@ const TABLES = [
   "lease_renters",
   "lease_guarantees",
   "lease_rents",
-  "rent_exceptions",
+  "rent_payments",
+  "rent_waivers",
   "property_expenses",
   "property_values",
   "property_incomes",
@@ -65,6 +66,7 @@ export async function importDump(ctx: BackendContext, dump: unknown): Promise<Re
   }
   const counts: Record<string, number> = {};
   upgradeLegacyDump(d.tables as Parameters<typeof upgradeLegacyDump>[0]);
+  upgradeLegacyRentExceptions(d.tables as Parameters<typeof upgradeLegacyRentExceptions>[0]);
   try {
     await ctx.raw.transaction(async () => {
       for (const t of [...TABLES].reverse()) await ctx.raw.exec(`DELETE FROM ${t}`);

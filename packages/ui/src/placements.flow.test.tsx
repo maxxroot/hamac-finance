@@ -2115,25 +2115,64 @@ describe("Bien : bail, loyers et quittances", () => {
     expect(await screen.findByText(/Aucun bail\. Ajoutez-en un/)).toBeTruthy();
   });
 
-  it("loyers d'un bail ancien : un sélecteur d'année change la liste ; signaler un écart pour un mois", async () => {
+  it("loyers d'un bail ancien : rien n'est reçu sans pointage ; une année se valide d'un coup, un mois se détaille", async () => {
     const user = userEvent.setup();
     const studio = await locatif();
-    const b = await bail(studio.id, { startDate: `${+todayIso().slice(0, 4) - 2}-03-01`, durationMonths: 72 });
+    const debut = +todayIso().slice(0, 4) - 2;
+    const b = await bail(studio.id, { startDate: `${debut}-03-01`, durationMonths: 72 });
     pageBien(studio.id, "location");
     const annees = await screen.findByLabelText("Année des loyers");
-    const options = within(annees).getAllByRole("option").map((o) => o.textContent);
-    expect(options.length).toBeGreaterThanOrEqual(3);
-    await user.selectOptions(annees, String(+todayIso().slice(0, 4) - 2));
-    expect(screen.getByText("mars 2024".replace("2024", String(+todayIso().slice(0, 4) - 2)), { exact: false })).toBeTruthy();
-    // Un mois payé donne droit à une quittance.
-    const quittances = screen.getAllByRole("link", { name: /^Quittance de / });
+    expect(within(annees).getAllByRole("option").length).toBeGreaterThanOrEqual(3);
+    await user.selectOptions(annees, String(debut));
+    expect(screen.getByText(`mars ${debut}`, { exact: false })).toBeTruthy();
+    // Suivi strict : sans pointage, aucune quittance, et les mois échus sont « non reçus ».
+    expect(screen.queryAllByRole("link", { name: /^Quittance de / })).toHaveLength(0);
+    expect(screen.getAllByText("Non reçu")).toHaveLength(10);
+    // Rattraper l'année : confirmation refusée, puis acceptée.
+    h.confirm = false;
+    await user.click(screen.getByRole("button", { name: `Valider l'année ${debut}` }));
+    expect((await workspace()).rentPayments).toHaveLength(0);
+    h.confirm = true;
+    await user.click(screen.getByRole("button", { name: `Valider l'année ${debut}` }));
+    await waitFor(async () => expect((await workspace()).rentPayments).toHaveLength(10));
+    expect((await workspace()).rentPayments[0]).toMatchObject({ leaseId: b.id, month: `${debut}-03`, date: `${debut}-03-01`, amount: 850 });
+    const quittances = await screen.findAllByRole("link", { name: /^Quittance de / });
     expect(quittances[0]!.getAttribute("href")).toMatch(new RegExp(`/impression/quittance/${b.id}/`));
-    // Signaler puis modifier un écart.
-    await user.click(screen.getAllByRole("button", { name: /Signaler un écart pour/ })[0]!);
-    await user.click(await screen.findByRole("button", { name: "Enregistrer" }));
-    await waitFor(async () => expect((await workspace()).rentExceptions).toMatchObject([{ leaseId: b.id, kind: "impaye" }]));
-    expect((await screen.findAllByRole("button", { name: /Signaler un écart pour/ })).some((x) => texte(x) === "Modifier")).toBe(true);
-    expect(screen.getAllByText("Impayé").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: `Valider l'année ${debut}` })).toBeNull();
+
+    // L'année suivante : un paiement partiel par l'aide au logement, supprimé, puis le mois remis.
+    await user.selectOptions(screen.getByLabelText("Année des loyers"), String(debut + 1));
+    await user.click(screen.getByRole("button", { name: `Détail du loyer de janvier ${debut + 1}` }));
+    let dialog = within(await screen.findByRole("dialog", { name: `Loyer de janvier ${debut + 1}` }));
+    expect(dialog.getByText(/Rien n'a encore été pointé/)).toBeTruthy();
+    expect((dialog.getByLabelText("Reçu le") as HTMLInputElement).value).toBe(`${debut + 1}-01-01`);
+    const montant = dialog.getByLabelText("Montant reçu");
+    await user.clear(montant);
+    await user.type(montant, "300");
+    await user.selectOptions(dialog.getByLabelText("Moyen"), "caf");
+    await user.type(dialog.getByLabelText("Commentaire (facultatif)"), "Aide au logement");
+    await user.click(dialog.getByRole("button", { name: "Enregistrer le paiement" }));
+    await waitFor(async () => expect((await workspace()).rentPayments).toHaveLength(11));
+    expect(await dialog.findByText("Reçu en partie")).toBeTruthy();
+    expect(dialog.getByText(/Aide au logement \(CAF\) · Aide au logement/)).toBeTruthy();
+    // Le reste dû est proposé pour le paiement suivant.
+    expect((dialog.getByLabelText("Montant reçu") as HTMLInputElement).value).toMatch(/^550/);
+    await user.click(dialog.getByRole("button", { name: `Supprimer le paiement du 01/01/${debut + 1}` }));
+    await waitFor(async () => expect((await workspace()).rentPayments).toHaveLength(10));
+    await user.click(dialog.getByLabelText(/Mois remis au locataire/));
+    await waitFor(async () => expect((await workspace()).rentWaivers).toMatchObject([{ leaseId: b.id, month: `${debut + 1}-01` }]));
+    await user.type(await dialog.findByLabelText("Motif de la remise"), "Travaux");
+    await user.click(dialog.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () => expect((await workspace()).rentWaivers).toMatchObject([{ comment: "Travaux" }]));
+    expect(dialog.queryByRole("button", { name: "Enregistrer le paiement" })).toBeNull();
+    await user.click(dialog.getByLabelText(/Mois remis au locataire/));
+    await waitFor(async () => expect((await workspace()).rentWaivers).toEqual([]));
+    await user.keyboard("{Escape}");
+    // Un mois se pointe aussi d'un clic, au reste dû.
+    await user.click(screen.getByRole("button", { name: `Marquer reçu le loyer de février ${debut + 1}` }));
+    await waitFor(async () => expect((await workspace()).rentPayments).toHaveLength(11));
+    dialog = within(document.body);
+    expect(dialog.getAllByText("Reçu").length).toBeGreaterThan(0);
   });
 
   it("nouveau bail : dépôt au-delà du plafond signalé, révision et rappels désactivables, type adapté", async () => {

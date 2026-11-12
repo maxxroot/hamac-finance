@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GOAL_ALLOCATION_MODES, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, LEASE_GUARANTEE_KINDS, LOT_KINDS, RENTAL_MODES, RENT_EXCEPTION_KINDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
+import { ACCOUNT_KINDS, ASSET_KINDS, DISMEMBERMENTS, GOAL_ALLOCATION_MODES, GIFT_DIRECTIONS, GIFT_KINDS, GIFT_RELATIONS, OTHER_ASSET_KINDS, BOND_KINDS, CROWD_REPAYMENTS, CROWD_STATUSES, INSTITUTION_KINDS, InstitutionProtection, InstitutionTax, LIVRET_TYPES, LOAN_INSURANCE_MODES, LOAN_KINDS, Offers, PRICE_PROVIDERS, PRICE_SOURCES, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, ENERGY_LETTERS, LEASE_KINDS, LEASE_NOTICE_BY, LEASE_GUARANTEE_KINDS, LOT_KINDS, RENTAL_MODES, PAYMENT_METHODS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, DOCUMENT_KINDS, LOAN_DEFERRED_KINDS, LOAN_PREPAYMENT_MODES, TX_TYPES, isIsoDate } from "@hamac/core";
 
 const id = z.string().min(1);
 const isoDate = z.string().refine(isIsoDate, "Date invalide (AAAA-MM-JJ)");
@@ -290,6 +290,7 @@ export const LeaseInput = z
     revisable: z.boolean().default(true),
     irlQuarter: z.number().int().min(1).max(4).nullable().default(null),
     landlordAddress: text(300).default(""),
+    dueDay: z.number().int().min(1).max(31).default(1),
   })
   .refine((l) => (l.noticeBy == null) === (l.noticeDate == null), { path: ["noticeDate"], message: "Indiquez qui donne congé et à quelle date." })
   .refine((l) => (l.depositReturned == null) === (l.depositReturnedOn == null), { path: ["depositReturnedOn"], message: "Indiquez le montant rendu et sa date." });
@@ -310,16 +311,22 @@ export const LeaseRentInput = z.object({
 });
 export type LeaseRentInput = z.input<typeof LeaseRentInput>;
 
-export const RentExceptionInput = z
-  .object({
-    leaseId: id,
-    month,
-    kind: z.enum(RENT_EXCEPTION_KINDS),
-    amount: money.min(0).nullable().default(null),
-    comment: text(200).default(""),
-  })
-  .refine((e) => e.kind !== "montant" || e.amount != null, { path: ["amount"], message: "Indiquez le montant reçu." });
-export type RentExceptionInput = z.input<typeof RentExceptionInput>;
+export const RentPaymentInput = z.object({
+  id: id.optional(),
+  leaseId: id,
+  month,
+  date: isoDate,
+  amount: money.positive("Montant requis"),
+  method: z.enum(PAYMENT_METHODS).default("virement"),
+  comment: text(200).default(""),
+});
+export type RentPaymentInput = z.input<typeof RentPaymentInput>;
+
+export const RentPaymentsInput = z.object({ payments: z.array(RentPaymentInput.omit({ id: true })).min(1).max(2_000) });
+export type RentPaymentsInput = z.input<typeof RentPaymentsInput>;
+
+export const RentWaiverInput = z.object({ leaseId: id, month, comment: text(200).default("") });
+export type RentWaiverInput = z.input<typeof RentWaiverInput>;
 
 export const PropertyExpenseInput = z.object({
   id: id.optional(),
