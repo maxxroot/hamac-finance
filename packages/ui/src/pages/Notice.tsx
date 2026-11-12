@@ -165,7 +165,7 @@ const LEXIQUE: ReadonlyArray<readonly [string, string]> = [
   ["Nominal", "La somme qu'une obligation rembourse à l'échéance."],
   ["Obligation", "Un prêt à un État ou à une entreprise : vous recevez des coupons, puis le nominal à l'échéance."],
   ["PEA", "Le plan d'épargne en actions : une enveloppe avantageuse pour les actions, surtout après 5 ans."],
-  ["PER", "Le plan d'épargne retraite : les sommes sont en principe bloquées jusqu'à la retraite."],
+  ["PER", "Le plan d'épargne retraite : les sommes sont en principe bloquées jusqu'à la retraite. Assurantiel, c'est un contrat chez un assureur, avec un fonds euros ; bancaire, c'est un compte-titres chez une banque ou un courtier."],
   ["Patrimoine net", "Le patrimoine financier, plus les biens immobiliers (part détenue), moins le capital restant dû des crédits (part à votre charge)."],
   ["Plus-value", "Le gain réalisé en vendant plus cher que le prix payé. Dans le cas contraire, c'est une moins-value."],
   ["PRU", "Le prix de revient unitaire : le prix moyen payé par part, frais compris."],

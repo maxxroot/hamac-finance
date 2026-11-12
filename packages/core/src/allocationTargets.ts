@@ -1,4 +1,4 @@
-import { ASSET_BUCKET, BUCKET_LABELS, CASH_BUCKET, type Account, type Asset, type Bucket } from "./domain";
+import { ASSET_BUCKET, BUCKET_LABELS, cashBucketOf, type Account, type Asset, type Bucket } from "./domain";
 import type { CrowdProject } from "./crowdlending";
 import type { PlanParams } from "./params";
 import type { Property } from "./realestate";
@@ -38,7 +38,7 @@ export function targetRows(p: PlanParams, data: TargetData): TargetRow[] {
     if (choice === true) included.set(key, (included.get(key) ?? 0) + 1);
   };
   const customIds = new Set(p.customClasses.map((c) => c.id));
-  for (const a of data.accounts.filter((x) => !x.archived)) seen(CASH_BUCKET[a.kind], a.inAllocation);
+  for (const a of data.accounts.filter((x) => !x.archived)) seen(cashBucketOf(a), a.inAllocation);
   for (const a of data.assets.filter((x) => !x.archived)) seen(a.classId && customIds.has(a.classId) ? a.classId : ASSET_BUCKET[a.kind], a.inAllocation);
   for (const c of data.crowdProjects ?? []) seen("crowdlending", c.inAllocation);
   for (const x of (data.properties ?? []).filter((y) => !y.archived)) seen(x.classId && customIds.has(x.classId) ? x.classId : "immobilier", x.inAllocation);

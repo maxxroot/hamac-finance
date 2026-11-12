@@ -6,7 +6,7 @@ import {
   cashInAllocation,
   positionInAllocation,
   BUCKETS,
-  CASH_BUCKET,
+  cashBucketOf,
   holdsEuroFunds,
   type Account,
   type AccountKind,
@@ -304,7 +304,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const euroFund = (accountId: string, explicit?: Asset | null): PosAcc | null => {
     const account = accountById.get(accountId);
     const acc = accs.get(accountId);
-    if (!account || !acc || !holdsEuroFunds(account.kind)) return null;
+    if (!account || !acc || !holdsEuroFunds(account)) return null;
     if (explicit?.kind === "fonds_euros") return position(acc, explicit);
     const fallback = account.defaultAssetId ? assetById.get(account.defaultAssetId) : undefined;
     return fallback?.kind === "fonds_euros" ? position(acc, fallback) : null;
@@ -521,7 +521,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const value = roundCents(cash + positionsValue + crowdValue);
     const netContrib = roundCents(acc.contrib + scheduledPaid);
     const byBucket: Partial<Record<Bucket, number>> = {};
-    const cashBucket = CASH_BUCKET[account.kind];
+    const cashBucket = cashBucketOf(account);
     byBucket[cashBucket] = cash;
     for (const p of positions) byBucket[p.bucket] = (byBucket[p.bucket] ?? 0) + p.value;
     if (crowdValue) byBucket.crowdlending = (byBucket.crowdlending ?? 0) + crowdValue;

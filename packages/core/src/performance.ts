@@ -1,5 +1,5 @@
 import { addMonths } from "./dates";
-import { ASSET_BUCKET, BUCKET_LABELS, BUCKETS, CASH_BUCKET, type AccountKind, type Bucket, type PricePoint } from "./domain";
+import { ASSET_BUCKET, BUCKET_LABELS, BUCKETS, cashBucketOf, type Bucket, type PricePoint } from "./domain";
 import { accountIrr, contributionFlows, irrOf, PERF_GROUPS, type EngineData, type PortfolioState } from "./engine";
 import type { HistoryPoint } from "./history";
 import { endOfMonth } from "./history";
@@ -358,18 +358,18 @@ const zeroBuckets = () => Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Reco
  * (comme dans la répartition) ; les espèces et les projets de crowdlending, dans celle du compte.
  * Le reste du gain d'un compte, hors titres, revient à la classe de ses espèces (intérêts d'un livret, d'un fonds euros…).
  */
-function classSnapshot(h: HistoryPoint, ids: ReadonlySet<string>, kindOf: ReadonlyMap<string, AccountKind>, bucketOf: ReadonlyMap<string, Bucket>): ClassSnapshot {
+function classSnapshot(h: HistoryPoint, ids: ReadonlySet<string>, cashOf: ReadonlyMap<string, Bucket>, bucketOf: ReadonlyMap<string, Bucket>): ClassSnapshot {
   const value = zeroBuckets();
   const result = zeroBuckets();
   const posValue = new Map<string, number>();
   const posResult = new Map<string, number>();
   for (const key of new Set([...Object.keys(h.byPosition), ...Object.keys(h.positionResults)])) {
     const [accountId, assetId] = key.split(":") as [string, string];
-    const kind = kindOf.get(accountId);
-    if (!ids.has(accountId) || !kind) continue;
+    const cashBucket = cashOf.get(accountId);
+    if (!ids.has(accountId) || !cashBucket) continue;
     const pos = h.byPosition[key];
     const res = h.positionResults[key];
-    const b = bucketOf.get(assetId) ?? CASH_BUCKET[kind];
+    const b = bucketOf.get(assetId) ?? cashBucket;
     const v = pos?.value ?? 0;
     const r = (pos ? pos.value - pos.cost : 0) + (res?.realized ?? 0) + (res?.income ?? 0);
     value[b] += v;
@@ -379,11 +379,10 @@ function classSnapshot(h: HistoryPoint, ids: ReadonlySet<string>, kindOf: Readon
   }
   let charges = 0;
   for (const id of ids) {
-    const kind = kindOf.get(id);
-    if (!kind) continue;
+    const cash = cashOf.get(id);
+    if (!cash) continue;
     const d = h.detailByAccount[id];
     const accountCharges = d ? d.fees - d.embeddedFees + (d.taxes ?? 0) : 0;
-    const cash = CASH_BUCKET[kind];
     value[cash] += (h.byAccount[id] ?? 0) - (posValue.get(id) ?? 0);
     result[cash] += (h.byAccount[id] ?? 0) - (h.contribByAccount[id] ?? 0) - (posResult.get(id) ?? 0) + accountCharges;
     charges += accountCharges;
@@ -399,9 +398,9 @@ function classSnapshot(h: HistoryPoint, ids: ReadonlySet<string>, kindOf: Readon
  */
 function classBreakdown(data: EngineData, kept: readonly HistoryPoint[], accountIds: readonly string[], start: number | null): ClassBreakdown {
   const ids = new Set(accountIds);
-  const kindOf = new Map(data.accounts.map((a) => [a.id, a.kind]));
+  const cashOf = new Map(data.accounts.map((a) => [a.id, cashBucketOf(a)]));
   const bucketOf = new Map(data.assets.map((a) => [a.id, ASSET_BUCKET[a.kind]]));
-  const snaps = kept.map((h) => classSnapshot(h, ids, kindOf, bucketOf));
+  const snaps = kept.map((h) => classSnapshot(h, ids, cashOf, bucketOf));
   const zero: ClassSnapshot = { value: zeroBuckets(), result: zeroBuckets(), charges: 0 };
   const from = start == null ? zero : snaps[start]!;
   const end = snaps.at(-1) ?? zero;

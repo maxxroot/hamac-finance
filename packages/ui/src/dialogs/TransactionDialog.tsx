@@ -190,9 +190,9 @@ export function TransactionDialog({
   const assetChoices = account ? idx.activeAssets.filter((a) => a.kind !== "fonds_euros" && ALLOWED_ASSETS[account.kind].includes(a.kind) && (!preset.assetKinds || preset.assetKinds.includes(a.kind))) : [];
   // Contrat d'assurance-vie ou de PER : le fonds euros d'où part ou où arrive l'argent.
   const euroFunds = idx.activeAssets.filter((a) => a.kind === "fonds_euros");
-  const supportField = !!account && holdsEuroFunds(account.kind) && EURO_FUND_TYPES.includes(d.type);
+  const supportField = !!account && holdsEuroFunds(account) && EURO_FUND_TYPES.includes(d.type);
   const counterAccount = d.type === "transfert" && d.counterAccountId ? idx.accountById.get(d.counterAccountId) : undefined;
-  const counterSupportField = !!counterAccount && holdsEuroFunds(counterAccount.kind) && euroFunds.length > 0;
+  const counterSupportField = !!counterAccount && holdsEuroFunds(counterAccount) && euroFunds.length > 0;
   const fundLabel = (acc: Account | undefined) => {
     const fallback = acc?.defaultAssetId ? idx.assetById.get(acc.defaultAssetId) : undefined;
     return fallback ? `Support par défaut : ${fallback.name}` : "Espèces du contrat (aucun fonds euros par défaut)";
@@ -203,7 +203,7 @@ export function TransactionDialog({
   const isArbitrage = d.type === "arbitrage";
   // Arbitrage : tout support du compte, sauf une obligation (elle s'achète et se vend) ; les fonds euros d'abord.
   const arbitrageChoices = account
-    ? idx.activeAssets.filter((a) => a.kind !== "obligation" && ALLOWED_ASSETS[account.kind].includes(a.kind)).sort((a, b) => Number(b.kind === "fonds_euros") - Number(a.kind === "fonds_euros"))
+    ? idx.activeAssets.filter((a) => a.kind !== "obligation" && ALLOWED_ASSETS[account.kind].includes(a.kind) && (a.kind !== "fonds_euros" || holdsEuroFunds(account))).sort((a, b) => Number(b.kind === "fonds_euros") - Number(a.kind === "fonds_euros"))
     : [];
   const fromFund = d.assetId ? idx.assetById.get(d.assetId)?.kind === "fonds_euros" : false;
   const toFund = d.counterAssetId ? idx.assetById.get(d.counterAssetId)?.kind === "fonds_euros" : false;

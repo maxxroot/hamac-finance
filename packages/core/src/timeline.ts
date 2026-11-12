@@ -1,4 +1,4 @@
-import { ACCOUNT_KIND_LABELS, BUCKETS, CASH_BUCKET, type Bucket, type Transaction } from "./domain";
+import { ACCOUNT_KIND_LABELS, BUCKETS, cashBucketOf, type Bucket, type Transaction } from "./domain";
 import type { EngineData } from "./engine";
 import type { HistoryPoint } from "./history";
 import { formatEur, formatPct, roundCents } from "./money";
@@ -398,9 +398,9 @@ export function planComparison(data: EngineData, history: readonly HistoryPoint[
     // Les apports initiaux sont le point de départ du plan, pas une épargne en plus.
     for (const t of data.transactions) {
       if (t.type !== "apport_initial" || monthOf(t.date) !== h.month || t.date > h.date) continue;
-      const kind = data.accounts.find((a) => a.id === t.accountId)?.kind;
-      if (!kind) continue;
-      plan[CASH_BUCKET[kind]] += t.amount;
+      const account = data.accounts.find((a) => a.id === t.accountId);
+      if (!account) continue;
+      plan[cashBucketOf(account)] += t.amount;
       plannedMoney += t.amount;
     }
     // Le mois en cours ne compte son versement qu'une fois son jour passé.
@@ -408,7 +408,7 @@ export function planComparison(data: EngineData, history: readonly HistoryPoint[
       for (const a of data.accounts) {
         const amount = schedule.planned(a.id, h.month);
         if (amount <= 0) continue;
-        plan[CASH_BUCKET[a.kind]] += amount;
+        plan[cashBucketOf(a)] += amount;
         plannedMoney += amount;
       }
     }

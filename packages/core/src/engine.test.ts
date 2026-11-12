@@ -283,8 +283,9 @@ describe("historique reconstruit", () => {
     expect(tax("per")).toBeCloseTo(1_000 * 0.3 + 100 * (0.128 + 0.186));
     expect(tax("pee")).toBeCloseTo(100 * 0.186);
     expect(tax("pme")).toBeCloseTo(100 * 0.186);
-    expect(s.buckets.garanti).toBe(2_200);
-    expect(s.buckets.croissance).toBe(1_100);
+    // Espèces du PER (assurantiel) : fonds euros ; celles de l'épargne salariale attendent d'être investies, comme dans un PEA.
+    expect(s.buckets.garanti).toBe(1_100);
+    expect(s.buckets.croissance).toBe(2_200);
   });
 
   it("crypto sur deux plateformes : le prix d'acquisition global n'est déduit qu'une fois", () => {

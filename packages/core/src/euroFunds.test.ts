@@ -6,6 +6,7 @@ import { defaultParams } from "./params";
 import { assetPerformance, envelopePerformance, scopePerformance } from "./performance";
 import { withdrawalTaxes } from "./taxes";
 import { validateTransaction } from "./validation";
+import { accountNoun, cashBucketOf, holdsEuroFunds } from "./domain";
 
 // Fonds euros comme support d'un contrat : mêmes chiffres que lorsqu'il était les espèces du contrat.
 
@@ -171,5 +172,29 @@ describe("fonds euros : validation des opérations", () => {
     expect(check({ type: "versement", accountId: "av", assetId: "etf" }).map((e) => e.field)).toEqual(["assetId"]);
     expect(check({ type: "transfert", accountId: "livret", counterAccountId: "av", counterAssetId: "etf" }).map((e) => e.field)).toEqual(["counterAssetId"]);
     expect(check({ type: "versement", accountId: "av", counterAssetId: "fe" }).map((e) => e.field)).toEqual(["counterAssetId"]);
+  });
+});
+
+describe("PER assurantiel ou bancaire", () => {
+  const bank = acc("perb", "per", { perKind: "bancaire" });
+  const insured = acc("pera", "per", { perKind: "assurantiel" });
+  const legacy = acc("perl", "per");
+
+  it("un PER bancaire est un compte sans fonds euros ; un PER d'avant ce choix est assurantiel", () => {
+    expect([accountNoun(bank), accountNoun(insured), accountNoun(legacy)]).toEqual(["compte", "contrat", "contrat"]);
+    expect([holdsEuroFunds(bank), holdsEuroFunds(insured), holdsEuroFunds(legacy)]).toEqual([false, true, true]);
+    expect([cashBucketOf(bank), cashBucketOf(insured), cashBucketOf(acc("pee", "epargne_salariale"))]).toEqual(["croissance", "garanti", "croissance"]);
+  });
+
+  it("pas de fonds euros dans un PER bancaire, même par défaut", () => {
+    const accounts = new Map([bank].map((a) => [a.id, { ...a, defaultAssetId: "fe" }]));
+    const assets = new Map([asset("fe", "fonds_euros")].map((a) => [a.id, a]));
+    expect(validateTransaction({ date: "2026-01-01", type: "versement", accountId: "perb", assetId: "fe", counterAccountId: null, amount: 100, quantity: null, fee: null, comment: "" }, accounts, assets).map((e) => e.field)).toEqual(["assetId"]);
+    const params = defaultParams(new Date(2026, 5, 30));
+    const s = computePortfolio({ params, accounts: [...accounts.values()], assets: [...assets.values()], transactions: [tx("2026-01-05", "versement", "perb", 1_000)], plans: [], skips: [], prices: [] }, ASOF);
+    const per = s.accountById.get("perb")!;
+    expect(per.cash).toBe(1_000);
+    expect(per.positions).toEqual([]);
+    expect(s.buckets.croissance).toBe(1_000);
   });
 });

@@ -83,6 +83,31 @@ describe("fonds euros : contrats", () => {
   });
 });
 
+describe("PER assurantiel ou bancaire", () => {
+  it("un PER bancaire n'a pas de fonds euros ; un PER est assurantiel par défaut", async () => {
+    backend = await testBackend();
+    const insured = await call<Account>(backend, "accounts.upsert", { kind: "per", name: "PER assureur" });
+    const bank = await call<Account>(backend, "accounts.upsert", { kind: "per", perKind: "bancaire", name: "PER courtier" });
+    const pea = await call<Account>(backend, "accounts.upsert", { kind: "pea", perKind: "bancaire", name: "PEA" });
+    expect([insured.perKind, bank.perKind, pea.perKind]).toEqual(["assurantiel", "bancaire", null]);
+    expect(insured.defaultAssetId).not.toBeNull();
+    expect(bank.defaultAssetId).toBeNull();
+  });
+
+  it("un PER devenu bancaire perd son fonds euros inutilisé ; refusé s'il a déjà servi", async () => {
+    backend = await testBackend();
+    const a = await call<Account>(backend, "accounts.upsert", { kind: "per", name: "PER A" });
+    const switched = await call<Account>(backend, "accounts.upsert", { id: a.id, kind: "per", perKind: "bancaire", name: "PER A" });
+    expect(switched.defaultAssetId).toBeNull();
+    expect((await ws(backend)).assets).toEqual([]);
+
+    const b = await call<Account>(backend, "accounts.upsert", { kind: "per", name: "PER B" });
+    await call(backend, "transactions.upsert", { date: "2025-01-02", type: "versement", accountId: b.id, assetId: b.defaultAssetId, amount: 500 });
+    const refused = await backend.dispatch("accounts.upsert", { id: b.id, kind: "per", perKind: "bancaire", name: "PER B" });
+    expect(refused.ok).toBe(false);
+  });
+});
+
 describe("arbitrage", () => {
   it("s'enregistre avec ses deux supports et leurs quantités ; refusé sur un PEA", async () => {
     backend = await testBackend();
@@ -116,11 +141,12 @@ describe("fonds euros : reprise des données", () => {
       { id: "fe-av", kind: "fonds_euros", name: "Fonds euros (Contrat A)", price_source: "modele" },
       { id: "fe-per", kind: "fonds_euros", name: "Fonds euros (PER)", price_source: "modele" },
     ]);
-    expect(await raw.all("SELECT id, default_asset_id FROM accounts ORDER BY id")).toEqual([
-      { id: "av", default_asset_id: "fe-av" },
-      { id: "liv", default_asset_id: null },
-      { id: "pea", default_asset_id: null },
-      { id: "per", default_asset_id: "fe-per" },
+    expect(await raw.all("SELECT id, default_asset_id, per_kind FROM accounts ORDER BY id")).toEqual([
+      { id: "av", default_asset_id: "fe-av", per_kind: null },
+      { id: "liv", default_asset_id: null, per_kind: null },
+      { id: "pea", default_asset_id: null, per_kind: null },
+      // Ayant reçu un fonds euros, un PER existant est assurantiel (migration 0030).
+      { id: "per", default_asset_id: "fe-per", per_kind: "assurantiel" },
     ]);
     // Le taux d'un livret n'avait pas de sens ici : il n'est pas repris.
     expect(await raw.all("SELECT account_id, asset_id, year FROM fund_rates ORDER BY year")).toEqual([

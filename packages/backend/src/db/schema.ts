@@ -58,6 +58,8 @@ export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
   livretType: text("livret_type"),
+  /** PER : « assurantiel » ou « bancaire » ; null pour les autres comptes. */
+  perKind: text("per_kind"),
   name: text("name").notNull(),
   institutionId: text("institution_id").references(() => institutions.id, { onDelete: "set null" }),
   openedOn: text("opened_on"),

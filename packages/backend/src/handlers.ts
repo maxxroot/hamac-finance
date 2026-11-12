@@ -1133,10 +1133,16 @@ async function upsertAccount(input: Parsed<"accounts.upsert">, ctx: BackendConte
   }
   const current = input.id ? await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, id)).limit(1).then(one) : undefined;
   if (input.id && !current) throw new RpcError("NOT_FOUND", "Compte introuvable.");
-  const defaultAssetId = await defaultEuroFund(ctx, input, current?.defaultAssetId ?? null);
+  const perKind = input.kind === "per" ? (input.perKind ?? "assurantiel") : null;
+  // Un PER devenu bancaire n'a plus de fonds euros : refusé s'il en a déjà servi.
+  if (current && perKind === "bancaire" && current.perKind !== "bancaire" && (await euroFundOperations(ctx, id)) > 0) {
+    throw new RpcError("CONFLICT", "Ce PER a des opérations sur un fonds euros : il ne peut pas devenir un PER bancaire.");
+  }
+  const defaultAssetId = await defaultEuroFund(ctx, { ...input, perKind }, current?.defaultAssetId ?? null);
   const row = {
     kind: input.kind,
     livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null,
+    perKind,
     name: input.name,
     institutionId: input.institutionId,
     openedOn: input.openedOn,
@@ -1162,6 +1168,8 @@ async function upsertAccount(input: Parsed<"accounts.upsert">, ctx: BackendConte
     }
     await ctx.db.update(t.accounts).set(row).where(eq(t.accounts.id, id));
     if (input.archived && !current.archived) await stopPlans(ctx, id);
+    // Son ancien fonds euros par défaut, s'il ne sert plus nulle part (PER devenu bancaire, par exemple).
+    if (current.defaultAssetId && current.defaultAssetId !== defaultAssetId) await deleteUnusedEuroFund(ctx, current.defaultAssetId);
   } else {
     await ctx.db.insert(t.accounts).values({ id, ...row });
   }
@@ -1184,7 +1192,7 @@ async function upsertAccount(input: Parsed<"accounts.upsert">, ctx: BackendConte
  * nouveau contrat un fonds euros à son nom ; null : aucun. Les autres comptes n'en ont pas.
  */
 async function defaultEuroFund(ctx: BackendContext, input: Parsed<"accounts.upsert">, current: string | null): Promise<string | null> {
-  if (!holdsEuroFunds(input.kind)) return null;
+  if (!holdsEuroFunds(input)) return null;
   if (input.defaultAssetId === undefined) {
     if (input.id) return current;
     const fund = await handlers["assets.upsert"](AssetInput.parse({ kind: "fonds_euros", name: `Fonds euros (${input.name})`, priceSource: "modele" }), ctx);
@@ -1194,6 +1202,16 @@ async function defaultEuroFund(ctx: BackendContext, input: Parsed<"accounts.upse
   const asset = await ctx.db.select().from(t.assets).where(eq(t.assets.id, input.defaultAssetId)).limit(1).then(one);
   if (asset?.kind !== "fonds_euros") throw new RpcError("VALIDATION", "Le support par défaut d'un contrat doit être un fonds euros.");
   return asset.id;
+}
+
+/** Opérations d'un compte qui font entrer ou sortir l'argent d'un de ses fonds euros. */
+async function euroFundOperations(ctx: BackendContext, accountId: string): Promise<number> {
+  const row = await ctx.raw.get<{ n: number | string }>(
+    `SELECT count(*) AS n FROM transactions tx JOIN assets a ON a.kind = 'fonds_euros'
+      AND ((tx.account_id = ? AND (a.id = tx.asset_id OR (tx.type = 'arbitrage' AND a.id = tx.counter_asset_id))) OR (tx.counter_account_id = ? AND a.id = tx.counter_asset_id))`,
+    [accountId, accountId],
+  );
+  return Number(row?.n ?? 0);
 }
 
 async function deleteUnusedEuroFund(ctx: BackendContext, assetId: string): Promise<void> {

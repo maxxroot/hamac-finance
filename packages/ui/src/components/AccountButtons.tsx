@@ -22,7 +22,7 @@ export function EditAccountButton({ account }: { account: Account }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className="rounded p-1.5 text-fg-faint hover:bg-surface-3 hover:text-fg" onClick={() => setOpen(true)} aria-label={`Modifier ${account.name}`} title={`Modifier le ${accountNoun(account.kind)}`}>
+      <button className="rounded p-1.5 text-fg-faint hover:bg-surface-3 hover:text-fg" onClick={() => setOpen(true)} aria-label={`Modifier ${account.name}`} title={`Modifier le ${accountNoun(account)}`}>
         <Pencil size={14} />
       </button>
       <AccountDialog open={open} onClose={() => setOpen(false)} account={account} />

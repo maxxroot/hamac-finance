@@ -1,4 +1,4 @@
-import type { AccountKind, Bucket } from "./domain";
+import { isBankPer, type AccountKind, type Bucket } from "./domain";
 import type { EngineData, PortfolioState } from "./engine";
 import { roundCents } from "./money";
 import { ageInYear, etfTarget, retirementYear, type PlanParams } from "./params";
@@ -278,9 +278,15 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
           f.livrets += amount;
           break;
         case "assurance_vie":
-        case "per":
-        case "epargne_salariale":
           f.fondsEuros += amount;
+          break;
+        // Un PER bancaire et l'épargne salariale s'investissent comme un PEA : en actions (fonds, ETF).
+        case "per":
+          if (isBankPer(a)) f.actions += amount;
+          else f.fondsEuros += amount;
+          break;
+        case "epargne_salariale":
+          f.actions += amount;
           break;
         case "cto":
           f.obligations += amount;

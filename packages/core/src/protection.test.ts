@@ -83,4 +83,11 @@ describe("protection en cas de faillite", () => {
     const s = protectionOf([acc("Joint", "livret", "b", 160_000, 160_000, { share: 0.5 })], [inst("b", "Banque")], FGAP);
     expect(s.lines[0]).toMatchObject({ amount: 80_000, uncovered: 0 });
   });
+
+  it("un PER bancaire est garanti comme un compte-titres, un PER assurantiel comme une assurance-vie", () => {
+    const lines = (perKind: "bancaire" | "assurantiel") =>
+      protectionOf([acc("PER", "per", "b", 1_000, 200, { perKind })], [inst("b", "Banque Fictive")], FGAP).lines.map((l) => [l.guarantee, l.amount]);
+    expect(lines("bancaire")).toEqual([["depots", 200], ["titres", 800]]);
+    expect(lines("assurantiel")).toEqual([["assurance", 1_000]]);
+  });
 });

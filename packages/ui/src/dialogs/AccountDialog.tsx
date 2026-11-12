@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AccountInput } from "@hamac/api";
-import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, accountNoun, holdsEuroFunds, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, canBeJoint, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, accountNoun, holdsEuroFunds, PER_KIND_LABELS, PER_KINDS, type PerKind, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, canBeJoint, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
@@ -15,6 +15,7 @@ function empty(kind: AccountKind): Draft {
   return {
     kind,
     livretType: kind === "livret" ? "LEP" : null,
+    perKind: kind === "per" ? "assurantiel" : null,
     name: "",
     institutionId: null,
     openedOn: null,
@@ -48,7 +49,7 @@ export function AccountDialog({
   const save = useMutate("accounts.upsert", { success: account ? "Compte mis à jour" : "Compte créé" });
 
   useEffect(() => {
-    if (open) setD(account ? { ...account, defaultAssetId: account.defaultAssetId ?? null, rateFrom: null } : empty(defaultKind));
+    if (open) setD(account ? { ...account, perKind: account.kind === "per" ? (account.perKind ?? "assurantiel") : null, defaultAssetId: account.defaultAssetId ?? null, rateFrom: null } : empty(defaultKind));
   }, [open, account, defaultKind]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -67,7 +68,7 @@ export function AccountDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title={account ? `Modifier « ${account.name} »` : `Nouveau ${accountNoun(d.kind)}`}
+      title={account ? `Modifier « ${account.name} »` : `Nouveau ${accountNoun(d)}`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -187,7 +188,24 @@ export function AccountDialog({
           </FormGrid>
         )}
 
-        {holdsEuroFunds(d.kind) && (
+        {d.kind === "per" && (
+          <Field
+            label="Type de PER"
+            help="Assurantiel : un contrat chez un assureur, avec un fonds euros et des unités de compte. Bancaire : un compte-titres chez une banque ou un courtier, sans fonds euros."
+          >
+            {(id) => (
+              <Select id={id} value={d.perKind ?? "assurantiel"} onChange={(e) => set("perKind", e.target.value as PerKind)}>
+                {PER_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {PER_KIND_LABELS[k]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
+
+        {holdsEuroFunds(d) && (
           <Field
             label="Fonds euros par défaut"
             help="Il reçoit l'argent du contrat quand une opération ne précise pas de support : versements, versements programmés, intérêts, frais, achats et ventes d'unités de compte. Un fonds euros appartient à l'assureur : deux contrats du même assureur peuvent partager le même."

@@ -27,6 +27,23 @@ export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
   crypto: "Plateforme crypto",
 };
 
+/**
+ * PER assurantiel (contrat chez un assureur : fonds euros et unités de compte) ou bancaire (compte-titres
+ * chez une banque ou un courtier, sans fonds euros). Un PER sans type, d'avant ce choix, est assurantiel.
+ */
+export const PER_KINDS = ["assurantiel", "bancaire"] as const;
+export type PerKind = (typeof PER_KINDS)[number];
+export const PER_KIND_LABELS: Record<PerKind, string> = { assurantiel: "PER assurantiel", bancaire: "PER bancaire" };
+
+/** Ce qu'il faut savoir d'un compte pour son vocabulaire et ses supports. */
+export type AccountLike = { kind: AccountKind; perKind?: PerKind | null };
+const like = (a: AccountKind | AccountLike): AccountLike => (typeof a === "string" ? { kind: a } : a);
+
+export function isBankPer(a: AccountKind | AccountLike): boolean {
+  const x = like(a);
+  return x.kind === "per" && x.perKind === "bancaire";
+}
+
 /** Types de compte qui sont des enveloppes fiscales ; les autres sont des plateformes de placement. */
 export const ENVELOPE_KINDS: readonly AccountKind[] = ["livret", "assurance_vie", "pea", "pea_pme", "cto", "per", "epargne_salariale"];
 
@@ -34,9 +51,10 @@ export function isEnvelope(kind: AccountKind): boolean {
   return ENVELOPE_KINDS.includes(kind);
 }
 
-/** « contrat » pour l'assurance-vie et le PER, « compte » pour le reste. */
-export function accountNoun(kind: AccountKind): "contrat" | "compte" {
-  return kind === "assurance_vie" || kind === "per" ? "contrat" : "compte";
+/** « contrat » pour l'assurance-vie et le PER assurantiel, « compte » pour le reste (PER bancaire compris). */
+export function accountNoun(a: AccountKind | AccountLike): "contrat" | "compte" {
+  const x = like(a);
+  return x.kind === "assurance_vie" || (x.kind === "per" && !isBankPer(x)) ? "contrat" : "compte";
 }
 
 export const LIVRET_TYPES = ["LEP", "LDDS", "LIVRET_A", "AUTRE"] as const;
@@ -79,8 +97,8 @@ export const CASH_BUCKET: Record<AccountKind, Bucket> = {
   pea: "croissance",
   pea_pme: "croissance",
   cto: "obligations",
-  per: "garanti", // comme une assurance-vie
-  epargne_salariale: "garanti", // fonds monétaire ou en attente d'arbitrage
+  per: "garanti", // PER assurantiel, comme une assurance-vie ; un PER bancaire : voir cashBucketOf
+  epargne_salariale: "croissance", // en attente d'investissement dans les FCPE, comme les espèces d'un PEA
   crowdlending: "crowdlending",
   crypto: "speculatif",
 };
@@ -112,13 +130,20 @@ export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
  */
 export const EURO_FUND_ACCOUNT_KINDS: readonly AccountKind[] = ["assurance_vie", "per"];
 
-export function holdsEuroFunds(kind: AccountKind): boolean {
-  return EURO_FUND_ACCOUNT_KINDS.includes(kind);
+/** Un PER bancaire n'a pas de fonds euros. */
+export function holdsEuroFunds(a: AccountKind | AccountLike): boolean {
+  const x = like(a);
+  return EURO_FUND_ACCOUNT_KINDS.includes(x.kind) && !isBankPer(x);
+}
+
+/** Classe d'actifs des espèces de ce compte : celle du type, sauf un PER bancaire, dont l'argent attend d'être investi comme dans un PEA. */
+export function cashBucketOf(a: AccountLike): Bucket {
+  return isBankPer(a) ? "croissance" : CASH_BUCKET[a.kind];
 }
 
 /** Les espèces de ce compte comptent-elles dans l'allocation cible ? Le choix du compte prime sur celui de sa classe. */
-export function cashInAllocation(account: Pick<Account, "kind" | "inAllocation">, enabled: (key: string) => boolean): boolean {
-  return account.inAllocation ?? enabled(CASH_BUCKET[account.kind]);
+export function cashInAllocation(account: AccountLike & Pick<Account, "inAllocation">, enabled: (key: string) => boolean): boolean {
+  return account.inAllocation ?? enabled(cashBucketOf(account));
 }
 
 /** Ce titre compte-t-il dans l'allocation cible ? Son choix prime sur celui du compte, puis de sa classe. */
@@ -221,6 +246,8 @@ export interface Account {
    * de support (versements, intérêts, frais, achats et ventes d'unités de compte, versements programmés).
    */
   defaultAssetId?: string | null;
+  /** PER : assurantiel ou bancaire ; null pour les autres comptes (et un PER d'avant ce choix, assurantiel). */
+  perKind?: PerKind | null;
   entryFeeRate: number | null;
   managementFeeRate: number | null;
   /** PEA : nombre de mois pour investir l'apport de départ (achat conseillé). */

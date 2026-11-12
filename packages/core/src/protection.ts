@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Account, LivretType } from "./domain";
+import { isBankPer, type Account, type LivretType } from "./domain";
 import type { Institution } from "./institutions";
 import { roundCents } from "./money";
 
@@ -63,7 +63,7 @@ const REGULATED: ReadonlySet<LivretType> = new Set(["LIVRET_A", "LDDS", "LEP"]);
 
 /** Ce dont le calcul a besoin pour un compte : sa valeur, ses espèces, et la part qui revient à l'utilisateur. */
 export interface ProtectionAccountInput {
-  account: Pick<Account, "id" | "name" | "kind" | "livretType" | "institutionId" | "archived"> & { share?: number };
+  account: Pick<Account, "id" | "name" | "kind" | "livretType" | "institutionId" | "archived" | "perKind"> & { share?: number };
   value: number;
   cash: number;
 }
@@ -137,8 +137,16 @@ function partsOf(a: ProtectionAccountInput): Array<{ guarantee: GuaranteeKind; a
         { guarantee: "depots", amount: cash },
         { guarantee: "titres", amount: value - cash },
       ];
-    case "assurance_vie":
     case "per":
+      // Un PER bancaire est un compte-titres : espèces et titres sont garantis à part.
+      if (isBankPer(a.account)) {
+        return [
+          { guarantee: "depots", amount: cash },
+          { guarantee: "titres", amount: value - cash },
+        ];
+      }
+      return [{ guarantee: "assurance", amount: value }];
+    case "assurance_vie":
       return [{ guarantee: "assurance", amount: value }];
     case "epargne_salariale":
       return [{ guarantee: "separe", amount: value }];

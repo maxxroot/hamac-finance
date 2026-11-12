@@ -20,7 +20,7 @@ export function FondsEuros() {
   const pf = usePortfolio();
   if (!pf) return null;
   if (pf.idx.ws.accounts.length === 0) return <Onboarding />;
-  const contracts = pf.state.accounts.filter((a) => holdsEuroFunds(a.account.kind) && !a.account.archived);
+  const contracts = pf.state.accounts.filter((a) => holdsEuroFunds(a.account) && !a.account.archived);
   return (
     <>
       <PageHeader

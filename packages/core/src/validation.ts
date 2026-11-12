@@ -1,6 +1,11 @@
 import type { Account, AccountKind, Asset, AssetKind, Transaction, TxType } from "./domain";
 import { holdsEuroFunds, TX_LABELS, TX_NEEDS_ASSET, TX_OPTIONAL_ASSET } from "./domain";
 
+/** Ce titre peut-il être détenu dans ce compte ? Un PER bancaire n'a pas de fonds euros. */
+function allowedIn(account: Account, asset: Asset): boolean {
+  return ALLOWED_ASSETS[account.kind].includes(asset.kind) && (asset.kind !== "fonds_euros" || holdsEuroFunds(account));
+}
+
 /** Opérations qui peuvent viser un fonds euros (le support qui reçoit ou d'où part l'argent). */
 export const EURO_FUND_TYPES: readonly TxType[] = ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "impots", "correction"];
 
@@ -68,8 +73,8 @@ export function validateTransaction(
   if (tx.assetId && !isArbitrage) {
     const asset = assets.get(tx.assetId);
     if (!asset) errors.push({ field: "assetId", message: "Titre introuvable." });
-    else if (!ALLOWED_ASSETS[account.kind].includes(asset.kind)) {
-      errors.push({ field: "assetId", message: "Ce titre ne peut pas être détenu dans ce type de compte." });
+    else if (!allowedIn(account, asset)) {
+      errors.push({ field: "assetId", message: asset.kind === "fonds_euros" ? "Ce compte n'a pas de fonds euros (un PER bancaire n'en a pas)." : "Ce titre ne peut pas être détenu dans ce type de compte." });
     }
   }
 
@@ -94,7 +99,7 @@ export function validateTransaction(
     if (tx.counterAssetId) {
       const fund = assets.get(tx.counterAssetId);
       if (fund?.kind !== "fonds_euros") errors.push({ field: "counterAssetId", message: "Le support d'arrivée doit être un fonds euros." });
-      else if (target && !holdsEuroFunds(target.kind)) errors.push({ field: "counterAssetId", message: "Ce compte de destination n'a pas de fonds euros." });
+      else if (target && !holdsEuroFunds(target)) errors.push({ field: "counterAssetId", message: "Ce compte de destination n'a pas de fonds euros." });
     }
   } else if (tx.counterAccountId) {
     errors.push({ field: "counterAccountId", message: "Seul un transfert a un compte de destination." });
@@ -121,7 +126,7 @@ function arbitrageErrors(tx: Omit<Transaction, "id">, account: Account, assets: 
     if (!assetId) return errors.push({ field, message: what === "cédé" ? "Choisissez le support cédé." : "Choisissez le support reçu." });
     const asset = assets.get(assetId);
     if (!asset) return errors.push({ field, message: "Support introuvable." });
-    if (!ALLOWED_ASSETS[account.kind].includes(asset.kind)) return errors.push({ field, message: "Ce support ne peut pas être détenu dans ce type de compte." });
+    if (!allowedIn(account, asset)) return errors.push({ field, message: "Ce support ne peut pas être détenu dans ce compte." });
     if (asset.kind === "obligation") return errors.push({ field, message: "Une obligation s'achète et se vend : l'arbitrage ne la prend pas." });
     if (asset.kind === "fonds_euros") {
       if (quantity != null) errors.push({ field: quantityField, message: "Un fonds euros se compte en euros : pas de quantité." });

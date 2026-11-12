@@ -119,5 +119,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0029_wet_vengeance",
     "sql": "ALTER TABLE \"transactions\" ADD COLUMN \"counter_quantity\" double precision;"
+  },
+  {
+    "tag": "0030_condemned_human_robot",
+    "sql": "ALTER TABLE \"accounts\" ADD COLUMN \"per_kind\" text;--> statement-breakpoint\n-- Les PER existants ont reçu un fonds euros (migration 0028) : ils sont assurantiels.\nUPDATE \"accounts\" SET \"per_kind\" = 'assurantiel' WHERE \"kind\" = 'per';\n"
   }
 ];
