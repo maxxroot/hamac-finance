@@ -7,7 +7,7 @@ Hamac reprend la logique d'un Google Sheet de plan d'épargne retraite, en corri
 | Entité | Rôle | Remarques |
 |---|---|---|
 | **Compte** (`accounts`) | Un contenant avec ses propres espèces : livret, assurance-vie, PEA, compte-titres, plateforme crypto. | Nombre illimité. Un livret porte son type (LEP, LDDS, Livret A…), son taux et son plafond. Les espèces d'une assurance-vie représentent le fonds euros. |
-| **Titre** (`assets`) | Ce qu'on achète : ETF, action, obligation, crypto, fonds. | Identifié par ISIN quand il existe. Une obligation porte son coupon, son échéance et sa fréquence. Source du cours : automatique, manuelle ou calculée (obligation détenue à l'échéance). |
+| **Titre** (`assets`) | Ce qu'on achète : ETF, action, obligation, crypto, fonds. | Identifié par ISIN quand il existe. Une obligation porte son coupon, son échéance et sa fréquence. Source du cours : automatique, manuelle ou calculée (obligation détenue à l'échéance). Un ETF peut renvoyer à un ETF physique équivalent (`composition_isin`) dont la composition sert à l'exposition réelle ; les compositions elles-mêmes sont communes à l'instance (`marche.compositions`). |
 | **Opération** (`transactions`) | Un mouvement daté dans un compte. | Types : apport initial, versement, retrait, intérêts/coupon, dividende, achat, vente, transfert, frais, impôts, correction. |
 | **Montant d'un document fiscal** (`tax_statement_amounts`) | Montant lu sur le document d'un établissement, par année et par case. | Sert à comparer le récapitulatif fiscal au document reçu. |
 | **Versement programmé** (`contribution_plans`) | « À partir du mois M, X €/mois sur ce compte. » 0 = arrêt. | Un seul plan par compte et par mois ; le dernier démarré s'applique. |

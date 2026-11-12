@@ -354,6 +354,7 @@ export function Notice() {
             [<L to="/projets" key="o">Projets</L>, "Ce que vous préparez : la somme réunie pour chaque projet, l'avance ou le retard, et ce qu'il faut mettre de côté chaque mois."],
             [<L to="/simulateurs" key="m">Simulateurs</L>, "Avant d'investir : ce qu'un placement rapporterait avant et après impôts, et plusieurs placements côte à côte."],
             [<L to="/enveloppes" key="s">Synthèse</L>, "Tous vos comptes côte à côte, et ce qui est garanti si un établissement fait faillite."],
+            [<L to="/exposition" key="x">Exposition réelle</L>, "Ce que contiennent vraiment vos actions et ETF : pays, secteurs, devises et plus grosses lignes."],
           ]}
         />
         <p>Pour voir l'évolution d'un compte, cliquez sur sa ligne (Synthèse, Livrets, Crowdlending) ou sur « Évolution » dans les blocs Fonds euros, Actions et Crypto. Pour un titre seul, cliquez sur sa ligne. Sur le graphique, cliquez sur un nom de la légende pour masquer sa courbe.</p>
@@ -362,6 +363,9 @@ export function Notice() {
         </p>
         <p>
           <B>Concentration.</B> La Synthèse montre aussi ce qui pèse le plus dans votre patrimoine financier : chaque titre (tous comptes confondus), chaque émetteur d'obligations, chaque plateforme de crowdlending avec ses projets en retard ou en défaut, et chaque établissement. Au-delà de 20 % sur un seul titre, émetteur ou plateforme, le tableau de bord vous le signale ; le seuil se règle dans Paramètres › Plan. Les obligations de l'État français ne déclenchent pas d'alerte.
+        </p>
+        <p>
+          <B>Exposition réelle.</B> Un ETF MSCI World, c'est environ 70 % d'actions américaines : la page <L to="/exposition">Exposition réelle</L> le montre, d'après la composition publiée par Amundi ou iShares, que Hamac récupère dès que vous choisissez l'ETF (il suffit de son ISIN) et met à jour chaque trimestre. Un ETF synthétique, comme la plupart des ETF « monde » ou « États-Unis » du PEA, publie le panier d'actions européennes qu'il détient, pas l'exposition qu'il donne : choisissez alors un ETF physique qui suit le même indice, Hamac vous en propose un et reprend sa composition. Faites de même pour un ETF d'un autre émetteur. Le premier équivalent choisi sur l'instance est proposé aux autres utilisateurs, qui peuvent en choisir un autre pour eux seuls. Une action détenue en direct compte pour le pays de son ISIN.
         </p>
         <p>
           <B>Protection en cas de faillite.</B> La Synthèse compare ce que vous avez chez chaque établissement aux garanties légales : 100 000 € de dépôts par banque, 100 000 € de plus pour Livret A, LDDS et LEP, 70 000 € de titres, 70 000 € par assureur pour l'assurance-vie et le PER. Le plafond vaut par établissement agréé, pas par marque : sur la fiche d'un établissement (Paramètres › Établissements), indiquez l'établissement garant s'il diffère, et son pays. Pour l'assurance-vie, c'est l'assureur de l'offre qui compte.

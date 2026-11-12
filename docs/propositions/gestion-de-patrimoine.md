@@ -17,6 +17,8 @@ Sur la branche `patrimoine`, au 11 novembre 2026 :
 
 - **Concentration et risque (proposition 6)** : carte « Concentration » sur la Synthèse (titres tous comptes confondus, émetteurs d'obligations, plateformes de crowdlending et projets en difficulté, établissements), alerte au-delà de 20 %, volatilité ajoutée à la page Performance.
 
+- **Exposition réelle derrière les ETF (proposition 5)** : page « Exposition réelle » (Enveloppes, module Actions) ; répartition par pays, secteur, devise et type de ligne, plus grosses lignes tous titres confondus, d'après la composition publiée par Amundi ou iShares, récupérée dès le choix de l'ETF et mise à jour chaque trimestre ; ETF physique équivalent pour un ETF synthétique ou d'un émetteur non géré.
+
 - **Objectifs par projet (proposition 11)** : page « Projets » (Vue d'ensemble) et carte « Projets en cours » au tableau de bord ; somme, date, comptes affectés en pourcentage ou en montant réservé, avancement, avance ou retard, versement mensuel nécessaire au taux du projet.
 
 Hors propositions, ajouté pendant le même travail :
@@ -34,7 +36,7 @@ Le détail, les décisions prises et ce qui reste hors de chaque version sont da
 | 2 | Calcul de l'IFI | Reporté |
 | 3 | Qui possède quoi | Fait le 11 novembre 2026 (commit `c92ceb0`) |
 | 4 | Biens qui ne sont pas des placements | Fait le 11 novembre 2026, sans les actions de l'employeur (commit `adc3eb5`) |
-| 5 | Exposition réelle derrière les ETF | En cours : étude faite le 11 novembre 2026, compositions Amundi et iShares |
+| 5 | Exposition réelle derrière les ETF | Fait le 12 novembre 2026, compositions Amundi et iShares |
 | 6 | Concentration et risque | Fait le 11 novembre 2026 |
 | 7 | Disponibilité de l'argent | À faire, sous forme d'option |
 | 8 | Poids des crédits et aide à la décision | Fait le 11 novembre 2026 |
@@ -154,7 +156,16 @@ Pour chaque bien :
 
 ## 5. Exposition réelle derrière les ETF
 
-**Statut :** en cours depuis le 11 novembre 2026. Étude faite : la composition se récupère automatiquement à partir de l'ISIN chez Amundi et chez iShares. Première étape faite le 11 novembre 2026, sans stockage : téléchargement et lecture dans `backend/src/market/composition.ts` (`findComposition` par ISIN, `fetchComposition` par source connue), pays, secteurs et types de ligne harmonisés dans `core/src/exposure.ts`, tests sur des exemples et sur les vrais sites (`HAMAC_LIVE=1`). Étape suivante : les tables de `marche`, la récupération au choix du titre et la mise à jour trimestrielle.
+**Statut :** fait le 12 novembre 2026 (commits `c6f7460` à `0c45fed`). Où se trouve quoi :
+
+- téléchargement et lecture : `backend/src/market/composition.ts` (`findComposition` par ISIN, `fetchComposition` par source connue) ;
+- stockage commun, mise à jour trimestrielle, liens communs : `backend/src/market/compositionStore.ts`, tables `marche.compositions` et `marche.composition_links`, passage dans la boucle de `SharedMarket` ;
+- choix propre à chaque utilisateur : colonne `assets.composition_isin` (dans la sauvegarde) ;
+- procédures `exposure.load`, `exposure.lookup`, `exposure.choose`, `exposure.admin`, `exposure.adminLink` : `backend/src/exposure.ts` ;
+- règles et calculs : `core/src/exposure.ts` (libellés harmonisés, résumé d'une composition, ETF de référence par indice, composition utilisée, exposition du portefeuille) ;
+- interface : page `/exposition`, annonce dans la fiche d'un titre et à l'achat d'un nouveau titre (`CompositionNotice`), fenêtre de choix de l'équivalent, carte « Compositions des ETF » et « ETF équivalents » dans Paramètres › Cours pour l'administrateur, alerte « À regarder » en cas d'échec.
+
+Les tests sur les vrais sites se lancent avec `HAMAC_LIVE=1`.
 
 **Pourquoi.** Un ETF MSCI World, c'est environ 70 % d'actions américaines. Un ETF du S&P 500 coté en euros reste exposé au dollar. La répartition par classe d'actifs ne le montre pas.
 
@@ -175,17 +186,21 @@ Adresses non documentées, testées à cette date, susceptibles de changer sans 
 - **Mise à jour chaque trimestre**, au rythme des révisions des grands indices. On garde la dernière composition valable avec sa date, et une alerte pour l'administrateur si le téléchargement échoue.
 - **Libellés harmonisés** : pays en code ISO, secteurs ramenés à une liste fixe (les secteurs des obligations iShares compris), lignes classées en actions, obligations, liquidités, dérivés ou autres.
 
-### À prévoir en base
+### Décisions prises pendant le développement (12 novembre 2026)
 
-- Dans `marche`, les sources de composition par ISIN : émetteur et identifiant, méthode de réplication, ISIN de l'équivalent physique, date du dernier téléchargement, dernier échec.
-- Dans `marche`, les compositions par ISIN : les lignes et leur date.
-- Dans le schéma de chaque utilisateur : son choix d'équivalent, s'il diffère du lien commun.
+- **Ordre de priorité de la composition utilisée** : l'équivalent choisi par l'utilisateur, puis la composition de l'ETF s'il n'est pas synthétique, puis le lien commun. Un ETF synthétique ne sert jamais par lui-même.
+- **Lien commun** : créé seulement à partir d'un équivalent vérifié, et seulement pour un ETF dont la composition ne sert pas telle quelle (synthétique, émetteur non géré, échec). Les liens et les échecs ne sont visibles que de l'administrateur, puisqu'ils disent quels ETF sont détenus sur l'instance.
+- **Équivalent proposé** : déduit du nom de l'ETF, à partir d'une table de 19 ETF physiques de référence, un par grand indice (`EQUIVALENT_REFERENCES`), chacun vérifié le 12 novembre 2026 sur le site de son émetteur. L'iShares STOXX Europe 600 (DE0002635307) est inconnu de la recherche iShares : l'Amundi Core Stoxx Europe 600 le remplace.
+- **Rythme** : une composition est remise à jour au bout de 92 jours ; un échec est réessayé après 6 heures, la composition précédente étant gardée ; un ETF inconnu des deux émetteurs est recherché de nouveau après 30 jours. Les téléchargements se font un par un, à une seconde d'intervalle, au plus 20 par passage de la boucle et 100 en attente à la demande. Une composition que plus personne ne détient ni ne référence est oubliée une fois périmée.
+- **Actions détenues en direct** : comptées pour le pays de leur ISIN (pays d'enregistrement), sans secteur.
+- **Périmètre** : actions et ETF, pour la part détenue des comptes joints. Les fonds, les obligations détenues en direct et les autres placements n'y figurent pas.
 
 ### Questions encore ouvertes
 
-- Trouver l'indice suivi par un ETF synthétique pour proposer l'équivalent : pas de champ d'indice trouvé chez Amundi (`INDEX_NAME` n'existe pas), à déduire du nom (« MSCI World », « Nasdaq-100 ») à défaut.
 - Les parts couvertes contre le change (« EUR Hedged ») : la devise des titres ne reflète pas le risque de change réel.
-- Les titres en double d'un ETF à l'autre : rapprochés par ISIN chez Amundi, seulement par nom ou ticker chez iShares.
+- Les titres en double d'un ETF à l'autre : rapprochés par ISIN chez Amundi, seulement par nom chez iShares (le CSV n'a pas d'ISIN par ligne).
+- Deux ISIN français essayés (FR0011869353, FR0011550185) restent inconnus d'Amundi.
+- L'indice suivi n'est pas fourni par Amundi : l'équivalent est déduit du nom, et un nom sans indice reconnaissable ne reçoit pas de proposition.
 
 ### Pistes envisagées avant l'étude
 
@@ -374,4 +389,4 @@ Gardées pour mémoire ; la piste 3 est retenue, complétée par l'ETF physique 
 7. ~~**Propositions 9 puis 10**, compteurs puis liste de fin d'année~~ : faites.
 8. ~~**Proposition 11**, objectifs par projet~~ : fait.
 9. **Proposition 12 b**, journal des décisions.
-10. **Proposition 5**, exposition réelle : étude faite, développement en cours.
+10. ~~**Proposition 5**, exposition réelle~~ : faite.
