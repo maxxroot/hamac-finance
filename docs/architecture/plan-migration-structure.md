@@ -220,7 +220,7 @@ Plus des `CLAUDE.md` par paquet (`packages/core/CLAUDE.md`, `packages/backend/CL
 Principes :
 
 - **une étape = un ou plusieurs commits, CI au vert, aucun changement de comportement** ;
-- **déplacer et modifier ne se font jamais dans le même commit**. Les déplacements passent par `git mv` seul, puis un second commit corrige les imports, pour que `git log --follow` et `git blame` gardent l'historique ;
+- **un déplacement ne s'accompagne que de la correction des chemins d'import**, jamais d'un changement de logique. Les fichiers passent par `git mv`, et git reconnaît chaque renommage (vérifié à l'étape 1 : 98 renommages sur 98), ce qui garde `git log --follow` et `git blame` intacts. Chaque commit compile, ce qui préserve aussi `git bisect` ;
 - partir de `main` **après la fusion de `gestion-locative`**, dans un **worktree dédié** (par exemple `git worktree add ../Invest-structure -b structure main`) : le dépôt principal reste disponible pendant le chantier, et aucune autre branche ne doit modifier le code en parallèle. Les déplacements de masse sur une branche vivante provoquent des conflits sur tous les fichiers ;
 - chaque étape se vérifie par `pnpm typecheck && pnpm test`, plus `pnpm build` pour celles qui touchent `ui` ou `server`.
 

@@ -37,7 +37,7 @@ Une exception (un import qui enfreint la règle mais qu'on garde) se déclare da
 
 ## État
 
-Étape 0 du plan : le test **rapporte** les écarts sans échouer, sauf pour les règles déjà tenues (`node:` et domaine connu de chaque fichier). Pour lire le rapport :
+Depuis l'étape 1 du plan, les fichiers de `core` sont rangés dans leurs domaines et le domaine se lit dans le chemin. Le test **rapporte** les écarts sans échouer, sauf pour les règles déjà tenues (`node:`, et chaque fichier rangé dans un domaine connu). Pour lire le rapport :
 
 ```bash
 pnpm vitest run packages/architecture/src/core.test.ts --silent=false
