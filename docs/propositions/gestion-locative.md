@@ -9,7 +9,10 @@ Comme pour les propositions « gestion de patrimoine », chaque tranche indique 
 | Sujet | Décision |
 |-------|----------|
 | Structure | Une table `lots` entre le bien et les baux. Un bien contient un ou plusieurs lots (logement entier, chambre, parking…), chaque bail porte sur un lot, et plusieurs baux peuvent courir en même temps sur des lots différents. Les biens existants reçoivent un lot unique, sans rien demander à l'utilisateur. |
-| Encaissements | Suivi strict partout : un loyer n'est plus considéré comme reçu tant qu'il n'a pas été pointé. Une action groupée marque d'un coup les loyers du mois comme reçus, et chaque loyer peut aussi être pointé seul. |
+| Encaissements | Suivi strict partout : un loyer n'est plus considéré comme reçu tant qu'il n'a pas été pointé. Le bouton « Valider le mois » marque d'un coup les loyers du mois comme reçus, et chaque loyer peut aussi être pointé seul. Tout ce qui n'est pas validé sur un mois est signalé, pour ne jamais laisser passer un mois sans le voir. Tolérance de 10 jours après l'échéance avant « en retard », faute de rapprochement bancaire automatique. |
+| Mode de location | Le bien déclare comment il est loué : location vide, location meublée ou colocation (un bail pour tous, ou un bail par chambre). Ce mode décide des lots proposés et des baux possibles. |
+| Garants | Prévus dès la tranche 1, avec leur type (caution d'une personne, Visale, garantie loyers impayés, caution bancaire). |
+| Occupation | Pondérée par le loyer, pour qu'un parking vide ne pèse pas autant qu'un appartement vide. |
 | Fichiers | Pas de stockage des fichiers pour l'instant : le registre des documents garde seulement leur emplacement. |
 | Saisonnier | Saisie à la main et import d'un fichier CSV (Airbnb, Booking…). |
 | Fiscalité locative | Importante, mais pour le chantier suivant (revenus fonciers, location meublée, amortissements). |
@@ -57,10 +60,18 @@ Au 12 novembre 2026, branche `patrimoine` :
 
 **Technique.** Nouvelles tables `lots`, `renters`, `lease_renters`, `lease_guarantees` : mappeurs et `loadWorkspace` dans `repo.ts`, type `Workspace`, `normalizeWorkspace`, liste `TABLES` de `dump.ts` dans l'ordre des clés étrangères (`lots` après `properties`, `renters` avant `leases`, `lease_renters` et `lease_guarantees` après), jeu fictif `demo.ts` avec un bien à deux chambres.
 
-**Questions ouvertes :**
+**Mode de location du bien** (décidé le 12 novembre 2026) : le bien déclare comment il est loué, et ce choix décide de ce qui est proposé :
 
-- Un lot « logement entier » et des lots « chambre » dans le même bien peuvent-ils coexister (passage d'une location entière à une colocation par chambres) ? Proposition : oui, avec un avertissement si un bail sur le logement entier chevauche un bail sur une chambre.
-- Les dépenses restent au niveau du bien ; leur répartition entre les lots arrive avec les charges (tranche 4).
+| Mode | Lots | Baux |
+|------|------|------|
+| Location vide | un logement entier, plus des annexes (parking, cave) | un bail vide sur le logement |
+| Location meublée | idem | un bail meublé, étudiant ou mobilité |
+| Colocation, un bail pour tous | un logement entier | un bail avec plusieurs locataires |
+| Colocation, un bail par chambre | une chambre par lot, plus des annexes | un bail par chambre |
+
+Le mode peut changer dans le temps (une location entière qui devient une colocation par chambres) : les anciens baux gardent leur lot. Un bail sur le logement entier ne peut pas chevaucher un bail sur une chambre du même bien. La location saisonnière s'ajoutera comme cinquième mode à la tranche 5.
+
+**Question ouverte :** les dépenses restent au niveau du bien ; leur répartition entre les lots arrive avec les charges (tranche 4).
 
 ---
 
@@ -93,18 +104,18 @@ Au 12 novembre 2026, branche `patrimoine` :
 
 - **Échéance du bail** : jour du mois où le loyer est dû (le 1er par défaut, modifiable), loyer payable d'avance ou à la fin du mois.
 - **Paiements** (table `rent_payments`) : bail, mois concerné, date de réception, montant, moyen (virement, prélèvement, chèque, espèces, aide au logement versée par la CAF, garant, autre), commentaire. Un mois peut recevoir plusieurs paiements (paiement en deux fois, aide au logement versée à part). Un paiement en trop reste au crédit du locataire et s'impute sur le mois suivant.
-- **État de chaque mois** : à venir, en attente (avant l'échéance plus quelques jours de tolérance), reçu, reçu en partie, en retard. Le solde du locataire (dû moins reçu) s'affiche sur le bail.
+- **État de chaque mois** : à venir, en attente (jusqu'à 10 jours après l'échéance), reçu, reçu en partie, en retard. Le solde du locataire (dû moins reçu) s'affiche sur le bail.
 - **Pointage** :
   - par loyer : boutons « Reçu » (montant attendu, à la date du jour, modifiable) et « Autre montant… » ;
-  - groupé : un bouton « Tout est arrivé » sur la liste du mois, qui affiche d'abord la liste des loyers concernés et leur total, puis les marque reçus au montant attendu. Formulation à valider (autres pistes : « Marquer reçus », « Valider le mois »).
-- **Ce que deviennent les signalements actuels** : les mois passés sans signalement sont repris comme reçus au montant attendu, à la date d'échéance, marqués « repris ». « Impayé » ne crée aucun paiement. « Montant différent » crée un paiement de ce montant. « Mois vide » devient une **remise de loyer** (mois offert ou franchise après travaux), qui reste une notion à part : un mois remis n'est pas dû. La table `rent_exceptions` est remplacée par `rent_payments` et une table des remises.
+  - groupé : un bouton « Valider le mois » sur la liste du mois, qui affiche d'abord la liste des loyers concernés et leur total, puis les marque reçus au montant attendu.
+- **Rien ne passe inaperçu** : chaque loyer non validé d'un mois échu est signalé, sur la fiche du bail, dans la vue du parc et dans les alertes (une alerte par bail, avec le nombre de mois et le total en attente).
+- **Ce que deviennent les signalements actuels** (décidé le 12 novembre 2026) : rien n'est repris comme reçu automatiquement. Les mois passés sans signalement deviennent des loyers « à valider », signalés comme les autres ; « Valider le mois » permet de les rattraper mois par mois. « Impayé » ne crée aucun paiement et reste dû. « Montant différent » crée un paiement de ce montant. « Mois vide » devient une **remise de loyer** (mois offert ou franchise après travaux), qui reste une notion à part : un mois remis n'est pas dû. La table `rent_exceptions` est remplacée par `rent_payments` et une table des remises.
 - **Documents** : avis d'échéance (appel de loyer) du mois, quittance (paiement complet) ou reçu (paiement partiel, art. 21 de la loi du 6 juillet 1989, à vérifier), attestation de loyer à jour, décompte des sommes dues.
-- **Relances** : rappel amiable, relance, mise en demeure, à des délais réglables après l'échéance (par défaut 5, 15 et 30 jours, à discuter), chacune avec son courrier prêt à imprimer et la date d'envoi notée. Rappels liés : prévenir le garant, et la CAF quand l'aide au logement est versée au propriétaire. Les obligations légales et leurs délais (information de la caution, signalement à la CAF, commandement de payer par un commissaire de justice) sont **à vérifier** (loi du 6 juillet 1989, art. 24 ; code de la construction et de l'habitation pour les aides au logement).
+- **Relances** : rappel amiable, relance, mise en demeure, à des délais réglables après l'échéance (par défaut 10, 20 et 30 jours), chacune avec son courrier prêt à imprimer et la date d'envoi notée. Rappels liés : prévenir le garant, et la CAF quand l'aide au logement est versée au propriétaire. Les obligations légales et leurs délais (information de la caution, signalement à la CAF, commandement de payer par un commissaire de justice) sont **à vérifier** (loi du 6 juillet 1989, art. 24 ; code de la construction et de l'habitation pour les aides au logement).
 - **Import CSV des paiements** (facultatif dans cette tranche) : réutiliser `core/src/csv.ts` et le principe de `statementImport.ts` pour rapprocher les lignes d'un relevé bancaire exporté des loyers attendus (montant et nom du locataire). Ce n'est pas une synchronisation bancaire : le fichier est déposé à la main.
 
 **Questions ouvertes :**
 
-- Délai de tolérance avant « en retard » : 5 jours par défaut ?
 - Pour une colocation à bail unique : un paiement par colocataire (avec sa part du loyer) ou un paiement global ? Proposition : part de chaque colocataire facultative sur le bail ; sans part, paiement global.
 
 ---

@@ -9,6 +9,10 @@ import { runCommand } from "./commands";
 import { totp } from "./totp";
 import { ChallengeStore, CHALLENGE_MAX_TRIES, newRecoveryCode, normalizeRecoveryCode } from "./twoFactor";
 
+// Chaque test démarre un serveur complet (PGlite) et hache des mots de passe en Argon2id : le délai de 5 s
+// par défaut est dépassé dès que la machine est chargée.
+vi.setConfig({ testTimeout: 30_000 });
+
 type App = Awaited<ReturnType<typeof createApp>>;
 const SETUP = "code-installation-test";
 const KEY = Buffer.alloc(32, 7).toString("base64");

@@ -147,7 +147,8 @@ describe("serveur web", () => {
     expect((await login(client(s, "3.0.0.1"), "cible@exemple.fr", "motdepasse-long")).status).toBe(200);
     for (let i = 0; i < 20; i++) await login(client(s, `4.0.0.${i}`), "cible@exemple.fr");
     expect((await login(client(s, "5.0.0.1"), "cible@exemple.fr", "motdepasse-long")).status).toBe(429);
-  });
+    // Une quarantaine de connexions, chacune avec son hachage Argon2id : plus de 5 s quand la machine est chargée.
+  }, 30_000);
 
   it("chaque utilisateur a sa propre base, totalement isolée", async () => {
     const s = await server("open");
