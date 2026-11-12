@@ -53,6 +53,8 @@ export function concentrationReport(data: Pick<EngineData, "institutions" | "par
   const byAsset = new Map<string, { name: string; kind: AssetKind; value: number; accounts: Set<string>; issuer: string | null; state: boolean }>();
   for (const a of active) {
     for (const p of a.positions) {
+      // Un fonds euros est garanti par l'assureur : son poids se lit dans la protection par établissement.
+      if (p.asset.kind === "fonds_euros") continue;
       const e = byAsset.get(p.asset.id) ?? { name: p.asset.name, kind: p.asset.kind, value: 0, accounts: new Set<string>(), issuer: p.asset.issuer, state: p.asset.bondKind === "etat" };
       e.value += p.value * held(a);
       e.accounts.add(a.account.name);

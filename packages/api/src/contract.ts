@@ -294,7 +294,7 @@ export const procedures = {
   "bondPlans.upsert": { input: BondPlanInput, output: entity<BondPlan>() },
   "bondPlans.delete": { input: byId, output: ok },
   "fundRates.set": { input: FundRateInput, output: entity<FundRate>() },
-  "fundRates.delete": { input: z.object({ accountId: z.string(), year: z.number().int() }), output: ok },
+  "fundRates.delete": { input: z.object({ accountId: z.string(), assetId: z.string(), year: z.number().int() }), output: ok },
   "statements.upsert": { input: StatementInput, output: entity<Statement>() },
   "statements.delete": { input: byId, output: ok },
   "plannedExpenses.upsert": { input: PlannedExpenseInput, output: entity<PlannedExpense>() },

@@ -40,7 +40,8 @@ type Choice = { kind: AssetKind; bondKind: BondKind | null; label: string };
 /** Choix proposés selon le compte : les obligations se déclinent en OAT et entreprise. */
 export function choicesFor(account: AccountKind, only?: readonly AssetKind[]): Choice[] {
   // Compte-titres : les obligations d'abord (usage principal dans le plan).
-  const allowed = ALLOWED_ASSETS[account].filter((k) => !only || only.includes(k));
+  // Un fonds euros ne s'achète pas : il se crée depuis un versement (champ « Support »).
+  const allowed = ALLOWED_ASSETS[account].filter((k) => k !== "fonds_euros" && (!only || only.includes(k)));
   const kinds = account === "cto" ? [...allowed].sort((a, b) => Number(b === "obligation") - Number(a === "obligation")) : allowed;
   return kinds.flatMap((k): Choice[] =>
     k === "obligation"

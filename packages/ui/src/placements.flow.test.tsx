@@ -94,6 +94,8 @@ const dansAns = (n: number) => {
 type Id = { id: string };
 const compte = (kind: string, name: string, extra: Record<string, unknown> = {}) => rpc<Id>("accounts.upsert", { kind, name, ...extra });
 const titre = (kind: string, name: string, extra: Record<string, unknown> = {}) => rpc<Id>("assets.upsert", { kind, name, priceSource: "manuel", ...extra });
+/** Fonds euros créé avec le contrat, son support par défaut. */
+const fondsDe = (contrat: Id) => (contrat as Id & { defaultAssetId: string }).defaultAssetId;
 const operation = (date: string, type: string, accountId: string, amount: number, extra: Record<string, unknown> = {}) => rpc<Id>("transactions.upsert", { date, type, accountId, amount, ...extra });
 const cours = (assetId: string, price: number, date = todayIso()) => rpc("prices.setManual", { assetId, date, price });
 
@@ -390,12 +392,12 @@ describe("Fonds euros", () => {
     const assureur = await rpc<Id>("institutions.upsert", { name: "Assureur Fictif", kind: "assureur", offers: { assurance_vie: { entryFee: 0.01, euroFee: 0.007 } } });
     const av = await compte("assurance_vie", "Contrat principal", { institutionId: assureur.id, openedOn: dansAns(-3).replace(/-\d\d-\d\d$/, "-01-15"), beneficiaryClause: true });
     await operation("2023-01-05", "versement", av.id, 1_000);
-    await rpc("fundRates.set", { accountId: av.id, year: 2023, rate: 0.025 });
-    await rpc("fundRates.set", { accountId: av.id, year: 2024, rate: 0.035 });
+    await rpc("fundRates.set", { accountId: av.id, assetId: fondsDe(av), year: 2023, rate: 0.025 });
+    await rpc("fundRates.set", { accountId: av.id, assetId: fondsDe(av), year: 2024, rate: 0.035 });
     await operation("2023-12-31", "interets", av.id, 25);
     show(<FondsEuros />);
-    expect(await screen.findByRole("heading", { name: /Contrat principal/ })).toBeTruthy();
-    expect(texte(screen.getByRole("heading", { name: /Contrat principal/ }))).toContain("Assureur Fictif");
+    expect(await screen.findByRole("heading", { name: /^Contrat principal/ })).toBeTruthy();
+    expect(texte(screen.getByRole("heading", { name: /^Contrat principal/ }))).toContain("Assureur Fictif");
     expect(screen.getByText(/ans? et \d+ mois/)).toBeTruthy();
     // Moins de 8 ans : la date d'allègement est future.
     expect(screen.getByText(/\(8 ans\)/)).toBeTruthy();
@@ -413,7 +415,7 @@ describe("Fonds euros", () => {
     await compte("assurance_vie", "Contrat sans fiche");
     await compte("assurance_vie", "Vieux contrat", { openedOn: "2010-06-15" });
     show(<FondsEuros />);
-    expect(await screen.findByRole("heading", { name: /Contrat sans fiche/ })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /^Contrat sans fiche/ })).toBeTruthy();
     expect(screen.getByText("renseigner la date d'ouverture")).toBeTruthy();
     expect(screen.getAllByText("à rédiger")).toHaveLength(2);
     expect(screen.getAllByText("à renseigner dans Paramètres › Établissements").length).toBeGreaterThan(0);
@@ -463,6 +465,35 @@ describe("Fonds euros", () => {
     await user.click(within(row).getByRole("button", { name: "Supprimer" }));
     await waitFor(async () => expect((await workspace()).fundRates).toEqual([]));
     expect(await within(carte).findByText("Aucun taux saisi.")).toBeTruthy();
+  });
+
+  it("chaque fonds euros du contrat a son solde, ses intérêts et ses taux ; un second se crée depuis la page", async () => {
+    const user = userEvent.setup();
+    const av = await compte("assurance_vie", "Contrat principal", { openedOn: "2020-01-15" });
+    await operation("2024-01-05", "versement", av.id, 1_000);
+    await operation("2024-12-31", "interets", av.id, 30);
+    show(<FondsEuros />);
+    const defaut = carteDe("Fonds euros (Contrat principal)", await screen.findByText("Fonds euros (Contrat principal)"));
+    expect(within(defaut).getByText("support par défaut")).toBeTruthy();
+    expect(texte(within(defaut).getByText("Solde").nextElementSibling)).toBe("1 030,00 €");
+    expect(texte(within(defaut).getByText("Intérêts reçus").nextElementSibling)).toBe("30,00 €");
+
+    // « Verser sur un autre fonds euros » : le support est créé avec le versement.
+    await user.click(screen.getByRole("button", { name: "Verser sur un autre fonds euros" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Nom du fonds euros"), "Euro Croissance Fictif");
+    await user.type(within(dialog).getByLabelText("Montant"), "500");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    // Son nom figure aussi dans les mouvements : on prend la carte du fonds.
+    const second = (await screen.findAllByText("Euro Croissance Fictif")).map((el) => carteDe("", el)).find((c) => c && within(c).queryByText("Solde"))!;
+    expect(within(second).queryByText("support par défaut")).toBeNull();
+    expect(texte(within(second).getByText("Solde").nextElementSibling)).toBe("500,00 €");
+    const ws = await workspace();
+    const fund = (ws.assets as Array<{ id: string; name: string; kind: string }>).find((a) => a.name === "Euro Croissance Fictif")!;
+    expect(fund.kind).toBe("fonds_euros");
+    expect((ws.transactions as Array<{ amount: number }>).find((t) => t.amount === 500)).toMatchObject({ type: "versement", accountId: av.id, assetId: fund.id });
+    // Le fonds par défaut n'a pas bougé.
+    expect(texte(within(defaut).getByText("Solde").nextElementSibling)).toBe("1 030,00 €");
   });
 
   it("le bouton d'évolution du contrat déplie son historique", async () => {

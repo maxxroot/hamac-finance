@@ -58,7 +58,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
   const plateforme = await call("institutions.upsert", { name: "Plateforme D", kind: "crypto", offers: { crypto: { tradeFee: 0.005, spread: 0.005 } } });
   await call("accounts.upsert", { id: pea, kind: "pea", name: "PEA", institutionId: courtier.id, openedOn: "2021-03-15", role: "Long terme, jamais vendu dans une baisse", monthsToInvest: 12, sortOrder: 6 });
   await call("accounts.upsert", { id: cto, kind: "cto", name: "Compte-titres", institutionId: courtier.id, role: "Obligations à taux fixe, gardées jusqu'à l'échéance", sortOrder: 5 });
-  await call("accounts.upsert", { id: av, kind: "assurance_vie", name: "Assurance-vie", institutionId: assureur.id, openedOn: `${y - 1}-01-10`, role: "Amortisseur, capital garanti (fonds euros)", beneficiaryClause: true, sortOrder: 4 });
+  const avAccount = await call<{ defaultAssetId: string | null }>("accounts.upsert", { id: av, kind: "assurance_vie", name: "Assurance-vie", institutionId: assureur.id, openedOn: `${y - 1}-01-10`, role: "Amortisseur, capital garanti (fonds euros)", beneficiaryClause: true, sortOrder: 4 });
   await call("accounts.upsert", { id: crypto, kind: "crypto", name: "Crypto", institutionId: plateforme.id, role: "Hors allocation : petite part, peut perdre 80 %", sortOrder: 7 });
   for (const [id, name, livretType, ceiling, rate, order] of [
     [lep, "LEP", "LEP", 10000, 0.025, 1],
@@ -160,7 +160,7 @@ export async function seedDemo(backend: Backend): Promise<void> {
   ] as const) {
     await call("prices.setManual", { assetId, date: `${y}-01-01`, price });
   }
-  await call("fundRates.set", { accountId: av, year: y - 1, rate: 0.031, comment: "Taux servi net de frais" });
+  await call("fundRates.set", { accountId: av, assetId: avAccount.defaultAssetId!, year: y - 1, rate: 0.031, comment: "Taux servi net de frais" });
   await call("bondPlans.upsert", { accountId: cto, label: `Échéance vers ${y + 12}`, targetYear: y + 12, nominal: 3000 });
   await call("bondPlans.upsert", { accountId: cto, label: `Échéance vers ${y + 15}`, targetYear: y + 15, nominal: 3000 });
 }

@@ -172,7 +172,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
           <Field label="Type">
             {(id) => (
               <Select id={id} value={d.kind} onChange={(e) => setD((x) => ({ ...empty(e.target.value as AssetKind), id: x.id, name: x.name, isin: x.isin }))}>
-                {ASSET_KINDS.map((k) => (
+                {ASSET_KINDS.filter((k) => k !== "fonds_euros" || d.kind === "fonds_euros").map((k) => (
                   <option key={k} value={k}>
                     {ASSET_KIND_LABELS[k]}
                   </option>

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, doublePrecision, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, doublePrecision, index, pgTable, primaryKey, text, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 
 /**
  * Schéma de la base. Toute modification se fait ici, puis :
@@ -69,6 +69,8 @@ export const accounts = pgTable("accounts", {
   managementFeeRate: doublePrecision("management_fee_rate"),
   monthsToInvest: bigint("months_to_invest", { mode: "number" }),
   inAllocation: boolean("in_allocation"),
+  /** Assurance-vie et PER : fonds euros qui reçoit l'argent du contrat sans support précisé. */
+  defaultAssetId: text("default_asset_id").references((): AnyPgColumn => assets.id, { onDelete: "set null" }),
   /** Part détenue d'un compte joint (fraction). */
   share: doublePrecision("share").notNull().default(1),
   sortOrder: bigint("sort_order", { mode: "number" }).notNull().default(0),
@@ -119,6 +121,8 @@ export const transactions = pgTable(
       .references(() => accounts.id, { onDelete: "restrict" }),
     assetId: text("asset_id").references(() => assets.id, { onDelete: "restrict" }),
     counterAccountId: text("counter_account_id").references(() => accounts.id, { onDelete: "restrict" }),
+    /** Fonds euros d'arrivée d'un transfert vers un contrat ; null = son support par défaut. */
+    counterAssetId: text("counter_asset_id").references(() => assets.id, { onDelete: "restrict" }),
     amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
     quantity: doublePrecision("quantity"),
     feeCents: bigint("fee_cents", { mode: "number" }),
@@ -186,11 +190,15 @@ export const fundRates = pgTable(
     accountId: text("account_id")
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
+    /** Fonds euros du contrat dont c'est le taux servi. */
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
     year: bigint("year", { mode: "number" }).notNull(),
     rate: doublePrecision("rate").notNull(),
     comment: text("comment").notNull().default(""),
   },
-  (t) => [primaryKey({ columns: [t.accountId, t.year] })],
+  (t) => [primaryKey({ columns: [t.accountId, t.assetId, t.year] })],
 );
 
 export const statements = pgTable("statements", {

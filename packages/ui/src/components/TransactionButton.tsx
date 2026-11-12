@@ -15,17 +15,20 @@ export function AddTransactionButton({
   className,
   assetKinds,
   accountKinds,
+  assetId,
 }: {
   accountId?: string;
   type?: TxType;
   assetKinds?: AssetKind[];
   accountKinds?: AccountKind[];
+  /** Titre ou support présélectionné (voir TxPreset). */
+  assetId?: string;
   label?: string;
   variant?: "primary" | "secondary" | "ghost";
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const preset: TxPreset = { accountId, type, assetKinds, accountKinds };
+  const preset: TxPreset = { accountId, type, assetKinds, accountKinds, assetId };
   return (
     <>
       <Button variant={variant} className={className} onClick={() => setOpen(true)} disabled={!accountId}>

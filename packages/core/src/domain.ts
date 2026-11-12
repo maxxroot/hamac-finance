@@ -75,17 +75,17 @@ export const BUCKET_LABELS: Record<Bucket, string> = {
 /** Classe d'actifs des espèces d'un compte (le titre détermine celle des positions). */
 export const CASH_BUCKET: Record<AccountKind, Bucket> = {
   livret: "precaution",
-  assurance_vie: "garanti", // les espèces d'une assurance-vie = le fonds euros
+  assurance_vie: "garanti", // argent du contrat hors support (sans fonds euros par défaut)
   pea: "croissance",
   pea_pme: "croissance",
   cto: "obligations",
-  per: "garanti", // comme une assurance-vie : les espèces = le fonds en euros
+  per: "garanti", // comme une assurance-vie
   epargne_salariale: "garanti", // fonds monétaire ou en attente d'arbitrage
   crowdlending: "crowdlending",
   crypto: "speculatif",
 };
 
-export const ASSET_KINDS = ["etf", "action", "obligation", "crypto", "fonds", "scpi"] as const;
+export const ASSET_KINDS = ["etf", "action", "obligation", "crypto", "fonds", "scpi", "fonds_euros"] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 export const ASSET_KIND_LABELS: Record<AssetKind, string> = {
   etf: "ETF",
@@ -94,6 +94,7 @@ export const ASSET_KIND_LABELS: Record<AssetKind, string> = {
   crypto: "Crypto",
   fonds: "Fonds / OPCVM",
   scpi: "SCPI",
+  fonds_euros: "Fonds euros",
 };
 export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
   etf: "croissance",
@@ -102,7 +103,18 @@ export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
   obligation: "obligations",
   crypto: "speculatif",
   scpi: "immobilier",
+  fonds_euros: "garanti",
 };
+
+/**
+ * Fonds euros : support d'un contrat d'assurance-vie ou de PER, à capital garanti. Il n'a pas de cours :
+ * une part vaut 1 €, sa valeur est son solde. Il est propre à l'assureur et peut figurer dans plusieurs contrats.
+ */
+export const EURO_FUND_ACCOUNT_KINDS: readonly AccountKind[] = ["assurance_vie", "per"];
+
+export function holdsEuroFunds(kind: AccountKind): boolean {
+  return EURO_FUND_ACCOUNT_KINDS.includes(kind);
+}
 
 /** Les espèces de ce compte comptent-elles dans l'allocation cible ? Le choix du compte prime sur celui de sa classe. */
 export function cashInAllocation(account: Pick<Account, "kind" | "inAllocation">, enabled: (key: string) => boolean): boolean {
@@ -167,7 +179,7 @@ export const TX_HELP: Record<TxType, string> = {
   apport_initial: "Argent déjà présent au démarrage du plan.",
   versement: "Versement ponctuel en plus des versements mensuels.",
   retrait: "Argent qui sort du plan.",
-  interets: "Intérêts d'un livret ou du fonds euros (datés du 31/12), coupon d'obligation. Montant net, tel que crédité.",
+  interets: "Intérêts d'un livret ou d'un fonds euros (datés du 31/12), coupon d'obligation. Montant net, tel que crédité.",
   dividende: "Dividende versé en espèces sur le compte.",
   achat: "Montant = total débité, frais compris. Quantité = parts, BTC, ou nominal pour une obligation.",
   vente: "Montant = total reçu, frais déduits.",
@@ -201,6 +213,11 @@ export interface Account {
   role: string;
   /** Assurance-vie : clause bénéficiaire rédigée. */
   beneficiaryClause: boolean;
+  /**
+   * Assurance-vie et PER : fonds euros qui reçoit l'argent du contrat quand une opération ne précise pas
+   * de support (versements, intérêts, frais, achats et ventes d'unités de compte, versements programmés).
+   */
+  defaultAssetId?: string | null;
   entryFeeRate: number | null;
   managementFeeRate: number | null;
   /** PEA : nombre de mois pour investir l'apport de départ (achat conseillé). */
@@ -261,6 +278,8 @@ export interface Transaction {
   assetId: string | null;
   /** Compte de destination d'un transfert. */
   counterAccountId: string | null;
+  /** Fonds euros d'arrivée d'un transfert vers un contrat ; null = son support par défaut. */
+  counterAssetId?: string | null;
   /** Montant en euros, toujours positif sauf pour une correction. */
   amount: number;
   quantity: number | null;
@@ -307,8 +326,10 @@ export interface BondPlan {
   comment: string;
 }
 
+/** Taux servi par un fonds euros dans un contrat, pour une année (il peut être bonifié selon le contrat). */
 export interface FundRate {
   accountId: string;
+  assetId: string;
   year: number;
   rate: number;
   comment: string;

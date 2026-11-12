@@ -6,6 +6,8 @@ import {
   ASSET_KIND_LABELS,
   accruedFraction,
   bondTerms,
+  EURO_FUND_TYPES,
+  holdsEuroFunds,
   type Asset,
   type BondTerms,
   TX_HELP,
@@ -33,6 +35,9 @@ import { syncTradeAmounts, type PriceBasis } from "@/lib/tradeAmounts";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 import { NewAssetPanel, newAssetErrors, newAssetFor, toAssetInput, type NewAsset } from "./NewAssetPanel";
 
+/** Préréglage : la saisie s'ouvre sur la création d'un fonds euros. */
+export const NEW_FUND_PRESET = "nouveau-fonds-euros";
+
 interface Draft {
   id?: string;
   date: string;
@@ -40,6 +45,8 @@ interface Draft {
   accountId: string;
   assetId: string | null;
   counterAccountId: string | null;
+  /** Fonds euros d'arrivée d'un transfert vers un contrat ; null = son support par défaut. */
+  counterAssetId: string | null;
   amount: number | null;
   quantity: number | null;
   fee: number | null;
@@ -52,6 +59,8 @@ interface Draft {
   comment: string;
   /** Titre à créer avec l'opération (achat d'un titre pas encore connu). */
   newAsset: NewAsset | null;
+  /** Fonds euros à créer avec l'opération : son nom (versement sur un nouveau support). */
+  newFund: string | null;
   /** Dividendes et intérêts : brut et retenues, facultatifs. */
   gross: number | null;
   withheldIncomeTax: number | null;
@@ -76,6 +85,7 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
     accountId: preset.accountId ?? fallbackAccount,
     assetId: preset.assetId ?? null,
     counterAccountId: null,
+    counterAssetId: null,
     amount: null,
     quantity: null,
     fee: null,
@@ -84,6 +94,7 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
     priceBasis: "total",
     comment: "",
     newAsset: null,
+    newFund: null,
     gross: null,
     withheldIncomeTax: null,
     withheldSocial: null,
@@ -92,7 +103,7 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
 }
 
 function fromTx(tx: Transaction): Draft {
-  return { ...tx, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null };
+  return { ...tx, counterAssetId: tx.counterAssetId ?? null, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null, newFund: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null };
 }
 
 export function TransactionDialog({
@@ -117,10 +128,12 @@ export function TransactionDialog({
     setShowErrors(false);
     if (transaction) setD(fromTx(transaction));
     else {
-      // titre « nouveau » : la saisie s'ouvre directement sur la création du titre.
-      const draft = blank({ ...preset, assetId: preset.assetId === "nouveau" ? undefined : preset.assetId }, idx.activeAccounts[0]?.id ?? "");
+      // titre « nouveau » : la saisie s'ouvre directement sur la création du titre ; de même pour un nouveau fonds euros.
+      const fresh = preset.assetId === "nouveau" || preset.assetId === NEW_FUND_PRESET;
+      const draft = blank({ ...preset, assetId: fresh ? undefined : preset.assetId }, idx.activeAccounts[0]?.id ?? "");
       const acc = idx.accountById.get(draft.accountId);
-      setD(preset.assetId === "nouveau" && acc ? { ...draft, newAsset: newAssetFor(acc.kind, preset.assetKinds) } : draft);
+      if (preset.assetId === NEW_FUND_PRESET) setD({ ...draft, newFund: "" });
+      else setD(preset.assetId === "nouveau" && acc ? { ...draft, newAsset: newAssetFor(acc.kind, preset.assetKinds) } : draft);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, transaction?.id]);
@@ -171,7 +184,16 @@ export function TransactionDialog({
   const allowedTypes = account ? ALLOWED_TYPES[account.kind] : [];
   const needsAsset = TX_NEEDS_ASSET.includes(d.type);
   const optionalAsset = TX_OPTIONAL_ASSET.includes(d.type);
-  const assetChoices = account ? idx.activeAssets.filter((a) => ALLOWED_ASSETS[account.kind].includes(a.kind) && (!preset.assetKinds || preset.assetKinds.includes(a.kind))) : [];
+  const assetChoices = account ? idx.activeAssets.filter((a) => a.kind !== "fonds_euros" && ALLOWED_ASSETS[account.kind].includes(a.kind) && (!preset.assetKinds || preset.assetKinds.includes(a.kind))) : [];
+  // Contrat d'assurance-vie ou de PER : le fonds euros d'où part ou où arrive l'argent.
+  const euroFunds = idx.activeAssets.filter((a) => a.kind === "fonds_euros");
+  const supportField = !!account && holdsEuroFunds(account.kind) && EURO_FUND_TYPES.includes(d.type);
+  const counterAccount = d.type === "transfert" && d.counterAccountId ? idx.accountById.get(d.counterAccountId) : undefined;
+  const counterSupportField = !!counterAccount && holdsEuroFunds(counterAccount.kind) && euroFunds.length > 0;
+  const fundLabel = (acc: Account | undefined) => {
+    const fallback = acc?.defaultAssetId ? idx.assetById.get(acc.defaultAssetId) : undefined;
+    return fallback ? `Support par défaut : ${fallback.name}` : "Espèces du contrat (aucun fonds euros par défaut)";
+  };
   const accountChoices = idx.activeAccounts.filter((a) => !preset.accountKinds || preset.accountKinds.includes(a.kind) || a.id === d.accountId);
   const NEW = "__nouveau__";
   const taxDetail = (d.type === "dividende" || d.type === "interets") && (account?.kind === "cto" || account?.kind === "crowdlending");
@@ -180,8 +202,9 @@ export function TransactionDialog({
     date: d.date,
     type: d.type,
     accountId: d.accountId,
-    assetId: needsAsset && d.newAsset ? NEW : needsAsset || optionalAsset ? d.assetId : null,
+    assetId: (needsAsset && d.newAsset) || (supportField && d.newFund != null) ? NEW : needsAsset || optionalAsset || supportField ? d.assetId : null,
     counterAccountId: d.type === "transfert" ? d.counterAccountId : null,
+    counterAssetId: counterSupportField ? d.counterAssetId : null,
     amount: d.amount ?? 0,
     quantity: needsAsset ? d.quantity : null,
     fee: isTrade ? d.fee : null,
@@ -192,11 +215,18 @@ export function TransactionDialog({
     withheldForeign: taxDetail ? d.withheldForeign : null,
   };
   // Un titre en cours de création est validé comme s'il existait déjà.
+  const creatingFund = supportField && d.newFund != null;
+  const newFundInput = { kind: "fonds_euros" as const, name: (d.newFund ?? "").trim(), priceSource: "modele" as const };
   const assetMap: Map<string, Asset> =
-    needsAsset && d.newAsset ? new Map([...idx.assetById, [NEW, { ...(toAssetInput(d.newAsset) as unknown as Asset), id: NEW, archived: false }]]) : idx.assetById;
+    needsAsset && d.newAsset
+      ? new Map([...idx.assetById, [NEW, { ...(toAssetInput(d.newAsset) as unknown as Asset), id: NEW, archived: false }]])
+      : creatingFund
+        ? new Map([...idx.assetById, [NEW, { ...(newFundInput as unknown as Asset), id: NEW, archived: false }]])
+        : idx.assetById;
   const errors = [
     ...validateTransaction(payload, idx.accountById, assetMap),
     ...(needsAsset && d.newAsset ? newAssetErrors(d.newAsset).map((message) => ({ field: "assetId" as const, message })) : []),
+    ...(creatingFund && !newFundInput.name ? [{ field: "assetId" as const, message: "Nommez le fonds euros (ex. « Euro Nouvelle Génération »)." }] : []),
   ];
   const err = (f: string) => (showErrors ? (errors.find((e) => e.field === f)?.message ?? null) : null);
   const allInUnitCost = isTrade && d.amount && d.quantity ? d.amount / d.quantity : null;
@@ -204,9 +234,9 @@ export function TransactionDialog({
   const submit = (again: boolean) => {
     setShowErrors(true);
     if (errors.length) return;
-    if (needsAsset && d.newAsset) {
+    if ((needsAsset && d.newAsset) || creatingFund) {
       saveWithAsset.mutate(
-        { asset: toAssetInput(d.newAsset), transaction: { ...payload, assetId: null } },
+        { asset: creatingFund ? newFundInput : toAssetInput(d.newAsset!), transaction: { ...payload, assetId: null } },
         {
           onSuccess: (r) => {
             const created = (r as { asset: Asset }).asset;
@@ -275,7 +305,7 @@ export function TransactionDialog({
                 value={d.accountId}
                 onChange={(e) => {
                   const acc = idx.accountById.get(e.target.value);
-                  setD((x) => (x ? { ...x, accountId: e.target.value, type: acc && !ALLOWED_TYPES[acc.kind].includes(x.type) ? "versement" : x.type, assetId: null } : x));
+                  setD((x) => (x ? { ...x, accountId: e.target.value, type: acc && !ALLOWED_TYPES[acc.kind].includes(x.type) ? "versement" : x.type, assetId: null, newFund: null } : x));
                 }}
               >
                 {accountChoices.map(accountOption)}
@@ -299,11 +329,60 @@ export function TransactionDialog({
         {d.type === "transfert" && (
           <Field label="Vers le compte" error={err("counterAccountId")}>
             {(id) => (
-              <Select id={id} value={d.counterAccountId ?? ""} onChange={(e) => set("counterAccountId", e.target.value || null)}>
+              <Select id={id} value={d.counterAccountId ?? ""} onChange={(e) => setD((x) => (x ? { ...x, counterAccountId: e.target.value || null, counterAssetId: null } : x))}>
                 <option value="">Choisir…</option>
                 {idx.activeAccounts.filter((a) => a.id !== d.accountId).map(accountOption)}
               </Select>
             )}
+          </Field>
+        )}
+
+        {counterSupportField && (
+          <Field label="Sur le support" error={err("counterAssetId")}>
+            {(id) => (
+              <Select id={id} value={d.counterAssetId ?? ""} onChange={(e) => set("counterAssetId", e.target.value || null)}>
+                <option value="">{fundLabel(counterAccount)}</option>
+                {euroFunds.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
+
+        {supportField && (
+          <Field
+            label={d.type === "transfert" ? "Depuis le support" : "Support"}
+            error={err("assetId")}
+            help={d.type === "interets" ? "Intérêts d'un fonds euros. Pour le coupon d'une obligation du contrat, laissez le support par défaut et choisissez l'obligation ci-dessous." : undefined}
+          >
+            {(id) => (
+              <Select
+                id={id}
+                value={d.newFund != null ? NEW : d.assetId && euroFunds.some((f) => f.id === d.assetId) ? d.assetId : ""}
+                onChange={(e) =>
+                  setD((x) =>
+                    x ? (e.target.value === NEW ? { ...x, assetId: null, newFund: "" } : { ...x, assetId: e.target.value || null, newFund: null }) : x,
+                  )
+                }
+              >
+                <option value="">{fundLabel(account)}</option>
+                {euroFunds.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+                {!d.id && <option value={NEW}>＋ Nouveau fonds euros</option>}
+              </Select>
+            )}
+          </Field>
+        )}
+
+        {creatingFund && (
+          <Field label="Nom du fonds euros" help="Tel qu'il figure sur le relevé de l'assureur. Il pourra servir à d'autres contrats du même assureur.">
+            {(id) => <TextInput id={id} value={d.newFund ?? ""} onChange={(e) => set("newFund", e.target.value)} autoFocus />}
           </Field>
         )}
 

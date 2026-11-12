@@ -1,14 +1,17 @@
 import type { Account, AccountKind, Asset, AssetKind, Transaction, TxType } from "./domain";
-import { TX_LABELS, TX_NEEDS_ASSET, TX_OPTIONAL_ASSET } from "./domain";
+import { holdsEuroFunds, TX_LABELS, TX_NEEDS_ASSET, TX_OPTIONAL_ASSET } from "./domain";
+
+/** Opérations qui peuvent viser un fonds euros (le support qui reçoit ou d'où part l'argent). */
+export const EURO_FUND_TYPES: readonly TxType[] = ["apport_initial", "versement", "retrait", "interets", "transfert", "frais", "impots", "correction"];
 
 /** Titres qu'on peut détenir dans chaque type de compte. */
 export const ALLOWED_ASSETS: Record<AccountKind, readonly AssetKind[]> = {
   livret: [],
-  assurance_vie: ["etf", "fonds", "obligation", "scpi"],
+  assurance_vie: ["fonds_euros", "etf", "fonds", "obligation", "scpi"],
   pea: ["etf", "action", "fonds"],
   pea_pme: ["etf", "action", "fonds"],
   cto: ["etf", "action", "obligation", "fonds", "scpi"],
-  per: ["etf", "action", "obligation", "fonds", "scpi"],
+  per: ["fonds_euros", "etf", "action", "obligation", "fonds", "scpi"],
   epargne_salariale: ["etf", "fonds"],
   crowdlending: [],
   crypto: ["crypto"],
@@ -53,8 +56,12 @@ export function validateTransaction(
 
   const needsAsset = TX_NEEDS_ASSET.includes(tx.type);
   const optionalAsset = TX_OPTIONAL_ASSET.includes(tx.type);
+  // Un fonds euros est le support d'un mouvement d'argent : il ne s'achète ni ne se vend.
+  const euroFund = tx.assetId != null && assets.get(tx.assetId)?.kind === "fonds_euros";
   if (needsAsset && !tx.assetId) errors.push({ field: "assetId", message: "Choisissez le titre." });
-  if (!needsAsset && !optionalAsset && tx.assetId) errors.push({ field: "assetId", message: "Ce type d'opération ne porte pas sur un titre." });
+  if (euroFund && !EURO_FUND_TYPES.includes(tx.type)) {
+    errors.push({ field: "assetId", message: "Un fonds euros ne s'achète pas et ne se vend pas : faites un versement, un retrait ou un transfert sur ce support." });
+  } else if (!needsAsset && !optionalAsset && tx.assetId && !euroFund) errors.push({ field: "assetId", message: "Ce type d'opération ne porte pas sur un titre." });
 
   if (tx.assetId) {
     const asset = assets.get(tx.assetId);
@@ -78,11 +85,19 @@ export function validateTransaction(
   }
 
   if (tx.type === "transfert") {
+    const target = tx.counterAccountId ? accounts.get(tx.counterAccountId) : undefined;
     if (!tx.counterAccountId) errors.push({ field: "counterAccountId", message: "Choisissez le compte de destination." });
     else if (tx.counterAccountId === tx.accountId) errors.push({ field: "counterAccountId", message: "Le compte de destination doit être différent." });
-    else if (!accounts.get(tx.counterAccountId)) errors.push({ field: "counterAccountId", message: "Compte de destination introuvable." });
+    else if (!target) errors.push({ field: "counterAccountId", message: "Compte de destination introuvable." });
+    if (tx.counterAssetId) {
+      const fund = assets.get(tx.counterAssetId);
+      if (fund?.kind !== "fonds_euros") errors.push({ field: "counterAssetId", message: "Le support d'arrivée doit être un fonds euros." });
+      else if (target && !holdsEuroFunds(target.kind)) errors.push({ field: "counterAssetId", message: "Ce compte de destination n'a pas de fonds euros." });
+    }
   } else if (tx.counterAccountId) {
     errors.push({ field: "counterAccountId", message: "Seul un transfert a un compte de destination." });
+  } else if (tx.counterAssetId) {
+    errors.push({ field: "counterAssetId", message: "Seul un transfert a un support d'arrivée." });
   }
 
   if (tx.fee != null) {

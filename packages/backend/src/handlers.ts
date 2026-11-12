@@ -1,8 +1,8 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { one } from "./db/driver";
-import { AccountInput, RenterInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
+import { AccountInput, AssetInput, RenterInput, RpcError, type MarketSettings, type ProcInput, type ProcName, type ProcOutput, type Procedures } from "@hamac/api";
 import type { output } from "zod";
-import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeDismembered, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, validateLease, validateTransaction, defaultLotName, leaseEnd, leaseKindsFor, lotIsActive, lotIsAnnex, RENTAL_MODE_LABELS, type RentalMode, type Lot, type EnergyLetter, type Account, type Asset } from "@hamac/core";
+import { LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, PlanParamsInput, canBeDismembered, canBeJoint, crowdExtensionError, addMonth, dayOfMonth, monthOf, dpeFreezesRent, leaseCanBeRevised, loanHasProperty, revisedRent, revisionStillPossible, revisionEffectiveDate, uniqueAccountConflict, holdsEuroFunds, validateLease, validateTransaction, defaultLotName, leaseEnd, leaseKindsFor, lotIsActive, lotIsAnnex, RENTAL_MODE_LABELS, type RentalMode, type Lot, type EnergyLetter, type Account, type Asset } from "@hamac/core";
 import { exportDump, importDump } from "./dump";
 import type { BackendContext } from "./context";
 import { searchAssets } from "./market";
@@ -183,61 +183,8 @@ export const handlers: Handlers = {
   },
 
   async "accounts.upsert"(input, ctx) {
-    const id = input.id ?? newId();
-    // Un seul PEA, LEP, LDDS et Livret A par personne.
-    const others = (await ctx.db.select().from(t.accounts)).map(mapAccount);
-    const blocking = uniqueAccountConflict(others, { id: input.id, kind: input.kind, livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null, archived: input.archived });
-    if (blocking) {
-      const what = input.kind === "pea" ? "un seul PEA" : input.kind === "pea_pme" ? "un seul PEA-PME" : `un seul ${LIVRET_LABELS[input.livretType ?? "AUTRE"]}`;
-      throw new RpcError("CONFLICT", `On ne peut détenir qu'${what} par personne : « ${blocking.name} » existe déjà.`);
-    }
-    if (input.institutionId && !(await ctx.db.select().from(t.institutions).where(eq(t.institutions.id, input.institutionId)).limit(1).then(one))) {
-      throw new RpcError("NOT_FOUND", "Établissement introuvable.");
-    }
-    const row = {
-      kind: input.kind,
-      livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null,
-      name: input.name,
-      institutionId: input.institutionId,
-      openedOn: input.openedOn,
-      depositCeilingCents: input.depositCeiling == null ? null : toCents(input.depositCeiling),
-      rate: input.rate,
-      role: input.role,
-      beneficiaryClause: input.beneficiaryClause,
-      entryFeeRate: input.entryFeeRate,
-      managementFeeRate: input.managementFeeRate,
-      monthsToInvest: input.monthsToInvest,
-      inAllocation: input.inAllocation,
-      // Seuls les comptes qui peuvent être joints gardent une part détenue.
-      share: canBeJoint({ kind: input.kind, livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null }) ? input.share : 1,
-      sortOrder: input.sortOrder,
-      archived: input.archived,
-      updatedAt: nowIso(),
-    };
-    if (input.id) {
-      const current = await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, id)).limit(1).then(one);
-      if (!current) throw new RpcError("NOT_FOUND", "Compte introuvable.");
-      if (current.kind !== input.kind) {
-        const used = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.transactions).where(or(eq(t.transactions.accountId, id), eq(t.transactions.counterAccountId, id))).limit(1).then(one));
-        if (used > 0) throw new RpcError("CONFLICT", "Impossible de changer le type d'un compte qui a déjà des opérations.");
-      }
-      await ctx.db.update(t.accounts).set(row).where(eq(t.accounts.id, id));
-      if (input.archived && !current.archived) await stopPlans(ctx, id);
-    } else {
-      await ctx.db.insert(t.accounts).values({ id, ...row });
-    }
-    // Livret : le taux saisi devient un taux daté (historique), si c'est un nouveau taux.
-    if (input.kind === "livret" && input.rate != null) {
-      const from = input.rateFrom ?? new Date().toISOString().slice(0, 10);
-      const current = await ctx.db
-        .select()
-        .from(t.accountRates)
-        .where(and(eq(t.accountRates.accountId, id), sql`${t.accountRates.fromDate} <= ${from}`))
-        .orderBy(desc(t.accountRates.fromDate))
-        .limit(1).then(one);
-      if (!current || current.rate !== input.rate) await setRate(ctx, { accountId: id, fromDate: from, rate: input.rate, comment: "" });
-    }
-    return mapAccount((await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, id)).limit(1).then(one))!);
+    // Un nouveau contrat reçoit son fonds euros dans la même transaction : refusé, rien n'est créé.
+    return ctx.raw.transaction(() => upsertAccount(input, ctx));
   },
 
   async "accountRates.set"(input, ctx) {
@@ -258,7 +205,10 @@ export const handlers: Handlers = {
     if (used > 0) throw new RpcError("CONFLICT", `Ce compte a ${used} opération(s) : archivez-le plutôt que de le supprimer.`);
     const projects = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.crowdProjects).where(eq(t.crowdProjects.accountId, id)).limit(1).then(one));
     if (projects > 0) throw new RpcError("CONFLICT", `Cette plateforme a ${projects} projet(s) : archivez-la plutôt que de la supprimer.`);
+    const account = await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, id)).limit(1).then(one);
     await ctx.db.delete(t.accounts).where(eq(t.accounts.id, id));
+    // Son fonds euros par défaut part avec lui s'il ne sert nulle part ailleurs.
+    if (account?.defaultAssetId) await deleteUnusedEuroFund(ctx, account.defaultAssetId);
     return OK;
   },
 
@@ -269,12 +219,14 @@ export const handlers: Handlers = {
       if (dup) throw new RpcError("CONFLICT", `Un titre avec l'ISIN ${input.isin} existe déjà : « ${dup.name} ».`);
     }
     const isBond = input.kind === "obligation";
+    // Un fonds euros n'a pas de cours : une part vaut 1 €.
+    const isFund = input.kind === "fonds_euros";
     const row = {
       kind: input.kind,
       name: input.name,
-      isin: input.isin,
-      symbol: input.symbol,
-      priceSource: isBond && input.priceSource === "auto" ? "modele" : input.priceSource,
+      isin: isFund ? null : input.isin,
+      symbol: isFund ? null : input.symbol,
+      priceSource: isFund || (isBond && input.priceSource === "auto") ? "modele" : input.priceSource,
       priceProvider: input.priceProvider,
       priceUrl: input.priceUrl,
       pricePath: input.pricePath,
@@ -311,7 +263,7 @@ export const handlers: Handlers = {
   },
 
   async "assets.delete"({ id }, ctx) {
-    const used = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.transactions).where(eq(t.transactions.assetId, id)).limit(1).then(one));
+    const used = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.transactions).where(or(eq(t.transactions.assetId, id), eq(t.transactions.counterAssetId, id))).limit(1).then(one));
     if (used > 0) throw new RpcError("CONFLICT", `Ce titre apparaît dans ${used} opération(s) : archivez-le plutôt que de le supprimer.`);
     await ctx.db.delete(t.assets).where(eq(t.assets.id, id));
     return OK;
@@ -331,6 +283,7 @@ export const handlers: Handlers = {
       accountId: input.accountId,
       assetId: input.assetId,
       counterAccountId: input.counterAccountId,
+      counterAssetId: input.counterAssetId,
       amountCents: toCents(input.amount),
       quantity: input.quantity,
       feeCents: input.fee == null ? null : toCents(input.fee),
@@ -411,15 +364,17 @@ export const handlers: Handlers = {
   },
 
   async "fundRates.set"(input, ctx) {
+    const asset = await ctx.db.select().from(t.assets).where(eq(t.assets.id, input.assetId)).limit(1).then(one);
+    if (asset?.kind !== "fonds_euros") throw new RpcError("VALIDATION", "Un taux servi se rattache à un fonds euros.");
     await ctx.db
       .insert(t.fundRates)
       .values(input)
-      .onConflictDoUpdate({ target: [t.fundRates.accountId, t.fundRates.year], set: { rate: input.rate, comment: input.comment } });
+      .onConflictDoUpdate({ target: [t.fundRates.accountId, t.fundRates.assetId, t.fundRates.year], set: { rate: input.rate, comment: input.comment } });
     return { ...input };
   },
 
-  async "fundRates.delete"({ accountId, year }, ctx) {
-    await ctx.db.delete(t.fundRates).where(and(eq(t.fundRates.accountId, accountId), eq(t.fundRates.year, year)));
+  async "fundRates.delete"({ accountId, assetId, year }, ctx) {
+    await ctx.db.delete(t.fundRates).where(and(eq(t.fundRates.accountId, accountId), eq(t.fundRates.assetId, assetId), eq(t.fundRates.year, year)));
     return OK;
   },
 
@@ -1162,3 +1117,93 @@ export const handlers: Handlers = {
   },
 };
 
+/** Création ou modification d'un compte (voir « accounts.upsert »). */
+async function upsertAccount(input: Parsed<"accounts.upsert">, ctx: BackendContext): Promise<Account> {
+  const id = input.id ?? newId();
+  // Un seul PEA, LEP, LDDS et Livret A par personne.
+  const others = (await ctx.db.select().from(t.accounts)).map(mapAccount);
+  const blocking = uniqueAccountConflict(others, { id: input.id, kind: input.kind, livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null, archived: input.archived });
+  if (blocking) {
+    const what = input.kind === "pea" ? "un seul PEA" : input.kind === "pea_pme" ? "un seul PEA-PME" : `un seul ${LIVRET_LABELS[input.livretType ?? "AUTRE"]}`;
+    throw new RpcError("CONFLICT", `On ne peut détenir qu'${what} par personne : « ${blocking.name} » existe déjà.`);
+  }
+  if (input.institutionId && !(await ctx.db.select().from(t.institutions).where(eq(t.institutions.id, input.institutionId)).limit(1).then(one))) {
+    throw new RpcError("NOT_FOUND", "Établissement introuvable.");
+  }
+  const current = input.id ? await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, id)).limit(1).then(one) : undefined;
+  if (input.id && !current) throw new RpcError("NOT_FOUND", "Compte introuvable.");
+  const defaultAssetId = await defaultEuroFund(ctx, input, current?.defaultAssetId ?? null);
+  const row = {
+    kind: input.kind,
+    livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null,
+    name: input.name,
+    institutionId: input.institutionId,
+    openedOn: input.openedOn,
+    depositCeilingCents: input.depositCeiling == null ? null : toCents(input.depositCeiling),
+    rate: input.rate,
+    role: input.role,
+    beneficiaryClause: input.beneficiaryClause,
+    entryFeeRate: input.entryFeeRate,
+    managementFeeRate: input.managementFeeRate,
+    monthsToInvest: input.monthsToInvest,
+    inAllocation: input.inAllocation,
+    defaultAssetId,
+    // Seuls les comptes qui peuvent être joints gardent une part détenue.
+    share: canBeJoint({ kind: input.kind, livretType: input.kind === "livret" ? (input.livretType ?? "AUTRE") : null }) ? input.share : 1,
+    sortOrder: input.sortOrder,
+    archived: input.archived,
+    updatedAt: nowIso(),
+  };
+  if (current) {
+    if (current.kind !== input.kind) {
+      const used = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.transactions).where(or(eq(t.transactions.accountId, id), eq(t.transactions.counterAccountId, id))).limit(1).then(one));
+      if (used > 0) throw new RpcError("CONFLICT", "Impossible de changer le type d'un compte qui a déjà des opérations.");
+    }
+    await ctx.db.update(t.accounts).set(row).where(eq(t.accounts.id, id));
+    if (input.archived && !current.archived) await stopPlans(ctx, id);
+  } else {
+    await ctx.db.insert(t.accounts).values({ id, ...row });
+  }
+  // Livret : le taux saisi devient un taux daté (historique), si c'est un nouveau taux.
+  if (input.kind === "livret" && input.rate != null) {
+    const from = input.rateFrom ?? new Date().toISOString().slice(0, 10);
+    const current = await ctx.db
+      .select()
+      .from(t.accountRates)
+      .where(and(eq(t.accountRates.accountId, id), sql`${t.accountRates.fromDate} <= ${from}`))
+      .orderBy(desc(t.accountRates.fromDate))
+      .limit(1).then(one);
+    if (!current || current.rate !== input.rate) await setRate(ctx, { accountId: id, fromDate: from, rate: input.rate, comment: "" });
+  }
+  return mapAccount((await ctx.db.select().from(t.accounts).where(eq(t.accounts.id, id)).limit(1).then(one))!);
+}
+
+/**
+ * Fonds euros par défaut d'un contrat d'assurance-vie ou de PER. Absent : celui du contrat, ou pour un
+ * nouveau contrat un fonds euros à son nom ; null : aucun. Les autres comptes n'en ont pas.
+ */
+async function defaultEuroFund(ctx: BackendContext, input: Parsed<"accounts.upsert">, current: string | null): Promise<string | null> {
+  if (!holdsEuroFunds(input.kind)) return null;
+  if (input.defaultAssetId === undefined) {
+    if (input.id) return current;
+    const fund = await handlers["assets.upsert"](AssetInput.parse({ kind: "fonds_euros", name: `Fonds euros (${input.name})`, priceSource: "modele" }), ctx);
+    return fund.id;
+  }
+  if (input.defaultAssetId === null) return null;
+  const asset = await ctx.db.select().from(t.assets).where(eq(t.assets.id, input.defaultAssetId)).limit(1).then(one);
+  if (asset?.kind !== "fonds_euros") throw new RpcError("VALIDATION", "Le support par défaut d'un contrat doit être un fonds euros.");
+  return asset.id;
+}
+
+async function deleteUnusedEuroFund(ctx: BackendContext, assetId: string): Promise<void> {
+  const usedBy = await count(
+    ctx.db
+      .select({ n: sql<number>`count(*)` })
+      .from(t.transactions)
+      .where(or(eq(t.transactions.assetId, assetId), eq(t.transactions.counterAssetId, assetId)))
+      .limit(1)
+      .then(one),
+  );
+  const defaultOf = await count(ctx.db.select({ n: sql<number>`count(*)` }).from(t.accounts).where(eq(t.accounts.defaultAssetId, assetId)).limit(1).then(one));
+  if (usedBy === 0 && defaultOf === 0) await ctx.db.delete(t.assets).where(and(eq(t.assets.id, assetId), eq(t.assets.kind, "fonds_euros")));
+}

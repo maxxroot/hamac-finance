@@ -25,6 +25,11 @@ export const AccountInput = z.object({
   managementFeeRate: rate.nullable().default(null),
   monthsToInvest: z.number().int().min(1).max(240).nullable().default(null),
   inAllocation: z.boolean().nullable().default(null),
+  /**
+   * Assurance-vie et PER : fonds euros par défaut du contrat. Absent = inchangé (et, pour un nouveau contrat,
+   * un fonds euros à son nom est créé) ; null = aucun, l'argent du contrat reste en espèces.
+   */
+  defaultAssetId: id.nullable().optional(),
   /** Part détenue d'un compte joint ; 1 pour un compte individuel. */
   share: z.number().gt(0, "Part détenue requise").max(1).default(1),
   sortOrder: z.number().int().default(0),
@@ -80,6 +85,8 @@ export const TransactionInput = z.object({
   accountId: id,
   assetId: id.nullable().default(null),
   counterAccountId: id.nullable().default(null),
+  /** Transfert vers un contrat : fonds euros d'arrivée ; null = son support par défaut. */
+  counterAssetId: id.nullable().default(null),
   amount: money,
   quantity: z.number().positive().nullable().default(null),
   fee: money.min(0).nullable().default(null),
@@ -114,6 +121,8 @@ export const BondPlanInput = z.object({
 });
 export const FundRateInput = z.object({
   accountId: id,
+  /** Fonds euros du contrat. */
+  assetId: id,
   year: z.number().int().min(1990).max(2150),
   rate,
   comment: text(200).default(""),

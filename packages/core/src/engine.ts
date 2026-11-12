@@ -7,6 +7,7 @@ import {
   positionInAllocation,
   BUCKETS,
   CASH_BUCKET,
+  holdsEuroFunds,
   type Account,
   type AccountKind,
   type Asset,
@@ -293,6 +294,31 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const accs = new Map<string, AccAcc>(data.accounts.map((a) => [a.id, newAcc()]));
   const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth, params.profile.contributionDay);
   const book = new PriceBook(data.prices, data.assets);
+  const accountById = new Map(data.accounts.map((a) => [a.id, a]));
+
+  /**
+   * Fonds euros qui reçoit l'argent d'un contrat : celui de l'opération, sinon celui du contrat par défaut ;
+   * null = espèces du compte. Un fonds euros vaut ses euros : sa quantité et son prix de revient bougent ensemble.
+   */
+  const euroFund = (accountId: string, explicit?: Asset | null): PosAcc | null => {
+    const account = accountById.get(accountId);
+    const acc = accs.get(accountId);
+    if (!account || !acc || !holdsEuroFunds(account.kind)) return null;
+    if (explicit?.kind === "fonds_euros") return position(acc, explicit);
+    const fallback = account.defaultAssetId ? assetById.get(account.defaultAssetId) : undefined;
+    return fallback?.kind === "fonds_euros" ? position(acc, fallback) : null;
+  };
+  const moveMoney = (accountId: string, amount: number, explicit?: Asset | null): PosAcc | null => {
+    const fund = euroFund(accountId, explicit);
+    if (fund) {
+      fund.qty += amount;
+      fund.cost += amount;
+    } else {
+      const acc = accs.get(accountId);
+      if (acc) acc.cash += amount;
+    }
+    return fund;
+  };
 
   // Événements jusqu'à la date de calcul, + remboursements d'obligations échues.
   const events: Event[] = [];
@@ -317,7 +343,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       const acc = accs.get(ev.accountId);
       const p = acc?.positions.get(ev.assetId);
       if (!acc || !p || p.qty <= 1e-9) continue;
-      acc.cash += p.qty; // remboursement du nominal à 100 %
+      moveMoney(ev.accountId, p.qty); // remboursement du nominal à 100 %
       p.realized += p.qty - p.cost;
       disposals.push({ txId: null, kind: "remboursement", date: ev.date, accountId: ev.accountId, assetId: ev.assetId, quantity: p.qty, proceeds: roundCents(p.qty), fee: 0, cost: roundCents(p.cost), gain: roundCents(p.qty - p.cost), oversold: false });
       p.qty = 0;
@@ -327,58 +353,64 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       continue;
     }
     const { tx, side } = ev;
-    const acc = accs.get(side === "to" ? tx.counterAccountId! : tx.accountId);
+    const accountId = side === "to" ? tx.counterAccountId! : tx.accountId;
+    const acc = accs.get(accountId);
     if (!acc) continue;
     const asset = tx.assetId ? assetById.get(tx.assetId) : undefined;
+    // Support en euros visé par l'opération (fonds euros d'un contrat) ; sinon, le support par défaut.
+    const support = side === "to" ? (tx.counterAssetId ? assetById.get(tx.counterAssetId) : undefined) : asset;
     switch (tx.type) {
       case "apport_initial":
-        acc.cash += tx.amount;
+        moveMoney(accountId, tx.amount, support);
         acc.initial += tx.amount;
         acc.contrib += tx.amount;
         break;
       case "versement":
-        acc.cash += tx.amount;
+        moveMoney(accountId, tx.amount, support);
         acc.contrib += tx.amount;
         break;
       case "retrait":
-        acc.cash -= tx.amount;
+        moveMoney(accountId, -tx.amount, support);
         acc.contrib -= tx.amount;
         break;
       case "transfert":
         if (side === "from") {
-          acc.cash -= tx.amount;
+          moveMoney(accountId, -tx.amount, support);
           acc.contrib -= tx.amount;
         } else {
-          acc.cash += tx.amount;
+          moveMoney(accountId, tx.amount, support);
           acc.contrib += tx.amount;
         }
         break;
-      case "interets":
-        acc.cash += tx.amount;
+      case "interets": {
+        const fund = moveMoney(accountId, tx.amount, support);
         acc.interests += tx.amount;
+        // Coupon d'une obligation : revenu de l'obligation ; sinon, intérêts du fonds euros crédité.
         if (asset) position(acc, asset).income += tx.amount;
+        else if (fund) fund.income += tx.amount;
         break;
+      }
       case "dividende":
-        acc.cash += tx.amount;
+        moveMoney(accountId, tx.amount);
         acc.dividends += tx.amount;
         if (asset) position(acc, asset).income += tx.amount;
         break;
       case "frais":
-        acc.cash -= tx.amount;
+        moveMoney(accountId, -tx.amount, support);
         acc.fees += tx.amount;
         break;
       case "impots":
-        acc.cash -= tx.amount;
+        moveMoney(accountId, -tx.amount, support);
         acc.taxes += tx.amount;
         break;
       case "correction":
-        acc.cash += tx.amount;
+        moveMoney(accountId, tx.amount, support);
         acc.corrections += tx.amount;
         break;
       case "achat": {
         if (!asset || !tx.quantity) break;
         const p = position(acc, asset);
-        acc.cash -= tx.amount;
+        moveMoney(accountId, -tx.amount);
         p.qty += tx.quantity;
         p.cost += tx.amount;
         p.fees += tx.fee ?? 0;
@@ -393,7 +425,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       case "vente": {
         if (!asset || !tx.quantity) break;
         const p = position(acc, asset);
-        acc.cash += tx.amount;
+        moveMoney(accountId, tx.amount);
         p.fees += tx.fee ?? 0;
         acc.fees += tx.fee ?? 0;
         if (tx.quantity > p.qty + 1e-9) {
@@ -437,13 +469,22 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const crowdProjects = (data.crowdProjects ?? []).filter((c) => c.accountId === account.id && c.startDate <= asOf).map((c) => crowdProjectState(c, asOf));
     const crowdValue = roundCents(crowdProjects.reduce((s, c) => s + c.value, 0));
     const crowdNet = crowdProjects.reduce((s, c) => s + c.project.amount - c.repaid, 0);
-    const cash = roundCents(acc.cash + scheduledPaid - crowdNet);
+    // Les versements programmés d'un contrat vont sur son fonds euros par défaut.
+    const scheduledFund = scheduledPaid ? euroFund(account.id) : null;
+    if (scheduledFund) {
+      scheduledFund.qty += scheduledPaid;
+      scheduledFund.cost += scheduledPaid;
+    }
+    const cash = roundCents(acc.cash + (scheduledFund ? 0 : scheduledPaid) - crowdNet);
     const positions: PositionState[] = [];
     const maturedBonds: PositionState[] = [];
     for (const p of acc.positions.values()) {
       const state = valuePosition(p, account, asOf, book, params);
-      if (p.qty > 1e-12) positions.push(state);
+      // Un fonds euros reste visible même à découvert, comme les espèces : l'écart signale un oubli.
+      const euros = p.asset.kind === "fonds_euros";
+      if (p.qty > 1e-12 || (euros && Math.abs(p.qty) >= 0.005)) positions.push(state);
       else if (p.matured) maturedBonds.push(state);
+      if (euros && p.qty < -0.01) warnings.push(`Solde négatif sur « ${p.asset.name} » dans « ${account.name} » (${formatEur(p.qty)}) : un versement manque probablement dans le journal.`);
     }
     positions.sort((a, b) => b.value - a.value);
     const positionsValue = roundCents(positions.reduce((s, p) => s + p.value, 0));
@@ -583,7 +624,12 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
   let value = p.cost;
   let bond: BondInfo | null = null;
 
-  if (terms) {
+  if (asset.kind === "fonds_euros") {
+    price = 1;
+    priceDate = asOf;
+    priceUsed = "modele";
+    value = p.qty;
+  } else if (terms) {
     const point = asset.priceSource === "manuel" ? book.at(asset.id, asOf) : null;
     const accrued = accruedFraction(terms, asOf);
     if (point) {

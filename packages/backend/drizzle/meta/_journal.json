@@ -197,6 +197,13 @@
       "when": 1794482172901,
       "tag": "0027_abandoned_blonde_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1794487370248,
+      "tag": "0028_cheerful_thunderball",
+      "breakpoints": true
     }
   ]
 }

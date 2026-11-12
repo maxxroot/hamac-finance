@@ -2,7 +2,7 @@ import type { DataDump } from "@hamac/api";
 import { RpcError } from "@hamac/api";
 import type { BackendContext } from "./context";
 import type { SqlValue } from "./db/driver";
-import { upgradeLegacyDump, upgradeLegacyRentExceptions } from "./dumpUpgrade";
+import { upgradeLegacyDump, upgradeLegacyEuroFunds, upgradeLegacyRentExceptions } from "./dumpUpgrade";
 import { MARKET_SECRETS_KEY } from "./market/config";
 
 /** Tables exportées, dans l'ordre d'insertion (clés étrangères). */
@@ -10,8 +10,9 @@ const TABLES = [
   "settings",
   "institutions",
   "tax_statement_amounts",
-  "accounts",
+  // Les titres avant les comptes : un contrat renvoie à son fonds euros par défaut.
   "assets",
+  "accounts",
   "transactions",
   "contribution_plans",
   "contribution_skips",
@@ -68,6 +69,7 @@ export async function importDump(ctx: BackendContext, dump: unknown): Promise<Re
   const counts: Record<string, number> = {};
   upgradeLegacyDump(d.tables as Parameters<typeof upgradeLegacyDump>[0]);
   upgradeLegacyRentExceptions(d.tables as Parameters<typeof upgradeLegacyRentExceptions>[0]);
+  upgradeLegacyEuroFunds(d.tables as Parameters<typeof upgradeLegacyEuroFunds>[0]);
   try {
     await ctx.raw.transaction(async () => {
       for (const t of [...TABLES].reverse()) await ctx.raw.exec(`DELETE FROM ${t}`);

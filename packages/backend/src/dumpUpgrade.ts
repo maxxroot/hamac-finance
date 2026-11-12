@@ -76,3 +76,25 @@ export function upgradeLegacyRentExceptions(tables: Tables): void {
     } else if (e.kind === "vide") waivers.push({ id: randomUUID(), lease_id: leaseId, month, comment: str(e.comment) || "Ancien « mois vide »" });
   }
 }
+
+/**
+ * Sauvegarde d'avant les fonds euros comme supports (migration 0028) : mêmes reprises que la migration.
+ * Chaque contrat d'assurance-vie ou de PER reçoit son fonds euros comme support par défaut, et ses taux
+ * servis y sont rattachés. Modifie `tables` en place.
+ */
+export function upgradeLegacyEuroFunds(tables: Tables): void {
+  const accounts = Array.isArray(tables.accounts) ? tables.accounts : [];
+  if (accounts.length === 0 || accounts.some((a) => "default_asset_id" in a)) return;
+  const assets = (tables.assets = Array.isArray(tables.assets) ? tables.assets : []);
+  const contracts = new Set<string>();
+  for (const a of accounts) {
+    a.default_asset_id = null;
+    if (a.kind !== "assurance_vie" && a.kind !== "per") continue;
+    const id = String(a.id);
+    contracts.add(id);
+    assets.push({ id: `fe-${id}`, kind: "fonds_euros", name: `Fonds euros (${str(a.name)})`, price_source: "modele" });
+    a.default_asset_id = `fe-${id}`;
+  }
+  const rates = Array.isArray(tables.fund_rates) ? tables.fund_rates : [];
+  tables.fund_rates = rates.filter((r) => contracts.has(String(r.account_id))).map((r) => ({ ...r, asset_id: `fe-${String(r.account_id)}` }));
+}

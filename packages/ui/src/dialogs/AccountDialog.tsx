@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import type { AccountInput } from "@hamac/api";
-import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, accountNoun, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, canBeJoint, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, ACCOUNT_KINDS, accountNoun, holdsEuroFunds, LIVRET_LABELS, LIVRET_LEGAL_CEILINGS, LIVRET_TYPES, canBeJoint, uniqueAccountConflict, type Account, type AccountKind, type LivretType, offerKindOf } from "@hamac/core";
 import { Button } from "@/components/ui";
 import { Checkbox, Field, FormGrid, Modal, MoneyInput, NumberInput, PercentInput, Select, TextInput } from "@/components/form";
 import { useMutate, useWorkspaceIndex } from "@/lib/workspace";
 import { AllocationChoice } from "./AllocationChoice";
 
-type Draft = Required<Omit<AccountInput, "id">> & { id?: string };
+/** `defaultAssetId` absent : pour un nouveau contrat, un fonds euros à son nom est créé. */
+type Draft = Required<Omit<AccountInput, "id" | "defaultAssetId">> & { id?: string; defaultAssetId?: string | null };
+
+const NO_FUND = "__aucun";
 
 function empty(kind: AccountKind): Draft {
   return {
@@ -45,7 +48,7 @@ export function AccountDialog({
   const save = useMutate("accounts.upsert", { success: account ? "Compte mis à jour" : "Compte créé" });
 
   useEffect(() => {
-    if (open) setD(account ? { ...account, rateFrom: null } : empty(defaultKind));
+    if (open) setD(account ? { ...account, defaultAssetId: account.defaultAssetId ?? null, rateFrom: null } : empty(defaultKind));
   }, [open, account, defaultKind]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -53,6 +56,7 @@ export function AccountDialog({
   const offerKey = offerKindOf(d.kind);
   const offering = idx?.ws.institutions.filter((i) => offerKey && i.offers[offerKey]) ?? [];
   const others = idx?.ws.institutions.filter((i) => !offerKey || !i.offers[offerKey]) ?? [];
+  const funds = idx?.ws.assets.filter((a) => a.kind === "fonds_euros" && (!a.archived || a.id === d.defaultAssetId)) ?? [];
 
   const submit = () =>
     save.mutate(d, {
@@ -181,6 +185,29 @@ export function AccountDialog({
               {(id) => <MoneyInput id={id} value={d.depositCeiling} onChange={(v) => set("depositCeiling", v)} />}
             </Field>
           </FormGrid>
+        )}
+
+        {holdsEuroFunds(d.kind) && (
+          <Field
+            label="Fonds euros par défaut"
+            help="Il reçoit l'argent du contrat quand une opération ne précise pas de support : versements, versements programmés, intérêts, frais, achats et ventes d'unités de compte. Un fonds euros appartient à l'assureur : deux contrats du même assureur peuvent partager le même."
+          >
+            {(id) => (
+              <Select
+                id={id}
+                value={d.defaultAssetId === undefined ? "" : (d.defaultAssetId ?? NO_FUND)}
+                onChange={(e) => set("defaultAssetId", e.target.value === "" ? undefined : e.target.value === NO_FUND ? null : e.target.value)}
+              >
+                {!account && <option value="">Nouveau fonds euros, à son nom</option>}
+                {funds.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+                <option value={NO_FUND}>Aucun : l'argent hors support reste en espèces</option>
+              </Select>
+            )}
+          </Field>
         )}
 
         {d.kind === "assurance_vie" && (
