@@ -48,23 +48,24 @@ Les mêmes noms servent dans tous les paquets, pour qu'on puisse suivre un domai
 
 | Domaine | Contenu actuel (fichiers de `core`) |
 |---|---|
-| `base` | `money`, `dates`, `xirr`, `csv`, `fees` : outils sans règle métier |
+| `base` | `money`, `dates`, `xirr`, `fees` : outils sans règle métier |
 | `model` | `domain`, `params`, `validation`, `ownership`, `schedule`, `prices`, `allocations`, `institutions`, `protection`, `rates` |
 | `loans` | Le prêt lui-même : `Loan`, `loanSchedule`, `loanState` (sortis de `realestate.ts`), plus le coût et le remboursement anticipé (`loanCost`, `comparePrepayment`, `maxPrepaymentFee`, sortis de `debt.ts`) |
-| `investments` | `bonds`, `bondnames`, `crowdlending`, `exposure` : les placements cotés ou prêtés |
+| `investments` | `bonds`, `bondnames`, `crowdlending` : les placements cotés ou prêtés |
 | `other-assets` | `otherAssets` : or, objets, véhicules, parts de société non cotée, argent prêté |
 | `realestate` | `realestate`, `lots`, `leases`, `renters`, `rental`, `rentalPark`, `irl`, `energy`, `rentNotices` |
 | `portfolio` | `engine`, `history`, `reconciliation`, `counters`, `securitiesGains` |
-| `analysis` | Ce qui **regarde le passé et le présent** : `performance`, `timeline`, `concentration`, `debtOverview` (sorti de `debt.ts`) |
+| `analysis` | Ce qui **regarde le passé et le présent** : `performance`, `timeline`, `concentration`, `exposure`, `debtOverview` (sorti de `debt.ts`) |
 | `tax` | `fiscalRules`, `taxes`, `taxReport`, `accountTaxes`, `yearEnd` |
 | `planning` | Ce qui **regarde l'avenir** : `projection`, `goals`, `contributions`, `allocationTargets`, `simulation`, `simulators` |
-| `imports` | `statementImport`, `bricksImport` |
+| `imports` | `csv`, `statementImport`, `bricksImport` |
 | `alerts` | `alerts` (agrégateur, au sommet) |
 
 Pourquoi ces choix pour les cas difficiles :
 
 - **`performance` et `timeline` vont dans `analysis`, pas dans `planning`** : ils mesurent ce qui s'est passé (rendement, grandes étapes, comparaison de deux dates), alors que `planning` projette l'avenir. `timeline` importe `performance` : les deux restent ensemble. `concentration` (risque de concentration du jour) suit la même logique.
 - **`otherAssets` a son propre domaine** : ce ne sont pas des placements de marché, et ces biens ont leurs propres règles (démembrement, taxe sur la vente des biens meubles).
+- **`exposure` va dans `analysis`, `csv` dans `imports`, et `tax` passe sous `analysis` et `planning`** : c'est ce qu'a montré le premier rapport du test des frontières (étape 0). `exposure` lit l'état du portefeuille, `csv` lit les types du domaine (ce n'est donc pas un outil de `base`), et `performance` comme `simulation` lisent les règles fiscales.
 - **Le prêt descend dans `loans`** : aujourd'hui, `otherAssets` (argent prêté) et `debt` importent `realestate` uniquement pour le type `Loan` et son échéancier. Une fois le prêt sorti, `realestate` et `other-assets` dépendent de `loans`, et plus l'inverse. La vue d'endettement (`debtOverview`), qui a besoin de l'état du portefeuille et des biens, monte dans `analysis`.
 
 Noms de dossier : **anglais, en minuscules, avec un tiret entre les mots** (`other-assets/`), comme les fichiers et les identifiants actuels (`realestate.ts`, procédures `leases.*`). Les fichiers gardent leur nom en camelCase. Les commentaires, l'interface et la doc restent en français.
@@ -74,7 +75,9 @@ Noms de dossier : **anglais, en minuscules, avec un tiret entre les mots** (`oth
 ```
 alerts
   ↑
-analysis · tax · planning · imports      (indépendants entre eux, sauf exceptions listées)
+analysis · planning · imports            (indépendants entre eux)
+  ↑
+tax                                      (lu par performance et par les simulations)
   ↑
 portfolio                                (calcul du portefeuille : engine, history…)
   ↑
@@ -87,7 +90,7 @@ model                                    (types du domaine, paramètres, validat
 base                                     (outils purs)
 ```
 
-Exception connue au sein d'une même couche, à garder dans le test des frontières tant qu'elle existe : `investments/crowdlending` lit `realestate`. La liste exacte sortira du rapport de l'étape 0, et chaque exception restante y sera justifiée par une ligne de commentaire.
+État relevé par l'étape 0 (2026-11-12) : en dehors des trois cycles de fichiers, les seuls écarts restants viennent du prêt rangé dans `realestate.ts` (`crowdlending`, `otherAssets` et `debt` l'importent pour `loanState`) et de `debt`, qui lit l'état du portefeuille. L'étape 2 les supprime. Si une exception doit malgré tout rester, elle sera déclarée dans le test et justifiée par une ligne de commentaire.
 
 Règles :
 

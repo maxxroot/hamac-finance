@@ -1,0 +1,8 @@
+{
+  "name": "@hamac/architecture",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Tests de structure : sens des dépendances entre couches et domaines, façades, absence de cycles. Aucun code livré."
+}
