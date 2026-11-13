@@ -10,6 +10,8 @@
 | UI, fenêtre | `packages/ui/src/features/journal/dialogs/StatementImportDialog.tsx` | Import d'un relevé : choix du fichier, rôle des colonnes CSV, titres inconnus, aperçu, envoi groupé, mémoire par format. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Fenêtre « Nouvelle opération » : champs selon le type, frais suggérés, prix unitaire ↔ total, coupon couru, support fonds euros, arbitrage. Préréglage `NEW_FUND_PRESET`. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/AvailableBalanceHint.tsx` | `useAvailableBalance`, `AvailableBalanceHint` : solde disponible sous le montant d'un retrait, bouton « Tout retirer », alerte si le montant le dépasse. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/DepositElsewhere.tsx` | Case « Verser aussi cette somme sur un autre compte » d'un retrait, compte à créditer et son support ; `depositFor` construit le versement. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/ArbitrageFields.tsx` | Champs d'un arbitrage et `arbitrageChoices` (supports proposés). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TaxDetailFields.tsx` | Détail fiscal d'un dividende ou d'intérêts (brut, retenues, « Calculer d'après les taux »). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/NewAssetPanel.tsx` | Création d'un titre dans la fenêtre d'opération (« ＋ Nouveau titre »). |
 | UI, saisie partagée | `packages/ui/src/features/entry/lib/tradeAmounts.ts` | `syncTradeAmounts` : total depuis le prix unitaire, ou l'inverse. |
@@ -44,6 +46,7 @@
 | `transactions.upsert` | `TransactionInput` | Valide avec `validateTransaction`, crée ou met à jour. Erreur `VALIDATION` avec la liste des champs, `NOT_FOUND` si l'id n'existe pas. |
 | `transactions.delete` | `{ id }` | Supprime. |
 | `transactions.createWithAsset` | `{ asset, transaction }` | Crée le titre (`assets.upsert`) puis l'opération, dans une seule transaction SQL. |
+| `transactions.createWithdrawalAndDeposit` | `{ withdrawal, deposit }` | Retrait puis versement sur un autre compte, dans une seule transaction SQL (chacun par `transactions.upsert`). `VALIDATION` si l'un a un id, si les types ne sont pas `retrait` puis `versement`, si le compte est le même, ou si la date ou le montant diffèrent. |
 | `transactions.bulkCreate` | `{ items }` (1 à 5 000) | Valide chaque ligne, insère les valides dans une seule transaction SQL, renvoie `{ created, errors: [{ index, message }] }`. Sert à l'import de relevés et à `DeclareInterestDialog` (crowdlending). |
 | `skips.upsert` | `SkipInput` | Bouton « mois manqué » d'une ligne programmée. |
 | `assets.upsert` | `AssetInput` | Création d'un titre inconnu depuis l'aperçu d'import. |
@@ -78,6 +81,7 @@ Voir `docs/architecture/modele-de-donnees.md`. Montants positifs, le type donne 
 - Le détail fiscal n'est proposé que pour un dividende ou des intérêts sur un compte `cto` ou `crowdlending`. « Calculer d'après les taux » appelle `grossFromNet(net, institutionWithholding(…))`. Un écart ≥ 0,02 € entre brut − retenues et net est signalé.
 - Retrait : `availableBalance(data, compte, date, { supportId, excludeTxId })` calcule le portefeuille à la date de l'opération (`computePortfolio`), sans l'opération en cours de modification. Les opérations du même jour comptent : un retrait passe en dernier dans la journée (`RANK`). Versements programmés compris. Dans un contrat, c'est la valeur du fonds euros choisi, sinon du fonds par défaut (même choix que `moveMoney`) ; sinon les espèces. « Tout retirer » recopie ce montant ; un montant supérieur affiche un avertissement, sans bloquer l'envoi. Rien n'est affiché pendant la création d'un nouveau fonds euros.
 - Champs numériques (`NumberInput`, donc `MoneyInput` et `PercentInput`) : une saisie qui commence par « = » est un calcul (`readTypedNumber`, `evaluateExpression` dans `packages/ui/src/shared/lib/expression.ts`) : + − × ÷, parenthèses, virgule ou point, lu pas à pas sans `eval` (la CSP l'interdit de toute façon). Le résultat, arrondi à `decimals`, part à chaque frappe ; un calcul incomplet, impossible ou négatif sans `allowNegative` garde la valeur précédente. À la sortie du champ, le texte devient le résultat : le calcul n'est pas conservé. Sur mobile, `inputMode="decimal"` n'offre pas toujours les touches = et +.
+- Retrait avec versement : proposé à la création seulement, et pas pendant la création d'un fonds euros. Le versement (`depositFor`) reprend la date, le montant et le commentaire du retrait ; il est validé par `validateTransaction` comme le retrait (compte vide ou support refusé : rien n'est envoyé). Envoi par `transactions.createWithdrawalAndDeposit`. Les deux opérations ne sont pas liées ensuite : modifier ou supprimer l'une ne touche pas l'autre.
 - Un titre ou un fonds euros à créer est validé comme s'il existait, sous l'identifiant provisoire `__nouveau__`, puis envoyé par `transactions.createWithAsset`.
 
 ### Effet dans le moteur (`computePortfolio`)
@@ -107,11 +111,14 @@ Les lignes cochées partent par `transactions.bulkCreate`. Le compte rendu affic
 - `packages/core/src/imports/csv.test.ts`, `packages/core/src/imports/statementImport.test.ts` : lecture des formats, doublons, programmés, titres, signe.
 - `packages/ui/src/features/entry/lib/tradeAmounts.test.ts` : prix unitaire ↔ total.
 - `packages/ui/src/shared/lib/expression.test.ts` : calculs « = » (priorités, parenthèses, saisies incomplètes, arrondi).
+- `packages/backend/src/handlers/journal.test.ts` : retrait et versement ensemble (même commentaire, tout ou rien, refus des incohérences).
 - `packages/backend/src/backend.test.ts` : import groupé (lignes valides, erreurs par ligne, brut et retenues conservés), achat avec création du titre.
 - `packages/ui/src/flows/suivi.flow.test.tsx` : blocs « journal », « fenêtre de saisie d'une opération », « mouvements d'un compte ».
 - `packages/ui/src/flows/reglages.flow.test.tsx` (« import d'un relevé ») et `packages/ui/src/flows/flows.test.tsx` (import, puis doublon au second passage).
 
 ## Limites connues
+
+- Un retrait et le versement enregistré avec lui ne gardent aucun lien : les modifier ou les supprimer se fait opération par opération.
 
 - `transactions.bulkCreate` n'insère ni `counter_asset_id`, ni `counter_quantity`, ni `external_id` : un arbitrage, ou un transfert vers un fonds euros précis, envoyé par cette procédure perdrait ces champs. L'import de relevés n'en produit pas (pas de transfert, arbitrage refusé faute de support reçu), mais rien ne l'empêche au niveau du contrat.
 - L'import ne se sert pas de `external_id` : la détection des doublons repose sur la clé `date|type|montant|titre`. Deux opérations réellement distinctes mais identiques sur ces quatre points sont prises pour un doublon si l'une est déjà au journal.

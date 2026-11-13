@@ -11,6 +11,8 @@ export const journalProcedures = {
   "transactions.delete": { input: byId, output: ok },
   /** Achat d'un titre pas encore connu : crée le titre et l'opération ensemble (tout ou rien). */
   "transactions.createWithAsset": { input: z.object({ asset: AssetInput, transaction: TransactionInput }), output: entity<{ asset: Asset; transaction: Transaction }>() },
+  /** Retrait, et versement de la même somme sur un autre compte : les deux opérations ensemble (tout ou rien). */
+  "transactions.createWithdrawalAndDeposit": { input: z.object({ withdrawal: TransactionInput, deposit: TransactionInput }), output: entity<{ withdrawal: Transaction; deposit: Transaction }>() },
   "plans.set": { input: PlanInput, output: entity<ContributionPlan>() },
   "plans.delete": { input: byId, output: ok },
   "skips.upsert": { input: SkipInput, output: entity<ContributionSkip>() },

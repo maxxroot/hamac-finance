@@ -1246,6 +1246,31 @@ describe("fenêtre de saisie d'une opération", () => {
     expect((await workspace()).transactions).toContainEqual(expect.objectContaining({ type: "retrait", amount: 2_000, date: `${year - 1}-02-01` }));
   });
 
+  it("retrait avec versement sur un autre compte : les deux opérations, même commentaire", async () => {
+    const { livret, pea } = await accountsOf();
+    const { dialog, onClose, user } = await openDialog({ accountId: livret, type: "retrait" });
+    expect(within(dialog).queryByLabelText("Compte à créditer")).toBeNull();
+    await user.click(within(dialog).getByRole("checkbox", { name: "Verser aussi cette somme sur un autre compte" }));
+    const target = within(dialog).getByLabelText("Compte à créditer") as HTMLSelectElement;
+    // Le compte débité n'est pas proposé.
+    expect([...target.options].map((o) => o.value)).not.toContain(livret);
+    await typeInto(user, label(dialog, "Montant"), "500");
+    await user.type(label(dialog, "Commentaire"), "Renfort PEA");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    // Compte à créditer manquant : rien n'est envoyé.
+    expect(await within(dialog).findByText(/compte/i, { selector: "p.text-negative" })).toBeTruthy();
+    expect((await workspace()).transactions).toHaveLength(0);
+    await user.selectOptions(target, pea);
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const txs = (await workspace()).transactions;
+    expect(txs).toHaveLength(2);
+    expect(txs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "retrait", accountId: livret, amount: 500, comment: "Renfort PEA" }),
+      expect.objectContaining({ type: "versement", accountId: pea, amount: 500, comment: "Renfort PEA" }),
+    ]));
+  });
+
   it("transfert : compte de destination obligatoire et différent ; changer de compte remet un type possible", async () => {
     const { livret, pea } = await accountsOf();
     const { dialog, onClose, user } = await openDialog({ accountId: livret });

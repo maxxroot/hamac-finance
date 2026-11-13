@@ -36,6 +36,8 @@ import { useMutate, useWorkspaceIndex } from "@/shared/lib/workspace";
 import { NewAssetPanel, newAssetErrors, newAssetFor, toAssetInput, type NewAsset } from "./NewAssetPanel";
 import { AvailableBalanceHint, useAvailableBalance } from "./AvailableBalanceHint";
 import { TaxDetailFields } from "./TaxDetailFields";
+import { ArbitrageFields, arbitrageChoices } from "./ArbitrageFields";
+import { DepositElsewhere, depositFor, type Deposit } from "./DepositElsewhere";
 
 /** Préréglage : la saisie s'ouvre sur la création d'un fonds euros. */
 export const NEW_FUND_PRESET = "nouveau-fonds-euros";
@@ -70,6 +72,8 @@ interface Draft {
   withheldIncomeTax: number | null;
   withheldSocial: number | null;
   withheldForeign: number | null;
+  /** Retrait : versement de la même somme sur un autre compte, enregistré avec lui. */
+  deposit: Deposit | null;
 }
 
 export interface TxPreset {
@@ -104,11 +108,12 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
     withheldIncomeTax: null,
     withheldSocial: null,
     withheldForeign: null,
+    deposit: null,
   };
 }
 
 function fromTx(tx: Transaction): Draft {
-  return { ...tx, counterAssetId: tx.counterAssetId ?? null, counterQuantity: tx.counterQuantity ?? null, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null, newFund: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null };
+  return { ...tx, counterAssetId: tx.counterAssetId ?? null, counterQuantity: tx.counterQuantity ?? null, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null, newFund: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null, deposit: null };
 }
 
 export function TransactionDialog({
@@ -125,6 +130,7 @@ export function TransactionDialog({
   const idx = useWorkspaceIndex();
   const save = useMutate("transactions.upsert");
   const saveWithAsset = useMutate("transactions.createWithAsset", { success: "Titre créé et opération enregistrée" });
+  const saveWithDeposit = useMutate("transactions.createWithdrawalAndDeposit", { success: "Retrait et versement enregistrés" });
   const [d, setD] = useState<Draft | null>(null);
   const [showErrors, setShowErrors] = useState(false);
 
@@ -204,10 +210,6 @@ export function TransactionDialog({
   const NEW = "__nouveau__";
   const taxDetail = (d.type === "dividende" || d.type === "interets") && (account?.kind === "cto" || account?.kind === "crowdlending");
   const isArbitrage = d.type === "arbitrage";
-  // Arbitrage : tout support du compte, sauf une obligation (elle s'achète et se vend) ; les fonds euros d'abord.
-  const arbitrageChoices = account
-    ? idx.activeAssets.filter((a) => a.kind !== "obligation" && ALLOWED_ASSETS[account.kind].includes(a.kind) && (a.kind !== "fonds_euros" || holdsEuroFunds(account))).sort((a, b) => Number(b.kind === "fonds_euros") - Number(a.kind === "fonds_euros"))
-    : [];
   const fromFund = d.assetId ? idx.assetById.get(d.assetId)?.kind === "fonds_euros" : false;
   const toFund = d.counterAssetId ? idx.assetById.get(d.counterAssetId)?.kind === "fonds_euros" : false;
   const payload = {
@@ -243,13 +245,17 @@ export function TransactionDialog({
     ...(creatingFund && !newFundInput.name ? [{ field: "assetId" as const, message: "Nommez le fonds euros (ex. « Euro Nouvelle Génération »)." }] : []),
   ];
   const err = (f: string) => (showErrors ? (errors.find((e) => e.field === f)?.message ?? null) : null);
+  const depositOffered = d.type === "retrait" && !d.id && !creatingFund;
+  const deposit = depositOffered && d.deposit ? depositFor(payload, d.deposit) : null;
+  const depositErrors = deposit ? validateTransaction(deposit, idx.accountById, idx.assetById) : [];
+  const depositErr = (f: string) => (showErrors ? (depositErrors.find((e) => e.field === f)?.message ?? null) : null);
   const allInUnitCost = isTrade && d.amount && d.quantity ? d.amount / d.quantity : null;
   const withdrawHint = available && <AvailableBalanceHint available={available} date={d.date} amount={d.amount} onWithdrawAll={(v) => set("amount", v)} />;
   const amountHelp = d.type === "correction" ? "Négatif pour baisser la valeur calculée." : withdrawHint || undefined;
 
   const submit = (again: boolean) => {
     setShowErrors(true);
-    if (errors.length) return;
+    if (errors.length || depositErrors.length) return;
     if ((needsAsset && d.newAsset) || creatingFund) {
       saveWithAsset.mutate(
         { asset: creatingFund ? newFundInput : toAssetInput(d.newAsset!), transaction: { ...payload, assetId: null } },
@@ -265,14 +271,14 @@ export function TransactionDialog({
       );
       return;
     }
-    save.mutate(payload, {
-      onSuccess: () => {
-        if (again) {
-          setShowErrors(false);
-          setD({ ...blank({ accountId: d.accountId, type: d.type, assetId: d.assetId ?? undefined }, d.accountId), date: d.date });
-        } else onClose();
-      },
-    });
+    const onSuccess = () => {
+      if (again) {
+        setShowErrors(false);
+        setD({ ...blank({ accountId: d.accountId, type: d.type, assetId: d.assetId ?? undefined }, d.accountId), date: d.date });
+      } else onClose();
+    };
+    if (deposit) saveWithDeposit.mutate({ withdrawal: payload, deposit }, { onSuccess });
+    else save.mutate(payload, { onSuccess });
   };
 
   const accountOption = (a: Account) => (
@@ -297,7 +303,7 @@ export function TransactionDialog({
               Enregistrer et saisir une autre
             </Button>
           )}
-          <Button variant="primary" onClick={() => submit(false)} disabled={save.isPending || saveWithAsset.isPending}>
+          <Button variant="primary" onClick={() => submit(false)} disabled={save.isPending || saveWithAsset.isPending || saveWithDeposit.isPending}>
             Enregistrer
           </Button>
         </>
@@ -481,58 +487,7 @@ export function TransactionDialog({
             </Field>
           </FormGrid>
         ) : isArbitrage ? (
-          <>
-            <FormGrid>
-              <Field label="Support cédé" error={err("assetId")}>
-                {(id) => (
-                  <Select id={id} value={d.assetId ?? ""} onChange={(e) => setD((x) => (x ? { ...x, assetId: e.target.value || null, quantity: null } : x))}>
-                    <option value="">Choisir…</option>
-                    {arbitrageChoices.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} · {ASSET_KIND_LABELS[a.kind]}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-              {fromFund ? (
-                <div />
-              ) : (
-                <Field label="Quantité cédée" error={err("quantity")}>
-                  {(id) => <NumberInput id={id} decimals={8} value={d.quantity} onChange={(v) => set("quantity", v)} />}
-                </Field>
-              )}
-              <Field label="Support reçu" error={err("counterAssetId")}>
-                {(id) => (
-                  <Select id={id} value={d.counterAssetId ?? ""} onChange={(e) => setD((x) => (x ? { ...x, counterAssetId: e.target.value || null, counterQuantity: null } : x))}>
-                    <option value="">Choisir…</option>
-                    {arbitrageChoices.filter((a) => a.id !== d.assetId).map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} · {ASSET_KIND_LABELS[a.kind]}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-              {toFund ? (
-                <div />
-              ) : (
-                <Field label="Quantité reçue" error={err("counterQuantity")}>
-                  {(id) => <NumberInput id={id} decimals={8} value={d.counterQuantity} onChange={(v) => set("counterQuantity", v)} />}
-                </Field>
-              )}
-              <Field
-                label="Valeur de l'échange"
-                error={err("amount")}
-                help={account?.kind === "crypto" ? "En euros, au moment de l'échange. Elle fixe le prix de revient de la crypto reçue ; rien n'est imposable tant que vous restez en crypto." : "En euros, telle qu'indiquée sur l'avis d'arbitrage. Elle fixe le prix de revient du support reçu."}
-              >
-                {(id) => <MoneyInput id={id} value={d.amount} onChange={(v) => set("amount", v)} />}
-              </Field>
-              <Field label="dont frais" error={err("fee")} help={toFund ? "Déduits du montant reçu sur le fonds euros." : "Compris dans le prix de revient du support reçu."}>
-                {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
-              </Field>
-            </FormGrid>
-          </>
+          <ArbitrageFields d={d} patch={(p) => setD((x) => (x ? { ...x, ...p } : x))} err={err} account={account} choices={arbitrageChoices(account, idx.activeAssets)} fromFund={fromFund} toFund={toFund} />
         ) : (
           <FormGrid cols={needsAsset ? 3 : 2}>
             <Field
@@ -566,7 +521,11 @@ export function TransactionDialog({
           </p>
         )}
 
-        <Field label="Commentaire">{(id) => <TextInput id={id} value={d.comment} onChange={(e) => set("comment", e.target.value)} />}</Field>
+        {depositOffered && (
+          <DepositElsewhere value={d.deposit} onChange={(v) => set("deposit", v)} fromAccountId={d.accountId} accounts={idx.activeAccounts} assets={idx.activeAssets} option={accountOption} err={depositErr} />
+        )}
+
+        <Field label="Commentaire" help={deposit ? "Repris sur le retrait et sur le versement." : undefined}>{(id) => <TextInput id={id} value={d.comment} onChange={(e) => set("comment", e.target.value)} />}</Field>
         <button type="submit" hidden />
       </form>
     </Modal>

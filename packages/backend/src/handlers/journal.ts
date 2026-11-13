@@ -55,6 +55,18 @@ export const journalHandlers: DomainHandlers<typeof journalProcedures> = {
     });
   },
 
+  async "transactions.createWithdrawalAndDeposit"({ withdrawal, deposit }, ctx) {
+    if (withdrawal.id || deposit.id) throw new RpcError("VALIDATION", "Retrait et versement liés : seulement à la création.");
+    if (withdrawal.type !== "retrait" || deposit.type !== "versement") throw new RpcError("VALIDATION", "Il faut un retrait, puis un versement.");
+    if (withdrawal.accountId === deposit.accountId) throw new RpcError("VALIDATION", "Choisissez un autre compte à créditer.");
+    if (withdrawal.date !== deposit.date || withdrawal.amount !== deposit.amount) throw new RpcError("VALIDATION", "Le versement doit avoir la date et le montant du retrait.");
+    // Une seule transaction : si le versement est refusé, le retrait n'est pas enregistré.
+    return ctx.raw.transaction(async () => ({
+      withdrawal: await journalHandlers["transactions.upsert"](withdrawal, ctx),
+      deposit: await journalHandlers["transactions.upsert"](deposit, ctx),
+    }));
+  },
+
   async "transactions.delete"({ id }, ctx) {
     await ctx.db.delete(t.transactions).where(eq(t.transactions.id, id));
     return OK;

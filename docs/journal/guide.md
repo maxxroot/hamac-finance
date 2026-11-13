@@ -107,6 +107,14 @@ Depuis le Journal, les titres proposés sont ceux que le type de compte peut dé
 
 Choisissez **Transfert** sur le compte de départ, puis le compte d'arrivée dans **« Vers le compte »**. Il doit être différent. Une seule ligne suffit : elle fait baisser le premier compte et monter le second.
 
+### Retirer de l'argent et le verser sur un autre compte
+
+En notant un **Retrait**, cochez **« Verser aussi cette somme sur un autre compte »**, puis choisissez le **compte à créditer** (et, pour une assurance-vie ou un PER, le fonds euros qui reçoit l'argent). À l'enregistrement, Hamac crée deux opérations : le retrait sur le premier compte, et un versement du même montant, à la même date, sur le second. Le commentaire est repris sur les deux.
+
+Ces deux opérations restent indépendantes ensuite : pour corriger le montant, modifiez-les l'une après l'autre. La case n'apparaît qu'à la création d'un retrait.
+
+Différence avec un transfert : un transfert est une seule ligne du journal ; ici, chaque compte a sa propre ligne, un retrait d'un côté et un versement de l'autre.
+
 ### Passer d'un support à un autre dans un contrat (arbitrage)
 
 L'arbitrage existe pour l'assurance-vie, le PER, l'épargne salariale et les plateformes crypto.
