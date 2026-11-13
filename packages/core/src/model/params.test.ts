@@ -87,18 +87,30 @@ describe("paramètres", () => {
 
 describe("dispense de l'acompte sur les intérêts", () => {
   const today = new Date(2026, 10, 13);
-  it("se règle année par année", () => {
+  it("se règle par année et par établissement", () => {
     const p = defaultParams(today);
-    expect(p.tax.withholdingDispenseYears).toEqual([]);
-    p.tax.withholdingDispenseYears = [2027];
-    expect(withholdingDispensed(p, 2027)).toBe(true);
-    expect(withholdingDispensed(p, 2026)).toBe(false);
+    expect(p.tax.withholdingDispenses).toEqual([]);
+    p.tax.withholdingDispenses = [{ year: 2027, institutionIds: ["bricks"] }];
+    expect(withholdingDispensed(p, 2027, "bricks")).toBe(true);
+    expect(withholdingDispensed(p, 2027, "courtier")).toBe(false);
+    expect(withholdingDispensed(p, 2027, null)).toBe(false);
+    expect(withholdingDispensed(p, 2026, "bricks")).toBe(false);
   });
 
-  it("l'ancienne case unique cochée vaut pour l'année en cours seulement ; décochée, pour aucune", () => {
-    const stored = (on: boolean) => ({ ...defaultParams(today), tax: { ...defaultParams(today).tax, withholdingDispenseYears: undefined, withholdingDispense: on } });
-    expect(normalizeParams(stored(true), today).tax.withholdingDispenseYears).toEqual([2026]);
-    expect(normalizeParams(stored(false), today).tax.withholdingDispenseYears).toEqual([]);
-    expect("withholdingDispense" in normalizeParams(stored(true), today).tax).toBe(false);
+  it("anciennes formes : la case unique cochée vaut pour l'année en cours, la liste d'années pour chacune ; tous établissements", () => {
+    const base = defaultParams(today);
+    const stored = (tax: Record<string, unknown>) => {
+      const { withholdingDispenses: _w, ...rest } = base.tax;
+      return { ...base, tax: { ...rest, ...tax } };
+    };
+    expect(normalizeParams(stored({ withholdingDispense: true }), today).tax.withholdingDispenses).toEqual([{ year: 2026, institutionIds: null }]);
+    expect(normalizeParams(stored({ withholdingDispense: false }), today).tax.withholdingDispenses).toEqual([]);
+    expect(normalizeParams(stored({ withholdingDispenseYears: [2026, 2027] }), today).tax.withholdingDispenses).toEqual([
+      { year: 2026, institutionIds: null },
+      { year: 2027, institutionIds: null },
+    ]);
+    const migrated = normalizeParams(stored({ withholdingDispense: true }), today);
+    expect("withholdingDispense" in migrated.tax).toBe(false);
+    expect(withholdingDispensed(migrated, 2026, "nimporte")).toBe(true);
   });
 });

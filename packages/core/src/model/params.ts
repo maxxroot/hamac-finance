@@ -90,10 +90,11 @@ export const PlanParams = z
     tax: z.object({
       tmi: z.union([z.literal(0), z.literal(0.11), z.literal(0.3), z.literal(0.41), z.literal(0.45)]),
       /**
-       * Années de revenus pour lesquelles le foyer est dispensé de l'acompte de 12,8 % sur les intérêts
-       * (prélèvement forfaitaire non libératoire, CGI art. 125 A ; demande avant le 30 novembre de l'année précédente).
+       * Dispenses de l'acompte de 12,8 % sur les intérêts (prélèvement forfaitaire non libératoire, CGI art. 125 A),
+       * demandées établissement par établissement avant le 30 novembre de l'année précédente : une entrée par année de revenus,
+       * avec les établissements concernés (null : tous, reprise de l'ancienne case unique).
        */
-      withholdingDispenseYears: z.array(z.number().int().min(1990).max(2200)),
+      withholdingDispenses: z.array(z.object({ year: z.number().int().min(1990).max(2200), institutionIds: z.array(z.string()).nullable() })),
       pfuIncomeTax: pct,
       socialGeneral: pct,
       socialAv: pct,
@@ -213,7 +214,7 @@ export function defaultParams(today = new Date()): PlanParams {
     crypto: { feeRate: 0, exemptionThreshold: 305 },
     tax: {
       tmi: 0.11,
-      withholdingDispenseYears: [],
+      withholdingDispenses: [],
       pfuIncomeTax: 0.128,
       socialGeneral: 0.186,
       socialAv: 0.172,
@@ -244,13 +245,16 @@ export function defaultParams(today = new Date()): PlanParams {
   };
 }
 
-/** Ancienne case unique « Dispense d'acompte », sans année : elle vaut pour l'année en cours, pas pour les années passées. */
+/**
+ * Anciennes formes de la dispense d'acompte : la case unique sans année (cochée, elle vaut pour l'année en cours
+ * seulement) et la liste d'années sans établissement ; toutes deux valent pour tous les établissements.
+ */
 function migrateDispense(stored: Record<string, unknown>, today: Date): Record<string, unknown> {
   const tax = stored.tax as Record<string, unknown> | undefined;
-  if (!tax || !("withholdingDispense" in tax)) return stored;
-  const { withholdingDispense, ...rest } = tax;
-  const years = Array.isArray(rest.withholdingDispenseYears) ? rest.withholdingDispenseYears : withholdingDispense === true ? [today.getFullYear()] : [];
-  return { ...stored, tax: { ...rest, withholdingDispenseYears: years } };
+  if (!tax || Array.isArray(tax.withholdingDispenses) || !("withholdingDispense" in tax || "withholdingDispenseYears" in tax)) return stored;
+  const { withholdingDispense, withholdingDispenseYears, ...rest } = tax;
+  const years = Array.isArray(withholdingDispenseYears) ? (withholdingDispenseYears as number[]) : withholdingDispense === true ? [today.getFullYear()] : [];
+  return { ...stored, tax: { ...rest, withholdingDispenses: years.map((year) => ({ year, institutionIds: null })) } };
 }
 
 /** Anciens réglages (allocation à trois parts, classes prises sur une base, cibles sur des comptes) vers « Ma répartition cible ». */
@@ -352,9 +356,11 @@ export function classTargets(p: PlanParams, age: number): ClassTarget[] {
   return out;
 }
 
-/** Le foyer est-il dispensé de l'acompte de 12,8 % sur les intérêts perçus cette année-là ? */
-export function withholdingDispensed(p: Pick<PlanParams, "tax">, year: number): boolean {
-  return p.tax.withholdingDispenseYears.includes(year);
+/** Les intérêts versés cette année-là par cet établissement sont-ils dispensés de l'acompte de 12,8 % ? Sans établissement : non. */
+export function withholdingDispensed(p: Pick<PlanParams, "tax">, year: number, institutionId: string | null | undefined): boolean {
+  const entry = p.tax.withholdingDispenses.find((d) => d.year === year);
+  if (!entry) return false;
+  return entry.institutionIds == null || (institutionId != null && entry.institutionIds.includes(institutionId));
 }
 
 /** Taux d'impôt sur le revenu appliqué aux revenus de placement : barème si plus avantageux, sinon PFU. */

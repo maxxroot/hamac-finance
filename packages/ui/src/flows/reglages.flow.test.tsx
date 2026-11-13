@@ -610,7 +610,7 @@ describe("paramètres › plan et répartition", () => {
     const { params } = await workspace();
     expect(params).toMatchObject({
       profile: { retirementAge: 65, couple: true, netMonthlyIncome: 4200, contributionDay: 15, startMonth: "2030-02" },
-      tax: { tmi: 0.3, withholdingDispenseYears: [] },
+      tax: { tmi: 0.3, withholdingDispenses: [] },
       returns: { inflation: 0.025 },
       alerts: { concentrationMax: 0.35 },
       modules: { crypto: false, immobilier: true },

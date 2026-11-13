@@ -1,13 +1,14 @@
 import { addMonths, roundCents } from "../base";
 import { ceilingCounters, lifeInsuranceCounters, securitiesGains, type EngineData, type PortfolioState } from "../portfolio";
 import { incomeTaxRate } from "../model";
+import { DISPENSE_DEADLINE, dispenseOutlook, dispenseReminderSeason } from "./withholdingDispense";
 
 /**
  * Liste de fin d'année : les gestes fiscaux qui ne se font que jusqu'au 31 décembre, chiffrés avec les données
  * de Hamac. Estimations à partir des taux de Paramètres › Plan ; rien n'est une recommandation personnalisée.
  */
 
-export const YEAR_END_KEYS = ["moins_values", "assurance_vie", "per", "plafonds", "declaration"] as const;
+export const YEAR_END_KEYS = ["moins_values", "assurance_vie", "per", "plafonds", "dispense_acompte", "declaration"] as const;
 export type YearEndKey = (typeof YEAR_END_KEYS)[number];
 
 export interface YearEndItem {
@@ -99,7 +100,21 @@ export function yearEndChecklist(data: EngineData, state: PortfolioState): YearE
     });
   }
 
-  // 5. La déclaration du printemps.
+  // 5. Dispense de l'acompte sur les intérêts de l'année suivante, à demander avant le 30 novembre.
+  const dispense = dispenseOutlook(data, state);
+  if (dispenseReminderSeason(state.asOf) && dispense.interest > 0) {
+    const deadline = `${DISPENSE_DEADLINE.slice(3)}/${DISPENSE_DEADLINE.slice(0, 2)}/${year}`;
+    items.push({
+      key: "dispense_acompte",
+      title: `Demander la dispense de l'acompte pour ${dispense.year} avant le ${deadline}`,
+      saving: null,
+      detail: `Si votre revenu fiscal de référence de ${year - 1} est inférieur à ${fmt(dispense.ceiling)}, une attestation remise à chaque établissement (courtier, plateforme) évite l'acompte de 12,8 % retenu sur les intérêts de ${dispense.year}. C'est une avance en moins, pas un impôt en moins : l'impôt reste dû à la déclaration. Une fois la demande faite, cochez ${dispense.year} et les établissements concernés dans l'encadré « Dispense de l'acompte » de la page Impôts.`,
+      lines: dispense.institutions.filter((i) => !i.dispensed).map((i) => ({ label: i.name, amount: i.advance, hint: `acompte évité sur un an (12,8 % de ${fmt(i.interest)} d'intérêts)` })),
+      link: "/impots",
+    });
+  }
+
+  // 6. La déclaration du printemps.
   items.push({
     key: "declaration",
     title: "Préparer la déclaration du printemps",

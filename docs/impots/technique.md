@@ -9,7 +9,7 @@ Route `/impots`, module `impots` (`packages/ui/src/shared/nav.ts`). Le module co
 | Couche | Fichier | Rôle |
 |---|---|---|
 | UI | `packages/ui/src/features/tax/pages/Impots.tsx` | Page : blocs 1 à 4 (`NextDeclaration`, `WithdrawalTable`, rendements nets, impôts de chaque année), détail dépliable d'un compte (`AccountTaxPanel`). |
-| UI | `packages/ui/src/features/tax/components/WithholdingDispenseCard.tsx` | Dispense de l'acompte sur les intérêts, une case par année (en cours, suivante, déjà cochées) ; enregistre `params.tax.withholdingDispenseYears` par `params.update`. Plafond affiché selon `profile.couple`. |
+| UI | `packages/ui/src/features/tax/components/WithholdingDispenseCard.tsx` | Dispense de l'acompte sur les intérêts, une case par année (en cours, suivante, déjà cochées) puis par établissement ; enregistre `params.tax.withholdingDispenses` par `params.update`. Plafond affiché selon `profile.couple`. |
 | UI | `packages/ui/src/features/tax/components/YearEndCard.tsx` | Liste de fin d'année, repliée en bas de la page (documentée dans [Compteurs et plafonds](../compteurs-et-plafonds/technique.md)). |
 | UI | `packages/ui/src/features/tax/index.ts` | Façade du domaine : exporte `Impots`, `Compteurs`, `Declaration`. |
 | UI | `packages/ui/src/shared/lib/portfolio.ts` | `usePortfolio` : `EngineData`, `computePortfolio` et `cryptoTax` calculés une fois par workspace et par jour. |
@@ -46,7 +46,7 @@ La page ne fait aucun appel propre : tout vient de `workspace.load`, calculé c�
 1. `gross` saisi : il prime, avec les retenues saisies. Statut `a_verifier` si brut − retenues ≠ montant reçu (tolérance 0,02 €), sauf si le montant reçu est le brut (crowdlending dont les impôts sont débités à part).
 2. Crowdlending : `crowdTaxOf(data, compte, année)` donne `withheld`, `incomeTax`, `social` et `rate` = leur somme ; brut = net / (1 − taux), acompte = brut × `incomeTax`, le reste en prélèvements sociaux. Année de dispense : `incomeTax` = 0.
 3. Établissement qui ne prélève pas (`institutionWithholds` faux) : le montant reçu est le brut.
-4. Sinon : `grossFromNet(net, effectiveWithholding(...))`, brut = net / (1 − acompte − prélèvements sociaux). Acompte = taux de l'établissement, sinon `pfuIncomeTax` ; 0 pour des intérêts (pas des dividendes) d'une année de `withholdingDispenseYears` (`withholdingDispensed`), quel que soit le taux de l'établissement. Prélèvements sociaux = taux de l'établissement, sinon `socialRateFor(année, "placement")`.
+4. Sinon : `grossFromNet(net, effectiveWithholding(...))`, brut = net / (1 − acompte − prélèvements sociaux). Acompte = taux de l'établissement, sinon `pfuIncomeTax` ; 0 pour des intérêts (pas des dividendes) d'une année et d'un établissement dispensés (`withholdingDispensed`), quel que soit le taux de l'établissement. Prélèvements sociaux = taux de l'établissement, sinon `socialRateFor(année, "placement")`.
 
 `accountWithholds` : sans établissement, on suppose une retenue, sauf pour le crowdlending et la crypto.
 
@@ -131,9 +131,10 @@ De min(`profile.startMonth`, première opération) à l'année en cours :
 
 ## Dispense de l'acompte sur les intérêts
 
-`PlanParams.tax.withholdingDispenseYears` : années de revenus pour lesquelles le foyer est dispensé du prélèvement forfaitaire non libératoire de 12,8 % sur les intérêts (CGI art. 125 A ; demande à l'établissement avant le 30 novembre de l'année précédente, si le revenu fiscal de référence de l'avant-dernière année est inférieur à 25 000 € pour une personne seule, 50 000 € pour un couple ; source : impots.gouv.fr, « Puis-je bénéficier d'une dispense du prélèvement forfaitaire non libératoire ? », vérifié le 2026-11-13). Les prélèvements sociaux restent retenus.
+`PlanParams.tax.withholdingDispenses` : une entrée `{ year, institutionIds }` par année de revenus pour laquelle le foyer a demandé la dispense du prélèvement forfaitaire non libératoire de 12,8 % sur les intérêts (CGI art. 125 A), avec les établissements qui ont reçu la demande ; `institutionIds: null` = tous (reprise des anciennes formes). La demande se fait auprès de chaque établissement avant le 30 novembre de l'année précédente, si le revenu fiscal de référence de l'avant-dernière année est inférieur à 25 000 € pour une personne seule, 50 000 € pour un couple (`DISPENSE_CEILING`, `packages/core/src/tax/withholdingDispense.ts` ; source : impots.gouv.fr, « Puis-je bénéficier d'une dispense du prélèvement forfaitaire non libératoire ? », vérifié le 2026-11-13). Les prélèvements sociaux restent retenus.
 
-- `withholdingDispensed(params, année)` (`packages/core/src/model/params.ts`).
-- Coupons et intérêts : `effectiveWithholding(…, income = "interets")` met l'acompte à 0 ; les dividendes (`income = "dividende"`) gardent le leur (dispense distincte, plafonds 50 000 / 75 000 €, non modélisée).
-- Crowdlending : `crowdTaxOf(data, compte, année)` et `crowdWithholding(brut, taux)` (déclaration mensuelle, import Bricks, `resolveIncome`).
-- Migration : l'ancienne case unique `tax.withholdingDispense` (sans année) devient, cochée, `[année en cours]` (`migrateDispense` dans `withDefaultParams`) ; décochée, `[]`.
+- `withholdingDispensed(params, année, institutionId)` (`packages/core/src/model/params.ts`) : faux sans établissement.
+- Coupons et intérêts : `effectiveWithholding(…, income = "interets", institutionId)` met l'acompte à 0 ; les dividendes (`income = "dividende"`) gardent le leur (dispense distincte, plafonds 50 000 / 75 000 €, non modélisée).
+- Crowdlending : `crowdTaxOf(data, compte, année)` (établissement du compte) et `crowdWithholding(brut, taux)` (déclaration mensuelle, import Bricks, `resolveIncome`).
+- Encadré de la page Impôts : années = en cours, suivante, déjà présentes ; établissements = ceux des comptes `cto` et `crowdlending` non archivés, plus ceux déjà cochés. Cocher une année crée `{ year, institutionIds: [] }` (avertissement tant qu'aucun établissement n'est coché) ; une entrée `null` devient une liste explicite à la première modification.
+- Migration (`migrateDispense` dans `withDefaultParams`) : l'ancienne case unique `tax.withholdingDispense`, cochée, devient `[{ year: année en cours, institutionIds: null }]` ; la liste d'années `withholdingDispenseYears` devient une entrée `null` par année.

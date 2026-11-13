@@ -830,16 +830,29 @@ describe("impôts", () => {
     expect(await screen.findByText("Bienvenue dans Hamac")).toBeTruthy();
   });
 
-  it("dispense de l'acompte : cochée année par année, l'année suivante avec sa date limite", async () => {
+  it("dispense de l'acompte : une année cochée, puis les établissements qui ont reçu la demande", async () => {
     const user = userEvent.setup();
-    await rpc("accounts.upsert", { kind: "cto", name: "CTO fictif" });
+    const courtier = await rpc<{ id: string }>("institutions.upsert", { name: "Courtier Fictif", kind: "courtier" });
+    const plateforme = await rpc<{ id: string }>("institutions.upsert", { name: "Plateforme Fictive", kind: "crowdlending" });
+    await rpc("accounts.upsert", { kind: "cto", name: "CTO fictif", institutionId: courtier.id });
+    await rpc("accounts.upsert", { kind: "crowdlending", name: "Crowd fictif", institutionId: plateforme.id });
     show(<Impots />);
-    const suivante = await screen.findByRole("checkbox", { name: `Dispensé pour ${year + 1} (demande avant le 30/11/${year})` });
-    expect(screen.getByRole("checkbox", { name: `Dispensé pour ${year}` })).toBeTruthy();
+    const libelle = `Dispensé pour ${year + 1} (demande avant le 30/11/${year})`;
+    expect(await screen.findByRole("checkbox", { name: `Dispensé pour ${year}` })).toBeTruthy();
     expect(screen.getByText(/inférieur à 25\s000 €/)).toBeTruthy();
-    await user.click(suivante);
-    await waitFor(async () => expect((await rpc<{ params: { tax: { withholdingDispenseYears: number[] } } }>("workspace.load")).params.tax.withholdingDispenseYears).toEqual([year + 1]));
-    await waitFor(() => expect((screen.getByRole("checkbox", { name: `Dispensé pour ${year + 1} (demande avant le 30/11/${year})` }) as HTMLInputElement).checked).toBe(true));
+    const dispenses = async () => (await rpc<{ params: { tax: { withholdingDispenses: unknown[] } } }>("workspace.load")).params.tax.withholdingDispenses;
+    // L'année cochée attend ses établissements.
+    await user.click(screen.getByRole("checkbox", { name: libelle }));
+    await waitFor(async () => expect(await dispenses()).toEqual([{ year: year + 1, institutionIds: [] }]));
+    expect(await screen.findByText(/sans eux, la dispense ne s'applique nulle part/)).toBeTruthy();
+    // Dispense demandée à la plateforme seulement.
+    const groupe = screen.getByRole("group", { name: `Établissements dispensés pour ${year + 1}` });
+    await user.click(within(groupe).getByRole("checkbox", { name: /Plateforme Fictive/ }));
+    await waitFor(async () => expect(await dispenses()).toEqual([{ year: year + 1, institutionIds: [plateforme.id] }]));
+    await waitFor(() => expect((within(groupe).getByRole("checkbox", { name: /Courtier Fictif/ }) as HTMLInputElement).checked).toBe(false));
+    // Décocher l'année retire la dispense.
+    await user.click(screen.getByRole("checkbox", { name: libelle }));
+    await waitFor(async () => expect(await dispenses()).toEqual([]));
   });
 
   it("rien à déclarer : un livret seul", async () => {

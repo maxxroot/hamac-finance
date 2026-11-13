@@ -35,12 +35,18 @@ export type IncomeNature = "interets" | "dividende";
 
 /**
  * Taux de retenue d'un établissement : le sien s'il en a un, sinon celui de Paramètres › Plan pour cette année.
- * Intérêts d'une année de dispense de l'acompte (CGI art. 125 A) : aucun acompte, quel que soit le taux habituel
+ * Intérêts d'une année et d'un établissement dispensés de l'acompte (CGI art. 125 A) : aucun acompte, quel que soit le taux habituel
  * de l'établissement. La dispense des dividendes est une demande distincte, non modélisée : leur acompte reste dû.
  */
-export function effectiveWithholding(tax: Pick<InstitutionTax, "withheldIncomeTax" | "withheldSocial">, incomeYear: number, params: PlanParams, income: IncomeNature = "interets"): { incomeTax: number; social: number } {
+export function effectiveWithholding(
+  tax: Pick<InstitutionTax, "withheldIncomeTax" | "withheldSocial">,
+  incomeYear: number,
+  params: PlanParams,
+  income: IncomeNature = "interets",
+  institutionId: string | null = null,
+): { incomeTax: number; social: number } {
   return {
-    incomeTax: income === "interets" && withholdingDispensed(params, incomeYear) ? 0 : (tax.withheldIncomeTax ?? params.tax.pfuIncomeTax),
+    incomeTax: income === "interets" && withholdingDispensed(params, incomeYear, institutionId) ? 0 : (tax.withheldIncomeTax ?? params.tax.pfuIncomeTax),
     social: tax.withheldSocial ?? socialRateFor(incomeYear, "placement", params),
   };
 }
@@ -48,7 +54,7 @@ export function effectiveWithholding(tax: Pick<InstitutionTax, "withheldIncomeTa
 /** Retenues d'un établissement sur les revenus d'une année : rien s'il ne prélève pas, sinon ses taux ou ceux du plan. */
 export function institutionWithholding(inst: Institution | null | undefined, incomeYear: number, params: PlanParams, income: IncomeNature = "interets"): { incomeTax: number; social: number } {
   if (inst && !institutionWithholds(inst)) return { incomeTax: 0, social: 0 };
-  return effectiveWithholding(inst?.tax ?? NO_INSTITUTION_TAX, incomeYear, params, income);
+  return effectiveWithholding(inst?.tax ?? NO_INSTITUTION_TAX, incomeYear, params, income, inst?.id ?? null);
 }
 
 /** L'établissement du compte prélève-t-il les impôts ? Sans établissement : oui, sauf crowdlending et crypto. */
@@ -77,7 +83,7 @@ export function resolveIncome(tx: Transaction, account: Pick<Account, "kind" | "
   const inst = data.institutions?.find((i) => i.id === account.institutionId);
   if (inst && !institutionWithholds(inst)) return { gross: tx.amount, incomeTax: 0, social: 0, foreign: 0, status: "calcule", note: "L'établissement ne prélève rien : le montant reçu est le brut, tout est à déclarer." };
   const tax = inst?.tax ?? NO_INSTITUTION_TAX;
-  const resolved = grossFromNet(tx.amount, effectiveWithholding(tax, +tx.date.slice(0, 4), data.params, tx.type === "dividende" ? "dividende" : "interets"));
+  const resolved = grossFromNet(tx.amount, effectiveWithholding(tax, +tx.date.slice(0, 4), data.params, tx.type === "dividende" ? "dividende" : "interets", inst?.id ?? null));
   if (tax.withheldIncomeTax != null && tax.withheldSocial != null) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des retenues réglées sur l'établissement." };
   if (tax.report) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des taux par défaut (Paramètres › Plan), ou de ceux de l'établissement s'il en a." };
   return { ...resolved, foreign: 0, status: "a_verifier", note: "Hypothèse d'une retenue aux taux par défaut, à contrôler avec l'IFU de l'établissement." };

@@ -64,11 +64,11 @@ Livrets et PEA n'y figurent pas : rien à déclarer tant qu'on ne retire pas.
 
 ### Dispense de l'acompte de 12,8 % sur les intérêts
 
-Sous le bloc 4, un encadré « Dispense de l'acompte de 12,8 % sur les intérêts », avec une case par année : l'année en cours, l'année suivante (avec la date limite de la demande) et toute année déjà cochée.
+Sous le bloc 4, un encadré « Dispense de l'acompte de 12,8 % sur les intérêts », avec une case par année : l'année en cours, l'année suivante (avec la date limite de la demande) et toute année déjà cochée. Une année cochée affiche vos établissements (ceux de vos comptes-titres et plateformes de crowdlending) : cochez ceux auprès desquels vous avez fait la demande.
 
-Sur les coupons d'obligations et les intérêts de crowdlending, l'établissement retient d'habitude un acompte d'impôt de 12,8 % (le prélèvement forfaitaire non libératoire), déduit l'année suivante de votre impôt. Si votre revenu fiscal de référence de l'avant-dernière année est inférieur à 25 000 € (personne seule) ou 50 000 € (couple marié ou pacsé), vous pouvez en être dispensé : il faut remettre une attestation à chaque établissement avant le 30 novembre, pour les intérêts de l'année suivante. La demande est à refaire chaque année.
+Sur les coupons d'obligations et les intérêts de crowdlending, l'établissement retient d'habitude un acompte d'impôt de 12,8 % (le prélèvement forfaitaire non libératoire), déduit l'année suivante de votre impôt. Si votre revenu fiscal de référence de l'avant-dernière année est inférieur à 25 000 € (personne seule) ou 50 000 € (couple marié ou pacsé), vous pouvez en être dispensé : il faut remettre une attestation à chaque établissement avant le 30 novembre, pour les intérêts de l'année suivante. La demande est à refaire chaque année, et elle ne vaut que pour l'établissement qui l'a reçue : vous pouvez être dispensé chez une plateforme de crowdlending et pas chez votre courtier.
 
-Cochez les années pour lesquelles vous avez fait la demande. Pour ces années, Hamac ne compte plus d'acompte sur les intérêts : seuls les prélèvements sociaux sont retenus, et l'impôt sur le revenu est à payer à la déclaration. Les dividendes ne sont pas concernés : leur dispense est une demande distincte.
+Cochez l'année, puis les établissements concernés. Pour cette année et ces établissements, Hamac ne compte plus d'acompte sur les intérêts : seuls les prélèvements sociaux sont retenus, et l'impôt sur le revenu est à payer à la déclaration. Les dividendes ne sont pas concernés : leur dispense est une demande distincte.
 
 ### Liste de fin d'année
 
@@ -82,7 +82,7 @@ En bas de page, une ligne repliée : « Liste de fin d'année », avec le nombre
 3. Si un compte est faux, ouvrez son détail dans le bloc 2 et regardez le tableau année par année.
 
 **Obtenir des chiffres justes**
-1. Dans Paramètres › Plan › Fiscalité, réglez votre tranche (TMI). Si vous avez demandé la dispense de l'acompte sur les intérêts, cochez l'année concernée dans l'encadré de la page Impôts.
+1. Dans Paramètres › Plan › Fiscalité, réglez votre tranche (TMI). Si vous avez demandé la dispense de l'acompte sur les intérêts, cochez l'année et les établissements concernés dans l'encadré de la page Impôts.
 2. Dans Paramètres › Plan, indiquez si vous êtes en couple : l'abattement de l'assurance-vie en dépend.
 3. Sur chaque compte, renseignez la date d'ouverture. Sans elle, une assurance-vie est traitée comme ayant moins de 8 ans, un PEA comme ayant moins de 5 ans.
 4. Sur chaque établissement (Paramètres › Établissements), dites s'il prélève les impôts sur les intérêts et dividendes, et ses taux s'ils diffèrent des taux par défaut.

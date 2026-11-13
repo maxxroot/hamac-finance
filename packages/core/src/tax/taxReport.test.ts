@@ -275,19 +275,23 @@ describe("contrôles de cohérence", () => {
 describe("dispense de l'acompte de 12,8 % (CGI art. 125 A)", () => {
   const dispensed = (over: Partial<EngineData>) => {
     const d = data(over);
-    d.params.tax = { ...d.params.tax, withholdingDispenseYears: [2025] };
+    d.params.tax = { ...d.params.tax, withholdingDispenses: [{ year: 2025, institutionIds: ["e", "pl"] }] };
     return d;
   };
   const cto = acc("c", "cto", "e");
   const plateforme = acc("p", "crowdlending", "pl");
   const crowd = etab("pl", { withholds: true }, { crowdlending: { taxWithheld: true, taxRate: null } });
 
-  it("coupons d'une année dispensée : pas d'acompte, même si l'établissement en retient d'habitude ; les dividendes gardent le leur", () => {
+  it("coupons d'une année et d'un établissement dispensés : pas d'acompte, même si l'établissement en retient d'habitude ; les dividendes gardent le leur", () => {
     const d = dispensed({ institutions: [etab("e", { report: true, withheldIncomeTax: 0.128, withheldSocial: 0.172 })] });
     // 82,80 € nets = 100 € bruts − 17,20 € de prélèvements sociaux, sans acompte.
     expect(resolveIncome(tx("2025-03-01", "interets", "c", 82.8), cto, d)).toMatchObject({ gross: 100, incomeTax: 0, social: 17.2 });
     expect(resolveIncome(tx("2026-03-01", "interets", "c", 70), cto, d)).toMatchObject({ gross: 100, incomeTax: 12.8 });
     expect(resolveIncome(tx("2025-03-01", "dividende", "c", 70), cto, d)).toMatchObject({ gross: 100, incomeTax: 12.8 });
+    // Un autre établissement, sans dispense demandée, retient l'acompte.
+    const autre = acc("c2", "cto", "e2");
+    const d2 = dispensed({ institutions: [etab("e", { report: true }), etab("e2", { report: true, withheldIncomeTax: 0.128, withheldSocial: 0.172 })] });
+    expect(resolveIncome(tx("2025-03-01", "interets", "c2", 70), autre, d2)).toMatchObject({ gross: 100, incomeTax: 12.8 });
   });
 
   it("crowdlending d'une année dispensée : prélèvements sociaux seuls retenus, impôt sur le revenu dû à la déclaration", () => {

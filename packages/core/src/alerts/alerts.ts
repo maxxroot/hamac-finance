@@ -3,7 +3,7 @@ import { proposeContributions } from "../planning";
 import { addDays, addMonths, daysBetween, formatEur, monthsBetween } from "../base";
 import { currentLease, dpeExpiry, dpeFreezesRent, dpeRentalBan, LEASE_GUARANTEE_LABELS, leaseArrears, leaseRevisionDue, leaseState, lotIsActive, NOTICE_LEVEL_LABELS, noticeStep, rentIsLate, rentMonths, sortLots } from "../realestate";
 import { advisedMonthlyPurchase, monthsElapsed, reconcile, type EngineData, type PortfolioState } from "../portfolio";
-import { yearEndChecklist, yearEndSeason } from "../tax";
+import { dispenseOutlook, DISPENSE_DEADLINE, yearEndChecklist, yearEndSeason } from "../tax";
 import { concentrationReport, MAX_EFFORT_RATE } from "../analysis";
 
 /** Niveaux réservés : toujours affichés avec une icône et un libellé, jamais par la couleur seule. */
@@ -166,6 +166,19 @@ export function computeAlerts(
   if (yearEndSeason(today)) {
     const chiffres = yearEndChecklist(data, state).filter((x) => x.saving != null && x.saving > 0);
     if (chiffres.length) out.push({ id: "fin-annee", level: "info", title: `Liste de fin d'année : ${chiffres.length} geste${chiffres.length > 1 ? "s" : ""} avant le 31 décembre`, detail: chiffres.map((x) => x.title).join(" · "), link: "/impots" });
+  }
+
+  // Novembre : dispense de l'acompte sur les intérêts de l'année suivante, à demander avant le 30.
+  if (today.slice(5, 7) === "11" && today.slice(5) <= DISPENSE_DEADLINE) {
+    const d = dispenseOutlook(data, state);
+    if (d.interest > 0)
+      out.push({
+        id: `dispense-${d.year}`,
+        level: "attention",
+        title: `Dispense de l'acompte de 12,8 % pour ${d.year} : à demander avant le 30 novembre`,
+        detail: `Si votre revenu fiscal de référence est inférieur à ${eur(d.ceiling)} : environ ${eur(d.advance)} d'acompte en moins sur un an. Puis cochez ${d.year} et les établissements concernés dans la page Impôts.`,
+        link: "/impots",
+      });
   }
 
   // Concentration : un titre, un émetteur ou une plateforme qui pèse trop lourd.

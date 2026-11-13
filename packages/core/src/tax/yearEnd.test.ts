@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeAlerts } from "../alerts";
-import { defaultParams, type Account, type Asset, type Transaction } from "../model";
+import { defaultParams, type Account, type Asset, type Institution, type Transaction } from "../model";
 import { computePortfolio, type EngineData } from "../portfolio";
 import { yearEndChecklist, yearEndSeason } from "./yearEnd";
 
@@ -66,5 +66,35 @@ describe("liste de fin d'année", () => {
     expect(yearEndSeason("2026-10-31")).toBe(false);
     expect(computeAlerts(d, computePortfolio(d, "2026-10-15")).some((a) => a.id === "fin-annee")).toBe(false);
     expect(computeAlerts(d, computePortfolio(d, "2026-11-20")).find((a) => a.id === "fin-annee")?.title).toBe("Liste de fin d'année : 3 gestes avant le 31 décembre");
+  });
+});
+
+describe("rappel : dispense de l'acompte avant le 30 novembre", () => {
+  // Plateforme de crowdlending qui prélève : 400 € d'intérêts bruts sur les 12 derniers mois.
+  const plateforme: Institution = { id: "pl", name: "Plateforme Fictive", kind: "crowdlending", website: "", score: null, comment: "", offers: { crowdlending: { taxWithheld: true, taxRate: null } }, tax: { report: false, withholds: true, withheldIncomeTax: null, withheldSocial: null }, protection: { guarantor: "", country: "france" } } as Institution;
+  function withCrowd(): EngineData {
+    const d = data();
+    d.accounts = [...d.accounts, acc("crowd", "crowdlending", { institutionId: "pl" })];
+    d.institutions = [plateforme];
+    d.transactions = [...d.transactions, tx("2026-01-05", "versement", "crowd", 10_000), tx("2026-03-31", "interets", "crowd", 200, { gross: 200 }), tx("2026-09-30", "interets", "crowd", 200, { gross: 200 }), tx("2025-06-30", "interets", "crowd", 999, { gross: 999 })];
+    return d;
+  }
+
+  it("liste les établissements pas encore cochés pour l'année suivante, avec l'acompte évité", () => {
+    const d = withCrowd();
+    const item = yearEndChecklist(d, computePortfolio(d, "2026-11-20")).find((i) => i.key === "dispense_acompte")!;
+    expect(item.title).toBe("Demander la dispense de l'acompte pour 2027 avant le 30/11/2026");
+    // 12,8 % de 400 € (l'intérêt de 2025 a plus de 12 mois).
+    expect(item.lines).toEqual([{ label: "Plateforme Fictive", amount: 51.2, hint: "acompte évité sur un an (12,8 % de 400 € d'intérêts)" }]);
+    expect(computeAlerts(d, computePortfolio(d, "2026-11-20")).find((a) => a.id === "dispense-2027")?.title).toBe("Dispense de l'acompte de 12,8 % pour 2027 : à demander avant le 30 novembre");
+  });
+
+  it("disparaît une fois l'établissement coché, et après le 30 novembre", () => {
+    const d = withCrowd();
+    expect(yearEndChecklist(d, computePortfolio(d, "2026-12-01")).some((i) => i.key === "dispense_acompte")).toBe(false);
+    expect(computeAlerts(d, computePortfolio(d, "2026-12-01")).some((a) => a.id === "dispense-2027")).toBe(false);
+    d.params.tax.withholdingDispenses = [{ year: 2027, institutionIds: ["pl"] }];
+    expect(yearEndChecklist(d, computePortfolio(d, "2026-11-20")).some((i) => i.key === "dispense_acompte")).toBe(false);
+    expect(computeAlerts(d, computePortfolio(d, "2026-11-20")).some((a) => a.id === "dispense-2027")).toBe(false);
   });
 });

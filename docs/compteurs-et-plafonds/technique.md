@@ -15,7 +15,8 @@ Route `/compteurs`, module `impots` (`packages/ui/src/shared/nav.ts`). Pas de di
 | Core | `packages/core/src/tax/yearEnd.ts` | `yearEndChecklist`, `yearEndSeason`, `YEAR_END_KEYS`. |
 | Core | `packages/core/src/model/domain.ts` | `LIVRET_LEGAL_CEILINGS`. |
 | Core | `packages/core/src/portfolio/securitiesGains.ts` | Plus-values imposables de l'année (geste « moins-values »). |
-| Core | `packages/core/src/alerts/alerts.ts` | Alerte « Liste de fin d'année » (id `fin-annee`, lien `/impots`) en novembre et décembre. |
+| Core | `packages/core/src/alerts/alerts.ts` | Alerte « Liste de fin d'année » (id `fin-annee`, lien `/impots`) en novembre et décembre ; alerte `dispense-<année>` du 1er au 30 novembre. |
+| Core | `packages/core/src/tax/withholdingDispense.ts` | `dispenseOutlook` (intérêts soumis à l'acompte et acompte évité, par établissement), `DISPENSE_CEILING`, `DISPENSE_DEADLINE`, `dispenseReminderSeason`. |
 | API | `packages/api/src/planning/inputs.ts` | `GiftInput`. |
 | API | `packages/api/src/planning/procedures.ts` | `gifts.upsert`, `gifts.delete`. |
 | API | `packages/api/src/system/procedures.ts` | `SettingKey` (dont `taxes.yearEnd`), `settings.get`, `settings.set`, champ `gifts` du `Workspace`. |
@@ -73,15 +74,16 @@ Comptes non archivés `pea`, `pea_pme` (5 ans) et `assurance_vie` (8 ans). `date
 
 ### Liste de fin d'année (`yearEndChecklist`)
 
-Clés `YEAR_END_KEYS` : `moins_values`, `assurance_vie`, `per`, `plafonds`, `declaration`.
+Clés `YEAR_END_KEYS` : `moins_values`, `assurance_vie`, `per`, `plafonds`, `dispense_acompte`, `declaration`.
 
 1. `moins_values` : si `securitiesGains(state.disposals, accounts, année)` donne un `taxableGain > 0` et qu'une position de compte-titres non archivé a un gain négatif. `usable = min(taxableGain, somme des pertes)`, `saving = usable × (incomeTaxRate + socialGeneral)`. Lien `/actions`.
 2. `assurance_vie` : si `allowanceLeft > 0` et un contrat non archivé de 8 ans, de valeur positive, avec une part de gain `1 − versé net / valeur > 0`. `saving = allowanceLeft × min(tmi, avAfter8)`. Retrait proposé par contrat = `min(valeur, allowanceLeft / part)`. Lien `/compteurs`.
 3. `per` : si le compteur `per` a un `remaining > 0`. `saving = remaining × tmi`. Lien `/compteurs`.
 4. `plafonds` : autres compteurs avec `remaining > 0`, sans économie chiffrée. Lien `/compteurs`.
-5. `declaration` : toujours présent, lien `/declaration`.
+5. `dispense_acompte` : de septembre au 30 novembre (`dispenseReminderSeason`), si `dispenseOutlook` trouve des intérêts soumis à l'acompte chez des établissements pas encore cochés pour l'année suivante. Intérêts par établissement : coupons annuels des obligations détenues (comptes hors assurance-vie et PER, établissement qui prélève) + intérêts de crowdlending reçus sur 12 mois (`gross`, sinon le montant) ; une ligne par établissement, acompte évité = intérêts × `pfuIncomeTax`. Sans `saving` : c'est une avance, pas une économie. Lien `/impots` (`packages/core/src/tax/withholdingDispense.ts`).
+6. `declaration` : toujours présent, lien `/declaration`.
 
-`yearEndSeason(asOf)` est vrai à partir de novembre (mois ≥ 11). L'alerte du tableau de bord ne retient que les gestes avec `saving > 0`.
+`yearEndSeason(asOf)` est vrai à partir de novembre (mois ≥ 11). L'alerte du tableau de bord ne retient que les gestes avec `saving > 0`. Une alerte à part, `dispense-<année>` (niveau « attention », lien `/impots`), signale du 1er au 30 novembre la dispense de l'acompte à demander pour l'année suivante, dans les mêmes conditions que `dispense_acompte`.
 
 ## Tests
 

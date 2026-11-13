@@ -14,6 +14,7 @@ import {
   PROTECTION_COUNTRIES,
   PROTECTION_COUNTRY_LABELS,
   orderFee,
+  withholdingDispensed,
   type AvOffer,
   type BrokerOffer,
   type CryptoOffer,
@@ -75,8 +76,8 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
   }, [open, institution]);
 
   const planTax = idx?.ws.params.tax;
-  // Taux par défaut de l'année en cours : 0 si le foyer est dispensé de l'acompte cette année.
-  const defaultIncomeTax = planTax?.withholdingDispenseYears.includes(new Date().getFullYear()) ? 0 : (planTax?.pfuIncomeTax ?? 0);
+  // Taux par défaut de l'année en cours : 0 si l'établissement est dispensé de l'acompte cette année.
+  const defaultIncomeTax = idx && withholdingDispensed(idx.ws.params, new Date().getFullYear(), institution?.id) ? 0 : (planTax?.pfuIncomeTax ?? 0);
   const defaultSocial = planTax?.socialGeneral ?? 0;
   const linked = institution ? (idx?.ws.accounts.filter((a) => a.institutionId === institution.id) ?? []) : [];
   const setOffer = <K extends keyof Offers>(k: K, v: Offers[K] | undefined) =>

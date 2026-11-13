@@ -70,7 +70,8 @@ Les gestes possibles :
 2. **Utiliser l'abattement de l'assurance-vie**, s'il en reste et qu'un contrat a plus de 8 ans et du gain.
 3. **Verser sur le PER avant le 31 décembre**, s'il reste du plafond de déduction.
 4. **Vérifier les plafonds disponibles** (PEA, livrets réglementés), s'il en reste.
-5. **Préparer la déclaration du printemps**, toujours présent.
+5. **Demander la dispense de l'acompte pour l'année suivante avant le 30 novembre**, de septembre au 30 novembre, si un de vos établissements retient l'acompte de 12,8 % sur des intérêts (coupons d'obligations, crowdlending) et n'est pas encore coché pour l'année suivante dans la page Impôts. En novembre, une alerte du tableau de bord le rappelle aussi.
+6. **Préparer la déclaration du printemps**, toujours présent.
 
 ## Comment faire
 
@@ -132,6 +133,7 @@ Le **don familial de sommes d'argent** ajoute 31 865 € pour un enfant, un peti
 - **Moins-values** : la perte utilisable est la plus petite entre vos plus-values imposables de l'année et le total de vos pertes latentes. Économie = perte utilisable × (taux d'impôt + prélèvements sociaux). Le taux d'impôt est le plus bas entre votre tranche et 12,8 %. Racheter aussitôt le même titre pour la seule économie d'impôt peut être contesté (abus de droit).
 - **Assurance-vie** : économie = abattement restant × le plus bas entre votre tranche et 7,5 %. Pour chaque contrat éligible, Hamac donne le retrait qui fait sortir ce gain : abattement restant / part de gain du contrat. Exemple fictif : 4 600 € d'abattement, un contrat dont 40 % de la valeur est du gain : un retrait de 11 500 €. On peut ensuite reverser la somme. Les prélèvements sociaux restent dus sur les gains des unités de compte.
 - **PER** : économie = plafond restant × votre tranche. Avec une tranche à 0 %, rien n'est économisé. L'argent reste bloqué jusqu'à la retraite et la sortie sera imposée.
+- **Dispense de l'acompte** : pour chaque établissement, l'acompte évité sur un an, soit 12,8 % des coupons annuels de vos obligations et des intérêts de crowdlending reçus ces 12 derniers mois. Ce n'est pas un impôt en moins mais une avance en moins : l'impôt reste dû à la déclaration. La condition (revenu fiscal de référence sous 25 000 € seul, 50 000 € en couple) n'est pas vérifiée par Hamac, qui ne connaît pas ce revenu.
 - **Plafonds** et **déclaration** : pas de chiffre. La déclaration rappelle de choisir entre le prélèvement forfaitaire et le barème (une option pour tous les revenus de l'année) et de contrôler chaque document fiscal avec l'[aide à la déclaration](../aide-a-la-declaration/guide.md).
 
 ## Limites
