@@ -21,7 +21,7 @@ function Total({ value, tone }: { value: number; tone: CashflowTone }) {
   );
 }
 
-/** Cashflow du bien, avant impôt : le réel des 12 derniers mois en avant, le prévu à côté, poste par poste. */
+/** Cashflow du bien, impôt estimé compris : le réel des 12 derniers mois en avant, le prévu à côté, poste par poste. */
 export function CashflowCard({ cashflow: c, property, rental }: { cashflow: PropertyCashflow; property: Property; rental: PlanParams["rental"] }) {
   const [editing, setEditing] = useState(false);
   const { real, planned } = c;
@@ -37,7 +37,7 @@ export function CashflowCard({ cashflow: c, property, rental }: { cashflow: Prop
       >
         Cashflow
       </CardTitle>
-      <p className="mb-4 text-sm text-fg-muted">Ce que le bien vous laisse, ou vous coûte, chaque mois : loyers moins charges et crédit, avant impôt, pour votre part.</p>
+      <p className="mb-4 text-sm text-fg-muted">Ce que le bien vous laisse, ou vous coûte, chaque mois : loyers moins charges, crédit et impôt estimé sur les loyers, pour votre part.</p>
       <div className="mb-5 grid gap-4 @3xl:grid-cols-2">
         <Stat hero label="Réel, par mois" sub={real ? `Moyenne de ${real.months} mois, de ${formatMonth(real.from)} à ${formatMonth(real.to)}` : "Pas encore de mois complet loué."}>
           {real ? <Total value={real.total} tone={real.tone} /> : "—"}
@@ -59,6 +59,7 @@ export function CashflowCard({ cashflow: c, property, rental }: { cashflow: Prop
             <Tr key={l.key}>
               <Td>
                 {CASHFLOW_LABELS[l.key]}
+                {l.key === "taxes" && c.taxYear != null && <span className="ml-2 text-xs text-fg-faint">sur {c.taxYear}</span>}
                 {l.key === "taxe_fonciere" && planned.propertyTaxEstimated && (
                   <span className="ml-2">
                     <Badge>Estimée</Badge>

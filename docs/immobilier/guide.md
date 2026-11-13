@@ -65,6 +65,14 @@ La carte *Coût de revient* ajoute au prix d'achat ce que coûte le crédit :
 - les intérêts et l'assurance qui restent à payer : le *coût total, crédit remboursé* ;
 - les rendements d'une année type, d'après le cashflow prévu et sans le crédit : *brut* (les loyers) et *net de charges et provisions*, sur le prix d'achat et sur le coût total.
 
+La carte *Impôts sur les loyers* estime, année par année, l'impôt sur le revenu et les prélèvements sociaux dus sur les loyers du bien :
+
+- le régime vient de Paramètres › Plan › Biens en location. Il vaut pour tout le foyer : un pour la location vide (micro-foncier ou réel), un pour la location meublée (micro-BIC ou réel). Un bien est en location meublée si son mode de location est « Location meublée », ou si son dernier bail est meublé, étudiant ou mobilité ;
+- pour chaque année : recettes, abattement (au micro) ou charges déductibles (au réel), amortissement (meublé au réel), impôt estimé. Un impôt négatif veut dire qu'un déficit fait baisser votre impôt ;
+- pour la dernière année complète, ce que vous paieriez pour ce bien sous chaque régime, et lequel en coûte le moins. Un régime dont le plafond est dépassé est marqué impossible.
+
+Cet impôt compte aussi ailleurs : divisé par 12 dans le cashflow, en total dans le bilan, et dans un rendement « net après impôt » du coût de revient.
+
 Le bouton *Hypothèses* de la carte Cashflow règle, pour ce bien, les provisions du prévu : vacance locative et travaux, en pourcentage du loyer ou en montant par an. Sans réglage propre, le bien prend ceux de Paramètres › Plan › Biens en location (4 % pour la vacance, 5 % pour les travaux).
 
 L'onglet **Finances** contient, dans l'ordre :
@@ -165,6 +173,15 @@ Le bien sort du patrimoine à la date de vente, et son bilan reste dans l'onglet
 
 **Coût de revient.** Un bien de 140 000 € frais compris, acheté avec 120 000 € empruntés à 3 % sur 20 ans, coûte en plus environ 40 000 € d'intérêts sur la durée du prêt, hors assurance. Avec 9 600 € de loyers par an, le rendement brut est de 6,86 % sur l'achat, mais d'environ 5,3 % sur le coût total.
 
+**Impôts sur les loyers.** Calculés à votre tranche marginale d'imposition (Paramètres › Plan › Fiscalité), sur l'année civile.
+
+- *Micro-foncier* : 30 % d'abattement sur les loyers hors charges, si les loyers de toute votre location vide ne dépassent pas 15 000 € par an. Exemple : 9 600 € de loyers, 6 720 € imposables, 3 171,84 € d'impôt à 30 % plus 17,2 % de prélèvements sociaux.
+- *Réel foncier* : loyers moins intérêts et assurance de l'emprunt, taxe foncière (hors ordures ménagères), copropriété à votre charge, assurance, gestion, travaux d'entretien, et 20 € de frais de gestion par logement. Un déficit dû aux charges autres que les intérêts baisse votre revenu imposable jusqu'à 10 700 € par an ; le reste se reporte sur vos revenus fonciers des 10 années suivantes.
+- *Micro-BIC* (meublé) : 50 % d'abattement sur les loyers et charges, jusqu'à 77 700 € de recettes en 2025 et 83 600 € à partir de 2026 ; prélèvements sociaux de 18,6 %.
+- *Réel* (meublé) : loyers et charges moins toutes les dépenses, le crédit et les frais comptables, puis l'amortissement. Le bâti (prix et frais, hors terrain) s'amortit par composant : gros œuvre 50 % sur 50 ans, toiture et façades 15 % sur 25 ans, installations 20 % sur 20 ans, agencements 15 % sur 12 ans ; les travaux d'amélioration sur 10 ans. L'amortissement ne peut pas créer de déficit : ce qui dépasse se reporte.
+
+Quand plusieurs biens partagent un régime, l'impôt du groupe est réparti entre eux selon le résultat de chacun.
+
 **Régularisation à prévoir.** Si les provisions de charges du bail ne correspondent pas aux charges récupérables prévues, la carte indique l'écart sur un an, à rendre au locataire ou à lui demander.
 
 Le cashflow est avant impôt, pour votre part du bien et votre part du crédit.
@@ -215,7 +232,8 @@ Une année incomplète (mise en location en cours d'année, année en cours) est
 
 - La valeur du bien est celle que vous saisissez : Hamac ne l'estime pas.
 - Les frais de notaire sont une estimation : le taux réel dépend du département, un primo-accédant peut échapper à la hausse de 2025, la TVA retenue est celle de métropole, et les formalités sont un forfait.
-- Aucun impôt n'est calculé : ni plus-value à la vente, ni revenus fonciers ou location meublée. Les gains, rendements et le cashflow sont avant impôt.
+- Aucun impôt n'est calculé sur la plus-value à la vente. Les impôts sur les loyers sont estimés dans l'onglet Rentabilité.
+- Les impôts sur les loyers sont une estimation : à votre tranche marginale, sans la CSG déductible, avec le régime d'aujourd'hui appliqué à toutes les années. Ne sont pas pris en compte : le plafond majoré du déficit foncier (rénovation énergétique), les meublés de tourisme, le statut de loueur professionnel, une SCI à l'impôt sur les sociétés, les dispositifs de défiscalisation (Pinel, Denormandie…), le mobilier d'un meublé (sauf à le saisir en travaux d'amélioration).
 - Le cashflow prévu suppose une régularisation exacte des charges, et des loyers qui ne changent pas : il ne tient pas compte de la révision annuelle à venir.
 - La vente n'écrit rien dans le Journal : le versement du prix se note à part.
 - Un bien archivé sans vente disparaît aussi des dates passées dans l'Historique. Pour qu'il y reste jusqu'à sa sortie, enregistrez une vente.

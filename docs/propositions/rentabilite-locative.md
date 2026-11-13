@@ -93,6 +93,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 ## Tranche 4. Impôts sur les loyers
 
+**Statut :** faite le 13 novembre 2026. Décisions prises en codant : régime par groupe du foyer (vide, meublé), réglé dans Paramètres ; un bien est meublé si son mode l'est ou si son dernier bail est meublé, étudiant ou mobilité ; impôt à la tranche marginale, sur l'année civile, régime d'aujourd'hui pour toutes les années ; assurance de l'emprunt traitée comme les intérêts dans le déficit foncier (prudent, à vérifier) ; régularisations de charges hors des recettes foncières ; composants d'amortissement proposés (gros œuvre 50 %/50 ans, toiture et façades 15 %/25 ans, installations 20 %/20 ans, agencements 15 %/12 ans, améliorations 10 ans) et terrain à 15 %, réglable ; l'impôt d'un groupe est réparti entre ses biens au prorata de leur résultat ; l'impôt de la dernière année complète, divisé par 12, entre dans le cashflow. Non faits : déficit majoré pour rénovation énergétique, meublés de tourisme, LMP, SCI à l'IS, dispositifs de défiscalisation, mobilier distinct, repères pour la déclaration (à relier au Récapitulatif fiscal plus tard).
+
 **Pourquoi.** Le cashflow qui compte est celui qui reste après impôt, et le régime change beaucoup le résultat.
 
 **Ce qu'on ajoute.**
@@ -130,8 +132,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 1. ~~Provisions par défaut~~ : 4 % pour la vacance, 5 % pour les travaux (décidé le 13 novembre 2026).
 2. ~~Seuil du cashflow « neutre »~~ : ±2 % du loyer hors charges (décidé le 13 novembre 2026).
-3. **Régime fiscal du foyer** : confirmer qu'il se règle une fois pour la location vide et une fois pour la location meublée (c'est la règle fiscale), et non bien par bien.
-4. **Composants et durées d'amortissement** du LMNP au réel : valeurs proposées à valider à la tranche 4.
+3. ~~Régime fiscal du foyer~~ : un pour la location vide, un pour la location meublée, comme la règle fiscale (appliqué le 13 novembre 2026, à confirmer par l'utilisateur).
+4. **Composants et durées d'amortissement** du LMNP au réel : valeurs proposées en tranche 4, à valider par l'utilisateur.
 
 ## Ordre proposé
 

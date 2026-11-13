@@ -7,7 +7,8 @@ import { realCashflow, type RealCashflow } from "./_real";
 import { CASHFLOW_KEYS, type Amounts, type CashflowKey } from "./_shared";
 
 /**
- * Cashflow d'un bien en location, avant impôt : réel (12 derniers mois complets) et prévu (mois type d'aujourd'hui).
+ * Cashflow d'un bien en location : réel (12 derniers mois complets) et prévu (mois type d'aujourd'hui). L'impôt sur les
+ * loyers, calculé plus haut (domaine tax), arrive en paramètre : celui de l'année de référence, divisé par 12.
  * Règles de calcul de l'utilisateur, pas de source légale : taxe foncière estimée à 1,3 mois de loyer hors charges
  * tant que l'avis n'est pas saisi ; provisions de 4 % du loyer pour la vacance et 5 % pour les travaux ; neutre
  * à ±2 % du loyer. Toutes réglables (Paramètres › Plan › Biens en location, et bien par bien pour les provisions).
@@ -35,6 +36,8 @@ export interface PropertyCashflow {
   /** Écart à zéro en dessous duquel le cashflow est neutre, par mois, à la part détenue. */
   neutralBand: number;
   assumptions: CashflowAssumptions;
+  /** Année de l'impôt retenu (dernière année complète, sinon la dernière connue) ; null sans impôt passé. */
+  taxYear: number | null;
 }
 
 /** Provisions et taxe estimée d'un bien : les siennes, sinon celles des réglages. */
@@ -50,10 +53,14 @@ export const cashflowTone = (monthly: number, band: number): CashflowTone => (mo
 
 const sum = (a: Amounts) => roundCents(CASHFLOW_KEYS.reduce((s, k) => s + a[k], 0));
 
-export function propertyCashflow(data: RentalData, rental: PlanParams["rental"], today: string): PropertyCashflow {
+/** `tax` : impôt annuel estimé du bien (négatif quand un déficit le fait baisser), et son année. */
+export function propertyCashflow(data: RentalData, rental: PlanParams["rental"], today: string, tax: { year: number; yearly: number } | null = null): PropertyCashflow {
   const assumptions = cashflowAssumptions(data.property, rental);
   const planned = plannedCashflow(data, assumptions, today);
   const real = realCashflow(data, today);
+  const monthlyTax = tax ? -roundCents(tax.yearly / 12) || 0 : 0;
+  planned.monthly.taxes = monthlyTax;
+  if (real) real.monthly.taxes = monthlyTax;
   const neutralBand = roundCents(planned.rent * data.property.share * rental.neutralBand);
   const plannedTotal = sum(planned.monthly);
   const realTotal = real ? sum(real.monthly) : 0;
@@ -66,5 +73,6 @@ export function propertyCashflow(data: RentalData, rental: PlanParams["rental"],
     lines,
     neutralBand,
     assumptions,
+    taxYear: tax?.year ?? null,
   };
 }

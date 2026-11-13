@@ -112,6 +112,13 @@ export const PlanParams = z
       neutralBand: pct,
       /** Taxe foncière estimée en mois de loyer hors charges, tant que l'avis n'est pas saisi. */
       propertyTaxMonths: z.number().min(0).max(12),
+      /** Régime fiscal du foyer : un pour toute la location vide, un pour toute la location meublée (LMNP). */
+      unfurnishedRegime: z.enum(["micro", "reel"]),
+      furnishedRegime: z.enum(["micro", "reel"]),
+      /** Location meublée au réel : frais de comptabilité et d'organisme de gestion agréé, par an, pour le foyer. */
+      accountingFees: eur,
+      /** Location meublée au réel : part du prix qui revient au terrain, non amortissable. */
+      landShare: pct,
     }),
     /** Pages affichées dans le menu. Masquer un module ne change aucun calcul. */
     modules: z.object(Object.fromEntries(MODULES.map((m) => [m, z.boolean()])) as Record<ModuleKey, z.ZodBoolean>),
@@ -209,7 +216,7 @@ export function defaultParams(today = new Date()): PlanParams {
       peaBefore5: 0.128,
       perDeductionCeiling: 0,
     },
-    rental: { coproRecoverable: 2 / 3, vacancyRate: 0.04, worksRate: 0.05, neutralBand: 0.02, propertyTaxMonths: 1.3 },
+    rental: { coproRecoverable: 2 / 3, vacancyRate: 0.04, worksRate: 0.05, neutralBand: 0.02, propertyTaxMonths: 1.3, unfurnishedRegime: "micro", furnishedRegime: "micro", accountingFees: 0, landShare: 0.15 },
     modules: Object.fromEntries(MODULES.map((m) => [m, true])) as Record<ModuleKey, boolean>,
     contributions: { mode: "libre", capacity: 0 },
     customAllocations: [],

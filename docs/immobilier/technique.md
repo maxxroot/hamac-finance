@@ -28,11 +28,15 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | ui | `packages/ui/src/features/realestate/pages/Immobilier.tsx` | Page `/immobilier`. |
 | ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Page d'un bien : chiffres, onglets Location et Finances. Chaque onglet range ses cartes en deux colonnes indépendantes (`CardColumns`) : Finances met l'achat et les crédits à gauche, la valeur, les dépenses et les recettes à droite, puis les résultats par année sur toute la largeur. |
 | core | `packages/core/src/realestate/balance.ts` | Bilan depuis l'achat (`propertyBalance`) : apport, échéances, dépenses, impôts, rentré, effort net, enrichissement. |
+| core | `packages/core/src/tax/rental/` | Impôt sur les loyers du foyer (`rentalTaxes`, `propertyTaxReference`, `propertyTaxTotal`, `index.ts`) : règles et sources (`_rules.ts`), vide ou meublé (`_kind.ts`, `rentalTaxKind`), calcul d'une année par groupe (`_foyer.ts`), amortissement d'un meublé (`_amortization.ts`). |
+| ui | `packages/ui/src/features/realestate/components/TaxCard.tsx` | Carte « Impôts sur les loyers » : années, comparaison des régimes. |
+| ui | `packages/ui/src/features/realestate/lib/rentalData.ts` | `rentalDataOf`, `allRentalData` : données de location d'un bien et de tous les biens loués du foyer. |
+| ui | `packages/ui/src/features/settings/pages/Parametres/RentalSection.tsx` | Paramètres › Plan › Biens en location. |
 | core | `packages/core/src/realestate/fullCost.ts` | Coût de revient (`propertyFullCost`) : achat, améliorations, coût du crédit payé et restant, rendements d'une année type. |
 | ui | `packages/ui/src/features/realestate/components/FullCostCard.tsx` | Carte « Coût de revient ». |
 | ui | `packages/ui/src/features/realestate/components/BalanceCard.tsx` | Carte « Bilan depuis l'achat ». |
 | ui | `packages/ui/src/features/realestate/components/PropertyStats.tsx` | Les quatre chiffres en tête de la page d'un bien (version location et version autre bien). |
-| ui | `packages/ui/src/features/realestate/lib/rentability.ts` | `rentabilityOf` : cashflow et bilan calculés une fois pour la page du bien. |
+| ui | `packages/ui/src/features/realestate/lib/rentability.ts` | `rentabilityOf` : impôts du foyer, cashflow, bilan, coût de revient et comparaison des régimes d'un bien ; `cachedRentability` les garde par portefeuille. |
 | core | `packages/core/src/realestate/cashflow/` | Cashflow d'un bien : `propertyCashflow`, `cashflowAssumptions`, `cashflowTone` (`index.ts`), réel des 12 derniers mois (`_real.ts`), mois type prévu (`_planned.ts`), postes et libellés (`_shared.ts`). |
 | ui | `packages/ui/src/features/realestate/components/CashflowCard.tsx` | Onglet Rentabilité : cashflow réel et prévu, détail par poste, régularisation à prévoir. |
 | ui | `packages/ui/src/features/realestate/dialogs/ProvisionsDialog.tsx` | Provisions du bien pour vacance et travaux : réglage du plan, pourcentage ou montant par an. |
@@ -210,6 +214,18 @@ Sur les `propertyYears` du bien (donc à la part détenue, crédits à la part �
 - `toDate = purchase + improvements + loanCostPaid` ; `total = toDate + loanCostLeft`.
 - Rendements d'une année type : `brut = loyers prévus × 12`, `net = Σ postes du cashflow prévu hors crédit × 12`, divisés par `purchase + improvements` (`onPurchase`) ou par `total` (`onTotal`) ; `null` sans prix d'achat.
 
+### Impôt sur les loyers (`tax/rental/`)
+
+Sources et date de relecture en tête de `_rules.ts` (sources secondaires concordantes, textes officiels à confirmer) : micro-foncier 30 % jusqu'à 15 000 € (CGI art. 32) ; déficit foncier imputable sur le revenu global jusqu'à 10 700 € hors intérêts, reports sur 10 ans (CGI art. 156, I-3°) ; 20 € de frais de gestion par local (CGI art. 31) ; micro-BIC 50 %, plafond 72 600 € jusqu'en 2022, 77 700 € de 2023 à 2025, 83 600 € à partir de 2026 (CGI art. 50-0) ; l'amortissement ne crée pas de déficit (CGI art. 39 C) ; déficit de location meublée reporté 10 ans (CGI art. 156, I-1° ter) ; prélèvements sociaux 17,2 % sur le foncier, `socialRateFor(année, "patrimoine")` pour le meublé (18,6 % dès les revenus 2025, LFSS 2026 art. 12).
+
+- Groupes du foyer : `rentalTaxKind` classe chaque bien en `foncier` ou `lmnp` (mode `meuble`, ou dernier bail `meuble` / `etudiant` / `mobilite` pour une colocation). Régime de chaque groupe : `params.rental.unfurnishedRegime` / `furnishedRegime`, ou `override`. Années : celles où un bien a reçu des loyers ou des charges, l'année en cours comprise (à date).
+- Lignes par bien (`propertyYears`, à la part détenue) : foncier `receipts = rents`, `interest = intérêts + assurance d'emprunt`, `other = dépenses − améliorations − part récupérable + 20 € × share` ; meublé `receipts = rents + charges + autres recettes`, `other = dépenses − améliorations + intérêts + assurance + frais comptables` (répartis au prorata des recettes), `amortization = yearAmortization` au réel.
+- `foncierYear` : micro si demandé et loyers ≤ plafond (sinon réel, `ceilingExceeded`). Réel : résultat ≥ 0 → déficits reportés imputés (les plus anciens d'abord, 10 ans), impôt = base × (TMI + PS). Résultat < 0 → si loyers − intérêts ≥ 0, tout le déficit vient des autres charges ; sinon seules les autres charges sont imputables. Imputation sur le revenu global plafonnée à 10 700 € (économie = montant × TMI), le reste reporté.
+- `lmnpYear` : micro si demandé et recettes ≤ `microBicCeiling(année)`. Réel : résultat avant amortissement ≤ 0 → déficit reporté, amortissement reporté en entier ; sinon amortissement (de l'année + reporté) limité au résultat, l'excédent reporté sans limite, puis déficits reportés imputés.
+- `yearAmortization` : bâti = coût complet × (1 − `landShare`) × `share`, par composant (`AMORTIZATION_COMPONENTS`, usages comptables) ; améliorations sur 10 ans ; linéaire au prorata des jours, à partir de la mise en location (pas avant l'achat).
+- Répartition : l'impôt d'un groupe va à chaque bien au prorata de son résultat (recettes au micro) ; un bien en déficit reçoit une part négative.
+- `propertyTaxReference` : dernière année complète du bien, sinon la dernière connue. Le cashflow en prend le douzième (poste `taxes`), le bilan `propertyTaxTotal`, le coût de revient un rendement `afterTax`.
+
 ### Repères au m² (`propertySqm`)
 
 Prix d'achat, valeur et loyer du mois (`monthlyRentNow`, somme des loyers hors charges des baux en cours) divisés par la surface ; `null` sans surface. La fiche imprimable ne passe pas de loyer.
@@ -242,6 +258,7 @@ Les deux renvoient vers `/immobilier/<id>`.
 | Fichier | Ce qu'il couvre |
 |---|---|
 | `packages/core/src/realestate/realestate.test.ts` (bloc « biens ») | Frais de notaire chiffrés, synthèse, vente, valeur dans le temps, crédit à solder, repères au m², coût complet. |
+| `packages/core/src/tax/rental/rental.test.ts` | Micro-foncier, réel foncier, déficit plafonné et reporté, déficit dû aux intérêts, reports de plus de 10 ans, plafond dépassé, répartition entre biens ; vide ou meublé, micro-BIC, amortissement par composant, amortissement limité et reporté, frais comptables ; impôt de référence. |
 | `packages/core/src/realestate/balance.test.ts` | Bilan : apport, échéances, dépenses, effort net et enrichissement chiffrés ; amélioration, impôts, part détenue, remboursement anticipé, prix inconnu. Coût de revient (`fullCost.ts`) : coût du crédit payé et restant, rendements, bien vendu, prix inconnu. |
 | `packages/core/src/realestate/cashflow/cashflow.test.ts` | Cashflow réel et prévu poste par poste, taxe foncière estimée, provisions du bien, dépense ponctuelle, parts, location récente, lot vide, seuil neutre. |
 | `packages/ui/src/features/realestate/rentabilite.flow.test.tsx` | Onglet Rentabilité ouvert par défaut, taxe estimée signalée, provisions enregistrées depuis « Hypothèses ». |

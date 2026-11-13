@@ -105,6 +105,8 @@ export interface PropertyYear {
   /** Recettes hors loyer : régularisations, indemnités, dépôt gardé. */
   otherIncome: number;
   expenses: number;
+  /** Dont travaux d'amélioration (ajoutés au coût, amortis en location meublée au réel). */
+  improvements: number;
   /** Part des dépenses récupérable sur le locataire ; les provisions de charges reçues (`charges`) la couvrent. */
   recoverable: number;
   interest: number;
@@ -207,6 +209,7 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
       charges: roundCents(charges * property.share),
       otherIncome: roundCents(received * property.share),
       expenses: roundCents(spent * property.share),
+      improvements: roundCents((spent - running) * property.share),
       recoverable: roundCents(recoverable * property.share),
       interest: roundCents(interest),
       insurance: roundCents(insurance),

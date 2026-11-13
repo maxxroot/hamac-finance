@@ -17,13 +17,13 @@ export function PropertyStats({ property, summary, improvements, rentability }: 
         <Stat label="Valeur nette" sub="valeur détenue − capital restant dû">
           <Amount value={s.netValue} compact />
         </Stat>
-        <Stat label="Cashflow réel" sub={cashflow.real ? `par mois, sur ${cashflow.real.months} mois, avant impôt` : "pas encore de mois complet loué"}>
+        <Stat label="Cashflow réel" sub={cashflow.real ? `par mois, sur ${cashflow.real.months} mois, impôt estimé compris` : "pas encore de mois complet loué"}>
           {cashflow.real ? <Amount value={cashflow.real.total} signed /> : "—"}
         </Stat>
         <Stat label="Effort net depuis l'achat" sub={balance?.monthlyEffort != null ? <>soit <Amount value={balance.monthlyEffort} /> par mois</> : "prix d'achat à renseigner"}>
           {balance?.netEffort == null ? "—" : <Amount value={balance.netEffort} compact />}
         </Stat>
-        <Stat label="Enrichissement" sub="valeur nette − effort net, avant impôt">
+        <Stat label="Enrichissement" sub="valeur nette − effort net, avant impôt sur la plus-value">
           {balance?.enrichment == null ? "—" : <Amount value={balance.enrichment} signed compact />}
         </Stat>
       </StatGrid>

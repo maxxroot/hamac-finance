@@ -52,11 +52,16 @@ export function FullCostCard({ cost: c }: { cost: PropertyFullCost }) {
               <Td align="right"><Pct value={c.yields.onPurchase.net} digits={2} /></Td>
               <Td align="right"><Pct value={c.yields.onTotal.net} digits={2} /></Td>
             </Tr>
+            <Tr>
+              <Td>Net après impôt sur les loyers</Td>
+              <Td align="right"><Pct value={c.yields.onPurchase.afterTax} digits={2} /></Td>
+              <Td align="right"><Pct value={c.yields.onTotal.afterTax} digits={2} /></Td>
+            </Tr>
           </tbody>
         </Table>
       </div>
       <p className="mt-3 text-xs text-fg-faint">
-        Année type d'après le cashflow prévu, sans le crédit. « Sur l'achat » : achat et améliorations ; « sur le coût total » : en ajoutant tout le coût du crédit, ce qui fait baisser le rendement d'un bien acheté à crédit. Avant impôt.
+        Année type d'après le cashflow prévu, sans le crédit. « Sur l'achat » : achat et améliorations ; « sur le coût total » : en ajoutant tout le coût du crédit, ce qui fait baisser le rendement d'un bien acheté à crédit. Impôt : celui de l'année de référence de la carte Impôts.
         {c.purchase == null && " Indiquez le prix d'achat pour calculer le coût et les rendements."}
       </p>
     </Card>

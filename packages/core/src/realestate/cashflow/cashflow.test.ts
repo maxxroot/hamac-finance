@@ -85,6 +85,14 @@ describe("cashflow d'un bien en location", () => {
     expect(c.planned).toMatchObject({ rent: 700, chargeProvisions: 0 });
   });
 
+  it("impôt estimé : douzième de l'impôt de l'année de référence, des deux côtés", () => {
+    const c = propertyCashflow(data, rental, today, { year: 2025, yearly: 1_200 });
+    expect(c.taxYear).toBe(2025);
+    expect(c.planned).toMatchObject({ total: -37 });
+    expect(c.real).toMatchObject({ total: -30 });
+    expect(c.lines.at(-1)).toEqual({ key: "taxes", real: -100, planned: -100 });
+  });
+
   it("neutre tant que l'écart à zéro ne dépasse pas la marge", () => {
     expect(cashflowTone(16, 16)).toBe("neutre");
     expect(cashflowTone(-16, 16)).toBe("neutre");

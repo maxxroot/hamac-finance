@@ -2,7 +2,7 @@ import type { ExpenseCategory } from "../expenses";
 import type { Provision } from "../realestate";
 
 /** Postes du cashflow, dans l'ordre d'affichage. Montants signés : positifs pour ce qui rentre. */
-export const CASHFLOW_KEYS = ["rents", "vacancy", "recovered", "taxe_fonciere", "copropriete", "assurance", "gestion", "autre", "travaux", "otherIncome", "loans"] as const;
+export const CASHFLOW_KEYS = ["rents", "vacancy", "recovered", "taxe_fonciere", "copropriete", "assurance", "gestion", "autre", "travaux", "otherIncome", "loans", "taxes"] as const;
 export type CashflowKey = (typeof CASHFLOW_KEYS)[number];
 
 export const CASHFLOW_LABELS: Record<CashflowKey, string> = {
@@ -17,6 +17,7 @@ export const CASHFLOW_LABELS: Record<CashflowKey, string> = {
   travaux: "Travaux et entretien",
   otherIncome: "Autres recettes",
   loans: "Crédit (mensualités et assurance)",
+  taxes: "Impôts sur les loyers (estimés)",
 };
 
 /** Catégories de dépense qui ont leur propre poste. */

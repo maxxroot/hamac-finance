@@ -14,6 +14,7 @@ import { PropertyLoansCard } from "@/features/realestate/components/PropertyLoan
 import { PropertyStats } from "@/features/realestate/components/PropertyStats";
 import { PurchaseCard } from "@/features/realestate/components/PurchaseCard";
 import { SaleCard } from "@/features/realestate/components/PropertySheetCards";
+import { TaxCard } from "@/features/realestate/components/TaxCard";
 import { PropertySheetModal } from "@/features/realestate/components/PropertySheetModal";
 import { PropertyYearsCard } from "@/features/realestate/components/PropertyYearsCard";
 import { RentsCard } from "@/features/realestate/components/RentsCard";
@@ -24,7 +25,8 @@ import { SaleDialog } from "@/features/realestate/dialogs/SaleDialog";
 import { formatDate } from "@/shared/lib/numbers";
 import { usePortfolio } from "@/shared/lib/portfolio";
 import { useMutate } from "@/shared/lib/workspace";
-import { rentabilityOf } from "@/features/realestate/lib/rentability";
+import { allRentalData, rentalDataOf } from "@/features/realestate/lib/rentalData";
+import { cachedRentability } from "@/features/realestate/lib/rentability";
 
 const BackLink = () => (
   <Link to="/immobilier" className="mb-3 inline-flex items-center gap-1.5 text-sm text-fg-muted hover:text-fg">
@@ -68,8 +70,8 @@ export function Bien() {
   const requested = search.get("onglet");
   const tab = tabs.find(([key]) => key === requested)?.[0] ?? tabs[0][0];
   const lots = sortLots(ws.lots.filter((l) => l.propertyId === property.id));
-  const rentalData = { property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, ledger: rentLedgerOf(ws), expenses: ws.propertyExpenses, loans: heldLoans, lots };
-  const rentability = rented ? rentabilityOf(rentalData, ws.params, sale ? sale.net : s.netValue, pf.today) : null;
+  const rentalData = rentalDataOf(pf, property.id)!;
+  const rentability = rented ? cachedRentability(pf, rentalData, () => allRentalData(pf), ws.params, sale ? sale.net : s.netValue, pf.today) : null;
   // Une carte de bail par lot proposé à la location (annexes : dès qu'elles ont un bail), et par lot sorti du mode qui a encore un bail en cours.
   const running = (lotId: string) => leases.some((l) => l.lotId === lotId && (l.actualEnd == null || l.actualEnd >= pf.today));
   const leaseLots = lots.filter((l) => (lotIsActive(l, property.rentalMode) && (!lotIsAnnex(l.kind) || leases.some((x) => x.lotId === l.id))) || running(l.id));
@@ -130,6 +132,7 @@ export function Bien() {
               <FullCostCard cost={rentability.cost} />
             </CardColumn>
           </CardColumns>
+          <TaxCard tax={rentability.tax} tmi={ws.params.tax.tmi} />
         </div>
       )}
 
