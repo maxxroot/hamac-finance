@@ -8,7 +8,9 @@
 |---|---|---|
 | UI, page | `packages/ui/src/features/journal/pages/Journal.tsx` | Page `/journal` : filtres (y compris `du`, `au`, `filtre` dans l'adresse), tableau trié, export CSV, actions par ligne, saisie pré-remplie par `?nouveau=1&compte=&type=&titre=`. |
 | UI, fenêtre | `packages/ui/src/features/journal/dialogs/StatementImportDialog.tsx` | Import d'un relevé : choix du fichier, rôle des colonnes CSV, titres inconnus, aperçu, envoi groupé, mémoire par format. |
-| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Fenêtre « Nouvelle opération » : champs selon le type, frais suggérés, prix unitaire ↔ total, coupon couru, support fonds euros, arbitrage, détail fiscal. Préréglage `NEW_FUND_PRESET`. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Fenêtre « Nouvelle opération » : champs selon le type, frais suggérés, prix unitaire ↔ total, coupon couru, support fonds euros, arbitrage. Préréglage `NEW_FUND_PRESET`. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/AvailableBalanceHint.tsx` | `useAvailableBalance`, `AvailableBalanceHint` : solde disponible sous le montant d'un retrait, bouton « Tout retirer », alerte si le montant le dépasse. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TaxDetailFields.tsx` | Détail fiscal d'un dividende ou d'intérêts (brut, retenues, « Calculer d'après les taux »). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/NewAssetPanel.tsx` | Création d'un titre dans la fenêtre d'opération (« ＋ Nouveau titre »). |
 | UI, saisie partagée | `packages/ui/src/features/entry/lib/tradeAmounts.ts` | `syncTradeAmounts` : total depuis le prix unitaire, ou l'inverse. |
 | UI, saisie partagée | `packages/ui/src/features/entry/lib/journal.ts` | `useJournal` (opérations saisies + versements programmés prélevés) et `supportsLabel`. |
@@ -23,6 +25,7 @@
 | Cœur, import | `packages/core/src/imports/csv.ts` | `parseCsv`, `parseAmount`, `parseDate`, `guessType`. |
 | Cœur, import | `packages/core/src/imports/statementImport.ts` | `detectFormat`, `parseOfx`, `parseQif`, `findHeaderRow`, `guessRoles`, `linesFromCsv`, `buildImport`. |
 | Cœur, portefeuille | `packages/core/src/portfolio/engine.ts` | `computePortfolio` : effet de chaque type d'opération (ordre `RANK`). |
+| Cœur, portefeuille | `packages/core/src/portfolio/available.ts` | `availableBalance` : argent disponible pour un retrait à une date, espèces ou fonds euros. |
 | Contrat | `packages/api/src/journal/procedures.ts`, `packages/api/src/journal/inputs.ts` | Procédures du journal ; `TransactionInput`, `PlanInput`, `SkipInput`. |
 | Backend | `packages/backend/src/handlers/journal.ts` | Handlers des opérations, de l'import groupé, des plans et des mois manqués. |
 | Backend | `packages/backend/src/db/schema/journal.ts` | Tables `transactions`, `contribution_plans`, `contribution_skips`. |
@@ -73,6 +76,8 @@ Voir `docs/architecture/modele-de-donnees.md`. Montants positifs, le type donne 
 - Coupon couru d'une obligation : `quantity × accruedFraction(terms, date)`, arrondi au centime.
 - Le champ « Support » n'apparaît que pour un compte qui détient des fonds euros et un type de `EURO_FUND_TYPES`. Vide = `assetId` nul : le moteur prend le fonds par défaut du contrat.
 - Le détail fiscal n'est proposé que pour un dividende ou des intérêts sur un compte `cto` ou `crowdlending`. « Calculer d'après les taux » appelle `grossFromNet(net, institutionWithholding(…))`. Un écart ≥ 0,02 € entre brut − retenues et net est signalé.
+- Retrait : `availableBalance(data, compte, date, { supportId, excludeTxId })` calcule le portefeuille à la date de l'opération (`computePortfolio`), sans l'opération en cours de modification. Les opérations du même jour comptent : un retrait passe en dernier dans la journée (`RANK`). Versements programmés compris. Dans un contrat, c'est la valeur du fonds euros choisi, sinon du fonds par défaut (même choix que `moveMoney`) ; sinon les espèces. « Tout retirer » recopie ce montant ; un montant supérieur affiche un avertissement, sans bloquer l'envoi. Rien n'est affiché pendant la création d'un nouveau fonds euros.
+- Champs numériques (`NumberInput`, donc `MoneyInput` et `PercentInput`) : une saisie qui commence par « = » est un calcul (`readTypedNumber`, `evaluateExpression` dans `packages/ui/src/shared/lib/expression.ts`) : + − × ÷, parenthèses, virgule ou point, lu pas à pas sans `eval` (la CSP l'interdit de toute façon). Le résultat, arrondi à `decimals`, part à chaque frappe ; un calcul incomplet, impossible ou négatif sans `allowNegative` garde la valeur précédente. À la sortie du champ, le texte devient le résultat : le calcul n'est pas conservé. Sur mobile, `inputMode="decimal"` n'offre pas toujours les touches = et +.
 - Un titre ou un fonds euros à créer est validé comme s'il existait, sous l'identifiant provisoire `__nouveau__`, puis envoyé par `transactions.createWithAsset`.
 
 ### Effet dans le moteur (`computePortfolio`)
@@ -96,10 +101,12 @@ Les lignes cochées partent par `transactions.bulkCreate`. Le compte rendu affic
 
 - `packages/core/src/model/validation.test.ts` : règles de `validateTransaction`.
 - `packages/core/src/portfolio/euroFunds.test.ts` (bloc « validation des opérations ») et `packages/core/src/portfolio/arbitrage.test.ts` : fonds euros et arbitrages.
+- `packages/core/src/portfolio/available.test.ts` : solde disponible (date, même jour, opération modifiée, fonds euros, versements programmés).
 - `packages/core/src/portfolio/engine.test.ts` : effet des opérations (transfert, vente au-delà du détenu, coupons…).
 - `packages/core/src/model/schedule.test.ts` : opérations programmées au journal.
 - `packages/core/src/imports/csv.test.ts`, `packages/core/src/imports/statementImport.test.ts` : lecture des formats, doublons, programmés, titres, signe.
 - `packages/ui/src/features/entry/lib/tradeAmounts.test.ts` : prix unitaire ↔ total.
+- `packages/ui/src/shared/lib/expression.test.ts` : calculs « = » (priorités, parenthèses, saisies incomplètes, arrondi).
 - `packages/backend/src/backend.test.ts` : import groupé (lignes valides, erreurs par ligne, brut et retenues conservés), achat avec création du titre.
 - `packages/ui/src/flows/suivi.flow.test.tsx` : blocs « journal », « fenêtre de saisie d'une opération », « mouvements d'un compte ».
 - `packages/ui/src/flows/reglages.flow.test.tsx` (« import d'un relevé ») et `packages/ui/src/flows/flows.test.tsx` (import, puis doublon au second passage).

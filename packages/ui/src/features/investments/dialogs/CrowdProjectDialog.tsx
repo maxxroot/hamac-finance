@@ -92,7 +92,7 @@ export function CrowdProjectDialog({ open, project, platforms, onClose }: { open
           </Field>
           {d.status === "rembourse" && <Field label="Remboursé le">{(id) => <TextInput id={id} type="date" value={d.statusDate ?? ""} onChange={(e) => set("statusDate", e.target.value || null)} />}</Field>}
           {(d.status === "retard" || d.status === "defaut") && <Field label="Depuis">{(id) => <TextInput id={id} type="month" value={d.statusDate?.slice(0, 7) ?? ""} onChange={(e) => set("statusDate", e.target.value ? `${e.target.value}-01` : null)} />}</Field>}
-          <Field label="Capital déjà remboursé" help="Vide : calculé.">{(id) => <MoneyInput id={id} value={d.repaidCapital} onChange={(v) => set("repaidCapital", v)} />}</Field>
+          <Field label="Capital déjà remboursé" help="Vide : calculé. Pour additionner au fil des remboursements, commencez par = : =120+35,50.">{(id) => <MoneyInput id={id} value={d.repaidCapital} onChange={(v) => set("repaidCapital", v)} />}</Field>
         </FormGrid>
         <Field label="Échéance prolongée au" help={initialEnd ? `Facultatif : si la plateforme repousse l'échéance initiale du ${formatDate(initialEnd)}.` : "Facultatif : si la plateforme repousse l'échéance."} error={extensionError}>
           {(id) => <TextInput id={id} type="month" value={d.extendedTo?.slice(0, 7) ?? ""} onChange={(e) => set("extendedTo", e.target.value ? dayOfMonth(e.target.value, 31) : null)} />}

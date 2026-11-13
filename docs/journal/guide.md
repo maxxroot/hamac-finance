@@ -66,6 +66,8 @@ Un double-clic sur une ligne fait la même chose que le crayon.
 
 Les erreurs ne s'affichent qu'à l'envoi, sous le champ concerné.
 
+Dans tous les champs de montant, vous pouvez taper un calcul qui commence par **=**, comme dans un tableur : `=120+35,50-10` donne 145,50 €. Le résultat est arrondi au centime ; seul lui est enregistré.
+
 | Ce qui s'est passé | Opération | Montant à indiquer |
 |---|---|---|
 | De l'argent déjà présent au début du suivi | Apport initial | La somme |
@@ -79,6 +81,8 @@ Les erreurs ne s'affichent qu'à l'envoi, sous le champ concerné.
 | Des frais facturés à part | Frais | La somme prélevée |
 | Des impôts débités à part | Impôts | La somme prélevée |
 | La valeur réelle diffère du calcul | Correction | L'écart, négatif si besoin |
+
+Pour un **retrait**, Hamac affiche sous le montant l'argent **disponible** sur le compte à la date choisie. Dans une assurance-vie ou un PER, c'est ce qu'il y a sur le fonds euros choisi dans « Support ». Le bouton **Tout retirer** remplit le montant avec ce solde. Si vous indiquez plus que le solde, un avertissement apparaît, mais vous pouvez quand même enregistrer : c'est souvent le signe qu'un versement manque dans le journal.
 
 Les intérêts d'un livret ou d'un fonds euros se datent du 31 décembre. De janvier à mars, le tableau de bord rappelle ceux d'un livret ou d'une assurance-vie qui manquent pour l'année écoulée.
 

@@ -501,6 +501,11 @@ describe("parcours de l'interface", () => {
     expect(screen.getByText("1 projet investi · 1 en cours")).toBeTruthy();
     await user.click(within(row).getByRole("button", { name: "Modifier" }));
     expect(screen.queryByLabelText("Montant espéré")).toBeNull();
+    // Calcul comme dans un tableur : le champ garde le résultat.
+    const repaid = fieldOf("Capital déjà remboursé");
+    await user.type(repaid, "=120+35,50-5");
+    await user.tab();
+    expect(repaid.value).toBe("150,5");
     await user.selectOptions(fieldOf("Statut"), "rembourse");
     expect(screen.getByLabelText("Remboursé le")).toBeTruthy();
     await user.selectOptions(fieldOf("Statut"), "defaut");
@@ -509,6 +514,8 @@ describe("parcours de l'interface", () => {
     await user.click(screen.getByRole("button", { name: "Valider" }));
     await waitFor(() => expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText("En défaut")).toBeTruthy());
     expect(within(screen.getByText("Résidence Lyon").closest("tr")!).getByText(/compté/)).toBeTruthy();
+    const ws = await rpc<{ crowdProjects: Array<{ repaidCapital: number | null }> }>("workspace.load");
+    expect(ws.crowdProjects[0].repaidCapital).toBe(150.5);
   });
 
   it("établissement : la case « prélève les impôts » commande les taux et s'enregistre", async () => {

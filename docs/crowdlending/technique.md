@@ -9,7 +9,7 @@ Route `/crowdlending`, module `crowdlending`. Aucune différence entre les forma
 | Couche | Fichier | Rôle |
 |---|---|---|
 | UI | `packages/ui/src/features/investments/pages/Crowdlending.tsx` | La page : comptage, chiffres, tableau des plateformes (TRI), tableau des projets. |
-| UI | `packages/ui/src/features/investments/dialogs/CrowdProjectDialog.tsx` | Création et modification d'un projet (statut, date de statut, prolongation, montant espéré, allocation). |
+| UI | `packages/ui/src/features/investments/dialogs/CrowdProjectDialog.tsx` | Création et modification d'un projet (statut, date de statut, prolongation, montant espéré, allocation). « Capital déjà remboursé » accepte un calcul « =… » (`MoneyInput`, voir `packages/ui/src/shared/lib/expression.ts`). |
 | UI | `packages/ui/src/features/investments/dialogs/DeclareInterestDialog.tsx` | Intérêts bruts du mois pour une plateforme, impôts retenus calculés, une ou deux lignes au journal. |
 | UI | `packages/ui/src/features/investments/dialogs/BricksImportDialog.tsx` | Lecture du fichier, aperçu du plan, cases à cocher, application. |
 | UI | `packages/ui/src/features/investments/lib/xlsx.ts` | Lecteur .xlsx minimal (zip + XML) sans dépendance, tailles plafonnées. |
@@ -88,7 +88,7 @@ Source fiscale : aucune n'est citée dans ces fichiers ; les taux viennent de `p
 - `packages/ui/src/features/investments/lib/xlsx.test.ts` (avec `packages/ui/src/features/investments/lib/xlsx.fixture.ts`) : lecture d'un classeur, refus d'un fichier qui n'en est pas un.
 - `packages/core/src/portfolio/engine.test.ts` : « crowdlending : impôts prélevés par la plateforme ou restant à payer », « crowdlending : intérêts bruts puis impôts débités à part ».
 - `packages/backend/src/backend.test.ts` : « crowdlending : un projet exige une plateforme, qui ne se supprime plus ensuite », prolongation enregistrée ou refusée.
-- `packages/ui/src/flows/flows.test.tsx` : nouveau projet puis défaut à 0 €, case « prélève les impôts », intérêts déclarés, impôts saisis à la main, import Bricks en deux passages, prolongation.
+- `packages/ui/src/flows/flows.test.tsx` : nouveau projet, capital remboursé saisi par un calcul « = », puis défaut à 0 €, case « prélève les impôts », intérêts déclarés, impôts saisis à la main, import Bricks en deux passages, prolongation.
 - `packages/ui/src/flows/reglages.flow.test.tsx`, bloc « import Bricks : cas particuliers ».
 
 ## Limites connues

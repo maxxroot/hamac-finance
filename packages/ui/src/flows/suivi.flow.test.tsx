@@ -1228,6 +1228,24 @@ describe("fenêtre de saisie d'une opération", () => {
     expect((await workspace()).transactions).toMatchObject([{ type: "versement", amount: 75, comment: "Saisie au clavier" }]);
   });
 
+  it("retrait : solde disponible à la date, « Tout retirer » pré-remplit le montant", async () => {
+    const { livret } = await accountsOf();
+    await rpc("transactions.upsert", { date: `${year - 1}-01-10`, type: "apport_initial", accountId: livret, amount: 2_000 });
+    await rpc("transactions.upsert", { date: `${year - 1}-03-01`, type: "retrait", accountId: livret, amount: 250 });
+    const { dialog, onClose, user } = await openDialog({ accountId: livret, type: "retrait" });
+    expect(await within(dialog).findByText(/1\s750,00\s€/)).toBeTruthy();
+    // À une date plus ancienne, le retrait de mars n'est pas encore passé.
+    fireEvent.change(label(dialog, "Date"), { target: { value: `${year - 1}-02-01` } });
+    expect(await within(dialog).findByText(/2\s000,00\s€/)).toBeTruthy();
+    await typeInto(user, label(dialog, "Montant"), "2500");
+    expect(within(dialog).getByText("Le montant dépasse le solde disponible.")).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "Tout retirer" }));
+    expect(within(dialog).queryByText("Le montant dépasse le solde disponible.")).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect((await workspace()).transactions).toContainEqual(expect.objectContaining({ type: "retrait", amount: 2_000, date: `${year - 1}-02-01` }));
+  });
+
   it("transfert : compte de destination obligatoire et différent ; changer de compte remet un type possible", async () => {
     const { livret, pea } = await accountsOf();
     const { dialog, onClose, user } = await openDialog({ accountId: livret });

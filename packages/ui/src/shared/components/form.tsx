@@ -2,7 +2,8 @@ import { X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/shared/lib/cn";
-import { formatNumber, parseNumber } from "@/shared/lib/numbers";
+import { formatNumber } from "@/shared/lib/numbers";
+import { readTypedNumber } from "@/shared/lib/expression";
 
 const inputBase =
   "h-9 w-full rounded-lg border border-line-strong bg-field px-3 text-sm text-fg placeholder:text-fg-faint transition-[border-color,box-shadow] duration-150 " +
@@ -145,9 +146,9 @@ export function NumberInput({
         }}
         onChange={(e) => {
           setText(e.target.value);
-          let n = parseNumber(e.target.value);
-          if (n != null && !allowNegative && n < 0) n = Math.abs(n);
-          onChange(n);
+          // « =120+35 » : calcul comme dans un tableur ; incomplet, la valeur précédente reste.
+          const n = readTypedNumber(e.target.value, { allowNegative, decimals });
+          if (n !== undefined) onChange(n);
         }}
         className={cn(inputBase, "num text-right", suffix && "pr-9", rest.className)}
       />

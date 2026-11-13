@@ -54,6 +54,8 @@ Avec au moins une plateforme :
 
 **Corriger le capital déjà rendu.** Remplissez « Capital déjà remboursé » avec le chiffre de la plateforme. Vide, Hamac le calcule.
 
+Pour le tenir à jour au fil des remboursements sans calculer de tête, tapez un calcul qui commence par **=**, comme dans un tableur : avec 120 € déjà notés, ajoutez `=120+35,50` et le champ affiche 155,50 €. Le plus simple : cliquez au début du champ, tapez `=`, puis `+` et le nouveau remboursement à la fin. Les signes + − × ÷ (ou * et /) et les parenthèses marchent. Hamac garde le résultat, pas le calcul.
+
 **Repousser l'échéance.** Remplissez « Échéance prolongée au » avec le nouveau mois. Il doit être après l'échéance prévue.
 
 **Déclarer les intérêts du mois.** Cliquez sur le bouton, choisissez la plateforme et le mois, saisissez les intérêts **bruts** (avant impôts) affichés par la plateforme, paiements partiels compris. Si la plateforme retient les impôts, Hamac les calcule à son taux ; corrigez-les pour coller à son relevé. Si elle ne les retient pas, laissez la case vide. Hamac vous prévient si des intérêts sont déjà déclarés pour ce mois.
