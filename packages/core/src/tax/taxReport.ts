@@ -260,10 +260,15 @@ export function buildTaxReport(data: EngineData, disposals: readonly Disposal[],
       return kind === "etf" || kind === "fonds";
     });
     const item = (x: IncomeDetail, amount: number) => ({ amount, status: x.status, id: x.tx.id });
+    // Dispense de l'acompte demandée auprès de cet établissement pour l'année : rien n'est retenu sur les intérêts.
+    const dispensed = withholdingDispensed(data.params, year, institution?.id ?? null) && [...interests, ...crowd].every((x) => x.incomeTax === 0);
+    const dispenseNote = dispensed
+      ? [`Dispense de l'acompte de 12,8 % pour ${year} auprès de cet établissement : aucun acompte retenu sur ces intérêts, rien à reporter en case ${rules.boxes.acompte.box} pour eux. L'impôt sur ces intérêts est réglé en totalité avec le solde de l'impôt sur le revenu, à partir de septembre ${year + 1}.`]
+      : [];
     const lines = [
       line(rules, "dividendes", dividends.map((x) => item(x, x.gross)), fund ? ["Distributions d'ETF ou de fonds : vérifiez sur le relevé la répartition entre cette case et les intérêts."] : [], fund ? "a_verifier" : undefined),
-      line(rules, "interets", interests.map((x) => item(x, x.gross))),
-      line(rules, "crowdlending", crowd.map((x) => item(x, x.gross)), ["Case réservée aux prêts participatifs et aux minibons. Obligations et bons de caisse : case des intérêts."]),
+      line(rules, "interets", interests.map((x) => item(x, x.gross)), dispenseNote),
+      line(rules, "crowdlending", crowd.map((x) => item(x, x.gross)), ["Case réservée aux prêts participatifs et aux minibons. Obligations et bons de caisse : case des intérêts.", ...dispenseNote]),
       line(rules, "psDejaPreleves", incomes.filter((x) => x.social > 0).map((x) => item(x, x.gross)), ["Revenus sur lesquels les prélèvements sociaux ont déjà été retenus."]),
       line(rules, "acompte", incomes.map((x) => item(x, x.incomeTax))),
       line(rules, "creditImpot", incomes.map((x) => item(x, x.foreign)), ["Retenue à l'étranger : le crédit d'impôt dépend de la convention fiscale du pays, à vérifier."], "a_verifier"),

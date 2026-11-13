@@ -304,10 +304,14 @@ describe("dispense de l'acompte de 12,8 % (CGI art. 125 A)", () => {
     expect(row.crowdDue).toBeCloseTo(12.8, 2);
   });
 
-  it("l'acompte de l'aide à la déclaration (case 2CK) est nul pour une année dispensée", () => {
+  it("aide à la déclaration : case 2CK vide pour l'établissement dispensé, et une remarque l'explique", () => {
     const d = dispensed({ accounts: [cto], institutions: [etab("e", { report: true })], transactions: [tx("2025-03-01", "interets", "c", 82.8)] });
     const r = report(d);
     expect(box(r, "2TR")!.total).toBeCloseTo(100, 2);
     expect(box(r, "2CK")?.total ?? 0).toBe(0);
+    // La fiche de l'établissement l'explique sur la case des intérêts.
+    const sheet = r.sheets.find((x) => x.institutionId === "e")!;
+    expect(sheet.lines.find((l) => l.key === "interets")!.notes.join(" ")).toMatch(/Dispense de l'acompte de 12,8 % pour 2025 auprès de cet établissement : aucun acompte retenu/);
+    expect(sheet.lines.some((l) => l.key === "acompte")).toBe(false);
   });
 });

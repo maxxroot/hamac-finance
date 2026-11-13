@@ -84,7 +84,8 @@ Les taux par défaut de Paramètres › Plan (`defaultParams` dans `packages/cor
   - `interets` = bruts des intérêts hors crowdlending ;
   - `crowdlending` = bruts des intérêts des comptes de crowdlending ;
   - `psDejaPreleves` = bruts des revenus avec `social > 0` ;
-  - `acompte` = somme des `incomeTax` ;
+  - `acompte` = somme des `incomeTax` (0 pour les intérêts d'un établissement dispensé l'année de la fiche : `effectiveWithholding` et `crowdTaxOf` lisent `withholdingDispensed(params, année, établissement)`, voir [Impôts](../impots/technique.md#dispense-de-lacompte-sur-les-intérêts)) ;
+  - remarque de dispense sur les cases `interets` et `crowdlending` quand l'établissement est dispensé pour l'année et qu'aucun de ses intérêts n'a d'acompte (saisi ou calculé) ;
   - `creditImpot` = somme des `foreign`, toujours `a_verifier`.
 - Cessions : `securityDisposals` (hors SCPI) des comptes-titres de la fiche. Statut : `manquant` si `oversold` ou si le prix de revient est nul pour un produit positif ; `a_verifier` pour une obligation (coupon couru, ou prime d'un remboursement).
 - Cessions crypto : `manquant` si la valeur globale est nulle, `a_verifier` si `estimatedValue`.

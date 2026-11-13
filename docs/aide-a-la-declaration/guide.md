@@ -102,6 +102,8 @@ Cliquez sur **Détail (CSV)** : un fichier `recapitulatif-fiscal-<année>.csv` c
 - si l'établissement ne prélève rien, le montant reçu est le brut ;
 - sinon, il applique les taux de l'établissement, ou ceux de Paramètres › Plan : 12,8 % d'acompte (0 % sur les intérêts d'une année et d'un établissement où vous êtes dispensé, cochés dans la page Impôts) et les prélèvements sociaux de l'année. Ce dernier cas est « À vérifier », sauf si les deux taux sont réglés sur l'établissement ou si Hamac rédige sa fiche.
 
+**Dispense de l'acompte.** Pour un établissement coché dans l'encadré « Dispense de l'acompte » de la page Impôts, pour l'année de la fiche, rien n'est compté en case 2CK sur ses intérêts : seuls les prélèvements sociaux ont été retenus. Les intérêts restent à déclarer (case 2TR, ou 2TT pour le crowdlending) et en case 2BH. Une remarque le rappelle sur la case des intérêts : l'impôt sur ces intérêts est réglé en totalité avec le solde de l'impôt sur le revenu, à partir de septembre de l'année suivante. Si l'IFU de l'établissement indique tout de même un acompte, la comparaison le signale : vérifiez que la demande a bien été prise en compte.
+
 Exemple fictif, revenus 2026, taux par défaut : un dividende de 68,60 € reçu donne 100 € bruts (case 2DC), 12,80 € d'acompte (case 2CK) et 18,60 € de prélèvements sociaux. Les 100 € comptent aussi en case 2BH, puisque les prélèvements sociaux ont déjà été retenus.
 
 **Les cases.** Pour les revenus 2025 (vérifiées le 9 novembre 2026, d'après la Brochure pratique IR 2026 d'impots.gouv.fr) :
