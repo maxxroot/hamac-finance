@@ -15,6 +15,8 @@ import { FONCIER_SOCIAL_RATE, MANAGEMENT_FLAT_FEE } from "./_rules";
 
 export { RENTAL_TAX_SOURCES, AMORTIZATION_COMPONENTS, MICRO_FONCIER, DEFICIT_GLOBAL_CAP, microBicCeiling } from "./_rules";
 export { RENTAL_REGIME_LABELS, RENTAL_TAX_KIND_LABELS, rentalTaxKind, type RentalRegime, type RentalTaxKind } from "./_kind";
+export { yearAmortization } from "./_amortization";
+export type { TaxRow } from "./_foyer";
 
 export interface RentalTaxYear extends Omit<GroupYear, "byProperty"> {
   year: number;
@@ -130,3 +132,31 @@ export function propertyTaxReference(taxes: RentalTaxes, propertyId: string, tod
 
 /** Impôt total estimé d'un bien depuis le début : à ajouter à ce qui est sorti de la poche. */
 export const propertyTaxTotal = (taxes: RentalTaxes, propertyId: string) => roundCents((taxes.properties.get(propertyId) ?? []).reduce((s, y) => s + y.tax, 0));
+
+/** Déficits et amortissements reportés d'un bien seul, pour projeter ses années futures. */
+export interface TaxCarry {
+  foncier: Carry;
+  lmnp: { carry: Carry; amortization: number };
+}
+
+/**
+ * Reports du bien à la fin de sa dernière année connue : ceux de son groupe, au prorata de ses recettes cette année-là
+ * (exact quand il est seul dans son groupe).
+ */
+export function propertyTaxCarry(taxes: RentalTaxes, propertyId: string, kind: RentalTaxKind): TaxCarry {
+  const last = (taxes.properties.get(propertyId) ?? []).filter((y) => y.kind === kind).at(-1);
+  const group = last ? taxes.years.find((y) => y.year === last.year && y.kind === kind) : undefined;
+  const part = last && group && group.receipts > 0 ? last.receipts / group.receipts : 0;
+  const deficit = group ? group.carriedDeficit * part : 0;
+  const carry: Carry = deficit > 0 && last ? [{ year: last.year, amount: deficit }] : [];
+  return kind === "foncier" ? { foncier: carry, lmnp: { carry: [], amortization: 0 } } : { foncier: [], lmnp: { carry, amortization: group ? group.carriedAmortization * part : 0 } };
+}
+
+/** Impôt d'une année future d'un bien seul, avec ses reports (mis à jour). */
+export function projectedTax(kind: RentalTaxKind, regime: RentalRegime, row: TaxRow, year: number, params: PlanParams, carry: TaxCarry): { total: number; amortizationUsed: number } {
+  const g =
+    kind === "foncier"
+      ? foncierYear([row], regime, year, params.tax.tmi, FONCIER_SOCIAL_RATE, carry.foncier)
+      : lmnpYear([row], regime, year, params.tax.tmi, socialRateFor(year, "patrimoine", params), carry.lmnp);
+  return { total: g.incomeTax + g.social, amortizationUsed: g.amortizationUsed };
+}

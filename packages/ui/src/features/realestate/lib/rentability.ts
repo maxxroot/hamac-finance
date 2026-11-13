@@ -1,4 +1,8 @@
 import {
+  defaultHorizon,
+  propertyTaxCarry,
+  propertyValue,
+  projectionYears,
   propertyBalance,
   propertyCashflow,
   propertyFullCost,
@@ -11,6 +15,8 @@ import {
   type PropertyCashflow,
   type PropertyFullCost,
   type PropertyTaxYear,
+  type ProjectionContext,
+  type SaleContext,
   type RentalData,
   type RentalRegime,
   type RentalTaxKind,
@@ -38,6 +44,8 @@ export interface Rentability {
     reference: RentalTaxYear | null;
     choices: RegimeChoice[];
   };
+  /** Projection jusqu'à l'horizon par défaut, et de quoi simuler une revente (`rentalSale`). */
+  projection: { horizon: number; years: ReturnType<typeof projectionYears>; sale: SaleContext };
 }
 
 /** `netValue` : valeur nette d'aujourd'hui, ou ce qu'il reste de la vente. `all` : tous les biens en location du foyer. */
@@ -54,9 +62,23 @@ export function rentabilityOf(data: RentalData, all: readonly RentalData[], para
     const own = ref ? t.properties.get(id)?.find((y) => y.year === ref.year) : undefined;
     return { regime: r, tax: own?.tax ?? null, impossible: r === "micro" && (year?.ceilingExceeded ?? false) };
   });
+  const balance = propertyBalance(data, netValue, today, propertyTaxTotal(taxes, id));
+  const furnishedReal = regime === "reel" && kind === "lmnp" ? all.filter((d) => rentalTaxKind(d.property, d.leases) === "lmnp").length : 0;
+  const context: ProjectionContext = {
+    data,
+    cashflow,
+    params,
+    kind,
+    regime,
+    carry: propertyTaxCarry(taxes, id, kind),
+    heldValue: propertyValue(data.property, today),
+    accountingFees: furnishedReal > 0 ? params.rental.accountingFees / furnishedReal : 0,
+    today,
+  };
+  const horizon = defaultHorizon(data, today);
   return {
     cashflow,
-    balance: propertyBalance(data, netValue, today, propertyTaxTotal(taxes, id)),
+    balance,
     cost: propertyFullCost(data, cashflow, today),
     tax: {
       kind,
@@ -64,6 +86,11 @@ export function rentabilityOf(data: RentalData, all: readonly RentalData[], para
       years: taxes.properties.get(id) ?? [],
       reference: ref ? (taxes.years.find((y) => y.year === ref.year && y.kind === kind) ?? null) : null,
       choices,
+    },
+    projection: {
+      horizon,
+      years: projectionYears(context, horizon),
+      sale: { data, kind, pastTaxes: taxes.properties.get(id) ?? [], contribution: balance?.contribution ?? null, today },
     },
   };
 }

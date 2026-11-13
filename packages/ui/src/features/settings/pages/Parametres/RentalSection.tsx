@@ -39,6 +39,12 @@ export function RentalSection({ draft }: { draft: PlanDraft }) {
         {eurField("Frais comptables (meublé au réel)", ["rental", "accountingFees"], "Comptable et organisme de gestion agréé, par an, pour tout le foyer.")}
         {pctField("Part du terrain (meublé au réel)", ["rental", "landShare"], "Part du prix qui ne s'amortit pas. 15 % en général, plus en maison.")}
       </FormGrid>
+      <div className="mt-4 mb-2 text-xs font-medium text-fg-muted">Projection et revente : hausse par an</div>
+      <FormGrid cols={3}>
+        {pctField("Loyers", ["rental", "rentGrowth"], "Révision annuelle (indice de référence des loyers).")}
+        {pctField("Charges", ["rental", "chargesGrowth"], "Taxe foncière, copropriété, assurance, gestion.")}
+        {pctField("Valeur du bien", ["rental", "valueGrowth"], "Peut être négative.")}
+      </FormGrid>
     </Section>
   );
 }

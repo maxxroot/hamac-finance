@@ -62,7 +62,7 @@
 
 Les paramètres arrivent à l'interface dans `Workspace.params` (`workspace.load`).
 
-**Sections de `PlanParams`** : `profile`, `returns`, `allocation`, `targets`, `livrets`, `broker`, `crypto`, `tax`, `modules`, `contributions`, `customAllocations`, `customClasses`, `removedTargets`, `alerts`, `rental` (biens en location : `coproRecoverable`, part de la copropriété récupérable proposée à la saisie ; `vacancyRate`, `worksRate`, `neutralBand`, `propertyTaxMonths` du cashflow ; `unfurnishedRegime`, `furnishedRegime`, `accountingFees`, `landShare` de l'impôt sur les loyers ; champs dans `packages/ui/src/features/settings/pages/Parametres/RentalSection.tsx`). Les taux sont des fractions (`0.128`), les montants des euros décimaux.
+**Sections de `PlanParams`** : `profile`, `returns`, `allocation`, `targets`, `livrets`, `broker`, `crypto`, `tax`, `modules`, `contributions`, `customAllocations`, `customClasses`, `removedTargets`, `alerts`, `rental` (biens en location : `coproRecoverable`, part de la copropriété récupérable proposée à la saisie ; `vacancyRate`, `worksRate`, `neutralBand`, `propertyTaxMonths` du cashflow ; `unfurnishedRegime`, `furnishedRegime`, `accountingFees`, `landShare` de l'impôt sur les loyers ; `rentGrowth`, `chargesGrowth`, `valueGrowth` de la projection ; champs dans `packages/ui/src/features/settings/pages/Parametres/RentalSection.tsx`). Les taux sont des fractions (`0.128`), les montants des euros décimaux.
 
 ## Règles
 

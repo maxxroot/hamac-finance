@@ -73,6 +73,13 @@ La carte *Impôts sur les loyers* estime, année par année, l'impôt sur le rev
 
 Cet impôt compte aussi ailleurs : divisé par 12 dans le cashflow, en total dans le bilan, et dans un rendement « net après impôt » du coût de revient.
 
+La carte *Projection et revente* prolonge le bien dans le temps, jusqu'à la fin du crédit (au moins dix ans) :
+
+- chaque année : loyers (vacance déduite), charges et provision pour travaux, échéances du crédit, impôt estimé, cashflow, capital restant dû et valeur nette. Les loyers et les charges augmentent chaque année, la valeur aussi, selon les hausses réglées dans Paramètres › Plan › Biens en location (+1,5 %, +2 % et +1 % par défaut) ;
+- *Revendre fin* : choisissez l'année. Hamac estime le prix, la plus-value imposable, l'impôt sur la plus-value, le crédit qui reste à rembourser et ce qu'il vous reste ;
+- *Gain total de l'opération* : tout ce que le bien vous aura rapporté, apport déduit, de l'achat à la revente ;
+- *Rendement annuel de l'apport* : le taux de rendement interne de ces flux, comparable au rendement d'un placement.
+
 Le bouton *Hypothèses* de la carte Cashflow règle, pour ce bien, les provisions du prévu : vacance locative et travaux, en pourcentage du loyer ou en montant par an. Sans réglage propre, le bien prend ceux de Paramètres › Plan › Biens en location (4 % pour la vacance, 5 % pour les travaux).
 
 L'onglet **Finances** contient, dans l'ordre :
@@ -182,6 +189,8 @@ Le bien sort du patrimoine à la date de vente, et son bilan reste dans l'onglet
 
 Quand plusieurs biens partagent un régime, l'impôt du groupe est réparti entre eux selon le résultat de chacun.
 
+**Plus-value à la revente.** Prix de vente moins prix d'achat majoré : des frais d'achat (réels, ou 7,5 % du prix si c'est plus) et des travaux (réels, ou 15 % du prix après cinq ans de détention). Pour un meublé au réel, les amortissements déduits sont retirés du prix d'achat, ce qui augmente la plus-value. Un abattement pour durée de détention s'applique à partir de la sixième année : 6 % par an pour l'impôt (exonération après 22 ans), 1,65 % par an puis 9 % pour les prélèvements sociaux (exonération après 30 ans). Impôt de 19 % et prélèvements sociaux de 17,2 %, plus une surtaxe au-delà de 50 000 € de plus-value. Exemple : acheté 100 000 € il y a 12 ans, revendu 160 000 € : 37 500 € de plus-value, 42 % d'abattement pour l'impôt, soit environ 4 130 € d'impôt et 5 700 € de prélèvements sociaux.
+
 **Régularisation à prévoir.** Si les provisions de charges du bail ne correspondent pas aux charges récupérables prévues, la carte indique l'écart sur un an, à rendre au locataire ou à lui demander.
 
 Le cashflow est avant impôt, pour votre part du bien et votre part du crédit.
@@ -232,8 +241,9 @@ Une année incomplète (mise en location en cours d'année, année en cours) est
 
 - La valeur du bien est celle que vous saisissez : Hamac ne l'estime pas.
 - Les frais de notaire sont une estimation : le taux réel dépend du département, un primo-accédant peut échapper à la hausse de 2025, la TVA retenue est celle de métropole, et les formalités sont un forfait.
-- Aucun impôt n'est calculé sur la plus-value à la vente. Les impôts sur les loyers sont estimés dans l'onglet Rentabilité.
+- L'impôt sur la plus-value n'est estimé que dans la simulation de revente de l'onglet Rentabilité ; une vente enregistrée affiche un gain avant impôt.
 - Les impôts sur les loyers sont une estimation : à votre tranche marginale, sans la CSG déductible, avec le régime d'aujourd'hui appliqué à toutes les années. Ne sont pas pris en compte : le plafond majoré du déficit foncier (rénovation énergétique), les meublés de tourisme, le statut de loueur professionnel, une SCI à l'impôt sur les sociétés, les dispositifs de défiscalisation (Pinel, Denormandie…), le mobilier d'un meublé (sauf à le saisir en travaux d'amélioration).
+- La projection repart du mois type d'aujourd'hui : elle ne prévoit ni nouveau bail, ni gros travaux, ni changement de régime. Le prix de revente est net vendeur, sans frais de vente. Une réforme des abattements pour durée de détention a été discutée pour 2026 sans être confirmée : le barème actuel est retenu.
 - Le cashflow prévu suppose une régularisation exacte des charges, et des loyers qui ne changent pas : il ne tient pas compte de la révision annuelle à venir.
 - La vente n'écrit rien dans le Journal : le versement du prix se note à part.
 - Un bien archivé sans vente disparaît aussi des dates passées dans l'Historique. Pour qu'il y reste jusqu'à sa sortie, enregistrez une vente.

@@ -10,6 +10,7 @@ import { FullCostCard } from "@/features/realestate/components/FullCostCard";
 import { IncomesCard } from "@/features/realestate/components/IncomesCard";
 import { LeaseCard } from "@/features/realestate/components/LeaseCard";
 import { LotsCard } from "@/features/realestate/components/LotsCard";
+import { ProjectionCard } from "@/features/realestate/components/ProjectionCard";
 import { PropertyLoansCard } from "@/features/realestate/components/PropertyLoansCard";
 import { PropertyStats } from "@/features/realestate/components/PropertyStats";
 import { PurchaseCard } from "@/features/realestate/components/PurchaseCard";
@@ -133,6 +134,7 @@ export function Bien() {
             </CardColumn>
           </CardColumns>
           <TaxCard tax={rentability.tax} tmi={ws.params.tax.tmi} />
+          <ProjectionCard projection={rentability.projection} rental={ws.params.rental} />
         </div>
       )}
 

@@ -32,6 +32,9 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | ui | `packages/ui/src/features/realestate/components/TaxCard.tsx` | Carte « Impôts sur les loyers » : années, comparaison des régimes. |
 | ui | `packages/ui/src/features/realestate/lib/rentalData.ts` | `rentalDataOf`, `allRentalData` : données de location d'un bien et de tous les biens loués du foyer. |
 | ui | `packages/ui/src/features/settings/pages/Parametres/RentalSection.tsx` | Paramètres › Plan › Biens en location. |
+| core | `packages/core/src/tax/realEstateGain.ts` | Plus-value immobilière (`realEstateGain`, `holdingAllowances`, `gainSurtax`). |
+| core | `packages/core/src/planning/rentalProjection/` | Projection d'un bien (`projectionYears`, `defaultHorizon`, `_years.ts`) et revente (`rentalSale`, `internalRate`, `_sale.ts`). |
+| ui | `packages/ui/src/features/realestate/components/ProjectionCard.tsx` | Carte « Projection et revente ». |
 | core | `packages/core/src/realestate/fullCost.ts` | Coût de revient (`propertyFullCost`) : achat, améliorations, coût du crédit payé et restant, rendements d'une année type. |
 | ui | `packages/ui/src/features/realestate/components/FullCostCard.tsx` | Carte « Coût de revient ». |
 | ui | `packages/ui/src/features/realestate/components/BalanceCard.tsx` | Carte « Bilan depuis l'achat ». |
@@ -226,6 +229,14 @@ Sources et date de relecture en tête de `_rules.ts` (sources secondaires concor
 - Répartition : l'impôt d'un groupe va à chaque bien au prorata de son résultat (recettes au micro) ; un bien en déficit reçoit une part négative.
 - `propertyTaxReference` : dernière année complète du bien, sinon la dernière connue. Le cashflow en prend le douzième (poste `taxes`), le bilan `propertyTaxTotal`, le coût de revient un rendement `afterTax`.
 
+### Projection et revente (`planning/rentalProjection/`, `tax/realEstateGain.ts`)
+
+Hypothèses de l'utilisateur (`params.rental.rentGrowth`, `chargesGrowth`, `valueGrowth` : +1,5 %, +2 %, +1 % par défaut).
+
+- `projectionYears` : de l'an prochain à l'horizon (`defaultHorizon` : fin du dernier crédit, au moins +10 ans, au plus +30). Mois type du cashflow prévu × 12 : loyers et vacance, provision travaux × (1 + rentGrowth)^k ; part récupérable et dépenses × (1 + chargesGrowth)^k. Crédit : échéances, intérêts et capital restant dû réels de `loanSchedule` (× `loan.share`). Impôt du bien seul (`projectedTax`, mêmes règles que `rentalTaxes`) avec ses reports de départ (`propertyTaxCarry` : ceux du groupe au prorata de ses recettes). Valeur = valeur détenue d'aujourd'hui × (1 + valueGrowth)^k.
+- `realEstateGain` (sources en tête du fichier, relues le 13 novembre 2026 sur des sources secondaires) : prix d'acquisition + max(frais réels, 7,5 %) + max(travaux réels, 15 % après 5 ans) − amortissements déduits (meublé) ; abattements `holdingAllowances` (CGI art. 150 VC) ; 19 % + 17,2 % ; surtaxe `gainSurtax` (CGI art. 1609 nonies G).
+- `rentalSale` : vente le 31 décembre de l'année choisie au prix projeté, sans frais ; travaux = travaux à l'achat + améliorations payées ; amortissements = ceux des années passées au réel + ceux de la projection. `net = prix − impôt − capital restant dû`. Flux par année : −apport l'année d'achat, `remaining + améliorations − impôt` des années passées (`propertyYears`, `PropertyTaxYear`), cashflow projeté, puis `net`. `totalGain = Σ flux` ; `irr = internalRate` (bissection sur [−99 % ; 1 000 %], `null` sans changement de signe).
+
 ### Repères au m² (`propertySqm`)
 
 Prix d'achat, valeur et loyer du mois (`monthlyRentNow`, somme des loyers hors charges des baux en cours) divisés par la surface ; `null` sans surface. La fiche imprimable ne passe pas de loyer.
@@ -259,6 +270,8 @@ Les deux renvoient vers `/immobilier/<id>`.
 |---|---|
 | `packages/core/src/realestate/realestate.test.ts` (bloc « biens ») | Frais de notaire chiffrés, synthèse, vente, valeur dans le temps, crédit à solder, repères au m², coût complet. |
 | `packages/core/src/tax/rental/rental.test.ts` | Micro-foncier, réel foncier, déficit plafonné et reporté, déficit dû aux intérêts, reports de plus de 10 ans, plafond dépassé, répartition entre biens ; vide ou meublé, micro-BIC, amortissement par composant, amortissement limité et reporté, frais comptables ; impôt de référence. |
+| `packages/core/src/tax/realEstateGain.test.ts` | Abattements pour durée de détention, surtaxe et lissage, forfaits, amortissements d'un meublé, moins-value. |
+| `packages/core/src/planning/rentalProjection/rentalProjection.test.ts` | Horizon, années projetées (hausses, crédit, impôt, valeur nette), fin du crédit, taux de rendement interne, revente. |
 | `packages/core/src/realestate/balance.test.ts` | Bilan : apport, échéances, dépenses, effort net et enrichissement chiffrés ; amélioration, impôts, part détenue, remboursement anticipé, prix inconnu. Coût de revient (`fullCost.ts`) : coût du crédit payé et restant, rendements, bien vendu, prix inconnu. |
 | `packages/core/src/realestate/cashflow/cashflow.test.ts` | Cashflow réel et prévu poste par poste, taxe foncière estimée, provisions du bien, dépense ponctuelle, parts, location récente, lot vide, seuil neutre. |
 | `packages/ui/src/features/realestate/rentabilite.flow.test.tsx` | Onglet Rentabilité ouvert par défaut, taxe estimée signalée, provisions enregistrées depuis « Hypothèses ». |

@@ -121,6 +121,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 ## Tranche 5. Projection et revente
 
+**Statut :** faite le 13 novembre 2026. Décisions prises en codant : hausses par défaut +1,5 % des loyers, +2 % des charges, +1 % de la valeur (réglables) ; projection depuis le mois type du cashflow prévu, jusqu'à la fin du crédit (au moins 10 ans, au plus 30) ; impôt du bien estimé seul, avec ses reports ; revente au 31 décembre, net vendeur, sans frais ; barème actuel des abattements (22 et 30 ans), la réforme discutée pour 2026 n'étant pas confirmée.
+
 **Pourquoi.** Un cashflow négatif pendant le crédit peut cacher un très bon investissement, et l'inverse.
 
 **Ce qu'on ajoute.**
