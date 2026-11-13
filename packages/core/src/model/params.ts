@@ -101,10 +101,17 @@ export const PlanParams = z
       /** Plafond de déduction des versements sur un PER, lu sur l'avis d'impôt ; 0 = non renseigné. */
       perDeductionCeiling: eur,
     }),
-    /** Biens en location : valeurs proposées pour les nouvelles dépenses et, plus tard, les hypothèses de rentabilité. */
+    /** Biens en location : valeurs proposées pour les nouvelles dépenses et hypothèses du cashflow prévu. */
     rental: z.object({
       /** Part des charges de copropriété récupérable sur le locataire, proposée à la saisie. */
       coproRecoverable: pct,
+      /** Provisions du cashflow prévu, en part du loyer hors charges ; chaque bien peut avoir les siennes. */
+      vacancyRate: pct,
+      worksRate: pct,
+      /** Écart à zéro, en part du loyer hors charges, en dessous duquel le cashflow est dit neutre. */
+      neutralBand: pct,
+      /** Taxe foncière estimée en mois de loyer hors charges, tant que l'avis n'est pas saisi. */
+      propertyTaxMonths: z.number().min(0).max(12),
     }),
     /** Pages affichées dans le menu. Masquer un module ne change aucun calcul. */
     modules: z.object(Object.fromEntries(MODULES.map((m) => [m, z.boolean()])) as Record<ModuleKey, z.ZodBoolean>),
@@ -202,7 +209,7 @@ export function defaultParams(today = new Date()): PlanParams {
       peaBefore5: 0.128,
       perDeductionCeiling: 0,
     },
-    rental: { coproRecoverable: 2 / 3 },
+    rental: { coproRecoverable: 2 / 3, vacancyRate: 0.04, worksRate: 0.05, neutralBand: 0.02, propertyTaxMonths: 1.3 },
     modules: Object.fromEntries(MODULES.map((m) => [m, true])) as Record<ModuleKey, boolean>,
     contributions: { mode: "libre", capacity: 0 },
     customAllocations: [],

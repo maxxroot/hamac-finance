@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DISMEMBERMENTS, DOCUMENT_KINDS, ENERGY_LETTERS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, LEASE_GUARANTEE_KINDS, LEASE_KINDS, LEASE_NOTICE_BY, LOT_KINDS, NOTICE_LEVELS, PAYMENT_METHODS, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROPERTY_TYPES, RENTAL_MODES } from "@hamac/core";
+import { DISMEMBERMENTS, DOCUMENT_KINDS, ENERGY_LETTERS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, LEASE_GUARANTEE_KINDS, LEASE_KINDS, LEASE_NOTICE_BY, LOT_KINDS, NOTICE_LEVELS, PAYMENT_METHODS, PROPERTY_KINDS, PROPERTY_OWNERSHIPS, PROVISION_KINDS, PROPERTY_TYPES, RENTAL_MODES } from "@hamac/core";
 import { id, isoDate, month, money, text } from "../common";
 
 /** Entrées validées : biens immobiliers, sociétés, lots, baux, locataires, loyers et charges. */
@@ -50,6 +50,14 @@ export const PropertyInput = z.object({
 })
   .refine((p) => p.dismemberment === "pleine" || p.usufructBirthDate != null || p.usufructEnd != null, { path: ["usufructBirthDate"], message: "Indiquez la date de naissance de l'usufruitier, ou la fin de l'usufruit s'il est à durée fixe." });
 export type PropertyInput = z.input<typeof PropertyInput>;
+
+/** Provision du cashflow prévu : un pourcentage du loyer (au plus 100 %) ou un montant par an ; null = réglage du plan. */
+const ProvisionInput = z
+  .object({ kind: z.enum(PROVISION_KINDS), value: money.min(0) })
+  .refine((p) => p.kind === "montant" || p.value <= 1, { message: "Au plus 100 % du loyer", path: ["value"] })
+  .nullable();
+export const PropertyProvisionsInput = z.object({ id, vacancy: ProvisionInput, works: ProvisionInput });
+export type PropertyProvisionsInput = z.input<typeof PropertyProvisionsInput>;
 
 export const PropertySaleInput = z.object({
   id,

@@ -127,5 +127,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0031_volatile_morlun",
     "sql": "ALTER TABLE \"property_expenses\" ADD COLUMN \"recoverable_rate\" double precision DEFAULT 0 NOT NULL;--> statement-breakpoint\n-- Charges de copropriété déjà saisies : deux tiers récupérables, la valeur proposée par défaut.\nUPDATE \"property_expenses\" SET \"recoverable_rate\" = 2.0 / 3 WHERE \"category\" = 'copropriete';\n"
+  },
+  {
+    "tag": "0032_fantastic_the_order",
+    "sql": "ALTER TABLE \"properties\" ADD COLUMN \"vacancy_rate\" double precision;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"vacancy_amount_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"works_rate\" double precision;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"works_amount_cents\" bigint;"
   }
 ];

@@ -57,6 +57,11 @@ export const properties = pgTable("properties", {
   dismemberment: text("dismemberment").notNull().default("pleine"),
   usufructBirthDate: text("usufruct_birth_date"),
   usufructEnd: text("usufruct_end"),
+  /** Provisions du cashflow prévu : un taux du loyer ou un montant par an, ou rien pour la valeur des réglages. */
+  vacancyRate: doublePrecision("vacancy_rate"),
+  vacancyAmountCents: bigint("vacancy_amount_cents", { mode: "number" }),
+  worksRate: doublePrecision("works_rate"),
+  worksAmountCents: bigint("works_amount_cents", { mode: "number" }),
   inAllocation: boolean("in_allocation"),
   classId: text("class_id"),
   comment: text("comment").notNull().default(""),

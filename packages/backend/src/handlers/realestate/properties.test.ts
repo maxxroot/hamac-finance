@@ -76,3 +76,24 @@ describe("dépenses : part récupérable sur le locataire", () => {
     expect(propertyExpenses.find((e) => e.id === "t")!.recoverableRate).toBe(0);
   });
 });
+
+describe("provisions du cashflow prévu", () => {
+  it("enregistrées à part : modifier le bien ne les touche pas, null revient aux réglages", async () => {
+    backend = await testBackend();
+    const property = await call<{ id: string }>(backend, "properties.upsert", bien);
+    await call(backend, "properties.setProvisions", { id: property.id, vacancy: { kind: "montant", value: 600 }, works: { kind: "taux", value: 0.08 } });
+    const load = async () => (await call<{ properties: Array<Record<string, unknown>> }>(backend!, "workspace.load")).properties[0];
+    expect(await load()).toMatchObject({ vacancyProvision: { kind: "montant", value: 600 }, worksProvision: { kind: "taux", value: 0.08 } });
+    await call(backend, "properties.upsert", { ...bien, id: property.id, name: "T2 rénové" });
+    expect(await load()).toMatchObject({ name: "T2 rénové", vacancyProvision: { kind: "montant", value: 600 } });
+    await call(backend, "properties.setProvisions", { id: property.id, vacancy: null, works: null });
+    expect(await load()).toMatchObject({ vacancyProvision: null, worksProvision: null });
+  });
+
+  it("refusées : plus de 100 % du loyer, bien inconnu", async () => {
+    backend = await testBackend();
+    const property = await call<{ id: string }>(backend, "properties.upsert", bien);
+    expect((await backend.dispatch("properties.setProvisions", { id: property.id, vacancy: { kind: "taux", value: 1.5 }, works: null })).ok).toBe(false);
+    expect((await backend.dispatch("properties.setProvisions", { id: "inconnu", vacancy: null, works: null })).ok).toBe(false);
+  });
+});

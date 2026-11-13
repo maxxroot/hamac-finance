@@ -43,7 +43,16 @@ La page apparaît dans le menu si le module « Immobilier » est activé (Param�
    - *Coût d'achat* (ou *Coût total* s'il y a eu des travaux d'amélioration), frais compris, pour votre part ;
    - *Gain estimé* : valeur détenue moins coût, avant impôt ;
    - *Valeur nette* : valeur détenue moins le capital restant dû à votre charge sur les crédits du bien.
-4. **Les onglets.** Un investissement locatif a deux onglets, « Location » puis « Finances ». Les autres biens n'ont que « Finances ».
+4. **Les onglets.** Un investissement locatif a trois onglets : « Rentabilité », « Location » puis « Finances ». Les autres biens n'ont que « Finances ».
+
+L'onglet **Rentabilité** répond d'abord à une question : le bien vous laisse-t-il de l'argent chaque mois, ou vous en coûte-t-il ? La carte *Cashflow* montre :
+
+- *Réel, par mois*, en grand : ce qui est vraiment rentré et sorti sur les 12 derniers mois complets, divisé par le nombre de mois (ou depuis le premier mois loué, si la location est plus récente) ;
+- *Prévu, par mois* : un mois type d'après la situation d'aujourd'hui ;
+- un badge *Positif*, *Neutre* ou *Négatif* pour chacun. Neutre veut dire à moins de 2 % du loyer hors charges de zéro, dans un sens ou dans l'autre ;
+- le détail poste par poste, réel et prévu côte à côte : loyers, vacance, charges remboursées par le locataire, taxe foncière, copropriété, assurance, gestion, autres dépenses, travaux, autres recettes, crédit.
+
+Le bouton *Hypothèses* règle, pour ce bien, les provisions du prévu : vacance locative et travaux, en pourcentage du loyer ou en montant par an. Sans réglage propre, le bien prend ceux de Paramètres › Plan › Biens en location (4 % pour la vacance, 5 % pour les travaux).
 
 L'onglet **Finances** contient, dans l'ordre :
 
@@ -135,6 +144,14 @@ Le bien sort du patrimoine à la date de vente, et son bilan reste dans l'onglet
 
 ## Comprendre les chiffres
 
+**Cashflow réel.** Les loyers et charges comptent pour le mois du loyer, une fois pointés reçus (onglet Location). Les dépenses et les échéances du crédit comptent à leur date. Les régularisations de charges saisies dans les recettes s'ajoutent aux charges remboursées. Les travaux d'amélioration et les remboursements anticipés du crédit n'y sont pas : ce sont des choix d'investissement. Exemple : 800 € de loyer et 100 € de charges reçus chaque mois, 1 200 € de taxe foncière, 1 800 € de copropriété, 120 € d'assurance et 600 € de travaux payés dans l'année, 520 € d'échéance par mois : (9 600 + 1 200 − 1 200 − 1 800 − 120 − 600) ÷ 12 − 520 = 70 € par mois.
+
+**Cashflow prévu.** Le loyer hors charges en cours de chaque lot (le loyer espéré pour un lot vide). Chaque dépense compte pour son montant annuel s'il s'agit d'une dépense « chaque année » toujours en cours ; sinon, ce qui a été payé dans cette catégorie sur les 12 derniers mois. Les travaux et entretien sont remplacés par la provision pour travaux, et la provision pour vacance est retirée du loyer. La part récupérable des charges est supposée remboursée en totalité par le locataire. Le crédit compte pour sa prochaine échéance, assurance comprise. Sans avis de taxe foncière saisi, elle est estimée à 1,3 mois de loyer hors charges par an, et marquée *Estimée*.
+
+**Régularisation à prévoir.** Si les provisions de charges du bail ne correspondent pas aux charges récupérables prévues, la carte indique l'écart sur un an, à rendre au locataire ou à lui demander.
+
+Le cashflow est avant impôt, pour votre part du bien et votre part du crédit.
+
 **Valeur détenue.** Valeur du bien entier × part détenue × part du droit détenu × part de vos parts de SCI. Exemple : un appartement estimé 300 000 €, détenu à 50 %, en pleine propriété, vaut 150 000 € pour vous.
 
 **Usufruit et nue-propriété.** La part du droit suit le barème fiscal (article 669 du code général des impôts). Pour un usufruit à vie, elle dépend de l'âge de l'usufruitier : par exemple, à 70 ans, l'usufruit vaut 40 % du bien et la nue-propriété 60 %. Un usufruit à durée fixe vaut 23 % par période de dix ans, toute période commencée comptant, sans dépasser l'usufruit à vie. La valeur évolue donc avec le temps. Si l'usufruitier n'est pas connu, le bien compte en entier.
@@ -181,7 +198,8 @@ Une année incomplète (mise en location en cours d'année, année en cours) est
 
 - La valeur du bien est celle que vous saisissez : Hamac ne l'estime pas.
 - Les frais de notaire sont une estimation : le taux réel dépend du département, un primo-accédant peut échapper à la hausse de 2025, la TVA retenue est celle de métropole, et les formalités sont un forfait.
-- Aucun impôt n'est calculé : ni plus-value à la vente, ni revenus fonciers ou location meublée. Les gains et rendements sont avant impôt.
+- Aucun impôt n'est calculé : ni plus-value à la vente, ni revenus fonciers ou location meublée. Les gains, rendements et le cashflow sont avant impôt.
+- Le cashflow prévu suppose une régularisation exacte des charges, et des loyers qui ne changent pas : il ne tient pas compte de la révision annuelle à venir.
 - La vente n'écrit rien dans le Journal : le versement du prix se note à part.
 - Un bien archivé sans vente disparaît aussi des dates passées dans l'Historique. Pour qu'il y reste jusqu'à sa sortie, enregistrez une vente.
 - Une SCI n'est suivie que par ses parts : pas de comptabilité de la société.

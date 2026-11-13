@@ -48,6 +48,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 ## Tranche 1. Hypothèses du bien et cashflow mensuel
 
+**Statut :** faite le 13 novembre 2026 (migration 0032). Valeurs choisies par l'utilisateur : vacance 4 % et travaux 5 % du loyer hors charges, neutre à ±2 % du loyer. Décisions prises en codant : le réel compte les 12 derniers mois complets (le mois en cours n'est pas encore pointé) ; le prévu prend, par catégorie, les dépenses « chaque année » en cours, sinon ce qui a été payé sur 12 mois ; les travaux réels sont remplacés par la provision dans le prévu ; ni améliorations ni remboursements anticipés dans le réel ; régularisation des charges supposée exacte dans le prévu, l'écart avec les provisions du bail est affiché à part.
+
 **Pourquoi.** C'est le chiffre qui dit si le bien est en cashflow positif, neutre ou négatif.
 
 **Ce qu'on ajoute.**
@@ -122,8 +124,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 ## Questions encore ouvertes
 
-1. **Provisions par défaut** : faut-il proposer des valeurs (par exemple 1 mois de vacance par an, soit 8,3 % du loyer, et 5 % du loyer pour les travaux), ou partir de 0 en invitant à les régler ?
-2. **Seuil du cashflow « neutre »** : à partir de quel écart à zéro par mois le bien est-il positif ou négatif (par exemple ±50 € par mois, ou ±2 % du loyer) ?
+1. ~~Provisions par défaut~~ : 4 % pour la vacance, 5 % pour les travaux (décidé le 13 novembre 2026).
+2. ~~Seuil du cashflow « neutre »~~ : ±2 % du loyer hors charges (décidé le 13 novembre 2026).
 3. **Régime fiscal du foyer** : confirmer qu'il se règle une fois pour la location vide et une fois pour la location meublée (c'est la règle fiscale), et non bien par bien.
 4. **Composants et durées d'amortissement** du LMNP au réel : valeurs proposées à valider à la tranche 4.
 

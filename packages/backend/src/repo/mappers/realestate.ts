@@ -1,8 +1,12 @@
-import type { Company, Lease, LeaseGuarantee, LeaseRenter, LeaseRent, Lot, Renter, Property, PropertyDocument, PropertyReminder, PropertyExpense, PropertyIncome, PropertyValue, RentNotice, RentPayment, RentWaiver } from "@hamac/core";
+import type { Company, Lease, LeaseGuarantee, LeaseRenter, LeaseRent, Lot, Renter, Property, PropertyDocument, Provision, PropertyReminder, PropertyExpense, PropertyIncome, PropertyValue, RentNotice, RentPayment, RentWaiver } from "@hamac/core";
 import * as t from "../../db/schema";
 import { fromCents } from "../../db/units";
 
 /** Lignes de la base → biens, sociétés, lots, baux, locataires, loyers et charges. */
+
+/** Provision stockée en taux ou en centimes par an ; aucune des deux : la valeur des réglages. */
+const provision = (rate: number | null, amountCents: number | null): Provision | null =>
+  rate != null ? { kind: "taux", value: rate } : amountCents != null ? { kind: "montant", value: fromCents(amountCents) } : null;
 
 export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
   id: r.id,
@@ -46,6 +50,8 @@ export const mapProperty = (r: typeof t.properties.$inferSelect): Property => ({
   dismemberment: r.dismemberment as Property["dismemberment"],
   usufructBirthDate: r.usufructBirthDate,
   usufructEnd: r.usufructEnd,
+  vacancyProvision: provision(r.vacancyRate, r.vacancyAmountCents),
+  worksProvision: provision(r.worksRate, r.worksAmountCents),
   inAllocation: r.inAllocation,
   classId: r.classId,
   comment: r.comment,

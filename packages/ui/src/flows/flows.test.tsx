@@ -240,8 +240,7 @@ describe("parcours de l'interface", () => {
       `/immobilier/${bien.id}`,
     );
     await user.click(await screen.findByRole("button", { name: "Fiche du bien" }));
-    expect(await screen.findByRole("dialog", { name: "Fiche du bien" })).toBeTruthy();
-    expect(screen.getByText("Rentabilité")).toBeTruthy();
+    expect(within(await screen.findByRole("dialog", { name: "Fiche du bien" })).getByText("Rentabilité")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Compléter la fiche/ }));
     // Échap ne referme que le formulaire : la fiche reste ouverte derrière.
     await user.keyboard("{Escape}");

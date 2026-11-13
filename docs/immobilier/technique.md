@@ -27,6 +27,9 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | backend | `packages/backend/src/backup/dump.ts` | `TABLES` : ordre des tables dans les sauvegardes. |
 | ui | `packages/ui/src/features/realestate/pages/Immobilier.tsx` | Page `/immobilier`. |
 | ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Page d'un bien : chiffres, onglets Location et Finances. Chaque onglet range ses cartes en deux colonnes indépendantes (`CardColumns`) : Finances met l'achat et les crédits à gauche, la valeur, les dépenses et les recettes à droite, puis les résultats par année sur toute la largeur. |
+| core | `packages/core/src/realestate/cashflow/` | Cashflow d'un bien : `propertyCashflow`, `cashflowAssumptions`, `cashflowTone` (`index.ts`), réel des 12 derniers mois (`_real.ts`), mois type prévu (`_planned.ts`), postes et libellés (`_shared.ts`). |
+| ui | `packages/ui/src/features/realestate/components/CashflowCard.tsx` | Onglet Rentabilité : cashflow réel et prévu, détail par poste, régularisation à prévoir. |
+| ui | `packages/ui/src/features/realestate/dialogs/ProvisionsDialog.tsx` | Provisions du bien pour vacance et travaux : réglage du plan, pourcentage ou montant par an. |
 | ui | `packages/ui/src/features/realestate/components/PurchaseCard.tsx` | Achat du bien entier, frais et travaux d'amélioration. |
 | ui | `packages/ui/src/features/realestate/components/PropertyLoansCard.tsx` | Crédits rattachés, part à charge. |
 | ui | `packages/ui/src/features/realestate/pages/ImpressionBien.tsx` | Fiche imprimable. |
@@ -59,7 +62,7 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | Table | Contenu | Remarques |
 |---|---|---|
 | `companies` | SCI : nom, `share` (part des parts), commentaire, archivée. | `properties.company_id` → `companies.id`, `ON DELETE SET NULL` : supprimer une société garde ses biens. |
-| `properties` | Le bien : utilisation (`kind`), statut (`ownership`), valeur et date, achat et frais (`*_cents`), `new_build`, fiche descriptive, DPE et GES, `dpe_reminders`, `rental_mode`, vente (`sale_date`, `sale_price_cents`, `sale_fees_cents`), `share`, `company_id`, démembrement (`dismemberment`, `usufruct_birth_date`, `usufruct_end`), `in_allocation`, `class_id`, archivé. | La valeur actuelle reste sur le bien. |
+| `properties` | Le bien : utilisation (`kind`), statut (`ownership`), valeur et date, achat et frais (`*_cents`), `new_build`, fiche descriptive, DPE et GES, `dpe_reminders`, `rental_mode`, vente (`sale_date`, `sale_price_cents`, `sale_fees_cents`), `share`, `company_id`, démembrement (`dismemberment`, `usufruct_birth_date`, `usufruct_end`), provisions du cashflow (`vacancy_rate` ou `vacancy_amount_cents`, `works_rate` ou `works_amount_cents`, migration 0032), `in_allocation`, `class_id`, archivé. | La valeur actuelle reste sur le bien. |
 | `property_values` | Estimations passées : `property_id`, `date`, `value_cents`. | Index unique (`property_id`, `date`). Cascade à la suppression du bien. |
 | `property_expenses` | Dépenses : date, catégorie, montant, libellé, `yearly`, `until_year`, `improvement`, `recoverable_rate` (part récupérable sur le locataire, de 0 à 1 ; migration 0031, qui passe la copropriété existante aux deux tiers). | Cascade. |
 | `property_incomes` | Recettes hors loyer : date, catégorie, montant positif, libellé. | Cascade. |
@@ -75,6 +78,7 @@ Toutes ces tables figurent dans `TABLES` (`packages/backend/src/backup/dump.ts`)
 |---|---|
 | `companies.upsert`, `companies.delete` | Mise à jour d'un id inconnu : `NOT_FOUND`. |
 | `properties.upsert` | Société inconnue : `NOT_FOUND`. `company_id` n'est gardé que pour un statut `sci` ou `sci_familiale`. En pleine propriété, la naissance et la fin de l'usufruit sont effacées. Si `valueDate` change, l'ancienne valeur est copiée dans `property_values` (`keepPastValue`, qui écrase une estimation à la même date). Le schéma zod exige, hors pleine propriété, une naissance ou une fin d'usufruit. |
+| `properties.setProvisions` | Bien inconnu : `NOT_FOUND`. Écrit seulement `vacancy_rate` / `vacancy_amount_cents` et `works_rate` / `works_amount_cents` (l'une des deux colonnes de chaque paire, ou aucune pour revenir aux réglages). Un taux au-delà de 100 % est refusé (zod). `properties.upsert` ne touche pas ces colonnes. |
 | `properties.delete` | Suppression en cascade (voir plus haut). |
 | `properties.sell` | Vente avant l'achat : `VALIDATION`. Écrit la vente et `archived = true`. Avec `closeLoans` (vrai par défaut), archive les crédits non archivés du bien avec `closed_on = saleDate`. |
 | `properties.cancelSale` | Rétablit les crédits du bien dont `closed_on` vaut la date de vente, puis efface la vente et désarchive. |
@@ -173,6 +177,16 @@ Calculés pour un bien en location, sur les données après parts de SCI. Horizo
 - `occupancy` : occupation pondérée par le loyer, sur les fenêtres de chaque lot (`lotWindows`, détaillé dans la [documentation de la gestion locative](../gestion-locative/technique.md)) ; `null` avant le premier bail ; plafonnée à 1.
 - `propertyProfitability` : année de référence = dernière année louée complète, sinon dernière année louée ; `monthlyRemaining = remaining / rentalMonths` ; cumuls `totalRents` et `totalCapital` depuis la première année. `null` tant que le bien n'a jamais été loué.
 
+### Cashflow (`cashflow/`)
+
+Règles fixées par l'utilisateur le 13 novembre 2026, sans source légale : provisions de 4 % du loyer pour la vacance et 5 % pour les travaux, neutre à ±2 % du loyer, taxe foncière estimée à 1,3 mois de loyer hors charges (`params.rental` : `vacancyRate`, `worksRate`, `neutralBand`, `propertyTaxMonths`). Chaque bien peut remplacer les provisions (`Property.vacancyProvision`, `worksProvision` : `{ kind: "taux" | "montant", value }`, montant par an pour le bien entier).
+
+- Montants signés par mois. Bien × `property.share` ; crédit × `loan.share`.
+- **Réel** (`realCashflow`) : mois de `to` = mois précédant aujourd'hui, à `from` = 11 mois avant, ou le mois du premier bail s'il est plus récent ; `null` sans bail ou sans mois complet. Loyers et charges reçus des `rentMonths` du mois du loyer ; recettes `regularisation_recue` / `_rendue` dans `recovered`, autres recettes et dépôt gardé dans `otherIncome` ; occurrences des dépenses hors améliorations dans leur catégorie ; échéances (`payment + insurance`) de `loanSchedule` dans la période, remboursements anticipés exclus. Totaux ÷ nombre de mois.
+- **Prévu** (`plannedCashflow`) : loyer et charges des baux en cours (`leaseRentAt` du mois), par lot ; lot proposé à la location sans bail en cours : `lotPotentialRent`. Par catégorie de dépense (hors travaux) : somme des dépenses `yearly` encore en cours, sinon occurrences des 12 derniers mois ; ÷ 12. Taxe foncière absente : `− loyer × propertyTaxMonths ÷ 12`, `propertyTaxEstimated`. `recovered` = part récupérable de ces dépenses (régularisation supposée exacte). Vacance et travaux : `provisionMonthly` (taux × loyer, ou montant ÷ 12). Crédit : prochaine échéance après aujourd'hui des crédits non archivés.
+- **Ton** : `neutralBand` = loyer prévu × `share` × `params.rental.neutralBand` ; positif au-dessus, négatif en dessous de son opposé, neutre entre les deux (bornes comprises).
+- `lines` : postes non nuls d'un côté ou de l'autre ; la vacance n'a pas de réel (`null`), elle est déjà dans les loyers reçus.
+
 ### Repères au m² (`propertySqm`)
 
 Prix d'achat, valeur et loyer du mois (`monthlyRentNow`, somme des loyers hors charges des baux en cours) divisés par la surface ; `null` sans surface. La fiche imprimable ne passe pas de loyer.
@@ -196,7 +210,7 @@ Les deux renvoient vers `/immobilier/<id>`.
 
 - `Immobilier.tsx` : *Biens immobiliers* = `netWorth.realEstate` ; *SCPI* = valeur des positions `scpi` des comptes ; allocation affichée = `inAllocation ?? classEnabled(params, "immobilier")`.
 - `CompaniesCard` : visible s'il existe une société ou un bien au statut `sci` / `sci_familiale`.
-- `Bien.tsx` : onglet choisi par `?onglet=location|finances` (les alertes de bail renvoient à `?onglet=location`) ; onglet Location seulement pour `kind = "locatif"`.
+- `Bien.tsx` : onglet choisi par `?onglet=rentabilite|location|finances` (les alertes de bail renvoient à `?onglet=location`) ; onglets Rentabilité (ouvert par défaut) et Location seulement pour `kind = "locatif"`.
 - `SaleDialog` : refuse une date antérieure à l'achat avant même l'appel.
 - `AddressInput` : n'appelle le service qu'à partir de 3 caractères tapés, après 250 ms, sans cookie ni référent (`credentials: "omit"`, `referrerPolicy: "no-referrer"`) ; la CSP autorise `https://data.geopf.fr` dans `packages/ui/index.html` et `apps/server/src/http/app.ts`.
 
@@ -205,13 +219,15 @@ Les deux renvoient vers `/immobilier/<id>`.
 | Fichier | Ce qu'il couvre |
 |---|---|
 | `packages/core/src/realestate/realestate.test.ts` (bloc « biens ») | Frais de notaire chiffrés, synthèse, vente, valeur dans le temps, crédit à solder, repères au m², coût complet. |
+| `packages/core/src/realestate/cashflow/cashflow.test.ts` | Cashflow réel et prévu poste par poste, taxe foncière estimée, provisions du bien, dépense ponctuelle, parts, location récente, lot vide, seuil neutre. |
+| `packages/ui/src/features/realestate/rentabilite.flow.test.tsx` | Onglet Rentabilité ouvert par défaut, taxe estimée signalée, provisions enregistrées depuis « Hypothèses ». |
 | `packages/core/src/realestate/expenses.test.ts` | Part récupérable : valeur proposée, montant récupérable et reste à charge, TEOM convertie. |
 | `packages/core/src/realestate/rental.test.ts` | Dates des dépenses, résultats par année, part récupérable, améliorations, recettes, dépôt gardé, vente. |
 | `packages/core/src/realestate/energy.test.ts` | Validité du DPE, interdiction de louer, alertes DPE. |
 | `packages/core/src/model/ownership.test.ts` | Barème de l'usufruit, valeur détenue, parts de SCI. |
 | `packages/core/src/portfolio/engine.test.ts` | Part détenue des biens dans le patrimoine, nue-propriété. |
 | `packages/core/src/realestate/leases.test.ts` (bloc « rappels de documents et d'assurance ») | Alertes de documents. |
-| `packages/backend/src/handlers/realestate/properties.test.ts` | Part récupérable des dépenses : valeur proposée et réglage, catégories exclues, migration 0031, ancienne sauvegarde. |
+| `packages/backend/src/handlers/realestate/properties.test.ts` | Part récupérable des dépenses : valeur proposée et réglage, catégories exclues, migration 0031, ancienne sauvegarde. Provisions du cashflow : enregistrées à part de la fiche, retour aux réglages, refus. |
 | `packages/backend/src/handlers/loans.test.ts` (blocs « statut et frais d'un bien », « vie d'un bien », et le test des documents dans « différé, remboursements anticipés et documents ») | Statut, frais, fiche descriptive, estimations, vente et annulation, améliorations, documents, sauvegardes. |
 | `packages/backend/src/backend.test.ts` | SCI et démembrement d'un bien. |
 | `packages/ui/src/features/realestate/lib/addressSearch.test.ts` | Lecture de la réponse du service d'adresse, seuil de 3 caractères, panne. |

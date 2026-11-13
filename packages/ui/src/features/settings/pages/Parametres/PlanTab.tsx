@@ -1,4 +1,4 @@
-import { Checkbox, Field, FormGrid, Select, TextInput } from "@/shared/components/form";
+import { Checkbox, Field, FormGrid, NumberInput, Select, TextInput } from "@/shared/components/form";
 import { MODULES, MODULE_LABELS, formatPct, incomeTaxRate, retirementYear, taxRegimeLabel } from "@hamac/core";
 import { cn } from "@/shared/lib/cn";
 import { Section } from "./Section";
@@ -120,9 +120,15 @@ export function PlanTab({ draft }: { draft: PlanDraft }) {
       </Section>
 
       {p.modules.immobilier && (
-        <Section title="Biens en location" hint="Valeurs proposées à la saisie : chaque dépense garde la sienne, modifiable.">
+        <Section title="Biens en location" hint="Valeurs proposées par défaut : chaque dépense garde sa part récupérable, et chaque bien peut avoir ses propres provisions.">
           <FormGrid cols={3}>
             {pctField("Copropriété récupérable sur le locataire", ["rental", "coproRecoverable"], "Part des charges du syndic que le locataire rembourse. Deux tiers en général.")}
+            {pctField("Provision pour vacance", ["rental", "vacancyRate"], "Part du loyer hors charges mise de côté pour les mois sans locataire.")}
+            {pctField("Provision pour travaux", ["rental", "worksRate"], "Part du loyer hors charges mise de côté pour l'entretien.")}
+            {pctField("Cashflow neutre", ["rental", "neutralBand"], "Écart à zéro, en part du loyer, en dessous duquel un bien n'est ni positif ni négatif.")}
+            <Field label="Taxe foncière estimée" help="En mois de loyer hors charges, tant que l'avis n'est pas saisi." error={err(["rental", "propertyTaxMonths"])}>
+              {(id) => <NumberInput id={id} decimals={2} suffix="mois" value={p.rental.propertyTaxMonths} onChange={(v) => set(["rental", "propertyTaxMonths"], v ?? 0)} />}
+            </Field>
           </FormGrid>
         </Section>
       )}

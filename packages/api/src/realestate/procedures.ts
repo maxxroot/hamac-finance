@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Company, Lease, LeaseRent, Lot, Property, PropertyDocument, PropertyExpense, PropertyIncome, PropertyReminder, Renter, RentNotice, RentPayment, RentWaiver } from "@hamac/core";
 import { ok, byId, entity } from "../common";
-import { CompanyInput, LeaseInput, LeaseRentInput, LotInput, PropertyDocumentInput, PropertyExpenseInput, PropertyIncomeInput, PropertyInput, PropertyReminderInput, PropertySaleInput, PropertyValueInput, RenterInput, RentNoticeInput, RentPaymentInput, RentPaymentsInput, RentWaiverInput } from "./inputs";
+import { CompanyInput, LeaseInput, LeaseRentInput, LotInput, PropertyDocumentInput, PropertyExpenseInput, PropertyIncomeInput, PropertyInput, PropertyProvisionsInput, PropertyReminderInput, PropertySaleInput, PropertyValueInput, RenterInput, RentNoticeInput, RentPaymentInput, RentPaymentsInput, RentWaiverInput } from "./inputs";
 
 /** Biens immobiliers, sociétés, lots, baux, locataires, loyers et charges. */
 
@@ -10,6 +10,8 @@ export const realestateProcedures = {
   "companies.delete": { input: byId, output: ok },
   "properties.upsert": { input: PropertyInput, output: entity<Property>() },
   "properties.delete": { input: byId, output: ok },
+  /** Provisions pour vacance et travaux du cashflow prévu, à part de la fiche : modifier le bien ne les touche pas. */
+  "properties.setProvisions": { input: PropertyProvisionsInput, output: ok },
   "properties.sell": { input: PropertySaleInput, output: ok },
   "properties.cancelSale": { input: byId, output: ok },
   "propertyValues.add": { input: PropertyValueInput, output: ok },

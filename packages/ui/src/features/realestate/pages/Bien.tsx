@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { lotIsActive, lotIsAnnex, sortLots, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, heldShareLabel, loanPayoffAt, propertyImprovements, propertySale, propertySummary, rentLedgerOf } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
 import { CardColumn, CardColumns } from "@/shared/components/CardColumns";
+import { CashflowCard } from "@/features/realestate/components/CashflowCard";
 import { ExpensesCard } from "@/features/realestate/components/ExpensesCard";
 import { IncomesCard } from "@/features/realestate/components/IncomesCard";
 import { LeaseCard } from "@/features/realestate/components/LeaseCard";
@@ -29,9 +30,9 @@ const BackLink = () => (
   </Link>
 );
 
-type Tab = "location" | "finances";
+type Tab = "rentabilite" | "location" | "finances";
 
-/** Page d'un bien : sa location et ses finances ; sa fiche s'ouvre dans une grande fenêtre. */
+/** Page d'un bien : sa rentabilité, sa location et ses finances ; sa fiche s'ouvre dans une grande fenêtre. */
 export function Bien() {
   const { id } = useParams();
   const pf = usePortfolio();
@@ -61,7 +62,7 @@ export function Bien() {
   const { ws } = pf.idx;
   const leases = ws.leases.filter((l) => l.propertyId === property.id);
   const rented = property.kind === "locatif";
-  const tabs: Array<[Tab, string]> = rented ? [["location", "Location"], ["finances", "Finances"]] : [["finances", "Finances"]];
+  const tabs: Array<[Tab, string]> = rented ? [["rentabilite", "Rentabilité"], ["location", "Location"], ["finances", "Finances"]] : [["finances", "Finances"]];
   const requested = search.get("onglet");
   const tab = tabs.find(([key]) => key === requested)?.[0] ?? tabs[0][0];
   const lots = sortLots(ws.lots.filter((l) => l.propertyId === property.id));
@@ -131,6 +132,8 @@ export function Bien() {
           </button>
         ))}
       </div>}
+
+      {tab === "rentabilite" && <CashflowCard data={rentalData} property={property} rental={ws.params.rental} today={pf.today} />}
 
       {tab === "location" && (
         <CardColumns>

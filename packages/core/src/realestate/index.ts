@@ -8,4 +8,5 @@ export * from "./energy";
 export * from "./expenses";
 export * from "./rental";
 export * from "./rentalPark";
+export * from "./cashflow";
 export * from "./rentNotices";

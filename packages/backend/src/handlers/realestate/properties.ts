@@ -88,6 +88,19 @@ export const propertyHandlers = {
     return mapProperty((await ctx.db.select().from(t.properties).where(eq(t.properties.id, id)).limit(1).then(one))!);
   },
 
+  async "properties.setProvisions"(input, ctx) {
+    const property = await ctx.db.select().from(t.properties).where(eq(t.properties.id, input.id)).limit(1).then(one);
+    if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
+    const columns = (p: typeof input.vacancy) => ({ rate: p?.kind === "taux" ? p.value : null, cents: p?.kind === "montant" ? toCents(p.value) : null });
+    const vacancy = columns(input.vacancy);
+    const works = columns(input.works);
+    await ctx.db
+      .update(t.properties)
+      .set({ vacancyRate: vacancy.rate, vacancyAmountCents: vacancy.cents, worksRate: works.rate, worksAmountCents: works.cents, updatedAt: nowIso() })
+      .where(eq(t.properties.id, input.id));
+    return OK;
+  },
+
   async "properties.delete"({ id }, ctx) {
     await ctx.db.delete(t.properties).where(eq(t.properties.id, id));
     return OK;

@@ -88,11 +88,21 @@ export interface Property extends DismembermentFields {
   share: number;
   /** Société (SCI) qui détient le bien : sa part s'applique en plus, une fois les parts de société appliquées (`withCompanyShares`). */
   companyId: string | null;
+  /** Provisions du cashflow prévu ; null = valeur des réglages (Paramètres › Plan › Biens en location). */
+  vacancyProvision: Provision | null;
+  worksProvision: Provision | null;
   /** Dans ou hors de l'allocation cible ; null = comme la classe Immobilier. */
   inAllocation: boolean | null;
   classId: string | null;
   comment: string;
   archived: boolean;
+}
+
+export const PROVISION_KINDS = ["taux", "montant"] as const;
+/** Provision d'un bien en location : un pourcentage du loyer hors charges (fraction), ou un montant fixe par an pour le bien entier. */
+export interface Provision {
+  kind: (typeof PROVISION_KINDS)[number];
+  value: number;
 }
 
 /** Fiche vide d'un nouveau bien. */
@@ -124,6 +134,8 @@ export const NO_PROPERTY_DETAILS = {
   dismemberment: "pleine",
   usufructBirthDate: null,
   usufructEnd: null,
+  vacancyProvision: null,
+  worksProvision: null,
 } satisfies Partial<Property>;
 
 /** Valeur de la part détenue à une date : part du bien, puis part du droit en cas d'usufruit ou de nue-propriété (barème fiscal). */
