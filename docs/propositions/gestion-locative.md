@@ -15,7 +15,7 @@ Comme pour les propositions « gestion de patrimoine », chaque tranche indique 
 | Occupation | Pondérée par le loyer, pour qu'un parking vide ne pèse pas autant qu'un appartement vide. |
 | Fichiers | Pas de stockage des fichiers pour l'instant : le registre des documents garde seulement leur emplacement. |
 | Saisonnier | Saisie à la main et import d'un fichier CSV (Airbnb, Booking…). |
-| Fiscalité locative | Importante, mais pour le chantier suivant (revenus fonciers, location meublée, amortissements). |
+| Fiscalité locative | Importante, mais pour le chantier suivant (revenus fonciers, location meublée, amortissements) : c'est la tranche 4 de la [rentabilité locative](rentabilite-locative.md). |
 | Ordre | 1 → 2 → 3, puis 4 à 7 ; le saisonnier (5) peut passer avant 4 si besoin. |
 
 ## Ce qui existe déjà
@@ -129,7 +129,7 @@ Le mode peut changer dans le temps (une location entière qui devient une coloca
 **Ce qu'il faut ajouter :**
 
 - **Mode de charges du bail** : provisions avec régularisation annuelle, ou forfait sans régularisation (possible en meublé et en colocation à baux individuels ; loi du 6 juillet 1989, art. 25-10 et 8-1, à vérifier).
-- **Part récupérable des dépenses** : sur chaque dépense du bien, la part qui peut être demandée au locataire, d'après la liste des charges récupérables (décret n° 87-713 du 26 août 1987, à vérifier). Exemples : la taxe d'enlèvement des ordures ménagères comprise dans la taxe foncière ; la part récupérable du décompte annuel du syndic de copropriété.
+- **Part récupérable des dépenses** : sur chaque dépense du bien, la part qui peut être demandée au locataire, d'après la liste des charges récupérables (décret n° 87-713 du 26 août 1987, à vérifier). Exemples : la taxe d'enlèvement des ordures ménagères comprise dans la taxe foncière ; la part récupérable du décompte annuel du syndic de copropriété. Construite dans le chantier [rentabilité locative](rentabilite-locative.md), tranche 0.
 - **Répartition entre les lots** : à parts égales, à la surface, ou selon des tantièmes saisis.
 - **Calcul de la régularisation** : charges récupérables de la période, au prorata de la durée d'occupation de chaque bail, moins les provisions reçues (tranche 3). On obtient le montant à demander ou à rendre, avec un courrier détaillé par poste. Le montant, une fois réglé, est enregistré comme recette (la catégorie de régularisation existe déjà).
 - **Ajustement des provisions** proposé d'après le réel de l'année.
