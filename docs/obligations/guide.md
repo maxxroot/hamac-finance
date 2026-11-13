@@ -17,28 +17,44 @@ Quelques mots utilisés sur la page :
 - **Coupon couru** : la part du prochain coupon déjà accumulée depuis le dernier versement. À l'achat, vous la payez au vendeur ; vous la récupérez avec le coupon suivant.
 - **Rendement à l'échéance** : le rendement annuel réel de votre achat si vous gardez la ligne jusqu'au bout, frais compris. Il tient compte des coupons et de l'écart entre le prix payé et les 100 % remboursés.
 
-La page est la même dans les deux formats de Hamac (« retraite » et « patrimoine »). Elle disparaît du menu si vous masquez le module « Obligations » dans Paramètres › Plan › Modules. Sans aucun compte, elle affiche l'écran d'accueil.
+Si vous préparez votre retraite (format « retraite »), la page montre aussi votre âge à chaque échéance. En format « patrimoine », l'âge n'apparaît nulle part sur la page. Elle disparaît du menu si vous masquez le module « Obligations » dans Paramètres › Plan › Modules. Sans aucun compte, elle affiche l'écran d'accueil.
 
 ## Ce que vous y voyez
 
 En haut, le bouton **Ajouter une opération** (un achat d'obligation sur votre premier compte-titres). Si vous n'avez pas de compte-titres, un encadré vous propose d'en créer un : les obligations se détiennent dans un compte-titres, ou dans une assurance-vie.
 
-**Quatre chiffres** :
+**Huit chiffres**, sur deux rangées. La première dit ce que vous détenez et ce que cela rapporte :
 
 - **Nominal détenu** : le total du nominal de vos lignes, et en dessous ce qu'elles vous ont coûté.
-- **Coupons annuels bruts** : ce que vos lignes versent par an avant impôts, et en dessous le rendement à l'échéance moyen.
+- **Coupons annuels bruts** : ce que vos lignes versent par an avant impôts, et en dessous le rendement actuariel moyen (le rendement à l'échéance).
+- **Rendement net de fiscalité** : le même rendement, une fois déduits les impôts sur les coupons et sur la prime de remboursement (l'écart entre les 100 % remboursés et le prix payé). En dessous, la fiscalité restant due. Passez la souris sur la tuile (ou sélectionnez-la au clavier) pour voir le détail : l'impôt sur les coupons à venir et l'impôt sur les primes de remboursement, chacun avec son taux.
+- **Performance cumulée** : les plus-values latentes de vos lignes, les plus-values réalisées (lignes remboursées ou vendues) et les coupons perçus. En dessous, la part des coupons.
+
+La seconde dit ce qui arrive :
+
+- **Flux à 12 mois** : les coupons et les remboursements des douze prochains mois, c'est-à-dire l'argent à réinvestir bientôt.
 - **Prochaine échéance** : la date du prochain remboursement, et en dessous la date et le montant brut du prochain coupon.
+- **Coupons perçus** : les coupons notés dans le Journal, comparés aux coupons échus, ceux que vos lignes ont dû verser jusqu'à aujourd'hui. Si un coupon manque, la tuile passe en orange et indique combien ne sont pas saisis.
 - **Espèces en attente** : l'argent non investi de vos comptes-titres. Le chiffre passe en orange au-delà du seuil d'alerte réglé dans Paramètres › Plan › Seuils d'alerte (« Espèces du compte-titres à investir », 1 000 € par défaut), avec la mention « De quoi acheter une ligne ».
 
 **Le tableau de vos obligations**, dans cet ordre :
 
-1. les lignes **détenues**, triées par échéance : nom, type (OAT ou entreprise) et ISIN ; échéance ; coupon et prochain coupon ; nominal ; coût frais compris ; valeur ; plus-value ; rendement à l'échéance ; votre âge à l'échéance ; années restantes. Cliquez sur un en-tête pour trier, sur une ligne pour déplier son évolution ;
-2. les lignes **prévues** : votre libellé, l'année visée, le nominal, votre âge cette année-là, un lien pour saisir l'achat et un bouton pour supprimer la ligne ;
-3. les lignes **échues** (barrées) : date d'échéance, coupon, et le gain réalisé au remboursement.
+1. les lignes **détenues**, triées par échéance : nom ; mois d'échéance ; taux du coupon ; nominal ; coût frais compris ; valeur ; plus-value ; rendement à l'échéance ; votre âge à l'échéance (format retraite seulement) ; années restantes. Cliquez sur un en-tête pour trier. Cliquez sur une ligne pour la déplier : coupon annuel brut (nominal × taux, et le nombre de détachements par an), prix d'achat pied de coupon en % du nominal, coupon couru du jour, coupons perçus (et ceux non saisis), performance cumulée, rendement net de fiscalité, puis l'évolution de la ligne ;
+2. les lignes **prévues** : votre libellé, l'année visée, le nominal, votre âge cette année-là (format retraite seulement), un lien pour saisir l'achat et un bouton pour supprimer la ligne ;
+3. les lignes **échues** (barrées) : date d'échéance, coupon, la plus-value réalisée au remboursement avec les coupons perçus, et le rendement réalisé.
+
+**Six graphiques** (passez la souris pour les montants) :
+
+- **Échéancier des remboursements** : le nominal remboursé chaque année, souverain (OAT) et entreprises, et vos achats prévus en pointillés. Les années vides se voient : ce sont les trous à combler. En format retraite, votre âge est sous chaque année et l'année de la retraite est marquée.
+- **Échéancier des flux** : coupons et remboursements au pair, année par année.
+- **Évolution de l'encours** : une barre pour aujourd'hui, puis une au 31 décembre de chaque année jusqu'à la dernière échéance, en deux parts : l'**encours** (l'argent encore placé dans vos lignes) et les **flux encaissés** (coupons et remboursements, détaillés au survol). D'année en année, l'encours se transforme en flux encaissés ; la hauteur de la barre, c'est tout ce que vos obligations actuelles vous auront donné à cette date.
+- **Coupons perçus et échus** : chaque année, la barre pleine montre les coupons perçus (notés dans le Journal), le contour en pointillés les coupons échus. Une barre plus basse que son contour signale un coupon non saisi.
+- **Répartition par émetteur** : la part du souverain (OAT) et des entreprises, votre premier émetteur, puis le nominal de chaque émetteur.
+- **Rendement actuariel par maturité** : un point par ligne, plus gros quand le nominal est plus grand. Vous voyez si vos lignes longues rapportent vraiment plus que les courtes.
 
 **Prévoir un achat** : un petit formulaire pour ajouter une ligne prévue (libellé, année d'échéance visée, nominal).
 
-**Un rappel** : un coupon n'est pas un rendement. Achetée sous le pair, une obligation rapporte plus que son coupon. Le rappel donne aussi une piste pour l'échéance : avant l'âge de sécurisation, racheter une ligne plus longue ; après, transférer vers le fonds euros.
+**Un rappel** : un coupon n'est pas un rendement. Achetée sous le pair, une obligation rapporte plus que son coupon. En format retraite, le rappel donne aussi une piste pour l'échéance : avant l'âge de sécurisation, racheter une ligne plus longue ; après, transférer vers le fonds euros.
 
 **Les mouvements** de vos comptes-titres (obligations et espèces), repris du Journal.
 
@@ -68,7 +84,13 @@ En haut, le bouton **Ajouter une opération** (un achat d'obligation sur votre p
 
 **Rendement à l'échéance.** Le taux annuel qui égalise le prix payé (frais et coupon couru compris) et tous les coupons restants plus le remboursement à 100 %, chacun ramené à sa date. Pour une ligne achetée en plusieurs fois, c'est la moyenne des achats, pondérée par leur coût. La moyenne du haut de page est pondérée de la même façon.
 
-**Âge à l'échéance.** L'année d'échéance moins votre année de naissance (Paramètres › Plan).
+**Âge à l'échéance.** L'année d'échéance moins votre année de naissance (Paramètres › Plan). Format retraite seulement.
+
+**Rendement net de fiscalité.** Le rendement à l'échéance, une fois retirés les impôts. Sur un compte-titres : les coupons sont imposés à 12,8 % (ou à votre tranche si elle est plus basse) plus les prélèvements sociaux, et le gain au remboursement (100 % moins ce que vous avez payé) de la même façon. Exemple fictif : 10 000 € de nominal achetés 9 600 €, coupon 3 % sur 5 ans ; avec 12,8 % + 18,6 %, le rendement passe d'environ 3,9 % à environ 2,7 %. Dans une assurance-vie, l'impôt dépend de l'âge du contrat (12,8 % avant 8 ans, 7,5 % après) plus 17,2 % de prélèvements sociaux ; Hamac ne compte pas l'abattement annuel. Une obligation achetée au-dessus de 100 % ne crée pas de gain : rien n'est compté sur son remboursement.
+
+**Coupons perçus et échus.** Hamac retrouve les dates de coupon de chaque ligne et le nominal que vous déteniez la veille. Un coupon noté dans le Journal jusqu'à 15 jours avant ou 45 jours après la date est rapproché. Les coupons des 10 derniers jours ne sont pas encore réclamés. Le montant pris est le brut si vous l'avez rempli dans le détail fiscal, sinon le montant reçu.
+
+**Rendement réalisé (ligne échue).** Le rendement annuel de ce que vous avez vraiment payé et reçu : achats, coupons notés, remboursement. Un coupon oublié le fait baisser.
 
 **À l'échéance.** Le nominal revient en espèces sur le compte le jour de l'échéance. Le gain affiché sur la ligne échue est le nominal moins le coût ; les coupons reçus n'y sont pas, ils sont dans les intérêts du compte.
 
@@ -78,6 +100,8 @@ En haut, le bouton **Ajouter une opération** (un achat d'obligation sur votre p
 - Les coupons reçus se saisissent à la main. Le prochain coupon affiché est une prévision.
 - La valeur monte en ligne droite vers 100 % : c'est une approximation simple, pas la méthode actuarielle.
 - Le chiffre « Espèces en attente » et les mouvements ne portent que sur les comptes-titres, même si vous détenez des obligations dans une assurance-vie.
+- Le rendement après impôts est une estimation : il suppose les taux d'aujourd'hui jusqu'à l'échéance, ne compte pas l'abattement de l'assurance-vie, et ne déduit pas une perte au remboursement de vos autres plus-values.
+- La trajectoire suppose que vous gardez chaque ligne jusqu'au bout et ne compte pas le placement des coupons et des remboursements.
 - Une ligne prévue ne devient pas un achat toute seule : il faut saisir l'achat, puis supprimer la ligne prévue.
 - Le rappel sur l'âge de sécurisation s'affiche aussi dans le format « patrimoine », où ce réglage n'existe pas.
 - La page ne calcule pas l'impôt sur les coupons : voir la page Impôts.

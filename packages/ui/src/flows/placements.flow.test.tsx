@@ -588,12 +588,12 @@ describe("Obligations", () => {
 
     expect(await screen.findByText("Nominal détenu")).toBeTruthy();
     expect(texte(screen.getByText("Nominal détenu").nextElementSibling)).toMatch(/15 ?000/);
-    // Obligation détenue : type, ISIN, coupon annuel et prochain coupon.
+    // Obligation détenue : nom, échéance et taux du coupon, sans sous-ligne (ni type, ni ISIN, ni date du prochain coupon).
     const rowOat = ligne("OAT 3 % mai 2033");
-    expect(texte(rowOat)).toContain("FR0099999991");
     expect(texte(rowOat)).toContain("Détenue");
     expect(texte(rowOat)).toMatch(/3,00 %/);
-    expect(texte(rowOat)).toMatch(/le 25\/05\/\d{4}/);
+    expect(texte(rowOat)).not.toContain("FR0099999991");
+    expect(texte(rowOat)).not.toMatch(/le 25\/05\/\d{4}/);
     // Échue : barrée, avec son état.
     const rowEchue = ligne("OAT 1 % mai 2023");
     expect(texte(rowEchue)).toContain("Échue");
@@ -619,6 +619,64 @@ describe("Obligations", () => {
     }
     await user.click(within(ligne("OAT 3 % mai 2033")).getByRole("button", { name: /Afficher le détail/ }));
     expect(await screen.findByText(/L'évolution apparaîtra après un mois d'historique|Valeur totale :/)).toBeTruthy();
+    // Ligne dépliée : prix d'achat, coupon couru, coupons perçus, performance cumulée, rendement net (ces deux derniers aussi en tuile).
+    for (const t of ["Prix d'achat", "Coupon couru"]) expect(screen.getByText(t)).toBeTruthy();
+    // Coupon annuel : 3 % de 10 000 € de nominal, un détachement par an.
+    expect(texte(screen.getByText("Coupon annuel").parentElement)).toMatch(/300,00\s?€/);
+    expect(screen.getByText("brut, 1 détachement par an")).toBeTruthy();
+    expect(screen.getAllByText("Rendement net de fiscalité").length).toBe(2);
+    expect(screen.getAllByText("Performance cumulée").length).toBe(2);
+  });
+
+  it("chiffres et graphiques : coupons à saisir, impôts au survol, échelle avec l'âge en plan retraite", async () => {
+    const cto = await compte("cto", "CTO obligations");
+    const oat = await titre("obligation", "OAT 3 % mai 2033", { priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 1, bondKind: "etat", issuer: "République française" });
+    const societe = await titre("obligation", "Société Fictive 4 % mars 2031", { priceSource: "modele", couponRate: 0.04, maturityDate: "2031-03-01", couponFrequency: 1, bondKind: "entreprise", issuer: "Société Fictive" });
+    const echue = await titre("obligation", "OAT 1 % mai 2023", { priceSource: "modele", couponRate: 0.01, maturityDate: "2023-05-25", couponFrequency: 1, bondKind: "etat" });
+    await operation("2021-03-01", "versement", cto.id, 40_000);
+    await operation("2021-03-02", "achat", cto.id, 2_900, { assetId: echue.id, quantity: 3_000 });
+    await operation("2022-05-25", "interets", cto.id, 30, { assetId: echue.id });
+    await operation("2023-05-25", "interets", cto.id, 30, { assetId: echue.id });
+    await operation("2024-05-26", "achat", cto.id, 9_600, { assetId: oat.id, quantity: 10_000 });
+    await operation("2024-03-02", "achat", cto.id, 5_000, { assetId: societe.id, quantity: 5_000 });
+    show(<Obligations />);
+
+    expect(await screen.findByText("Rendement net de fiscalité")).toBeTruthy();
+    // Au survol : fiscalité restant due, coupons et primes de remboursement séparés.
+    const impots = screen.getByRole("tooltip");
+    expect(texte(impots)).toMatch(/Sur les coupons/);
+    expect(texte(impots)).toMatch(/Sur les primes de remboursement/);
+    expect(screen.getByText("Flux à 12 mois")).toBeTruthy();
+    expect(screen.getByText("Performance cumulée")).toBeTruthy();
+    // Coupons des lignes en cours jamais saisis ; l'OAT échue a les siens (sauf celui de mai 2021).
+    expect(texte(screen.getByText("Coupons perçus").parentElement)).toMatch(/coupons non saisis/);
+    // Ligne échue : rendement réalisé, coupons perçus.
+    expect(texte(ligne("OAT 1 % mai 2023"))).toMatch(/réalisé/);
+    expect(texte(ligne("OAT 1 % mai 2023"))).toMatch(/de coupons perçus/);
+    // Six graphiques ; l'échelle commence à l'année en cours, avec l'âge.
+    const graphiques = screen.getAllByTestId("graphique");
+    expect(graphiques).toHaveLength(6);
+    const annee = new Date().getFullYear();
+    expect(graphiques.some((g) => new RegExp(`${annee} · \\d+ ans`).test(g.getAttribute("data-infobulle") ?? ""))).toBe(true);
+    expect(screen.getByText(/Premier émetteur/)).toBeTruthy();
+  });
+
+  it("gestion de patrimoine : ni colonne d'âge, ni âge sur l'échelle, ni conseil de sécurisation", async () => {
+    const cto = await compte("cto", "CTO obligations");
+    const oat = await titre("obligation", "OAT 3 % mai 2033", { priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 1, bondKind: "etat" });
+    await operation("2024-03-01", "versement", cto.id, 20_000);
+    await operation("2024-03-01", "achat", cto.id, 9_800, { assetId: oat.id, quantity: 10_000 });
+    await rpc("bondPlans.upsert", { accountId: cto.id, label: "Ligne longue", targetYear: 2036, nominal: 8_000, comment: "" });
+    const ws = await workspace();
+    await rpc("params.update", { ...ws.params, profile: { ...ws.params.profile, goal: "patrimoine" } });
+    show(<Obligations />);
+
+    expect(await screen.findByText("Nominal détenu")).toBeTruthy();
+    const table = screen.getAllByRole("table")[0]!;
+    expect(within(table).queryByRole("columnheader", { name: /Âge à l'échéance/ })).toBeNull();
+    expect(texte(ligne("Ligne longue"))).not.toMatch(/\d+ ans/);
+    expect(screen.queryByText(/âge de sécurisation/)).toBeNull();
+    expect(screen.getAllByTestId("graphique").every((g) => !/ ans/.test(g.getAttribute("data-infobulle") ?? ""))).toBe(true);
   });
 
   it("prévoir un achat : le formulaire attend ses trois champs, puis ajoute la ligne", async () => {

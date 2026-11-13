@@ -6,3 +6,4 @@ export * from "./accountTaxes";
 export * from "./taxReport";
 export * from "./rental";
 export * from "./realEstateGain";
+export * from "./bondTax";

@@ -2,13 +2,20 @@
 
 > Pour l'utilisateur : [guide](guide.md).
 
-Route `/obligations`, module `obligations`. Aucune différence entre les formats `retraite` et `patrimoine` (le texte de la note sur l'âge de sécurisation est le même dans les deux).
+Route `/obligations`, module `obligations`. Le format `patrimoine` (`isRetirementPlan` faux) masque la colonne « Âge à l'échéance », l'âge des lignes prévues, l'âge et le repère « Retraite » de l'échelle des échéances, et la seconde phrase du rappel (âge de sécurisation).
 
 ## Où est le code
 
 | Couche | Fichier | Rôle |
 |---|---|---|
-| UI | `packages/ui/src/features/investments/pages/Obligations.tsx` | La page : chiffres du haut, échelle (détenues, prévues, échues), formulaire « Prévoir un achat », `NextCouponLine`. |
+| UI | `packages/ui/src/features/investments/pages/Obligations/Obligations.tsx` | La page : assemble chiffres, tableau, graphiques, formulaire et rappel. |
+| UI | `packages/ui/src/features/investments/pages/Obligations/_useBondData.ts` | `useBondData` : tous les calculs de la page en un `useMemo` (lignes, flux, échelle, répartition, coupons, impôts, rendements réalisés). |
+| UI | `packages/ui/src/features/investments/pages/Obligations/_BondStats.tsx` | Les huit tuiles ; `TaxDetail`, le détail des impôts au survol. |
+| UI | `packages/ui/src/features/investments/pages/Obligations/_BondTable.tsx` | Le tableau (détenues, prévues, échues), une seule ligne par cellule (pas de type, d'ISIN ni de prochain coupon sous les valeurs), colonne d'âge conditionnelle. |
+| UI | `packages/ui/src/features/investments/pages/Obligations/_BondDetail.tsx` | Ligne dépliée : coupons sur l'année (`annualCoupon`, nombre de versements = `frequency`), prix d'achat, coupon couru, coupons reçus, gain total, rendement après impôts, puis `PositionEvolution`. |
+| UI | `packages/ui/src/features/investments/pages/Obligations/_PlanForm.tsx` | Formulaire « Prévoir un achat ». |
+| UI | `packages/ui/src/features/investments/components/BondCharts/` | Les six graphiques : `LadderChart` (« Échéancier des remboursements »), `FlowsChart` (« Échéancier des flux »), `TrajectoryChart` (« Évolution de l'encours »), `CouponsChart` (« Coupons perçus et échus »), `IssuersChart` (« Répartition par émetteur »), `YieldChart` (« Rendement actuariel par maturité ») ; couleurs et libellés communs dans `_bits.ts`. |
+| UI | `packages/ui/src/shared/components/Stat.tsx` | `Stat` accepte `detail` : explication affichée au survol ou au focus clavier de la tuile. |
 | UI | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx`, `packages/ui/src/features/entry/dialogs/BondTradeFields.tsx` | Achat ou vente d'obligation : nominal, prix en %, coupon couru calculé ou saisi, frais, total. |
 | UI | `packages/ui/src/features/entry/dialogs/NewAssetPanel.tsx` | Création d'une obligation à l'achat : nom automatique, jour d'échéance, doublon (`findSameBond`), `priceSource: "modele"`. |
 | UI | `packages/ui/src/features/settings/dialogs/AssetDialog.tsx` | Fiche du titre : coupon, échéance, émetteur, fréquence, prochain coupon, source `modele` ou `manuel`. |
@@ -18,6 +25,8 @@ Route `/obligations`, module `obligations`. Aucune différence entre les formats
 | Core | `packages/core/src/investments/bondnames.ts` | `maturityLabel`, `OAT_MATURITY_DAY`, `maturityFromMonth`, `bondName`, `findSameBond`. |
 | Core | `packages/core/src/portfolio/engine.ts` | `bondTerms`, lots d'achat, remboursement à l'échéance, `valuePosition` (branche obligation), `BondInfo`, `maturedBonds`. |
 | Core | `packages/core/src/model/domain.ts` | `BondPlan`, `BondKind`, `BOND_KIND_LABELS`. |
+| Core | `packages/core/src/analysis/bonds/` | Statistiques de la page : `upcomingBondFlows`, `flowsWithin`, `flowsByYear`, `valueTrajectory`, `trajectoryByYear` (`_flows.ts`) ; `maturityLadder`, `bondBreakdown`, `bondKindOf` (`_ladder.ts`) ; `couponCheck` (`_coupons.ts`) ; `realizedBondYield` (`_realized.ts`) ; `bondGain` (`_summary.ts`). |
+| Core | `packages/core/src/tax/bondTax.ts` | `bondTaxes` : rendement après impôts et impôts à venir, coupons et remboursements séparés. |
 | API | `packages/api/src/investments/procedures.ts`, `packages/api/src/investments/inputs.ts` | `bondPlans.upsert` (`BondPlanInput`), `bondPlans.delete`. |
 | Backend | `packages/backend/src/handlers/investments.ts` | Handlers `bondPlans.*`. |
 | Backend | `packages/backend/src/handlers/assets.ts` | `assets.upsert` : `priceSource` forcé à `modele` pour une obligation en `auto`, coupon et échéance exigés, prochain coupon avant l'échéance. |
@@ -54,11 +63,30 @@ Convention : les prix sont des fractions du nominal (0,9684 = 96,84 %). Quantit�
 
 **Rendement à l'échéance** (`yieldToMaturity`). Racine de `Σ flux / (1 + r)^(jours / 365) − prix payé = 0` par dichotomie sur `[−0,5 ; 1]`, 200 itérations ; `null` si pas de changement de signe. Prix payé par lot = `cost / qty` (frais et couru compris). `BondInfo.ytm` = moyenne des lots pondérée par `cost`. La moyenne de la page est `Σ ytm × cost / Σ cost` des lignes détenues. `approxYtm` (formule approchée du sheet, OAT!L) n'est gardée que pour comparaison.
 
-**Autres champs de `BondInfo`** : `nominal = qty`, `annualCoupon = nominal × couponRate`, `accrued = nominal × couru`, `yearsLeft = jours jusqu'à l'échéance / 365,25`, `ageAtMaturity = année d'échéance − birthYear` (`ageInYear`), `matured`.
+**Autres champs de `BondInfo`** : `lots` (date, nominal, coût, prix pied de coupon de chaque achat encore détenu), `nominal = qty`, `annualCoupon = nominal × couponRate`, `accrued = nominal × couru`, `yearsLeft = jours jusqu'à l'échéance / 365,25`, `ageAtMaturity = année d'échéance − birthYear` (`ageInYear`), `matured`.
 
 **Échéance** (événement `maturity`, rang 10 ce jour-là). Pour chaque couple compte-titre ayant une opération ≤ `asOf` sur une obligation échue : `moveMoney(nominal)` (espèces, ou fonds euros par défaut pour un contrat qui en a un), `realized += qty − cost`, un `Disposal` de type `remboursement`, puis la position passe dans `maturedBonds`. Le gain affiché sur une ligne échue est ce `realizedGain` : coupons exclus.
 
 **Noms et doublons** (`bondnames.ts`). `bondName` : « OAT » si l'émetteur est vide ou la République française, sinon l'émetteur ; puis coupon et « mois année ». `maturityFromMonth` : le 25 pour une OAT (convention de l'Agence France Trésor citée dans le code), sinon le jour donné, sinon le 1er. `findSameBond` : même ISIN, sinon même coupon, même échéance et même émetteur (une OAT reconnaît aussi une autre OAT).
+
+**Flux à venir** (`upcomingBondFlows`). Pour chaque ligne détenue, `remainingFlows(terms, aujourd'hui)` × nominal, le remboursement (100 %) séparé du dernier coupon. « À recevoir sur 12 mois » (`flowsWithin`) : flux après aujourd'hui et jusqu'au même jour dans 12 mois inclus. `flowsByYear` : par année civile, sans trou.
+
+**Évolution de l'encours** (`valueTrajectory`). Un point par mois d'aujourd'hui à la dernière échéance, plus chaque 31 décembre et chaque date d'échéance. Valeur = `Σ lots qty × heldToMaturityValue(terms, date d'achat, clean, date)` des lignes pas encore échues (la valeur du jour pour le premier point, cours saisi compris) ; remboursé et coupons = cumul des flux à venir jusqu'à la date. `trajectoryByYear` en garde le premier point (aujourd'hui) puis le dernier point de chaque année civile, la dernière année s'arrêtant à la dernière échéance. Le graphique empile deux barres : « Encours » (`value`) et « Flux encaissés » (`coupons + redeemed`, détaillés dans l'info-bulle).
+
+**Échelle** (`maturityLadder`). Nominal détenu par année d'échéance et par type, plus le nominal des lignes prévues (`targetYear`), de l'année en cours (ou de la plus ancienne) à la dernière ; les années vides restent. Type (`bondKindOf`) : celui de la fiche ; sans type, `etat` si l'émetteur est vide ou la République française, comme `bondName`.
+
+**Répartition** (`bondBreakdown`). Sur le nominal détenu : part de l'État et des entreprises ; par émetteur, toutes les OAT réunies sous « État français », sinon l'émetteur de la fiche, sinon le nom du titre. Le graphique regroupe au-delà de 8 émetteurs.
+
+**Coupons attendus et saisis** (`couponCheck`). Pour chaque couple compte-titre d'obligation : calendrier `remainingFlows` depuis le premier achat, jusqu'à aujourd'hui. Coupon attendu = part coupon × nominal détenu la veille (achats − ventes − arbitrages sortants + arbitrages entrants, date strictement antérieure). Rapprochement : la première opération `interets` sur ce titre et ce compte, non encore utilisée, datée de 15 jours avant à 45 jours après. Montant reçu = `gross` s'il est saisi, sinon `amount` (le net). Un coupon dû depuis moins de `COUPON_GRACE_DAYS` (10 jours) n'est compté que s'il est déjà saisi. Les coupons saisis non rapprochés comptent dans les reçus de leur année. Lignes échues comprises.
+
+**Performance cumulée** (`bondGain`). Plus-value latente des lignes détenues + gains réalisés (remboursements et ventes, lignes détenues et échues) + coupons saisis (bruts si connus).
+
+**Rendement réalisé d'une ligne échue** (`realizedBondYield`). `xirr` sur les achats (−montant), ventes (+), coupons saisis (+ brut si connu) et le nominal restant à l'échéance. Les arbitrages en assurance-vie n'y sont pas.
+
+**Impôts et rendement après impôts** (`bondTaxes`). Par lot : `xirr` de −coût à la date d'achat, puis chaque coupon × (1 − taux coupon à sa date), et à l'échéance nominal − gain × taux gain, avec gain = max(0, nominal − coût du lot). Moyenne pondérée par le coût, comme le rendement brut. Taux :
+- compte-titres et autres comptes : IR = `incomeTaxRate` (PFU 12,8 %, CGI art. 200 A, ou la tranche si plus basse) ; coupons + `socialRateFor(année, "placement")`, gain + `socialRateFor(année, "patrimoine")` (CSS art. L136-6, L136-7, L136-8 ; LFSS 2026 art. 12). Le gain au remboursement est traité en plus-value de cession (CGI art. 150-0 A), comme le registre des cessions (`Disposal` de type `remboursement`) ;
+- assurance-vie : `min(tmi, avBefore8 | avAfter8)` selon l'âge du contrat à la date du flux (CGI art. 125-0 A) + `socialAv`, sur les coupons comme sur le gain.
+Impôts à venir (détail au survol) : coupons à venir depuis aujourd'hui × taux coupon, et gain des lots × taux gain à l'échéance ; le taux affiché est l'impôt divisé par sa base.
 
 **Page.** `holders` = comptes avec une obligation détenue, une obligation échue, ou de type `cto`. Espèces en attente = espèces des CTO non archivés. Âge d'une ligne prévue = `targetYear − birthYear`. Une ligne prévue est créée avec `accountId` du premier CTO (ou `null`).
 
@@ -68,12 +96,14 @@ Aucune règle fiscale sur cette page. Le registre des cessions (`disposals`) ali
 
 - `packages/core/src/investments/bonds.test.ts` : encadrement entre deux coupons, coupon couru, flux restants, date de coupon indiquée (semestriel, dernier coupon réduit, jour d'échéance différent), rendement au pair et sous le pair, valeur détenue qui rejoint 100 %.
 - `packages/core/src/investments/bondnames.test.ts` : noms, jour d'échéance, doublons.
+- `packages/core/src/analysis/bonds/bonds.test.ts` : flux à venir (12 mois, par année), trajectoire, échelle avec trous et ligne prévue, répartition, coupons attendus et saisis (brut, manquants, délai de 10 jours, droit au coupon la veille), rendement obtenu calculé à la main, gain total.
+- `packages/core/src/tax/bondTax.test.ts` : compte-titres (31,4 % sur coupons et gain, rendement net calculé à la main), assurance-vie de plus de 8 ans, achat au-dessus du pair.
 - `packages/core/src/portfolio/engine.test.ts` : « obligation : valorisation amortie, puis remboursement du nominal à l'échéance », « date le remboursement d'une obligation à son échéance », « le coupon couru saisi à la main remplace le calcul pour le prix d'achat ».
 - `packages/core/src/model/validation.test.ts` : coupon couru saisi, seulement sur l'achat ou la vente d'une obligation.
 - `packages/backend/src/handlers/bonds.test.ts` : date de coupon facultative, refusée après l'échéance, ignorée hors obligation.
 - `packages/backend/src/backend.test.ts` : « crée l'obligation et l'achat ensemble » (coupon couru saisi gardé au centime).
 - `packages/ui/src/flows/suivi.flow.test.tsx` : « obligation : coupon couru calculé, ou saisi à la main d'après l'avis d'opéré ».
-- `packages/ui/src/flows/placements.flow.test.tsx`, blocs « Obligations », « Nouveau titre à l'achat (NewAssetPanel) » et « Fiche d'un titre (AssetDialog) ».
+- `packages/ui/src/flows/placements.flow.test.tsx`, bloc « Obligations » (dont tuiles, détail des impôts, coupons non saisis, six graphiques, âge sur l'échelle en plan retraite, rien de tout cela en gestion de patrimoine), blocs, « Nouveau titre à l'achat (NewAssetPanel) » et « Fiche d'un titre (AssetDialog) ».
 
 ## Limites connues
 
@@ -83,4 +113,10 @@ Aucune règle fiscale sur cette page. Le registre des cessions (`disposals`) ali
 - « Espèces en attente », le bouton d'achat et les mouvements ne portent que sur les comptes `cto`, alors que les obligations détenues dans une assurance-vie apparaissent dans l'échelle.
 - `holders` ne filtre pas les comptes archivés.
 - Une ligne prévue n'est pas reliée à l'achat réel : rien ne la supprime ni ne la marque comme réalisée.
-- La note « avant l'âge de sécurisation… » n'est pas adaptée au format `patrimoine`, où `securisationAge` n'est pas proposé dans Paramètres.
+- Impôts : l'abattement annuel de l'assurance-vie et le seuil de 150 000 € de versements ne sont pas comptés ; chaque flux d'une assurance-vie est imposé comme s'il était retiré le jour où il arrive. Une perte au remboursement ne réduit aucun impôt (elle s'impute ailleurs). Le gain est calculé par lot et non au prix moyen pondéré ; le coupon couru payé à l'achat réduit ce gain puisqu'il est dans le coût.
+- Rapprochement des coupons : un coupon saisi hors de la fenêtre (−15 / +45 jours) n'est pas rapproché et le coupon échu reste « non saisi ». Saisi au net sans brut, le perçu paraît plus bas que l'échu.
+- La trajectoire suppose qu'aucune ligne n'est vendue et ne compte pas le réinvestissement des coupons et remboursements.
+
+## Vocabulaire
+
+Libellés de la page : vocabulaire financier français d'usage (teneurs de compte, Agence France Trésor), sans anglicisme : encours, flux encaissés, coupons perçus et échus, prime de remboursement, rendement actuariel brut et net de fiscalité, performance cumulée, émetteur souverain, détachement du coupon, prix pied de coupon.

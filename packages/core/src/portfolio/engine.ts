@@ -53,6 +53,8 @@ export interface BondInfo {
   yearsLeft: number;
   ageAtMaturity: number;
   matured: boolean;
+  /** Achats encore détenus : date, nominal, coût frais et coupon couru compris (réduits au prorata d'une vente), prix pied de coupon. */
+  lots: ReadonlyArray<{ date: string; qty: number; cost: number; clean: number }>;
 }
 
 export interface PositionState {
@@ -659,6 +661,7 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
       yearsLeft: Math.max(0, daysBetween(asOf, terms.maturityDate) / 365.25),
       ageAtMaturity: ageInYear(params, +terms.maturityDate.slice(0, 4)),
       matured: p.matured || terms.maturityDate <= asOf,
+      lots: p.lots.map((l) => ({ date: l.date, qty: l.qty, cost: l.cost, clean: l.clean })),
     };
   } else {
     const point = book.at(asset.id, asOf);

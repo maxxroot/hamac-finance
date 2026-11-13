@@ -36,7 +36,7 @@ export function HoldingsPart() {
           <li>Ajoutez le titre dans Paramètres › Actifs : la recherche par ISIN remplit le coupon et l'échéance.</li>
           <li>Notez l'achat dans le Journal : nominal, prix en % du nominal (par exemple 96,40) et frais. Le montant, le rendement et la valeur se calculent seuls.</li>
           <li>Si le coupon ne tombe pas à la date anniversaire de l'échéance, indiquez sa date sur la fiche du titre.</li>
-          <li>Chaque année, notez le coupon reçu. À l'échéance, le nominal revient tout seul dans les espèces du compte-titres.</li>
+          <li>Chaque année, notez le coupon reçu : la tuile « Coupons perçus » de la page signale ceux qui ne sont pas saisis. À l'échéance, le nominal revient tout seul dans les espèces du compte-titres.</li>
           <li>Pour une retraite : avant l'âge de sécurisation, rachetez une obligation plus longue ; après, transférez le capital vers le fonds euros. Sinon, placez le capital là où votre répartition est en retard.</li>
         </ol>
         <p>

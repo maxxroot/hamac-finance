@@ -79,7 +79,7 @@ vi.mock("echarts/core", () => ({
     };
   },
 }));
-vi.mock("echarts/charts", () => ({ BarChart: {}, LineChart: {}, PieChart: {} }));
+vi.mock("echarts/charts", () => ({ BarChart: {}, LineChart: {}, PieChart: {}, ScatterChart: {} }));
 vi.mock("echarts/components", () => ({ GridComponent: {}, LegendComponent: {}, MarkLineComponent: {}, TooltipComponent: {} }));
 vi.mock("echarts/renderers", () => ({ SVGRenderer: {} }));
 
