@@ -56,6 +56,9 @@ export function useBondData() {
       ctos,
       cto: ctos[0],
       cash: ctos.reduce((s, a) => s + a.cash, 0),
+      // Comptes dont les coupons subissent l'acompte de 12,8 % : hors assurance-vie et PER.
+      taxAccounts: holders.filter((a) => a.account.kind !== "assurance_vie" && a.account.kind !== "per").map((a) => a.account),
+      institutions: data.institutions ?? [],
       retraite,
       ageOf: retraite ? (year: number) => ageInYear(params, year) : null,
       retirementYear: retraite ? retirementYear(params) : null,

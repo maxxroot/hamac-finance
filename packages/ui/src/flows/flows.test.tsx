@@ -549,6 +549,30 @@ describe("parcours de l'interface", () => {
     expect((await rpc<{ transactions: Array<{ accountId: string }> }>("workspace.load")).transactions[0]!.accountId).toBe(c.id);
   });
 
+  it("dispense de l'acompte pour la plateforme cette année : état affiché, seuls les prélèvements sociaux sont retenus", async () => {
+    const user = userEvent.setup();
+    const year = +todayIso().slice(0, 4);
+    const plateforme = await rpc<{ id: string }>("institutions.upsert", { name: "Plateforme Fictive", kind: "crowdlending", tax: { report: false, withholds: true, withheldIncomeTax: null, withheldSocial: null } });
+    const autre = await rpc<{ id: string }>("institutions.upsert", { name: "Autre Plateforme", kind: "crowdlending", tax: { report: false, withholds: true, withheldIncomeTax: null, withheldSocial: null } });
+    const compte = await rpc<{ id: string }>("accounts.upsert", { kind: "crowdlending", name: "Crowd fictif", institutionId: plateforme.id });
+    await rpc("accounts.upsert", { kind: "crowdlending", name: "Autre crowd", institutionId: autre.id });
+    const ws = await rpc<{ params: { tax: Record<string, unknown> } & Record<string, unknown> }>("workspace.load");
+    await rpc("params.update", { ...ws.params, tax: { ...ws.params.tax, withholdingDispenses: [{ year, institutionIds: [plateforme.id] }] } });
+    show(<Crowdlending />);
+    const etat = await screen.findByText(new RegExp(`Acompte de 12,8 % sur les intérêts en ${year}`));
+    expect(etat.textContent).toMatch(/Plateforme Fictive dispensé/);
+    expect(etat.textContent).toMatch(/Autre Plateforme retenu/);
+    await user.click(screen.getByRole("button", { name: "Déclarer les intérêts du mois" }));
+    await user.selectOptions(await screen.findByLabelText("Plateforme"), compte.id);
+    await user.type(screen.getByLabelText("Intérêts bruts"), "100");
+    await user.tab();
+    // 18,6 % de prélèvements sociaux, pas d'acompte.
+    expect(fieldOf("Impôts prélevés").value).toBe("18,6");
+    expect(screen.getByText(/dispense de l'acompte cette année/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () => expect((await workspace()).transactions.find((t: { type: string }) => t.type === "interets")).toMatchObject({ gross: 100, withheldIncomeTax: 0, withheldSocial: 18.6 }));
+  });
+
   it("impôts saisis à la main sur une plateforme non réglée pour prélever : deux lignes au journal", async () => {
     const user = userEvent.setup();
     await rpc("accounts.upsert", { kind: "crowdlending", name: "Bricks" });

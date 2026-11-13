@@ -16,6 +16,7 @@ Route `/crowdlending`, module `crowdlending`. Aucune différence entre les forma
 | Core | `packages/core/src/investments/crowdlending.ts` | `CrowdProject`, `crowdProjectState`, `crowdSummary`, `crowdCountsLabel`, `crowdEndDate`, `crowdExtensionError`, `crowdInterestEntries`. |
 | Core | `packages/core/src/imports/bricksImport.ts` | `parseBricksSheet`, `planBricksImport`. |
 | Core | `packages/core/src/imports/csv.ts` | `parseDate` (dates françaises du fichier). |
+| UI | `packages/ui/src/features/investments/components/DispenseStatus.tsx` | Ligne « Acompte de 12,8 % sur les intérêts en … » : dispensé ou retenu par plateforme pour l'année en cours, rappel pour l'année suivante. |
 | Core | `packages/core/src/model/institutions.ts` | `crowdTaxOf` (retenue et taux de la plateforme pour une année), `crowdWithholding` (partage acompte / prélèvements sociaux). |
 | Core | `packages/core/src/portfolio/engine.ts` | Espèces de la plateforme moins le capital prêté, valeur des projets, `accountIrr`. |
 | Core | `packages/core/src/loans/loan.ts` | `loanState`, utilisé pour l'amortissement d'un projet à mensualités. |

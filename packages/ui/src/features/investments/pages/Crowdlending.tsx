@@ -14,6 +14,7 @@ import { DeclareInterestDialog } from "@/features/investments/dialogs/DeclareInt
 import { capitalize, formatDate, formatMonth } from "@/shared/lib/numbers";
 import { usePortfolio } from "@/shared/lib/portfolio";
 import { useMutate } from "@/shared/lib/workspace";
+import { DispenseStatus } from "../components/DispenseStatus";
 
 const TONES: Record<CrowdStatus, "neutral" | "accent" | "positive" | "negative"> = { en_cours: "positive", retard: "accent", defaut: "negative", rembourse: "neutral" };
 const ORDER: Record<CrowdStatus, number> = { defaut: 0, retard: 1, en_cours: 2, rembourse: 3 };
@@ -79,6 +80,7 @@ export function Crowdlending() {
               <Amount value={summary.atRisk} compact />
             </Stat>
           </StatGrid>
+          <DispenseStatus accounts={platforms} institutions={pf.data.institutions ?? []} params={pf.data.params} today={pf.today} />
 
           <Card className="mb-5 overflow-hidden p-0">
             <Table className="rounded-none border-0">

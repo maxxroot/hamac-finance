@@ -3,6 +3,7 @@ import { Notice } from "@/shared/components/Stat";
 import { PageHeader } from "@/shared/components/ui";
 import { cn } from "@/shared/lib/cn";
 import { CouponsChart, FlowsChart, IssuersChart, LadderChart, TrajectoryChart, YieldChart } from "../../components/BondCharts";
+import { DispenseStatus } from "../../components/DispenseStatus";
 import { BondStats } from "./_BondStats";
 import { BondTable } from "./_BondTable";
 import { PlanForm } from "./_PlanForm";
@@ -30,6 +31,7 @@ export function Obligations() {
         </div>
       )}
       <BondStats d={d} />
+      <DispenseStatus accounts={d.taxAccounts} institutions={d.institutions} params={d.params} today={d.today} />
       <BondTable d={d} />
 
       {charts && (

@@ -606,6 +606,8 @@ describe("Obligations", () => {
     expect(screen.getByText("De quoi acheter une ligne")).toBeTruthy();
     expect(screen.getByText(/coupon le .* brut/)).toBeTruthy();
     expect(screen.getByText(/Valeur « détenue jusqu'à l'échéance »/)).toBeTruthy();
+    // Acompte sur les coupons cette année : retenu par le courtier, réglable dans la page Impôts.
+    expect(screen.getByText(/Acompte de 12,8 % sur les intérêts en \d{4}/).textContent).toMatch(/Courtier Fictif retenu/);
 
     // Tri de l'échelle.
     const tete = (nom: string) => within(screen.getAllByRole("table")[0]!).getByRole("columnheader", { name: new RegExp(`^${nom}$`) });

@@ -37,6 +37,8 @@ La seconde dit ce qui arrive :
 - **Coupons perçus** : les coupons notés dans le Journal, comparés aux coupons échus, ceux que vos lignes ont dû verser jusqu'à aujourd'hui. Si un coupon manque, la tuile passe en orange et indique combien ne sont pas saisis.
 - **Espèces en attente** : l'argent non investi de vos comptes-titres. Le chiffre passe en orange au-delà du seuil d'alerte réglé dans Paramètres › Plan › Seuils d'alerte (« Espèces du compte-titres à investir », 1 000 € par défaut), avec la mention « De quoi acheter une ligne ».
 
+**L'acompte sur les coupons**, sous les chiffres : pour l'année en cours, chaque courtier qui prélève les impôts est marqué « dispensé » ou « retenu » (acompte de 12,8 %), avec un lien vers la page Impôts où la dispense se coche, année par année et établissement par établissement. De septembre au 30 novembre, la ligne rappelle de demander la dispense pour l'année suivante.
+
 **Le tableau de vos obligations**, dans cet ordre :
 
 1. les lignes **détenues**, triées par échéance : nom ; mois d'échéance ; taux du coupon ; nominal ; coût frais compris ; valeur ; plus-value ; rendement à l'échéance ; votre âge à l'échéance (format retraite seulement) ; années restantes. Cliquez sur un en-tête pour trier. Cliquez sur une ligne pour la déplier : coupon annuel brut (nominal × taux, et le nombre de détachements par an), prix d'achat pied de coupon en % du nominal, coupon couru du jour, coupons perçus (et ceux non saisis), performance cumulée, rendement net de fiscalité, puis l'évolution de la ligne ;
