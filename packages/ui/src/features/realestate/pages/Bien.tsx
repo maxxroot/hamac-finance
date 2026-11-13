@@ -6,6 +6,7 @@ import { CardColumn, CardColumns } from "@/shared/components/CardColumns";
 import { BalanceCard } from "@/features/realestate/components/BalanceCard";
 import { CashflowCard } from "@/features/realestate/components/CashflowCard";
 import { ExpensesCard } from "@/features/realestate/components/ExpensesCard";
+import { FullCostCard } from "@/features/realestate/components/FullCostCard";
 import { IncomesCard } from "@/features/realestate/components/IncomesCard";
 import { LeaseCard } from "@/features/realestate/components/LeaseCard";
 import { LotsCard } from "@/features/realestate/components/LotsCard";
@@ -125,7 +126,9 @@ export function Bien() {
             <CardColumn>
               <BalanceCard balance={rentability.balance} />
             </CardColumn>
-            <CardColumn>{null}</CardColumn>
+            <CardColumn>
+              <FullCostCard cost={rentability.cost} />
+            </CardColumn>
           </CardColumns>
         </div>
       )}

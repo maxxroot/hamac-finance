@@ -10,4 +10,5 @@ export * from "./rental";
 export * from "./rentalPark";
 export * from "./cashflow";
 export * from "./balance";
+export * from "./fullCost";
 export * from "./rentNotices";

@@ -59,6 +59,12 @@ La carte *Bilan depuis l'achat* fait les comptes, pour votre part, de l'achat (o
 - *Effort net* : sorti moins rentré, ce que le bien vous a coûté jusqu'ici, et sa moyenne par mois ;
 - *Enrichissement* : la valeur nette d'aujourd'hui (valeur détenue moins capital restant dû) moins l'effort net. C'est ce que le bien vous a fait gagner, loyers et crédit compris.
 
+La carte *Coût de revient* ajoute au prix d'achat ce que coûte le crédit :
+
+- l'achat frais compris, les travaux d'amélioration, les intérêts et l'assurance déjà payés : le *coût à ce jour* ;
+- les intérêts et l'assurance qui restent à payer : le *coût total, crédit remboursé* ;
+- les rendements d'une année type, d'après le cashflow prévu et sans le crédit : *brut* (les loyers) et *net de charges et provisions*, sur le prix d'achat et sur le coût total.
+
 Le bouton *Hypothèses* de la carte Cashflow règle, pour ce bien, les provisions du prévu : vacance locative et travaux, en pourcentage du loyer ou en montant par an. Sans réglage propre, le bien prend ceux de Paramètres › Plan › Biens en location (4 % pour la vacance, 5 % pour les travaux).
 
 L'onglet **Finances** contient, dans l'ordre :
@@ -156,6 +162,8 @@ Le bien sort du patrimoine à la date de vente, et son bilan reste dans l'onglet
 **Cashflow prévu.** Le loyer hors charges en cours de chaque lot (le loyer espéré pour un lot vide). Chaque dépense compte pour son montant annuel s'il s'agit d'une dépense « chaque année » toujours en cours ; sinon, ce qui a été payé dans cette catégorie sur les 12 derniers mois. Les travaux et entretien sont remplacés par la provision pour travaux, et la provision pour vacance est retirée du loyer. La part récupérable des charges est supposée remboursée en totalité par le locataire. Le crédit compte pour sa prochaine échéance, assurance comprise. Sans avis de taxe foncière saisi, elle est estimée à 1,3 mois de loyer hors charges par an, et marquée *Estimée*.
 
 **Bilan depuis l'achat.** Reprenons l'exemple : un bien acheté 140 000 € frais compris, financé par 120 000 € de crédit. L'apport est de 20 000 €. Après 23 mois de loyers à 900 € (20 700 € reçus), 22 échéances de 520 € (11 440 €) et 6 840 € de dépenses, l'effort net vaut 20 000 + 11 440 + 6 840 − 20 700 = 17 580 €. Si le bien vaut 150 000 € et qu'il reste 109 000 € à rembourser, la valeur nette est de 41 000 € et l'enrichissement de 41 000 − 17 580 = 23 420 €.
+
+**Coût de revient.** Un bien de 140 000 € frais compris, acheté avec 120 000 € empruntés à 3 % sur 20 ans, coûte en plus environ 40 000 € d'intérêts sur la durée du prêt, hors assurance. Avec 9 600 € de loyers par an, le rendement brut est de 6,86 % sur l'achat, mais d'environ 5,3 % sur le coût total.
 
 **Régularisation à prévoir.** Si les provisions de charges du bail ne correspondent pas aux charges récupérables prévues, la carte indique l'écart sur un an, à rendre au locataire ou à lui demander.
 

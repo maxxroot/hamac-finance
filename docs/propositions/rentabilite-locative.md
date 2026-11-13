@@ -82,6 +82,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 ## Tranche 3. Coût complet
 
+**Statut :** faite le 13 novembre 2026. Décision prise en codant : les rendements sont ceux d'une année type, d'après le cashflow prévu (loyers en cours, charges et provisions), affichés sur le coût d'achat et sur le coût total crédit compris.
+
 **Pourquoi.** Le coût d'un bien acheté à crédit comprend le crédit.
 
 **Ce qu'on ajoute.**

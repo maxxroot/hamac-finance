@@ -67,6 +67,7 @@ describe("onglet Rentabilité", () => {
     expect(screen.getByText("Effort net depuis l'achat")).toBeTruthy();
     expect(screen.getByText("Enrichissement")).toBeTruthy();
     expect(screen.getByText("Bilan depuis l'achat")).toBeTruthy();
+    expect(screen.getByText("Coût de revient")).toBeTruthy();
 
     await user.click(within(carte).getByRole("button", { name: /Hypothèses/ }));
     const fenetre = await screen.findByRole("dialog", { name: "Hypothèses du cashflow prévu" });

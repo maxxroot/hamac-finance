@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Loan } from "../loans";
 import { propertyBalance } from "./balance";
+import { propertyCashflow } from "./cashflow";
+import { propertyFullCost } from "./fullCost";
+import { defaultParams } from "../model";
 import type { PropertyExpense } from "./expenses";
 import { NO_RENT_LEDGER, rentMonths, type Lease, type RentLedger } from "./leases";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
@@ -44,5 +47,43 @@ describe("bilan d'un bien depuis l'achat", () => {
     const early = propertyBalance({ ...data, loans: [{ ...loan, prepayments: [{ id: "p", loanId: "c", date: "2026-01-20", amount: 10_000, fee: 300, mode: "duree" }] }] }, netValue, today)!;
     expect(early.loanPayments).toBe(11_440 + 10_300);
     expect(propertyBalance({ ...data, property: { ...property, purchasePrice: null } }, netValue, today)).toMatchObject({ contribution: null, out: null, enrichment: null, in: 20_700 });
+  });
+});
+
+describe("coût de revient d'un bien", () => {
+  // Taux de 3 % : intérêts et assurance réels, pour un coût du crédit non nul.
+  const credit = { ...loan, rate: 0.03 };
+  const withCredit = { ...data, loans: [credit] };
+  const cashflow = propertyCashflow(withCredit, defaultParams().rental, today);
+
+  it("achat, améliorations, coût du crédit payé et restant", () => {
+    const c = propertyFullCost(withCredit, cashflow, today);
+    expect(c.purchase).toBe(140_000);
+    expect(c.improvements).toBe(0);
+    expect(c.loanCostPaid).toBeGreaterThan(0);
+    expect(c.loanCostLeft).toBeGreaterThan(c.loanCostPaid);
+    expect(c.toDate).toBeCloseTo(140_000 + c.loanCostPaid, 2);
+    expect(c.total).toBeCloseTo(140_000 + c.loanCostPaid + c.loanCostLeft, 2);
+  });
+
+  it("sans intérêts, le coût du crédit n'est que son assurance : 20 € par échéance", () => {
+    const c = propertyFullCost(data, propertyCashflow(data, defaultParams().rental, today), today);
+    expect(c.loanCostPaid).toBe(22 * 20);
+    expect(c.loanCostLeft).toBe((240 - 22) * 20);
+  });
+
+  it("rendements d'une année type, sur le coût d'achat et sur le coût de revient", () => {
+    const c = propertyFullCost(withCredit, cashflow, today);
+    // 9 600 € de loyers par an sur 140 000 €.
+    expect(c.yields.onPurchase.gross).toBeCloseTo(9_600 / 140_000, 6);
+    expect(c.yields.onTotal.gross).toBeCloseTo(9_600 / c.total!, 6);
+    expect(c.yields.onPurchase.net!).toBeLessThan(c.yields.onPurchase.gross!);
+  });
+
+  it("bien vendu : rien ne reste à payer ; prix inconnu : pas de coût ni de rendement", () => {
+    const vendu = propertyFullCost({ ...withCredit, property: { ...property, saleDate: "2026-06-30", salePrice: 160_000 } }, cashflow, today);
+    expect(vendu.loanCostLeft).toBe(0);
+    const inconnu = propertyFullCost({ ...withCredit, property: { ...property, purchasePrice: null } }, cashflow, today);
+    expect(inconnu).toMatchObject({ purchase: null, toDate: null, total: null, yields: { onPurchase: { gross: null, net: null } } });
   });
 });

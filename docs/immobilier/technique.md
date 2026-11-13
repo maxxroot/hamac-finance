@@ -28,6 +28,8 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | ui | `packages/ui/src/features/realestate/pages/Immobilier.tsx` | Page `/immobilier`. |
 | ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Page d'un bien : chiffres, onglets Location et Finances. Chaque onglet range ses cartes en deux colonnes indépendantes (`CardColumns`) : Finances met l'achat et les crédits à gauche, la valeur, les dépenses et les recettes à droite, puis les résultats par année sur toute la largeur. |
 | core | `packages/core/src/realestate/balance.ts` | Bilan depuis l'achat (`propertyBalance`) : apport, échéances, dépenses, impôts, rentré, effort net, enrichissement. |
+| core | `packages/core/src/realestate/fullCost.ts` | Coût de revient (`propertyFullCost`) : achat, améliorations, coût du crédit payé et restant, rendements d'une année type. |
+| ui | `packages/ui/src/features/realestate/components/FullCostCard.tsx` | Carte « Coût de revient ». |
 | ui | `packages/ui/src/features/realestate/components/BalanceCard.tsx` | Carte « Bilan depuis l'achat ». |
 | ui | `packages/ui/src/features/realestate/components/PropertyStats.tsx` | Les quatre chiffres en tête de la page d'un bien (version location et version autre bien). |
 | ui | `packages/ui/src/features/realestate/lib/rentability.ts` | `rentabilityOf` : cashflow et bilan calculés une fois pour la page du bien. |
@@ -201,6 +203,13 @@ Sur les `propertyYears` du bien (donc à la part détenue, crédits à la part �
 - `in = Σ (loyers + charges + autres recettes)`. `netEffort = out − in` ; `monthlyEffort = netEffort ÷ mois` (mois commencés depuis le début, au moins 1).
 - `enrichment = netValue − netEffort`, où `netValue` vient de l'appelant : `propertySummary(...).netValue`, ou `propertySale(...).net` pour un bien vendu.
 
+### Coût de revient (`propertyFullCost`)
+
+- `purchase = coût complet × share` ; `improvements = améliorations payées × share`.
+- `loanCostPaid` / `loanCostLeft` : `(intérêts + assurance) × loan.share` des échéances de `loanSchedule`, jusqu'à aujourd'hui (ou la vente) puis après ; rien ne reste pour un bien vendu ou un crédit archivé. Les indemnités de remboursement anticipé sont dans les intérêts.
+- `toDate = purchase + improvements + loanCostPaid` ; `total = toDate + loanCostLeft`.
+- Rendements d'une année type : `brut = loyers prévus × 12`, `net = Σ postes du cashflow prévu hors crédit × 12`, divisés par `purchase + improvements` (`onPurchase`) ou par `total` (`onTotal`) ; `null` sans prix d'achat.
+
 ### Repères au m² (`propertySqm`)
 
 Prix d'achat, valeur et loyer du mois (`monthlyRentNow`, somme des loyers hors charges des baux en cours) divisés par la surface ; `null` sans surface. La fiche imprimable ne passe pas de loyer.
@@ -233,7 +242,7 @@ Les deux renvoient vers `/immobilier/<id>`.
 | Fichier | Ce qu'il couvre |
 |---|---|
 | `packages/core/src/realestate/realestate.test.ts` (bloc « biens ») | Frais de notaire chiffrés, synthèse, vente, valeur dans le temps, crédit à solder, repères au m², coût complet. |
-| `packages/core/src/realestate/balance.test.ts` | Bilan : apport, échéances, dépenses, effort net et enrichissement chiffrés ; amélioration, impôts, part détenue, remboursement anticipé, prix inconnu. |
+| `packages/core/src/realestate/balance.test.ts` | Bilan : apport, échéances, dépenses, effort net et enrichissement chiffrés ; amélioration, impôts, part détenue, remboursement anticipé, prix inconnu. Coût de revient (`fullCost.ts`) : coût du crédit payé et restant, rendements, bien vendu, prix inconnu. |
 | `packages/core/src/realestate/cashflow/cashflow.test.ts` | Cashflow réel et prévu poste par poste, taxe foncière estimée, provisions du bien, dépense ponctuelle, parts, location récente, lot vide, seuil neutre. |
 | `packages/ui/src/features/realestate/rentabilite.flow.test.tsx` | Onglet Rentabilité ouvert par défaut, taxe estimée signalée, provisions enregistrées depuis « Hypothèses ». |
 | `packages/core/src/realestate/expenses.test.ts` | Part récupérable : valeur proposée, montant récupérable et reste à charge, TEOM convertie. |
