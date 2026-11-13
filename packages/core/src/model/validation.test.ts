@@ -41,6 +41,16 @@ describe("validateTransaction", () => {
     expect(validateTransaction({ ...base, type: "correction", amount: -5 }, accounts, assets)).toEqual([]);
     expect(validateTransaction({ ...base, type: "correction", amount: 0 }, accounts, assets)[0].field).toBe("amount");
   });
+  it("coupon couru saisi : seulement à l'achat ou à la vente d'une obligation, et sous le montant", () => {
+    const cto = new Map([["cto", acc("cto", "cto")]]);
+    const bonds = new Map([...assets, ["oat", asset("oat", "obligation")]]);
+    const buy = { ...base, accountId: "cto", type: "achat" as const, assetId: "oat", quantity: 1000, amount: 990, fee: 2 };
+    expect(validateTransaction({ ...buy, accrued: 10 }, cto, bonds)).toEqual([]);
+    expect(validateTransaction({ ...buy, accrued: 0 }, cto, bonds)).toEqual([]);
+    expect(validateTransaction({ ...buy, accrued: 989 }, cto, bonds)[0].field).toBe("accrued");
+    expect(validateTransaction({ ...buy, type: "vente", accrued: 989 }, cto, bonds)).toEqual([]);
+    expect(validateTransaction({ ...buy, assetId: "sp500", quantity: 1, accrued: 10 }, cto, bonds)[0].field).toBe("accrued");
+  });
 });
 
 describe("comptes uniques", () => {

@@ -12,6 +12,7 @@
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Fenêtre « Nouvelle opération » : champs selon le type, frais suggérés, prix unitaire ↔ total, coupon couru, support fonds euros, arbitrage. Préréglage `NEW_FUND_PRESET`. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/AvailableBalanceHint.tsx` | `useAvailableBalance`, `AvailableBalanceHint` : solde disponible sous le montant d'un retrait, bouton « Tout retirer », alerte si le montant le dépasse. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/DepositElsewhere.tsx` | Case « Verser aussi cette somme sur un autre compte » d'un retrait, compte à créditer et son support ; `depositFor` construit le versement. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/BondTradeFields.tsx` | Champs d'un achat ou d'une vente d'obligation : nominal, prix en %, frais, coupon couru (calculé ou saisi), total. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/ArbitrageFields.tsx` | Champs d'un arbitrage et `arbitrageChoices` (supports proposés). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TaxDetailFields.tsx` | Détail fiscal d'un dividende ou d'intérêts (brut, retenues, « Calculer d'après les taux »). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/NewAssetPanel.tsx` | Création d'un titre dans la fenêtre d'opération (« ＋ Nouveau titre »). |
@@ -38,7 +39,7 @@
 
 ### Table `transactions`
 
-`id`, `date`, `type`, `account_id`, `asset_id`, `counter_account_id` (transfert), `counter_asset_id` (fonds d'arrivée d'un transfert, support reçu d'un arbitrage), `counter_quantity` (arbitrage), `amount_cents`, `quantity`, `fee_cents`, `comment`, `external_id` (index unique avec `account_id`), `gross_cents`, `withheld_income_tax_cents`, `withheld_social_cents`, `withheld_foreign_cents`, horodatage. Clés étrangères en `restrict` vers `accounts` et `assets`.
+`id`, `date`, `type`, `account_id`, `asset_id`, `counter_account_id` (transfert), `counter_asset_id` (fonds d'arrivée d'un transfert, support reçu d'un arbitrage), `counter_quantity` (arbitrage), `amount_cents`, `quantity`, `fee_cents`, `accrued_cents` (obligation : coupon couru saisi à la main, null = calculé), `comment`, `external_id` (index unique avec `account_id`), `gross_cents`, `withheld_income_tax_cents`, `withheld_social_cents`, `withheld_foreign_cents`, horodatage. Clés étrangères en `restrict` vers `accounts` et `assets`.
 
 ### Procédures
 
@@ -77,7 +78,7 @@ Voir `docs/architecture/modele-de-donnees.md`. Montants positifs, le type donne 
 
 - Frais suggérés tant que `feeManual` est faux. `tradeFeeFor` : grille crypto de l'établissement pour une plateforme crypto, grille PEA (PEA et PEA-PME) ou compte-titres de l'établissement, sinon « Frais par défaut » (`params.broker`, `params.crypto`). Sur un total saisi, `suggestTradeFee` extrait les frais inclus ; sur un prix unitaire, `suggestOrderFee` les calcule sur l'ordre.
 - `syncTradeAmounts` : total = quantité × prix ÷ `per` + coupon couru ± frais (`per` = 100 pour une obligation, prix en % du nominal) ; ou prix = (total ∓ frais − coupon couru) × `per` ÷ quantité, arrondi à 6 décimales.
-- Coupon couru d'une obligation : `quantity × accruedFraction(terms, date)`, arrondi au centime.
+- Coupon couru d'une obligation : `quantity × accruedFraction(terms, date)`, arrondi au centime, sauf s'il est saisi (`Draft.accrued` non nul, envoyé comme `accrued`). Vider le champ ou « Calculer » remet `accrued` à null. `validateTransaction` le refuse hors achat ou vente d'une obligation, négatif, ou s'il dépasse le montant une fois les frais comptés.
 - Le champ « Support » n'apparaît que pour un compte qui détient des fonds euros et un type de `EURO_FUND_TYPES`. Vide = `assetId` nul : le moteur prend le fonds par défaut du contrat.
 - Le détail fiscal n'est proposé que pour un dividende ou des intérêts sur un compte `cto` ou `crowdlending`. « Calculer d'après les taux » appelle `grossFromNet(net, institutionWithholding(…))`. Un écart ≥ 0,02 € entre brut − retenues et net est signalé.
 - Retrait : `availableBalance(data, compte, date, { supportId, excludeTxId })` calcule le portefeuille à la date de l'opération (`computePortfolio`), sans l'opération en cours de modification. Les opérations du même jour comptent : un retrait passe en dernier dans la journée (`RANK`). Versements programmés compris. Dans un contrat, c'est la valeur du fonds euros choisi, sinon du fonds par défaut (même choix que `moveMoney`) ; sinon les espèces. « Tout retirer » recopie ce montant ; un montant supérieur affiche un avertissement, sans bloquer l'envoi. Rien n'est affiché pendant la création d'un nouveau fonds euros.

@@ -250,6 +250,16 @@ describe("registre des cessions", () => {
     expect(computePortfolio(d, "2025-12-31").disposals[0]).toMatchObject({ oversold: true, cost: 100, gain: 200 });
   });
 
+  it("obligation : le coupon couru saisi à la main remplace le calcul pour le prix d'achat", () => {
+    const bond = asset("oat", "obligation", { couponRate: 0.03, maturityDate: "2028-05-25" });
+    // Achat le jour d'un coupon : coupon couru calculé nul. Saisi à 30 €, le prix pied de coupon baisse d'autant.
+    const buy = (extra: Partial<Transaction>) =>
+      data({ accounts: [acc("cto", "cto")], assets: [bond], transactions: [tx("2026-05-25", "apport_initial", "cto", 3000), tx("2026-05-25", "achat", "cto", 2940, { assetId: "oat", quantity: 3000, ...extra })] });
+    const value = (d: EngineData) => computePortfolio(d, "2026-05-25").accountById.get("cto")!.positions[0].value;
+    expect(value(buy({}))).toBeCloseTo(2940, 2);
+    expect(value(buy({ accrued: 30 }))).toBeCloseTo(2910, 2);
+  });
+
   it("date le remboursement d'une obligation à son échéance", () => {
     const d = data({
       accounts: [acc("cto", "cto")],

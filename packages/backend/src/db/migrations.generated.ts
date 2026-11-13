@@ -131,5 +131,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0032_fantastic_the_order",
     "sql": "ALTER TABLE \"properties\" ADD COLUMN \"vacancy_rate\" double precision;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"vacancy_amount_cents\" bigint;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"works_rate\" double precision;--> statement-breakpoint\nALTER TABLE \"properties\" ADD COLUMN \"works_amount_cents\" bigint;"
+  },
+  {
+    "tag": "0033_left_aqueduct",
+    "sql": "ALTER TABLE \"transactions\" ADD COLUMN \"accrued_cents\" bigint;"
   }
 ];

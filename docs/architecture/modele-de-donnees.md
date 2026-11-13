@@ -35,7 +35,7 @@ Ces termes ont un sens précis, dans l'interface comme dans le code :
 - Dates `AAAA-MM-JJ`, mois `AAAA-MM`.
 - Sens des montants : toujours positifs, le type d'opération donne le sens. Seule la correction peut être négative.
 - Achat : montant = total débité frais compris ; vente : montant = net reçu. Les frais inclus sont stockés (pré-remplis d'après la grille des paramètres, modifiables).
-- Obligation : quantité = nominal en euros ; prix d'achat en % du nominal = (montant − frais) / nominal × 100.
+- Obligation : quantité = nominal en euros ; prix d'achat en % du nominal = (montant − frais − coupon couru) / nominal × 100. Le coupon couru est calculé d'après la date, sauf s'il est saisi (`accrued`, comme sur l'avis d'opéré).
 - Transfert : une seule opération, compte source → compte de destination.
 
 - Dividende ou intérêts : `amount` reste le net crédité. `gross` et les retenues (`withheld_income_tax`, `withheld_social`, `withheld_foreign`) sont facultatifs. Exception : une plateforme de crowdlending qui prélève les impôts les débite par une opération à part ; la ligne d'intérêts porte alors `amount` = `gross`, ses retenues, et une ligne « impôts » suit pour ce qui est prélevé.

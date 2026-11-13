@@ -112,6 +112,14 @@ export function validateTransaction(
     else if (tx.fee >= Math.abs(tx.amount)) errors.push({ field: "fee", message: "Les frais dépassent le montant." });
   }
 
+  if (tx.accrued != null) {
+    const bond = tx.assetId != null && assets.get(tx.assetId)?.kind === "obligation";
+    if (!bond || (tx.type !== "achat" && tx.type !== "vente")) errors.push({ field: "accrued", message: "Le coupon couru ne concerne que l'achat ou la vente d'une obligation." });
+    else if (tx.accrued < 0) errors.push({ field: "accrued", message: "Le coupon couru ne peut pas être négatif." });
+    // Achat : total = prix + coupon couru + frais ; vente : net = prix + coupon couru − frais. Le prix reste positif.
+    else if (tx.accrued + (tx.type === "achat" ? 1 : -1) * (tx.fee ?? 0) >= tx.amount) errors.push({ field: "accrued", message: "Le coupon couru dépasse le montant, une fois les frais comptés." });
+  }
+
   return errors;
 }
 

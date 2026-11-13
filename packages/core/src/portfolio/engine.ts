@@ -415,7 +415,9 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
         acc.fees += tx.fee ?? 0;
         const terms = bondTerms(asset);
         if (terms) {
-          const clean = (tx.amount - (tx.fee ?? 0)) / tx.quantity - accruedFraction(terms, tx.date);
+          // Prix pied de coupon : le coupon couru saisi à la main l'emporte sur le calcul.
+          const accrued = tx.accrued != null ? tx.accrued / tx.quantity : accruedFraction(terms, tx.date);
+          const clean = (tx.amount - (tx.fee ?? 0)) / tx.quantity - accrued;
           p.lots.push({ qty: tx.quantity, cost: tx.amount, date: tx.date, clean });
         }
         break;

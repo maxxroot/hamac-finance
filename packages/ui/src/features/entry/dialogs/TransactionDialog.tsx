@@ -37,6 +37,7 @@ import { NewAssetPanel, newAssetErrors, newAssetFor, toAssetInput, type NewAsset
 import { AvailableBalanceHint, useAvailableBalance } from "./AvailableBalanceHint";
 import { TaxDetailFields } from "./TaxDetailFields";
 import { ArbitrageFields, arbitrageChoices } from "./ArbitrageFields";
+import { BondTradeFields } from "./BondTradeFields";
 import { DepositElsewhere, depositFor, type Deposit } from "./DepositElsewhere";
 
 /** Préréglage : la saisie s'ouvre sur la création d'un fonds euros. */
@@ -58,6 +59,8 @@ interface Draft {
   fee: number | null;
   /** Les frais ont été saisis à la main : on ne les recalcule plus. */
   feeManual: boolean;
+  /** Obligation : coupon couru saisi à la main ; null = calculé d'après la date. */
+  accrued: number | null;
   /** Prix d'une unité hors frais, ou en % du nominal pour une obligation (aide à la saisie, non stocké). */
   unitPrice: number | null;
   /** Le prix unitaire ou le total a été saisi : l'autre se calcule. */
@@ -99,6 +102,7 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
     counterQuantity: null,
     fee: null,
     feeManual: false,
+    accrued: null,
     unitPrice: null,
     priceBasis: "total",
     comment: "",
@@ -113,7 +117,7 @@ function blank(preset: TxPreset, fallbackAccount: string): Draft {
 }
 
 function fromTx(tx: Transaction): Draft {
-  return { ...tx, counterAssetId: tx.counterAssetId ?? null, counterQuantity: tx.counterQuantity ?? null, feeManual: tx.fee != null, unitPrice: null, priceBasis: "total", newAsset: null, newFund: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null, deposit: null };
+  return { ...tx, counterAssetId: tx.counterAssetId ?? null, counterQuantity: tx.counterQuantity ?? null, feeManual: tx.fee != null, accrued: tx.accrued ?? null, unitPrice: null, priceBasis: "total", newAsset: null, newFund: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null, deposit: null };
 }
 
 export function TransactionDialog({
@@ -158,7 +162,8 @@ export function TransactionDialog({
     : d?.newAsset?.kind === "obligation" && d.newAsset.couponRate != null && d.newAsset.maturityDate
       ? { couponRate: d.newAsset.couponRate, maturityDate: d.newAsset.maturityDate, frequency: d.newAsset.couponFrequency, couponAnchor: d.newAsset.nextCouponDate || null }
       : null;
-  const accrued = isBond && terms && d?.quantity ? roundCents(d.quantity * accruedFraction(terms, d.date)) : 0;
+  // Coupon couru : la saisie l'emporte sur le calcul.
+  const accrued = !isBond ? 0 : d?.accrued != null ? d.accrued : terms && d?.quantity ? roundCents(d.quantity * accruedFraction(terms, d.date)) : 0;
   const isTrade = d?.type === "achat" || d?.type === "vente";
   const params = idx?.ws.params;
 
@@ -224,6 +229,7 @@ export function TransactionDialog({
     quantity: needsAsset || (isArbitrage && !fromFund) ? d.quantity : null,
     counterQuantity: isArbitrage && !toFund ? d.counterQuantity : null,
     fee: isTrade || isArbitrage ? d.fee : null,
+    accrued: isBond && isTrade ? d.accrued : null,
     comment: d.comment,
     gross: taxDetail ? d.gross : null,
     withheldIncomeTax: taxDetail ? d.withheldIncomeTax : null,
@@ -454,23 +460,7 @@ export function TransactionDialog({
         )}
 
         {isBond && isTrade ? (
-          <FormGrid cols={3}>
-            <Field label="Nominal" error={err("quantity")} help="Valeur remboursée à l'échéance.">
-              {(id) => <MoneyInput id={id} value={d.quantity} onChange={(v) => set("quantity", v)} />}
-            </Field>
-            <Field label="Prix (% du nominal)" help={d.priceBasis === "total" && d.unitPrice != null ? "Calculé d'après le total." : "Ex. 96,40 : acheté sous le pair."}>
-              {(id) => <NumberInput id={id} suffix="%" decimals={3} value={d.unitPrice} onChange={setUnitPrice} />}
-            </Field>
-            <Field label="Frais" help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.charAt(0).toLowerCase()}${feeSource.slice(1)}.`}>
-              {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
-            </Field>
-            <Field label="Coupon couru" help="Intérêts courus depuis le dernier coupon, payés au vendeur.">
-              {() => <div className="num flex h-9 items-center justify-end rounded-lg bg-surface-2 px-3 text-sm text-fg-muted">{formatEur(accrued)}</div>}
-            </Field>
-            <Field label={d.type === "achat" ? "Total débité" : "Total reçu"} className="sm:col-span-2" error={err("amount")} help="Nominal × prix + coupon couru ± frais.">
-              {(id) => <MoneyInput id={id} value={d.amount} onChange={setTotal} />}
-            </Field>
-          </FormGrid>
+          <BondTradeFields d={d} patch={(p) => setD((x) => (x ? { ...x, ...p } : x))} err={err} feeSource={feeSource} accrued={accrued} />
         ) : isTrade ? (
           <FormGrid>
             <Field label="Quantité" error={err("quantity")}>

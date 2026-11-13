@@ -9,7 +9,7 @@ Route `/obligations`, module `obligations`. Aucune différence entre les formats
 | Couche | Fichier | Rôle |
 |---|---|---|
 | UI | `packages/ui/src/features/investments/pages/Obligations.tsx` | La page : chiffres du haut, échelle (détenues, prévues, échues), formulaire « Prévoir un achat », `NextCouponLine`. |
-| UI | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Achat ou vente d'obligation : nominal, prix en %, coupon couru calculé, frais, total. |
+| UI | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx`, `packages/ui/src/features/entry/dialogs/BondTradeFields.tsx` | Achat ou vente d'obligation : nominal, prix en %, coupon couru calculé ou saisi, frais, total. |
 | UI | `packages/ui/src/features/entry/dialogs/NewAssetPanel.tsx` | Création d'une obligation à l'achat : nom automatique, jour d'échéance, doublon (`findSameBond`), `priceSource: "modele"`. |
 | UI | `packages/ui/src/features/settings/dialogs/AssetDialog.tsx` | Fiche du titre : coupon, échéance, émetteur, fréquence, prochain coupon, source `modele` ou `manuel`. |
 | UI | `packages/ui/src/shared/components/AccountEvolution.tsx` | `PositionEvolution` dans la ligne dépliée. |
@@ -28,7 +28,7 @@ Route `/obligations`, module `obligations`. Aucune différence entre les formats
 ## Données
 
 - `assets` (`packages/backend/src/db/schema/assets.ts`) : `kind = "obligation"`, `coupon_rate` (fraction), `maturity_date`, `coupon_frequency` (1 par défaut), `next_coupon_date` (ancre facultative), `issuer`, `bond_kind` (`etat` ou `entreprise`), `price_source` (`modele` ou `manuel`).
-- `transactions` : achat et vente avec `quantity` = nominal en euros, `amount` = total frais et coupon couru compris (net reçu pour une vente), `fee`. Coupons : opérations `interets` avec `asset_id` de l'obligation. Le remboursement n'est pas une opération : il est calculé.
+- `transactions` : achat et vente avec `quantity` = nominal en euros, `amount` = total frais et coupon couru compris (net reçu pour une vente), `fee`, `accrued_cents` (coupon couru saisi à la main ; null = calculé par `accruedFraction`). Coupons : opérations `interets` avec `asset_id` de l'obligation. Le remboursement n'est pas une opération : il est calculé.
 - `bond_plans` (`packages/backend/src/db/schema/investments.ts`) : `account_id` (nullable, `ON DELETE SET NULL`), `label`, `target_year`, `nominal_cents`, `comment`. Présente dans `TABLES` de `packages/backend/src/backup/dump.ts`.
 
 Procédures : `bondPlans.upsert`, `bondPlans.delete`, et pour les titres et opérations `assets.upsert`, `prices.setManual`, les procédures du journal.
@@ -45,7 +45,7 @@ Convention : les prix sont des fractions du nominal (0,9684 = 96,84 %). Quantit�
 
 **Prochain coupon** (`nextCoupon`) : strictement après la date ; `null` une fois remboursé. Montant affiché = fraction × nominal. Le haut de page additionne les coupons de toutes les lignes qui tombent à la première date.
 
-**Lots** (`computePortfolio`, achat). Pour chaque achat : `clean = (amount − fee) / quantity − accruedFraction(date d'achat)`, stocké avec `qty`, `cost = amount`, `date`. Une vente réduit tous les lots au prorata (`takeOut`).
+**Lots** (`computePortfolio`, achat). Pour chaque achat : `clean = (amount − fee) / quantity − couru`, où `couru` = `accrued / quantity` s'il est saisi, sinon `accruedFraction(date d'achat)`, stocké avec `qty`, `cost = amount`, `date`. Une vente réduit tous les lots au prorata (`takeOut`).
 
 **Valeur** (`valuePosition`).
 
@@ -68,9 +68,11 @@ Aucune règle fiscale sur cette page. Le registre des cessions (`disposals`) ali
 
 - `packages/core/src/investments/bonds.test.ts` : encadrement entre deux coupons, coupon couru, flux restants, date de coupon indiquée (semestriel, dernier coupon réduit, jour d'échéance différent), rendement au pair et sous le pair, valeur détenue qui rejoint 100 %.
 - `packages/core/src/investments/bondnames.test.ts` : noms, jour d'échéance, doublons.
-- `packages/core/src/portfolio/engine.test.ts` : « obligation : valorisation amortie, puis remboursement du nominal à l'échéance », « date le remboursement d'une obligation à son échéance ».
+- `packages/core/src/portfolio/engine.test.ts` : « obligation : valorisation amortie, puis remboursement du nominal à l'échéance », « date le remboursement d'une obligation à son échéance », « le coupon couru saisi à la main remplace le calcul pour le prix d'achat ».
+- `packages/core/src/model/validation.test.ts` : coupon couru saisi, seulement sur l'achat ou la vente d'une obligation.
 - `packages/backend/src/handlers/bonds.test.ts` : date de coupon facultative, refusée après l'échéance, ignorée hors obligation.
-- `packages/backend/src/backend.test.ts` : « crée l'obligation et l'achat ensemble ».
+- `packages/backend/src/backend.test.ts` : « crée l'obligation et l'achat ensemble » (coupon couru saisi gardé au centime).
+- `packages/ui/src/flows/suivi.flow.test.tsx` : « obligation : coupon couru calculé, ou saisi à la main d'après l'avis d'opéré ».
 - `packages/ui/src/flows/placements.flow.test.tsx`, blocs « Obligations », « Nouveau titre à l'achat (NewAssetPanel) » et « Fiche d'un titre (AssetDialog) ».
 
 ## Limites connues

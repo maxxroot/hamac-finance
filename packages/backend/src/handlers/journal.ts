@@ -30,6 +30,7 @@ export const journalHandlers: DomainHandlers<typeof journalProcedures> = {
       quantity: input.quantity,
       counterQuantity: input.counterQuantity,
       feeCents: input.fee == null ? null : toCents(input.fee),
+      accruedCents: input.accrued == null ? null : toCents(input.accrued),
       comment: input.comment,
       grossCents: input.gross == null ? null : toCents(input.gross),
       withheldIncomeTaxCents: input.withheldIncomeTax == null ? null : toCents(input.withheldIncomeTax),

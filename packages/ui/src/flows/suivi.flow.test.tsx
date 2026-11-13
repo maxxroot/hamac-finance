@@ -1394,6 +1394,28 @@ describe("fenêtre de saisie d'une opération", () => {
     expect(within(dialog).getByLabelText("Total reçu")).toBeTruthy();
   });
 
+  it("obligation : coupon couru calculé, ou saisi à la main d'après l'avis d'opéré", async () => {
+    const { cto } = await accountsOf();
+    const bond = await rpc<{ id: string }>("assets.upsert", { kind: "obligation", name: "OAT fictive", priceSource: "modele", couponRate: 0.025, maturityDate: `${year + 6}-05-25`, bondKind: "etat", issuer: "République française" });
+    const { dialog, onClose, user } = await openDialog({ accountId: cto, type: "achat", assetId: bond.id });
+    await typeInto(user, label(dialog, "Nominal"), "1000");
+    await typeInto(user, label(dialog, "Prix (% du nominal)"), "98");
+    await typeInto(user, label(dialog, "Frais"), "2");
+    expect(within(dialog).getByText(/Calculé d'après la date et le calendrier des coupons/)).toBeTruthy();
+    const computed = label(dialog, "Coupon couru").value;
+
+    // Saisi à la main : il entre dans le total, et « Calculer » revient au calcul.
+    await typeInto(user, label(dialog, "Coupon couru"), "10");
+    await waitFor(() => expect(label(dialog, "Total débité").value).toBe("992"));
+    await user.click(within(dialog).getByRole("button", { name: "Calculer" }));
+    await waitFor(() => expect(label(dialog, "Coupon couru").value).toBe(computed));
+
+    await typeInto(user, label(dialog, "Coupon couru"), "10");
+    await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect((await workspace()).transactions).toMatchObject([{ type: "achat", amount: 992, fee: 2, accrued: 10 }]);
+  });
+
   it("dividende sur un compte-titres : détail fiscal facultatif, calcul d'après les taux et écart signalé", async () => {
     const inst = await rpc<{ id: string }>("institutions.upsert", { name: "Courtier fictif", kind: "courtier", tax: { withholds: true, withheldIncomeTax: 0.128, withheldSocial: 0.186 } });
     const cto = (await rpc<{ id: string }>("accounts.upsert", { kind: "cto", name: "CTO fictif", institutionId: inst.id })).id;

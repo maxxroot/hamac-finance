@@ -95,7 +95,7 @@ Les intérêts d'un livret ou d'un fonds euros se datent du 31 décembre. De jan
 
 Quand des frais existent, la fenêtre affiche aussi le prix unitaire frais compris.
 
-Pour une **obligation**, la fenêtre demande le **nominal** (la somme remboursée à l'échéance), le **prix en % du nominal** et les frais. Elle calcule le **coupon couru** (les intérêts dus au vendeur depuis le dernier coupon) et le total.
+Pour une **obligation**, la fenêtre demande le **nominal** (la somme remboursée à l'échéance), le **prix en % du nominal** et les frais. Elle calcule le **coupon couru** (les intérêts dus au vendeur depuis le dernier coupon) et le total. Si votre avis d'opéré indique un autre coupon couru, tapez-le à la place : le total suit, et Hamac s'en sert aussi pour le prix d'achat de l'obligation. « Calculer », sous le champ, revient au calcul.
 
 ### Acheter un titre pas encore connu
 

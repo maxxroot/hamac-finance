@@ -23,6 +23,8 @@ export const transactions = pgTable(
     amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
     quantity: doublePrecision("quantity"),
     feeCents: bigint("fee_cents", { mode: "number" }),
+    /** Obligation : coupon couru saisi à la main, compris dans `amount_cents` ; null = calculé d'après la date. */
+    accruedCents: bigint("accrued_cents", { mode: "number" }),
     comment: text("comment").notNull().default(""),
     externalId: text("external_id"),
     /** Dividendes et intérêts : brut et retenues, facultatifs ; `amount_cents` reste le net crédité. */

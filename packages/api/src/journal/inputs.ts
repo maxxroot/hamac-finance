@@ -18,6 +18,8 @@ export const TransactionInput = z.object({
   /** Arbitrage : quantité reçue du support d'arrivée. */
   counterQuantity: z.number().positive().nullable().default(null),
   fee: money.min(0).nullable().default(null),
+  /** Obligation : coupon couru saisi à la main ; null = calculé d'après la date. */
+  accrued: money.min(0).nullable().default(null),
   comment: text(500).default(""),
   gross: money.min(0).nullable().default(null),
   withheldIncomeTax: money.min(0).nullable().default(null),

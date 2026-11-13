@@ -317,6 +317,8 @@ export interface Transaction {
   quantity: number | null;
   /** Frais inclus dans le montant (achat/vente), en euros. */
   fee: number | null;
+  /** Obligation, achat ou vente : coupon couru compris dans le montant, saisi à la main ; null = calculé d'après la date. */
+  accrued?: number | null;
   comment: string;
   /** Identifiant dans un fichier importé : réimporter le même fichier ne crée pas de doublon. */
   externalId?: string | null;

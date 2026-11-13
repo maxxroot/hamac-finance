@@ -439,12 +439,14 @@ describe("achat avec création du titre", () => {
   it("crée l'obligation et l'achat ensemble", async () => {
     const b = await memory();
     const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO" });
-    const r = await call<{ asset: { id: string; bondKind: string }; transaction: { assetId: string } }>(b, "transactions.createWithAsset", {
+    const r = await call<{ asset: { id: string; bondKind: string }; transaction: { assetId: string; accrued: number | null } }>(b, "transactions.createWithAsset", {
       asset: { kind: "obligation", name: "OAT 3 % 25/05/2033", priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", issuer: "République française", bondKind: "etat" },
-      transaction: { date: "2026-11-07", type: "achat", accountId: cto.id, amount: 2950, quantity: 3000, fee: 0 },
+      transaction: { date: "2026-11-07", type: "achat", accountId: cto.id, amount: 2950, quantity: 3000, fee: 0, accrued: 41.17 },
     });
     expect(r.asset.bondKind).toBe("etat");
     expect(r.transaction.assetId).toBe(r.asset.id);
+    // Coupon couru saisi à la main : gardé au centime.
+    expect(r.transaction.accrued).toBe(41.17);
   });
   it("tout ou rien : une opération refusée n'ajoute pas le titre", async () => {
     const b = await memory();

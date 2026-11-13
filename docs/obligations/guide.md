@@ -44,7 +44,7 @@ En haut, le bouton **Ajouter une opération** (un achat d'obligation sur votre p
 
 ## Comment faire
 
-**Acheter une obligation.** Cliquez sur « Ajouter une opération ». Choisissez le titre, ou « Nouvelle obligation » : indiquez le type (OAT ou entreprise), le coupon, le mois d'échéance, l'émetteur pour une entreprise. Le nom se forme tout seul (« OAT 3 % mai 2033 »). La recherche par ISIN peut remplir ces champs. Saisissez ensuite le nominal et le prix en % du nominal : Hamac calcule le coupon couru, propose les frais et donne le total débité (nominal × prix + coupon couru + frais). Si une obligation identique existe déjà (même ISIN, ou même émetteur, coupon et échéance), Hamac propose de la reprendre.
+**Acheter une obligation.** Cliquez sur « Ajouter une opération ». Choisissez le titre, ou « Nouvelle obligation » : indiquez le type (OAT ou entreprise), le coupon, le mois d'échéance, l'émetteur pour une entreprise. Le nom se forme tout seul (« OAT 3 % mai 2033 »). La recherche par ISIN peut remplir ces champs. Saisissez ensuite le nominal et le prix en % du nominal : Hamac calcule le coupon couru, propose les frais et donne le total débité (nominal × prix + coupon couru + frais). Le coupon couru se corrige comme les frais : tapez le montant de votre avis d'opéré s'il diffère (jours comptés autrement par la banque, par exemple) ; « Calculer » revient au calcul. Si une obligation identique existe déjà (même ISIN, ou même émetteur, coupon et échéance), Hamac propose de la reprendre.
 
 **Noter un coupon reçu.** Dans le Journal, ajoutez une opération « Intérêts / coupon » sur le compte et choisissez l'obligation. Les coupons ne s'ajoutent pas tout seuls.
 

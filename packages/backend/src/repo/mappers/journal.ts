@@ -17,6 +17,7 @@ export function mapTx(r: typeof t.transactions.$inferSelect): Transaction {
     amount: fromCents(r.amountCents),
     quantity: r.quantity,
     fee: fromCentsOrNull(r.feeCents),
+    accrued: fromCentsOrNull(r.accruedCents),
     comment: r.comment,
     externalId: r.externalId,
     gross: fromCentsOrNull(r.grossCents),
