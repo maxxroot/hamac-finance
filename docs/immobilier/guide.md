@@ -38,7 +38,7 @@ La page apparaît dans le menu si le module « Immobilier » est activé (Param�
 
 1. **En-tête** : nom, utilisation, statut de détention et part détenue. Boutons « Fiche du bien », « Vendre » (ou « Annuler la vente ») et « Modifier ».
 2. Un badge « Vendu le… » ou « Archivé » si c'est le cas.
-3. **Quatre chiffres**, tant que le bien n'est pas vendu :
+3. **Quatre chiffres**, tant que le bien n'est pas vendu. Pour un investissement locatif : *Valeur nette*, *Cashflow réel* par mois, *Effort net depuis l'achat* et *Enrichissement* (voir l'onglet Rentabilité). Pour les autres biens :
    - *Valeur détenue* ;
    - *Coût d'achat* (ou *Coût total* s'il y a eu des travaux d'amélioration), frais compris, pour votre part ;
    - *Gain estimé* : valeur détenue moins coût, avant impôt ;
@@ -52,7 +52,14 @@ L'onglet **Rentabilité** répond d'abord à une question : le bien vous laisse-
 - un badge *Positif*, *Neutre* ou *Négatif* pour chacun. Neutre veut dire à moins de 2 % du loyer hors charges de zéro, dans un sens ou dans l'autre ;
 - le détail poste par poste, réel et prévu côte à côte : loyers, vacance, charges remboursées par le locataire, taxe foncière, copropriété, assurance, gestion, autres dépenses, travaux, autres recettes, crédit.
 
-Le bouton *Hypothèses* règle, pour ce bien, les provisions du prévu : vacance locative et travaux, en pourcentage du loyer ou en montant par an. Sans réglage propre, le bien prend ceux de Paramètres › Plan › Biens en location (4 % pour la vacance, 5 % pour les travaux).
+La carte *Bilan depuis l'achat* fait les comptes, pour votre part, de l'achat (ou de la vente) à aujourd'hui :
+
+- *Sorti de votre poche* : l'apport (coût d'achat complet et travaux d'amélioration, moins le capital emprunté), les échéances du crédit payées (remboursements anticipés et indemnités compris), les dépenses payées ;
+- *Rentré* : les loyers et charges reçus, les autres recettes ;
+- *Effort net* : sorti moins rentré, ce que le bien vous a coûté jusqu'ici, et sa moyenne par mois ;
+- *Enrichissement* : la valeur nette d'aujourd'hui (valeur détenue moins capital restant dû) moins l'effort net. C'est ce que le bien vous a fait gagner, loyers et crédit compris.
+
+Le bouton *Hypothèses* de la carte Cashflow règle, pour ce bien, les provisions du prévu : vacance locative et travaux, en pourcentage du loyer ou en montant par an. Sans réglage propre, le bien prend ceux de Paramètres › Plan › Biens en location (4 % pour la vacance, 5 % pour les travaux).
 
 L'onglet **Finances** contient, dans l'ordre :
 
@@ -147,6 +154,8 @@ Le bien sort du patrimoine à la date de vente, et son bilan reste dans l'onglet
 **Cashflow réel.** Les loyers et charges comptent pour le mois du loyer, une fois pointés reçus (onglet Location). Les dépenses et les échéances du crédit comptent à leur date. Les régularisations de charges saisies dans les recettes s'ajoutent aux charges remboursées. Les travaux d'amélioration et les remboursements anticipés du crédit n'y sont pas : ce sont des choix d'investissement. Exemple : 800 € de loyer et 100 € de charges reçus chaque mois, 1 200 € de taxe foncière, 1 800 € de copropriété, 120 € d'assurance et 600 € de travaux payés dans l'année, 520 € d'échéance par mois : (9 600 + 1 200 − 1 200 − 1 800 − 120 − 600) ÷ 12 − 520 = 70 € par mois.
 
 **Cashflow prévu.** Le loyer hors charges en cours de chaque lot (le loyer espéré pour un lot vide). Chaque dépense compte pour son montant annuel s'il s'agit d'une dépense « chaque année » toujours en cours ; sinon, ce qui a été payé dans cette catégorie sur les 12 derniers mois. Les travaux et entretien sont remplacés par la provision pour travaux, et la provision pour vacance est retirée du loyer. La part récupérable des charges est supposée remboursée en totalité par le locataire. Le crédit compte pour sa prochaine échéance, assurance comprise. Sans avis de taxe foncière saisi, elle est estimée à 1,3 mois de loyer hors charges par an, et marquée *Estimée*.
+
+**Bilan depuis l'achat.** Reprenons l'exemple : un bien acheté 140 000 € frais compris, financé par 120 000 € de crédit. L'apport est de 20 000 €. Après 23 mois de loyers à 900 € (20 700 € reçus), 22 échéances de 520 € (11 440 €) et 6 840 € de dépenses, l'effort net vaut 20 000 + 11 440 + 6 840 − 20 700 = 17 580 €. Si le bien vaut 150 000 € et qu'il reste 109 000 € à rembourser, la valeur nette est de 41 000 € et l'enrichissement de 41 000 − 17 580 = 23 420 €.
 
 **Régularisation à prévoir.** Si les provisions de charges du bail ne correspondent pas aux charges récupérables prévues, la carte indique l'écart sur un an, à rendre au locataire ou à lui demander.
 

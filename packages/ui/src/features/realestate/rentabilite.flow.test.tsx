@@ -63,6 +63,10 @@ describe("onglet Rentabilité", () => {
     expect(within(carte).getByText("Vacance locative")).toBeTruthy();
     // Pas d'avis de taxe foncière saisi : elle est estimée.
     expect(within(carte).getByText("Estimée")).toBeTruthy();
+    // En tête, les chiffres d'un bien en location ; plus bas, le bilan depuis l'achat.
+    expect(screen.getByText("Effort net depuis l'achat")).toBeTruthy();
+    expect(screen.getByText("Enrichissement")).toBeTruthy();
+    expect(screen.getByText("Bilan depuis l'achat")).toBeTruthy();
 
     await user.click(within(carte).getByRole("button", { name: /Hypothèses/ }));
     const fenetre = await screen.findByRole("dialog", { name: "Hypothèses du cashflow prévu" });

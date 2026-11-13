@@ -9,4 +9,5 @@ export * from "./expenses";
 export * from "./rental";
 export * from "./rentalPark";
 export * from "./cashflow";
+export * from "./balance";
 export * from "./rentNotices";

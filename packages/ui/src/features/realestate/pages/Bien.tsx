@@ -2,27 +2,28 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { lotIsActive, lotIsAnnex, sortLots, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, heldShareLabel, loanPayoffAt, propertyImprovements, propertySale, propertySummary, rentLedgerOf } from "@hamac/core";
-import { Amount } from "@/shared/components/Amount";
 import { CardColumn, CardColumns } from "@/shared/components/CardColumns";
+import { BalanceCard } from "@/features/realestate/components/BalanceCard";
 import { CashflowCard } from "@/features/realestate/components/CashflowCard";
 import { ExpensesCard } from "@/features/realestate/components/ExpensesCard";
 import { IncomesCard } from "@/features/realestate/components/IncomesCard";
 import { LeaseCard } from "@/features/realestate/components/LeaseCard";
 import { LotsCard } from "@/features/realestate/components/LotsCard";
 import { PropertyLoansCard } from "@/features/realestate/components/PropertyLoansCard";
+import { PropertyStats } from "@/features/realestate/components/PropertyStats";
 import { PurchaseCard } from "@/features/realestate/components/PurchaseCard";
 import { SaleCard } from "@/features/realestate/components/PropertySheetCards";
 import { PropertySheetModal } from "@/features/realestate/components/PropertySheetModal";
 import { PropertyYearsCard } from "@/features/realestate/components/PropertyYearsCard";
 import { RentsCard } from "@/features/realestate/components/RentsCard";
 import { ValuesCard } from "@/features/realestate/components/ValuesCard";
-import { Stat, StatGrid } from "@/shared/components/Stat";
 import { Badge, Button, PageHeader, tabClass, tabListClass } from "@/shared/components/ui";
 import { PropertyDialog } from "@/features/realestate/dialogs/PropertyDialog";
 import { SaleDialog } from "@/features/realestate/dialogs/SaleDialog";
 import { formatDate } from "@/shared/lib/numbers";
 import { usePortfolio } from "@/shared/lib/portfolio";
 import { useMutate } from "@/shared/lib/workspace";
+import { rentabilityOf } from "@/features/realestate/lib/rentability";
 
 const BackLink = () => (
   <Link to="/immobilier" className="mb-3 inline-flex items-center gap-1.5 text-sm text-fg-muted hover:text-fg">
@@ -67,6 +68,7 @@ export function Bien() {
   const tab = tabs.find(([key]) => key === requested)?.[0] ?? tabs[0][0];
   const lots = sortLots(ws.lots.filter((l) => l.propertyId === property.id));
   const rentalData = { property: held, incomes: ws.propertyIncomes, leases, rents: ws.leaseRents, ledger: rentLedgerOf(ws), expenses: ws.propertyExpenses, loans: heldLoans, lots };
+  const rentability = rented ? rentabilityOf(rentalData, ws.params, sale ? sale.net : s.netValue, pf.today) : null;
   // Une carte de bail par lot proposé à la location (annexes : dès qu'elles ont un bail), et par lot sorti du mode qui a encore un bail en cours.
   const running = (lotId: string) => leases.some((l) => l.lotId === lotId && (l.actualEnd == null || l.actualEnd >= pf.today));
   const leaseLots = lots.filter((l) => (lotIsActive(l, property.rentalMode) && (!lotIsAnnex(l.kind) || leases.some((x) => x.lotId === l.id))) || running(l.id));
@@ -100,24 +102,7 @@ export function Bien() {
         </div>
       )}
 
-      {!sale && (
-      <StatGrid>
-        <Stat label="Valeur détenue" sub={property.valueDate ? `estimée le ${formatDate(property.valueDate)}` : "part détenue"}>
-          <span className="text-2xl">
-            <Amount value={s.heldValue} compact />
-          </span>
-        </Stat>
-        <Stat label={improvements > 0 ? "Coût total" : "Coût d'achat"} sub={improvements > 0 ? "frais et améliorations compris, part détenue" : "frais compris, part détenue"}>
-          {s.heldCost == null ? "—" : <Amount value={s.heldCost} compact />}
-        </Stat>
-        <Stat label="Gain estimé" sub="valeur détenue − coût d'achat, avant impôt">
-          {s.gain == null ? "—" : <Amount value={s.gain} signed compact />}
-        </Stat>
-        <Stat label="Valeur nette" sub="après capital restant dû à votre charge">
-          <Amount value={s.netValue} compact />
-        </Stat>
-      </StatGrid>
-      )}
+      {!sale && <PropertyStats property={property} summary={s} improvements={improvements} rentability={rentability} />}
 
       {tabs.length > 1 && <div className={tabListClass} role="tablist">
         {tabs.map(([key, label]) => (
@@ -133,7 +118,17 @@ export function Bien() {
         ))}
       </div>}
 
-      {tab === "rentabilite" && <CashflowCard data={rentalData} property={property} rental={ws.params.rental} today={pf.today} />}
+      {tab === "rentabilite" && rentability && (
+        <div className="space-y-5">
+          <CashflowCard cashflow={rentability.cashflow} property={property} rental={ws.params.rental} />
+          <CardColumns>
+            <CardColumn>
+              <BalanceCard balance={rentability.balance} />
+            </CardColumn>
+            <CardColumn>{null}</CardColumn>
+          </CardColumns>
+        </div>
+      )}
 
       {tab === "location" && (
         <CardColumns>

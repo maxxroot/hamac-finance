@@ -27,6 +27,10 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | backend | `packages/backend/src/backup/dump.ts` | `TABLES` : ordre des tables dans les sauvegardes. |
 | ui | `packages/ui/src/features/realestate/pages/Immobilier.tsx` | Page `/immobilier`. |
 | ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Page d'un bien : chiffres, onglets Location et Finances. Chaque onglet range ses cartes en deux colonnes indépendantes (`CardColumns`) : Finances met l'achat et les crédits à gauche, la valeur, les dépenses et les recettes à droite, puis les résultats par année sur toute la largeur. |
+| core | `packages/core/src/realestate/balance.ts` | Bilan depuis l'achat (`propertyBalance`) : apport, échéances, dépenses, impôts, rentré, effort net, enrichissement. |
+| ui | `packages/ui/src/features/realestate/components/BalanceCard.tsx` | Carte « Bilan depuis l'achat ». |
+| ui | `packages/ui/src/features/realestate/components/PropertyStats.tsx` | Les quatre chiffres en tête de la page d'un bien (version location et version autre bien). |
+| ui | `packages/ui/src/features/realestate/lib/rentability.ts` | `rentabilityOf` : cashflow et bilan calculés une fois pour la page du bien. |
 | core | `packages/core/src/realestate/cashflow/` | Cashflow d'un bien : `propertyCashflow`, `cashflowAssumptions`, `cashflowTone` (`index.ts`), réel des 12 derniers mois (`_real.ts`), mois type prévu (`_planned.ts`), postes et libellés (`_shared.ts`). |
 | ui | `packages/ui/src/features/realestate/components/CashflowCard.tsx` | Onglet Rentabilité : cashflow réel et prévu, détail par poste, régularisation à prévoir. |
 | ui | `packages/ui/src/features/realestate/dialogs/ProvisionsDialog.tsx` | Provisions du bien pour vacance et travaux : réglage du plan, pourcentage ou montant par an. |
@@ -187,6 +191,16 @@ Règles fixées par l'utilisateur le 13 novembre 2026, sans source légale : pro
 - **Ton** : `neutralBand` = loyer prévu × `share` × `params.rental.neutralBand` ; positif au-dessus, négatif en dessous de son opposé, neutre entre les deux (bornes comprises).
 - `lines` : postes non nuls d'un côté ou de l'autre ; la vacance n'a pas de réel (`null`), elle est déjà dans les loyers reçus.
 
+### Bilan depuis l'achat (`propertyBalance`)
+
+Sur les `propertyYears` du bien (donc à la part détenue, crédits à la part à charge), de `purchaseDate` (sinon le 1er janvier de la première année) à la vente ou aujourd'hui.
+
+- `contribution = coût complet × share + améliorations payées × share − Σ principal × loan.share` ; `null` sans prix d'achat. Peut être négative (crédit supérieur au coût).
+- `loanPayments = Σ (capital + intérêts + assurance)` des années : `loanSteps` met les remboursements anticipés dans le capital et leurs indemnités dans les intérêts.
+- `expenses = Σ dépenses − améliorations` (déjà dans l'apport). `taxes` : impôts estimés passés en paramètre.
+- `in = Σ (loyers + charges + autres recettes)`. `netEffort = out − in` ; `monthlyEffort = netEffort ÷ mois` (mois commencés depuis le début, au moins 1).
+- `enrichment = netValue − netEffort`, où `netValue` vient de l'appelant : `propertySummary(...).netValue`, ou `propertySale(...).net` pour un bien vendu.
+
 ### Repères au m² (`propertySqm`)
 
 Prix d'achat, valeur et loyer du mois (`monthlyRentNow`, somme des loyers hors charges des baux en cours) divisés par la surface ; `null` sans surface. La fiche imprimable ne passe pas de loyer.
@@ -219,6 +233,7 @@ Les deux renvoient vers `/immobilier/<id>`.
 | Fichier | Ce qu'il couvre |
 |---|---|
 | `packages/core/src/realestate/realestate.test.ts` (bloc « biens ») | Frais de notaire chiffrés, synthèse, vente, valeur dans le temps, crédit à solder, repères au m², coût complet. |
+| `packages/core/src/realestate/balance.test.ts` | Bilan : apport, échéances, dépenses, effort net et enrichissement chiffrés ; amélioration, impôts, part détenue, remboursement anticipé, prix inconnu. |
 | `packages/core/src/realestate/cashflow/cashflow.test.ts` | Cashflow réel et prévu poste par poste, taxe foncière estimée, provisions du bien, dépense ponctuelle, parts, location récente, lot vide, seuil neutre. |
 | `packages/ui/src/features/realestate/rentabilite.flow.test.tsx` | Onglet Rentabilité ouvert par défaut, taxe estimée signalée, provisions enregistrées depuis « Hypothèses ». |
 | `packages/core/src/realestate/expenses.test.ts` | Part récupérable : valeur proposée, montant récupérable et reste à charge, TEOM convertie. |

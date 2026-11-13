@@ -1,6 +1,6 @@
 import { SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
-import { CASHFLOW_LABELS, CASHFLOW_TONE_LABELS, propertyCashflow, type CashflowTone, type PlanParams, type Property, type RentalData } from "@hamac/core";
+import { CASHFLOW_LABELS, CASHFLOW_TONE_LABELS, type CashflowTone, type PlanParams, type Property, type PropertyCashflow } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
 import { Stat } from "@/shared/components/Stat";
 import { Table, Td, Th, Tr } from "@/shared/components/table";
@@ -22,9 +22,8 @@ function Total({ value, tone }: { value: number; tone: CashflowTone }) {
 }
 
 /** Cashflow du bien, avant impôt : le réel des 12 derniers mois en avant, le prévu à côté, poste par poste. */
-export function CashflowCard({ data, property, rental, today }: { data: RentalData; property: Property; rental: PlanParams["rental"]; today: string }) {
+export function CashflowCard({ cashflow: c, property, rental }: { cashflow: PropertyCashflow; property: Property; rental: PlanParams["rental"] }) {
   const [editing, setEditing] = useState(false);
-  const c = propertyCashflow(data, rental, today);
   const { real, planned } = c;
   const gap = planned.chargeProvisions - planned.recoverable;
   return (

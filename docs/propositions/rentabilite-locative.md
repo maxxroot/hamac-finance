@@ -68,6 +68,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 ## Tranche 2. Bilan depuis l'achat
 
+**Statut :** faite le 13 novembre 2026. Décisions prises en codant : l'apport inclut les travaux d'amélioration (ils ne comptent donc pas aussi dans les dépenses) ; il peut être négatif si le crédit dépasse le coût ; les remboursements anticipés et leurs indemnités comptent dans les échéances payées ; pour un bien vendu, la valeur nette est ce qu'il reste de la vente après frais et crédit.
+
 **Pourquoi.** Savoir ce que le bien a réellement coûté de sa poche, et ce qu'il a fait gagner.
 
 **Ce qu'on ajoute.**
