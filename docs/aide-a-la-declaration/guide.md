@@ -100,7 +100,7 @@ Cliquez sur **Détail (CSV)** : un fichier `recapitulatif-fiscal-<année>.csv` c
 
 - si vous avez noté le brut et les retenues, il les prend ;
 - si l'établissement ne prélève rien, le montant reçu est le brut ;
-- sinon, il applique les taux de l'établissement, ou ceux de Paramètres › Plan : 12,8 % d'acompte (0 % si vous avez la dispense) et les prélèvements sociaux de l'année. Ce dernier cas est « À vérifier », sauf si les deux taux sont réglés sur l'établissement ou si Hamac rédige sa fiche.
+- sinon, il applique les taux de l'établissement, ou ceux de Paramètres › Plan : 12,8 % d'acompte (0 % sur les intérêts d'une année où vous êtes dispensé, case cochée dans la page Impôts) et les prélèvements sociaux de l'année. Ce dernier cas est « À vérifier », sauf si les deux taux sont réglés sur l'établissement ou si Hamac rédige sa fiche.
 
 Exemple fictif, revenus 2026, taux par défaut : un dividende de 68,60 € reçu donne 100 € bruts (case 2DC), 12,80 € d'acompte (case 2CK) et 18,60 € de prélèvements sociaux. Les 100 € comptent aussi en case 2BH, puisque les prélèvements sociaux ont déjà été retenus.
 

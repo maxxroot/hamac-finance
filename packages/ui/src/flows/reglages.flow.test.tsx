@@ -595,7 +595,8 @@ describe("paramètres › plan et répartition", () => {
     expect(screen.getByText(/Barème \(plus avantageux\)/)).toBeTruthy();
     await user.selectOptions(screen.getByLabelText("Tranche marginale d'imposition (TMI)"), "0.3");
     expect(screen.getByText(/Flat tax 12,8 %/)).toBeTruthy();
-    await user.click(screen.getByRole("checkbox", { name: /Dispense d'acompte/ }));
+    // La dispense de l'acompte se règle désormais année par année, dans la page Impôts.
+    expect(screen.getByRole("link", { name: "Impôts" }).getAttribute("href")).toBe("/impots");
     await user.click(screen.getByRole("checkbox", { name: "Imposition en couple" }));
     await user.click(screen.getByRole("checkbox", { name: "Crypto" }));
     await fill(user, screen.getByLabelText("Inflation") as HTMLInputElement, "2,5");
@@ -609,7 +610,7 @@ describe("paramètres › plan et répartition", () => {
     const { params } = await workspace();
     expect(params).toMatchObject({
       profile: { retirementAge: 65, couple: true, netMonthlyIncome: 4200, contributionDay: 15, startMonth: "2030-02" },
-      tax: { tmi: 0.3, withholdingDispense: true },
+      tax: { tmi: 0.3, withholdingDispenseYears: [] },
       returns: { inflation: 0.025 },
       alerts: { concentrationMax: 0.35 },
       modules: { crypto: false, immobilier: true },

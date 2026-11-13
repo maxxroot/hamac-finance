@@ -272,3 +272,38 @@ describe("contrôles de cohérence", () => {
   });
 });
 
+describe("dispense de l'acompte de 12,8 % (CGI art. 125 A)", () => {
+  const dispensed = (over: Partial<EngineData>) => {
+    const d = data(over);
+    d.params.tax = { ...d.params.tax, withholdingDispenseYears: [2025] };
+    return d;
+  };
+  const cto = acc("c", "cto", "e");
+  const plateforme = acc("p", "crowdlending", "pl");
+  const crowd = etab("pl", { withholds: true }, { crowdlending: { taxWithheld: true, taxRate: null } });
+
+  it("coupons d'une année dispensée : pas d'acompte, même si l'établissement en retient d'habitude ; les dividendes gardent le leur", () => {
+    const d = dispensed({ institutions: [etab("e", { report: true, withheldIncomeTax: 0.128, withheldSocial: 0.172 })] });
+    // 82,80 € nets = 100 € bruts − 17,20 € de prélèvements sociaux, sans acompte.
+    expect(resolveIncome(tx("2025-03-01", "interets", "c", 82.8), cto, d)).toMatchObject({ gross: 100, incomeTax: 0, social: 17.2 });
+    expect(resolveIncome(tx("2026-03-01", "interets", "c", 70), cto, d)).toMatchObject({ gross: 100, incomeTax: 12.8 });
+    expect(resolveIncome(tx("2025-03-01", "dividende", "c", 70), cto, d)).toMatchObject({ gross: 100, incomeTax: 12.8 });
+  });
+
+  it("crowdlending d'une année dispensée : prélèvements sociaux seuls retenus, impôt sur le revenu dû à la déclaration", () => {
+    const d = dispensed({ accounts: [plateforme], institutions: [crowd], transactions: [tx("2025-03-31", "interets", "p", 81.4)] });
+    // Plateforme au PFU, dispense : 18,6 % retenus seulement ; 81,40 € nets = 100 € bruts.
+    expect(resolveIncome(d.transactions[0]!, plateforme, d)).toMatchObject({ gross: 100, incomeTax: 0, social: 18.6 });
+    const row = yearlyTaxes(d, cryptoTax(d, "2026-06-01"), "2026-06-01", []).find((y) => y.year === 2025)!;
+    expect(row.crowdWithheld).toBeCloseTo(18.6, 2);
+    // TMI 30 % : le PFU de 12,8 % s'applique à la déclaration.
+    expect(row.crowdDue).toBeCloseTo(12.8, 2);
+  });
+
+  it("l'acompte de l'aide à la déclaration (case 2CK) est nul pour une année dispensée", () => {
+    const d = dispensed({ accounts: [cto], institutions: [etab("e", { report: true })], transactions: [tx("2025-03-01", "interets", "c", 82.8)] });
+    const r = report(d);
+    expect(box(r, "2TR")!.total).toBeCloseTo(100, 2);
+    expect(box(r, "2CK")?.total ?? 0).toBe(0);
+  });
+});

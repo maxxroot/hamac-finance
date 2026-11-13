@@ -2,7 +2,7 @@ import { addMonths, formatEur, roundCents } from "../base";
 import { securitiesGains, type AccountState, type EngineData, type PortfolioState } from "../portfolio";
 import { socialRateFor } from "./fiscalRules";
 import { crowdTaxOf, incomeTaxRate } from "../model";
-import { accountWithholds, resolveIncome, securityDisposals } from "./taxReport";
+import { accountWithholds, crowdDueAtDeclaration, resolveIncome, securityDisposals } from "./taxReport";
 import type { CryptoTaxReport } from "./cryptoTax";
 
 /**
@@ -155,10 +155,9 @@ export function accountTaxDetails(data: EngineData, state: PortfolioState, crypt
         foreign += r.foreign;
       } else if (a.kind === "crowdlending" && t.type === "interets") {
         const r = resolveIncome(t, a, data);
-        const withheld = r.incomeTax + r.social + r.foreign;
         y.income += r.gross;
-        if (withheld > 0) y.atSource += withheld;
-        else y.atDeclaration += r.gross * (ir + socialDue);
+        y.atSource += r.incomeTax + r.social + r.foreign;
+        y.atDeclaration += crowdDueAtDeclaration(r, ir, socialDue);
       } else {
         y.income += t.amount;
       }
@@ -262,8 +261,9 @@ function kindFacts(s: AccountState, data: EngineData, crypto: CryptoTaxReport, c
       break;
     }
     case "crowdlending": {
-      const tax = crowdTaxOf(data, a);
-      facts.push({ label: "La plateforme prélève les impôts", text: tax.withheld ? `Oui, ${pct(tax.rate)}` : "Non, ils sont à payer à la déclaration" });
+      const tax = crowdTaxOf(data, a, c.currentYear);
+      const withheldText = tax.incomeTax > 0 ? `Oui, ${pct(tax.rate)}` : `Prélèvements sociaux seulement (${pct(tax.rate)}) : dispense d'acompte cette année`;
+      facts.push({ label: "La plateforme prélève les impôts", text: tax.withheld ? withheldText : "Non, ils sont à payer à la déclaration" });
       facts.push({ label: "Intérêts bruts reçus depuis le début", amount: c.income });
       if (c.journalTaxes > 0) {
         facts.push({ label: "Opérations « Impôts » au Journal", amount: c.journalTaxes, hint: "Débits des impôts retenus sur les intérêts" });

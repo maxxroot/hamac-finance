@@ -1,5 +1,6 @@
 import { Checkbox, Field, FormGrid, Select, TextInput } from "@/shared/components/form";
 import { MODULES, MODULE_LABELS, formatPct, incomeTaxRate, retirementYear, taxRegimeLabel } from "@hamac/core";
+import { Link } from "react-router";
 import { cn } from "@/shared/lib/cn";
 import { RentalSection } from "./RentalSection";
 import { Section } from "./Section";
@@ -96,12 +97,12 @@ export function PlanTab({ draft }: { draft: PlanDraft }) {
               </Select>
             )}
           </Field>
-          <div className="self-center">
-            <Checkbox
-              checked={p.tax.withholdingDispense}
-              onChange={(v) => set(["tax", "withholdingDispense"], v)}
-              label="Dispense d'acompte sur les intérêts (demandée avant le 30/11)"
-            />
+          <div className="self-center text-sm text-fg-muted">
+            Dispense de l'acompte de 12,8 % sur les intérêts : année par année, dans la page{" "}
+            <Link to="/impots" className="text-accent hover:underline">
+              Impôts
+            </Link>
+            .
           </div>
           <div className="self-center rounded-lg bg-surface-2 px-3 py-2 text-sm">
             <div className="text-fg-muted">Imposition retenue</div>

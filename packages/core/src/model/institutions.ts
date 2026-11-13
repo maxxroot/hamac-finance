@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Account, AccountKind } from "./domain";
 import { roundCents } from "../base";
-import type { PlanParams } from "./params";
+import { withholdingDispensed, type PlanParams } from "./params";
 import type { InstitutionProtection } from "./institutionProtection";
 
 /**
@@ -129,25 +129,45 @@ export function institutionWithholds(inst: Pick<Institution, "kind" | "offers"> 
   return !(tax.withheldIncomeTax === 0 && tax.withheldSocial === 0);
 }
 
-/** Impôts d'une plateforme de crowdlending : prélevés ou non (fiche de l'établissement), et à quel taux total. */
-export function crowdTaxOf(data: { params: PlanParams; institutions?: readonly Institution[] }, account: Pick<Account, "institutionId">): { withheld: boolean; rate: number } {
-  const inst = data.institutions?.find((i) => i.id === account.institutionId);
-  const p = data.params.tax;
-  if (!inst) return { withheld: false, rate: p.pfuIncomeTax + p.socialGeneral };
-  const tax = inst.tax ?? NO_INSTITUTION_TAX;
-  // Taux de la fiche s'ils sont réglés, sinon l'ancien taux de la plateforme, sinon le prélèvement forfaitaire.
-  const rate = tax.withheldIncomeTax != null || tax.withheldSocial != null ? (tax.withheldIncomeTax ?? p.pfuIncomeTax) + (tax.withheldSocial ?? p.socialGeneral) : (inst.offers.crowdlending?.taxRate ?? p.pfuIncomeTax + p.socialGeneral);
-  return { withheld: institutionWithholds(inst), rate };
+/** Retenues d'une plateforme de crowdlending sur des intérêts : prélevées ou non, taux de l'acompte et des prélèvements sociaux. */
+export interface CrowdTax {
+  withheld: boolean;
+  /** Taux total retenu : acompte + prélèvements sociaux. */
+  rate: number;
+  incomeTax: number;
+  social: number;
 }
 
 /**
- * Ce qu'une plateforme qui prélève les impôts retient sur des intérêts bruts, d'après son taux.
- * L'acompte d'impôt passe d'abord (au plus le taux du PFU) et le reste du taux compte en prélèvements sociaux,
- * comme pour des intérêts saisis nets (`resolveIncome`). Un total saisi à la main, pour coller aux centimes près
- * au relevé de la plateforme, est réparti dans les mêmes proportions.
+ * Impôts d'une plateforme de crowdlending sur les intérêts d'une année : prélevés ou non (fiche de l'établissement), à quels taux.
+ * Taux de la fiche s'ils sont réglés, sinon l'ancien taux total de la plateforme (acompte d'abord, au plus le PFU),
+ * sinon le prélèvement forfaitaire. Année de dispense : pas d'acompte, seuls les prélèvements sociaux restent retenus.
  */
-export function crowdWithholding(gross: number, rate: number, params: PlanParams, total: number = roundCents(gross * rate)): { incomeTax: number; social: number; total: number } {
-  const incomeTax = rate > 0 ? roundCents((total * Math.min(rate, params.tax.pfuIncomeTax)) / rate) : 0;
+export function crowdTaxOf(data: { params: PlanParams; institutions?: readonly Institution[] }, account: Pick<Account, "institutionId">, year: number): CrowdTax {
+  const inst = data.institutions?.find((i) => i.id === account.institutionId);
+  const p = data.params.tax;
+  const dispensed = withholdingDispensed(data.params, year);
+  const make = (withheld: boolean, incomeTax: number, social: number): CrowdTax => {
+    const it = dispensed ? 0 : incomeTax;
+    return { withheld, rate: it + social, incomeTax: it, social };
+  };
+  if (!inst) return make(false, p.pfuIncomeTax, p.socialGeneral);
+  const tax = inst.tax ?? NO_INSTITUTION_TAX;
+  const withheld = institutionWithholds(inst);
+  if (tax.withheldIncomeTax != null || tax.withheldSocial != null) return make(withheld, tax.withheldIncomeTax ?? p.pfuIncomeTax, tax.withheldSocial ?? p.socialGeneral);
+  const legacy = inst.offers.crowdlending?.taxRate;
+  if (legacy != null) return make(withheld, Math.min(legacy, p.pfuIncomeTax), Math.max(0, legacy - p.pfuIncomeTax));
+  return make(withheld, p.pfuIncomeTax, p.socialGeneral);
+}
+
+/**
+ * Ce qu'une plateforme qui prélève les impôts retient sur des intérêts bruts, d'après ses taux.
+ * Un total saisi à la main, pour coller aux centimes près au relevé de la plateforme, est réparti
+ * entre acompte et prélèvements sociaux dans les proportions des taux.
+ */
+export function crowdWithholding(gross: number, rates: Pick<CrowdTax, "incomeTax" | "social">, total: number = roundCents(gross * (rates.incomeTax + rates.social))): { incomeTax: number; social: number; total: number } {
+  const rate = rates.incomeTax + rates.social;
+  const incomeTax = rate > 0 ? roundCents((total * rates.incomeTax) / rate) : 0;
   return { incomeTax, social: roundCents(total - incomeTax), total: roundCents(total) };
 }
 

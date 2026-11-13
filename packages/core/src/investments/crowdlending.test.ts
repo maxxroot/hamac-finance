@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { crowdCountsLabel, crowdExtensionError, crowdInterestEntries, crowdProjectState, crowdSummary, type CrowdProject } from "./crowdlending";
-import { crowdWithholding, defaultParams } from "../model";
+import { crowdWithholding } from "../model";
 
 const p = (o: Partial<CrowdProject> = {}): CrowdProject => ({ id: "p", accountId: "c", name: "Projet", amount: 1_000, rate: 0.1, startDate: "2026-01-15", termMonths: 12, repayment: "in_fine", status: "en_cours", statusDate: null, repaidCapital: null, expectedRecovery: null, inAllocation: null, comment: "", ...o });
 
@@ -80,14 +80,13 @@ describe("crowdlending", () => {
     expect(s.averageRate).toBeCloseTo(0.07);
   });
 
-  it("impôts prélevés sur des intérêts bruts : acompte d'abord, prélèvements sociaux pour le reste du taux", () => {
-    const params = defaultParams(new Date(2026, 0, 1));
-    expect(crowdWithholding(100, 0.314, params)).toEqual({ incomeTax: 12.8, social: 18.6, total: 31.4 });
-    // Taux sous le PFU : tout est compté en acompte, comme pour des intérêts saisis nets.
-    expect(crowdWithholding(100, 0.1, params)).toEqual({ incomeTax: 10, social: 0, total: 10 });
+  it("impôts prélevés sur des intérêts bruts : acompte et prélèvements sociaux selon les taux de la plateforme", () => {
+    expect(crowdWithholding(100, { incomeTax: 0.128, social: 0.186 })).toEqual({ incomeTax: 12.8, social: 18.6, total: 31.4 });
+    // Année de dispense : pas d'acompte, seulement les prélèvements sociaux.
+    expect(crowdWithholding(100, { incomeTax: 0, social: 0.186 })).toEqual({ incomeTax: 0, social: 18.6, total: 18.6 });
     // Total lu sur le relevé : réparti dans les mêmes proportions.
-    expect(crowdWithholding(33.33, 0.314, params, 10.47)).toEqual({ incomeTax: 4.27, social: 6.2, total: 10.47 });
-    expect(crowdWithholding(50, 0, params)).toEqual({ incomeTax: 0, social: 0, total: 0 });
+    expect(crowdWithholding(33.33, { incomeTax: 0.128, social: 0.186 }, 10.47)).toEqual({ incomeTax: 4.27, social: 6.2, total: 10.47 });
+    expect(crowdWithholding(50, { incomeTax: 0, social: 0 })).toEqual({ incomeTax: 0, social: 0, total: 0 });
   });
 
   it("intérêts du mois : une ligne sans prélèvement, deux lignes avec, datées du dernier jour du mois", () => {

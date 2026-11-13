@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { crowdInterestEntries, crowdWithholding, formatEur, formatPct, type Account, type PlanParams } from "@hamac/core";
+import { crowdInterestEntries, crowdWithholding, formatEur, formatPct, type Account, type CrowdTax } from "@hamac/core";
 import { Field, Modal, MoneyInput, Select, TextInput } from "@/shared/components/form";
 import { Button } from "@/shared/components/ui";
 import { formatMonth, todayIso } from "@/shared/lib/numbers";
@@ -11,14 +11,13 @@ import { useMutate } from "@/shared/lib/workspace";
  */
 export function DeclareInterestDialog({
   platforms,
-  taxes,
-  params,
+  taxOf,
   journal,
   onClose,
 }: {
   platforms: readonly Account[];
-  taxes: ReadonlyMap<string, { withheld: boolean; rate: number }>;
-  params: PlanParams;
+  /** Retenues de la plateforme pour une année (la dispense de l'acompte se règle année par année). */
+  taxOf: (accountId: string, year: number) => CrowdTax | null;
   journal: ReadonlyArray<{ accountId: string; type: string; date: string; amount: number; gross?: number | null }>;
   onClose: () => void;
 }) {
@@ -30,9 +29,9 @@ export function DeclareInterestDialog({
   const [error, setError] = useState<string | null>(null);
   const save = useMutate("transactions.bulkCreate", { success: "Intérêts enregistrés" });
 
-  const tax = taxes.get(accountId);
+  const tax = accountId && month ? taxOf(accountId, +month.slice(0, 4)) : null;
   const platformWithholds = tax?.withheld ?? false;
-  const computed = gross != null && gross > 0 && tax ? crowdWithholding(gross, tax.rate, params, taxOverride ?? (platformWithholds ? undefined : 0)) : null;
+  const computed = gross != null && gross > 0 && tax ? crowdWithholding(gross, tax, taxOverride ?? (platformWithholds ? undefined : 0)) : null;
   const withholding = computed && computed.total > 0 ? computed : null;
   const net = withholding && gross != null ? gross - withholding.total : null;
   const already = journal.filter((t) => t.accountId === accountId && t.type === "interets" && t.date.startsWith(`${month}-`)).reduce((s, t) => s + (t.gross ?? t.amount), 0);
@@ -96,7 +95,7 @@ export function DeclareInterestDialog({
           label="Impôts prélevés"
           help={
             platformWithholds
-              ? `Calculés au taux de la plateforme (${formatPct(tax!.rate)}). Corrigez-les s'ils diffèrent de son relevé.`
+              ? `Calculés au taux de la plateforme (${formatPct(tax!.rate)}${tax!.incomeTax > 0 ? "" : ", prélèvements sociaux seulement : dispense de l'acompte cette année"}). Corrigez-les s'ils diffèrent de son relevé.`
               : "Cette plateforme n'est pas réglée comme prélevant les impôts (case sur sa fiche, Paramètres › Établissements) : laissez vide s'ils restent à payer, sinon indiquez ce qu'elle a retenu."
           }
         >

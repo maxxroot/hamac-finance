@@ -1,4 +1,4 @@
-import { crowdTaxOf, grossFromNet, institutionWithholds, NO_INSTITUTION_TAX, type Account, type Asset, type Institution, type InstitutionTax, type PlanParams, type Transaction } from "../model";
+import { crowdTaxOf, grossFromNet, institutionWithholds, NO_INSTITUTION_TAX, withholdingDispensed, type Account, type Asset, type Institution, type InstitutionTax, type PlanParams, type Transaction } from "../model";
 import { computePortfolio, securitiesGains, type Disposal, type EngineData, type SecuritiesYear } from "../portfolio";
 import { fiscalRulesFor, LAST_VERIFIED_INCOME_YEAR, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
 import { roundCents } from "../base";
@@ -30,18 +30,25 @@ export interface ResolvedIncome {
   note: string | null;
 }
 
-/** Taux de retenue d'un établissement : le sien s'il en a un, sinon celui de Paramètres › Plan pour cette année. */
-export function effectiveWithholding(tax: Pick<InstitutionTax, "withheldIncomeTax" | "withheldSocial">, incomeYear: number, params: PlanParams): { incomeTax: number; social: number } {
+/** Nature d'un revenu pour l'acompte : la dispense des intérêts ne vaut pas pour les dividendes. */
+export type IncomeNature = "interets" | "dividende";
+
+/**
+ * Taux de retenue d'un établissement : le sien s'il en a un, sinon celui de Paramètres › Plan pour cette année.
+ * Intérêts d'une année de dispense de l'acompte (CGI art. 125 A) : aucun acompte, quel que soit le taux habituel
+ * de l'établissement. La dispense des dividendes est une demande distincte, non modélisée : leur acompte reste dû.
+ */
+export function effectiveWithholding(tax: Pick<InstitutionTax, "withheldIncomeTax" | "withheldSocial">, incomeYear: number, params: PlanParams, income: IncomeNature = "interets"): { incomeTax: number; social: number } {
   return {
-    incomeTax: tax.withheldIncomeTax ?? (params.tax.withholdingDispense ? 0 : params.tax.pfuIncomeTax),
+    incomeTax: income === "interets" && withholdingDispensed(params, incomeYear) ? 0 : (tax.withheldIncomeTax ?? params.tax.pfuIncomeTax),
     social: tax.withheldSocial ?? socialRateFor(incomeYear, "placement", params),
   };
 }
 
 /** Retenues d'un établissement sur les revenus d'une année : rien s'il ne prélève pas, sinon ses taux ou ceux du plan. */
-export function institutionWithholding(inst: Institution | null | undefined, incomeYear: number, params: PlanParams): { incomeTax: number; social: number } {
+export function institutionWithholding(inst: Institution | null | undefined, incomeYear: number, params: PlanParams, income: IncomeNature = "interets"): { incomeTax: number; social: number } {
   if (inst && !institutionWithholds(inst)) return { incomeTax: 0, social: 0 };
-  return effectiveWithholding(inst?.tax ?? NO_INSTITUTION_TAX, incomeYear, params);
+  return effectiveWithholding(inst?.tax ?? NO_INSTITUTION_TAX, incomeYear, params, income);
 }
 
 /** L'établissement du compte prélève-t-il les impôts ? Sans établissement : oui, sauf crowdlending et crypto. */
@@ -61,19 +68,30 @@ export function resolveIncome(tx: Transaction, account: Pick<Account, "kind" | "
     return { gross: tx.gross, incomeTax, social, foreign, status: coherent ? "calcule" : "a_verifier", note: coherent ? null : "Le brut moins les retenues ne correspond pas au montant reçu." };
   }
   if (account.kind === "crowdlending") {
-    const { withheld, rate } = crowdTaxOf(data, account);
-    if (!withheld) return { gross: tx.amount, incomeTax: 0, social: 0, foreign: 0, status: "calcule", note: null };
-    const gross = roundCents(tx.amount / (1 - rate));
-    const incomeTax = roundCents(gross * Math.min(rate, data.params.tax.pfuIncomeTax));
+    const crowd = crowdTaxOf(data, account, +tx.date.slice(0, 4));
+    if (!crowd.withheld) return { gross: tx.amount, incomeTax: 0, social: 0, foreign: 0, status: "calcule", note: null };
+    const gross = roundCents(tx.amount / (1 - crowd.rate));
+    const incomeTax = roundCents(gross * crowd.incomeTax);
     return { gross, incomeTax, social: roundCents(gross - tx.amount - incomeTax), foreign: 0, status: "calcule", note: null };
   }
   const inst = data.institutions?.find((i) => i.id === account.institutionId);
   if (inst && !institutionWithholds(inst)) return { gross: tx.amount, incomeTax: 0, social: 0, foreign: 0, status: "calcule", note: "L'établissement ne prélève rien : le montant reçu est le brut, tout est à déclarer." };
   const tax = inst?.tax ?? NO_INSTITUTION_TAX;
-  const resolved = grossFromNet(tx.amount, effectiveWithholding(tax, +tx.date.slice(0, 4), data.params));
+  const resolved = grossFromNet(tx.amount, effectiveWithholding(tax, +tx.date.slice(0, 4), data.params, tx.type === "dividende" ? "dividende" : "interets"));
   if (tax.withheldIncomeTax != null && tax.withheldSocial != null) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des retenues réglées sur l'établissement." };
   if (tax.report) return { ...resolved, foreign: 0, status: "calcule", note: "Déduit des taux par défaut (Paramètres › Plan), ou de ceux de l'établissement s'il en a." };
   return { ...resolved, foreign: 0, status: "a_verifier", note: "Hypothèse d'une retenue aux taux par défaut, à contrôler avec l'IFU de l'établissement." };
+}
+
+/**
+ * Ce qui reste à payer à la déclaration sur des intérêts de crowdlending.
+ * Rien de retenu : impôt et prélèvements sociaux. Prélèvements sociaux seuls (année de dispense de l'acompte,
+ * CGI art. 125 A) : l'impôt sur le revenu. Acompte retenu : traité comme l'impôt définitif, rien de plus.
+ */
+export function crowdDueAtDeclaration(r: Pick<ResolvedIncome, "gross" | "incomeTax" | "social" | "foreign">, ir: number, socialDue: number): number {
+  if (r.incomeTax + r.social + r.foreign <= 0) return r.gross * (ir + socialDue);
+  if (r.incomeTax <= 0 && r.social > 0) return r.gross * ir;
+  return 0;
 }
 
 /** Cessions relevant des valeurs mobilières : les parts de SCPI suivent le régime des plus-values immobilières. */

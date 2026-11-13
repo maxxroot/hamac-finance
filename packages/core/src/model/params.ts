@@ -89,7 +89,11 @@ export const PlanParams = z
     crypto: z.object({ feeRate: pct, exemptionThreshold: eur }),
     tax: z.object({
       tmi: z.union([z.literal(0), z.literal(0.11), z.literal(0.3), z.literal(0.41), z.literal(0.45)]),
-      withholdingDispense: z.boolean(),
+      /**
+       * Années de revenus pour lesquelles le foyer est dispensé de l'acompte de 12,8 % sur les intérêts
+       * (prélèvement forfaitaire non libératoire, CGI art. 125 A ; demande avant le 30 novembre de l'année précédente).
+       */
+      withholdingDispenseYears: z.array(z.number().int().min(1990).max(2200)),
       pfuIncomeTax: pct,
       socialGeneral: pct,
       socialAv: pct,
@@ -209,7 +213,7 @@ export function defaultParams(today = new Date()): PlanParams {
     crypto: { feeRate: 0, exemptionThreshold: 305 },
     tax: {
       tmi: 0.11,
-      withholdingDispense: false,
+      withholdingDispenseYears: [],
       pfuIncomeTax: 0.128,
       socialGeneral: 0.186,
       socialAv: 0.172,
@@ -240,6 +244,15 @@ export function defaultParams(today = new Date()): PlanParams {
   };
 }
 
+/** Ancienne case unique « Dispense d'acompte », sans année : elle vaut pour l'année en cours, pas pour les années passées. */
+function migrateDispense(stored: Record<string, unknown>, today: Date): Record<string, unknown> {
+  const tax = stored.tax as Record<string, unknown> | undefined;
+  if (!tax || !("withholdingDispense" in tax)) return stored;
+  const { withholdingDispense, ...rest } = tax;
+  const years = Array.isArray(rest.withholdingDispenseYears) ? rest.withholdingDispenseYears : withholdingDispense === true ? [today.getFullYear()] : [];
+  return { ...stored, tax: { ...rest, withholdingDispenseYears: years } };
+}
+
 /** Anciens réglages (allocation à trois parts, classes prises sur une base, cibles sur des comptes) vers « Ma répartition cible ». */
 function migrateTargets(stored: Record<string, unknown>): Record<string, unknown> {
   if (Array.isArray(stored.targets)) return stored;
@@ -264,7 +277,7 @@ function migrateTargets(stored: Record<string, unknown>): Record<string, unknown
 export function withDefaultParams(stored: unknown, today = new Date()): unknown {
   const base = defaultParams(today);
   if (!stored || typeof stored !== "object") return base;
-  const s = migrateTargets(stored as Record<string, unknown>) as Record<string, Record<string, unknown>>;
+  const s = migrateDispense(migrateTargets(stored as Record<string, unknown>), today) as Record<string, Record<string, unknown>>;
   // Sections objets fusionnées champ par champ ; listes reprises telles quelles si présentes.
   return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Array.isArray(v) ? (Array.isArray(s[k]) ? s[k] : v) : { ...v, ...(s[k] ?? {}) }]));
 }
@@ -337,6 +350,11 @@ export function classTargets(p: PlanParams, age: number): ClassTarget[] {
     if (dest) dest.target += freed;
   }
   return out;
+}
+
+/** Le foyer est-il dispensé de l'acompte de 12,8 % sur les intérêts perçus cette année-là ? */
+export function withholdingDispensed(p: Pick<PlanParams, "tax">, year: number): boolean {
+  return p.tax.withholdingDispenseYears.includes(year);
 }
 
 /** Taux d'impôt sur le revenu appliqué aux revenus de placement : barème si plus avantageux, sinon PFU. */

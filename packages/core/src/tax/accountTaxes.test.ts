@@ -72,8 +72,7 @@ describe("impôts compte par compte", () => {
   });
 
   it("crowdlending : impôts retenus par la plateforme payés, ceux d'une plateforme qui ne prélève pas restent à payer", () => {
-    const p = defaultParams(new Date(2025, 0, 1));
-    const lines = crowdInterestEntries({ accountId: "preleve", month: "2026-03", monthLabel: "mars 2026", gross: 100, withheld: crowdWithholding(100, 0.314, p), today: "2026-06-01" });
+    const lines = crowdInterestEntries({ accountId: "preleve", month: "2026-03", monthLabel: "mars 2026", gross: 100, withheld: crowdWithholding(100, { incomeTax: 0.128, social: 0.186 }), today: "2026-06-01" });
     const d = data({
       accounts: [acc("preleve", "crowdlending", { institutionId: "e" }), acc("adeclarer", "crowdlending")],
       institutions: [etab("e", { taxWithheld: true, taxRate: 0.314 })],

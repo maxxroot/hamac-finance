@@ -16,7 +16,7 @@ Route `/crowdlending`, module `crowdlending`. Aucune différence entre les forma
 | Core | `packages/core/src/investments/crowdlending.ts` | `CrowdProject`, `crowdProjectState`, `crowdSummary`, `crowdCountsLabel`, `crowdEndDate`, `crowdExtensionError`, `crowdInterestEntries`. |
 | Core | `packages/core/src/imports/bricksImport.ts` | `parseBricksSheet`, `planBricksImport`. |
 | Core | `packages/core/src/imports/csv.ts` | `parseDate` (dates françaises du fichier). |
-| Core | `packages/core/src/model/institutions.ts` | `crowdTaxOf` (retenue et taux de la plateforme), `crowdWithholding` (partage acompte / prélèvements sociaux). |
+| Core | `packages/core/src/model/institutions.ts` | `crowdTaxOf` (retenue et taux de la plateforme pour une année), `crowdWithholding` (partage acompte / prélèvements sociaux). |
 | Core | `packages/core/src/portfolio/engine.ts` | Espèces de la plateforme moins le capital prêté, valeur des projets, `accountIrr`. |
 | Core | `packages/core/src/loans/loan.ts` | `loanState`, utilisé pour l'amortissement d'un projet à mensualités. |
 | Core | `packages/core/src/analysis/concentration.ts` | Concentration par plateforme et projets en difficulté (autres pages). |
@@ -60,9 +60,9 @@ Champs du `Workspace` : `crowdProjects`, `accounts`, `transactions`, `institutio
 
 **Prolongation** (`crowdExtensionError`) : après `startDate`, et sur un mois strictement postérieur à celui de l'échéance initiale. Saisie au mois, stockée au dernier jour du mois (`dayOfMonth(mois, 31)`).
 
-**Impôts de la plateforme** (`crowdTaxOf`). Sans établissement : non retenus, taux `pfuIncomeTax + socialGeneral`. Avec : `withheld = institutionWithholds(inst)` ; taux = `withheldIncomeTax ?? pfuIncomeTax` + `withheldSocial ?? socialGeneral` si l'un est réglé sur la fiche, sinon `offers.crowdlending.taxRate`, sinon PFU + prélèvements sociaux.
+**Impôts de la plateforme** (`crowdTaxOf`). Sans établissement : non retenus, taux `pfuIncomeTax + socialGeneral`. Avec : `withheld = institutionWithholds(inst)` ; taux = `withheldIncomeTax ?? pfuIncomeTax` + `withheldSocial ?? socialGeneral` si l'un est réglé sur la fiche, sinon `offers.crowdlending.taxRate` (acompte au plus le PFU, le reste en prélèvements sociaux), sinon PFU + prélèvements sociaux. Le résultat donne `incomeTax`, `social` et `rate`. Année cochée dans `tax.withholdingDispenseYears` (dispense de l'acompte, CGI art. 125 A) : `incomeTax` = 0, seuls les prélèvements sociaux restent ; la déclaration mensuelle prend l'année du mois déclaré.
 
-**Retenue** (`crowdWithholding(gross, rate, params, total = gross × rate)`) : `incomeTax = total × min(rate, pfuIncomeTax) / rate`, `social = total − incomeTax`. Un total saisi à la main est réparti dans les mêmes proportions.
+**Retenue** (`crowdWithholding(gross, { incomeTax, social }, total = gross × (incomeTax + social))`) : `incomeTax = total × incomeTax / (incomeTax + social)`, `social = total − incomeTax`. Un total saisi à la main est réparti dans les mêmes proportions.
 
 **Lignes du journal** (`crowdInterestEntries`). Date = dernier jour du mois, ou aujourd'hui si ce jour est futur. Sans retenue : une ligne `interets`, `amount = gross`, `gross` null. Avec retenue : `interets` avec `amount = gross`, `gross`, retenues ; puis `impots` du total retenu. C'est l'exception documentée dans `docs/architecture/modele-de-donnees.md` (Conventions).
 

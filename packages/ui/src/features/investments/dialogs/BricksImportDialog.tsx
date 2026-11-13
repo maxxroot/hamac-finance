@@ -45,7 +45,8 @@ export function BricksImportDialog({ platforms, onClose }: { platforms: readonly
 
   const plan = useMemo(() => (rows && idx ? planBricksImport(rows, accountId, idx.ws.transactions, idx.ws.crowdProjects) : null), [rows, idx, accountId]);
   const account = platforms.find((a) => a.id === accountId);
-  const tax = idx && account ? crowdTaxOf(idx.ws, account) : null;
+  // Taux de l'année en cours : celle des dernières lignes du fichier, en général.
+  const tax = idx && account ? crowdTaxOf(idx.ws, account, new Date().getFullYear()) : null;
   const txOn = (t: { action: PlanAction; externalId: string }) => (t.action === "conflit" ? on.has(t.externalId) : !off.has(t.externalId));
   const projectOn = (p: { externalId: string }) => !off.has(p.externalId);
   const toggle = (id: string, conflict: boolean, value: boolean) => {

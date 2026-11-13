@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { Fragment, useState } from "react";
-import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdCountsLabel, crowdInitialEndDate, crowdSummary, crowdTaxOf, formatPct, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
+import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdCountsLabel, crowdInitialEndDate, crowdSummary, crowdTaxOf, formatPct, type Account, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
 import { AccountEvolution } from "@/shared/components/AccountEvolution";
 import { AddAccountButton, EmptyAccount } from "@/features/entry";
 import { Amount } from "@/shared/components/Amount";
@@ -170,8 +170,14 @@ export function Crowdlending() {
       )}
 
       {importing && <BricksImportDialog platforms={platforms} onClose={() => setImporting(false)} />}
-      {declaring && <DeclareInterestDialog platforms={platforms} taxes={new Map(platforms.map((a) => [a.id, crowdTaxOf(pf.data, a)]))} params={pf.data.params} journal={pf.data.transactions} onClose={() => setDeclaring(false)} />}
+      {declaring && <DeclareInterestDialog platforms={platforms} taxOf={(id, year) => crowdTaxFor(pf.data, platforms, id, year)} journal={pf.data.transactions} onClose={() => setDeclaring(false)} />}
       <CrowdProjectDialog open={editing !== null} project={editing === "new" ? null : editing} platforms={platforms} onClose={() => setEditing(null)} />
     </>
   );
+}
+
+/** Retenues d'une plateforme pour une année : la dispense de l'acompte se règle année par année. */
+function crowdTaxFor(data: Parameters<typeof crowdTaxOf>[0], platforms: readonly Account[], accountId: string, year: number) {
+  const account = platforms.find((a) => a.id === accountId);
+  return account ? crowdTaxOf(data, account, year) : null;
 }

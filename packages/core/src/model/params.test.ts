@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PlanParams, classTargets, defaultParams, etfTarget, incomeTaxRate, normalizeParams } from "./params";
+import { PlanParams, classTargets, defaultParams, etfTarget, incomeTaxRate, normalizeParams, withholdingDispensed } from "./params";
 
 describe("paramètres", () => {
   const p = defaultParams(new Date(2026, 10, 7));
@@ -82,5 +82,23 @@ describe("paramètres", () => {
     expect(n.modules.crypto).toBe(false);
     expect(n.modules.livrets).toBe(true);
     expect(normalizeParams({}, new Date(2026, 10, 7)).modules.impots).toBe(true);
+  });
+});
+
+describe("dispense de l'acompte sur les intérêts", () => {
+  const today = new Date(2026, 10, 13);
+  it("se règle année par année", () => {
+    const p = defaultParams(today);
+    expect(p.tax.withholdingDispenseYears).toEqual([]);
+    p.tax.withholdingDispenseYears = [2027];
+    expect(withholdingDispensed(p, 2027)).toBe(true);
+    expect(withholdingDispensed(p, 2026)).toBe(false);
+  });
+
+  it("l'ancienne case unique cochée vaut pour l'année en cours seulement ; décochée, pour aucune", () => {
+    const stored = (on: boolean) => ({ ...defaultParams(today), tax: { ...defaultParams(today).tax, withholdingDispenseYears: undefined, withholdingDispense: on } });
+    expect(normalizeParams(stored(true), today).tax.withholdingDispenseYears).toEqual([2026]);
+    expect(normalizeParams(stored(false), today).tax.withholdingDispenseYears).toEqual([]);
+    expect("withholdingDispense" in normalizeParams(stored(true), today).tax).toBe(false);
   });
 });

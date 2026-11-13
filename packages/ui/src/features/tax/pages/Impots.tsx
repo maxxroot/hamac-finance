@@ -6,6 +6,7 @@ import { DetailLine } from "@/shared/components/DetailLine";
 import { DetailRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/shared/components/table";
 import { Card, PageHeader } from "@/shared/components/ui";
 import { Onboarding } from "@/features/entry";
+import { WithholdingDispenseCard } from "@/features/tax/components/WithholdingDispenseCard";
 import { YearEndCard } from "@/features/tax/components/YearEndCard";
 import { cn } from "@/shared/lib/cn";
 import { formatDate } from "@/shared/lib/numbers";
@@ -159,6 +160,7 @@ export function Impots() {
         </Table>
       </Section>
 
+      <WithholdingDispenseCard />
       <YearEndCard />
     </>
   );
