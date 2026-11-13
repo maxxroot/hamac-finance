@@ -8,7 +8,7 @@ import { Card, CardTitle } from "@/shared/components/ui";
 export function PropertyYearsCard({ data, today }: { data: RentalData; today: string }) {
   const years = [...propertyYears(data, today)].reverse();
   return (
-    <Card className="@3xl:col-span-2">
+    <Card className="mt-5">
       <CardTitle hint="votre part, avant impôt">Résultats par année</CardTitle>
       <Table>
         <thead>

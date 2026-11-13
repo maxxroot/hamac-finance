@@ -25,7 +25,9 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | backend | `packages/backend/src/repo/loadWorkspace.ts` | Chargement de l'espace de travail. |
 | backend | `packages/backend/src/backup/dump.ts` | `TABLES` : ordre des tables dans les sauvegardes. |
 | ui | `packages/ui/src/features/realestate/pages/Immobilier.tsx` | Page `/immobilier`. |
-| ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Page d'un bien : chiffres, onglets Location et Finances. |
+| ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Page d'un bien : chiffres, onglets Location et Finances. Chaque onglet range ses cartes en deux colonnes indépendantes (`CardColumns`) : Finances met l'achat et les crédits à gauche, la valeur, les dépenses et les recettes à droite, puis les résultats par année sur toute la largeur. |
+| ui | `packages/ui/src/features/realestate/components/PurchaseCard.tsx` | Achat du bien entier, frais et travaux d'amélioration. |
+| ui | `packages/ui/src/features/realestate/components/PropertyLoansCard.tsx` | Crédits rattachés, part à charge. |
 | ui | `packages/ui/src/features/realestate/pages/ImpressionBien.tsx` | Fiche imprimable. |
 | ui | `packages/ui/src/features/realestate/components/PropertySheetModal.tsx` | Fiche du bien (grande fenêtre). |
 | ui | `packages/ui/src/features/realestate/components/PropertySheetCards.tsx` | `SaleCard` (bilan de la vente). |
@@ -42,6 +44,7 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | ui | `packages/ui/src/features/realestate/dialogs/PropertySheetDialog.tsx` | Formulaire de la fiche descriptive. |
 | ui | `packages/ui/src/features/realestate/dialogs/SaleDialog.tsx` | Vente. |
 | ui | `packages/ui/src/features/realestate/dialogs/ExpenseDialog.tsx` | Dépense. |
+| ui | `packages/ui/src/shared/components/CardColumns.tsx` | Deux colonnes de cartes empilées chacune de son côté, sans vide sous une carte courte. |
 | ui | `packages/ui/src/shared/components/DismembermentFields.tsx` | Champs du démembrement, partagés avec les autres biens. |
 | ui | `packages/ui/src/shared/lib/portfolio.ts` | Applique `withCompanyShares` avant le moteur. |
 | ui | `packages/ui/src/features/realestate/index.ts` | Façade du domaine (pages exportées). |

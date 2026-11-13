@@ -32,7 +32,7 @@ Périmètre : la page `/gestion-locative`, l'onglet Location de la page d'un bie
 | backend | `packages/backend/src/repo/mappers/realestate.ts` | Lignes → objets. |
 | backend | `packages/backend/src/backup/dump.ts`, `packages/backend/src/backup/dumpUpgrade.ts` | Sauvegardes ; reprise des sauvegardes d'avant les lots (`upgradeLegacyDump`) et d'avant le suivi strict (`upgradeLegacyRentExceptions`). |
 | ui | `packages/ui/src/features/realestate/pages/GestionLocative.tsx` | Page `/gestion-locative`. |
-| ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Onglet Location : une `LeaseCard` par lot, `RentsCard`, `LotsCard`. |
+| ui | `packages/ui/src/features/realestate/pages/Bien.tsx` | Onglet Location, en deux colonnes indépendantes : à gauche une `LeaseCard` par lot puis `LotsCard`, à droite `RentsCard`. |
 | ui | `packages/ui/src/features/realestate/components/LeaseCard.tsx` | Bail en cours d'un lot, révision proposée, évolution du loyer, autres baux. |
 | ui | `packages/ui/src/features/realestate/components/ArrearsPanel.tsx` | Retards d'un bail, étape de relance, envois notés, rappels caution et CAF. |
 | ui | `packages/ui/src/features/realestate/components/RentsCard.tsx` | Mois de loyer d'une année, « Reçu », « Détail », « Valider l'année ». |

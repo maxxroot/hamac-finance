@@ -1,21 +1,22 @@
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { lotIsActive, lotIsAnnex, sortLots, LOAN_KIND_LABELS, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, heldShareLabel, loanPayoffAt, propertyImprovements, propertySale, propertySummary, propertyTotalCost, rentLedgerOf } from "@hamac/core";
+import { lotIsActive, lotIsAnnex, sortLots, PROPERTY_KIND_LABELS, PROPERTY_OWNERSHIP_LABELS, heldShareLabel, loanPayoffAt, propertyImprovements, propertySale, propertySummary, rentLedgerOf } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
-import { DetailLine as Line } from "@/shared/components/DetailLine";
+import { CardColumn, CardColumns } from "@/shared/components/CardColumns";
 import { ExpensesCard } from "@/features/realestate/components/ExpensesCard";
 import { IncomesCard } from "@/features/realestate/components/IncomesCard";
 import { LeaseCard } from "@/features/realestate/components/LeaseCard";
 import { LotsCard } from "@/features/realestate/components/LotsCard";
+import { PropertyLoansCard } from "@/features/realestate/components/PropertyLoansCard";
+import { PurchaseCard } from "@/features/realestate/components/PurchaseCard";
 import { SaleCard } from "@/features/realestate/components/PropertySheetCards";
 import { PropertySheetModal } from "@/features/realestate/components/PropertySheetModal";
 import { PropertyYearsCard } from "@/features/realestate/components/PropertyYearsCard";
 import { RentsCard } from "@/features/realestate/components/RentsCard";
 import { ValuesCard } from "@/features/realestate/components/ValuesCard";
 import { Stat, StatGrid } from "@/shared/components/Stat";
-import { EmptyRow, Table, Td, Th, Tr } from "@/shared/components/table";
-import { Badge, Button, Card, CardTitle, PageHeader, tabClass, tabListClass } from "@/shared/components/ui";
+import { Badge, Button, PageHeader, tabClass, tabListClass } from "@/shared/components/ui";
 import { PropertyDialog } from "@/features/realestate/dialogs/PropertyDialog";
 import { SaleDialog } from "@/features/realestate/dialogs/SaleDialog";
 import { formatDate } from "@/shared/lib/numbers";
@@ -54,7 +55,6 @@ export function Bien() {
   const heldLoans = pf.data.loans ?? pf.idx.ws.loans;
   const improvements = propertyImprovements(pf.idx.ws.propertyExpenses, property.id, pf.today);
   const s = propertySummary(held, pf.state.netWorth.loans, improvements, pf.today);
-  const totalCost = propertyTotalCost(property);
   const sale = propertySale(held, improvements, property.saleDate ? loanPayoffAt(heldLoans, property.id, property.saleDate) : 0);
   const heldLabel = heldShareLabel(held, pf.today);
   const shareLabel = heldLabel ? ` · ${heldLabel}` : "";
@@ -133,74 +133,35 @@ export function Bien() {
       </div>}
 
       {tab === "location" && (
-        <div className="grid items-start gap-5 @3xl:grid-cols-2">
-          {cards.map((lot) => (
-            <LeaseCard key={lot?.id ?? "logement"} property={property} lot={lot} named={lots.length > 1} leases={lot ? leases.filter((l) => l.lotId === lot.id) : leases} all={leases} rents={ws.leaseRents} today={pf.today} />
-          ))}
-          <RentsCard leases={leases} rents={ws.leaseRents} ledger={rentLedgerOf(ws)} lots={lots} today={pf.today} />
-          <LotsCard property={property} lots={lots} leases={leases} rents={ws.leaseRents} renters={ws.renters} links={ws.leaseRenters} today={pf.today} />
-        </div>
+        <CardColumns>
+          <CardColumn>
+            {cards.map((lot) => (
+              <LeaseCard key={lot?.id ?? "logement"} property={property} lot={lot} named={lots.length > 1} leases={lot ? leases.filter((l) => l.lotId === lot.id) : leases} all={leases} rents={ws.leaseRents} today={pf.today} />
+            ))}
+            <LotsCard property={property} lots={lots} leases={leases} rents={ws.leaseRents} renters={ws.renters} links={ws.leaseRenters} today={pf.today} />
+          </CardColumn>
+          <CardColumn>
+            <RentsCard leases={leases} rents={ws.leaseRents} ledger={rentLedgerOf(ws)} lots={lots} today={pf.today} />
+          </CardColumn>
+        </CardColumns>
       )}
 
       {tab === "finances" && (
-        <div className="grid items-start gap-5 @3xl:grid-cols-2">
-          {sale && <SaleCard sale={sale} />}
-          <Card>
-            <CardTitle hint="bien entier">Achat</CardTitle>
-            <Line label="Date d'achat">{property.purchaseDate ? formatDate(property.purchaseDate) : "—"}</Line>
-            <Line label="État à l'achat">{property.newBuild ? "Neuf ou en construction" : "Ancien"}</Line>
-            <Line label="Prix d'achat">{property.purchasePrice == null ? "—" : <Amount value={property.purchasePrice} />}</Line>
-            <Line label="Frais de notaire"><Amount value={property.notaryFees} /></Line>
-            <Line label="Frais d'agence"><Amount value={property.agencyFees} /></Line>
-            <Line label="Travaux à l'achat"><Amount value={property.initialWorks} /></Line>
-            <Line label="Autres frais"><Amount value={property.otherFees} /></Line>
-            <div className="mt-1.5 border-t border-line pt-1.5">
-              <Line label="Coût d'achat complet" strong>{totalCost == null ? "—" : <Amount value={totalCost} />}</Line>
-              {improvements > 0 && (
-                <>
-                  <Line label="Travaux d'amélioration depuis l'achat"><Amount value={improvements} /></Line>
-                  <Line label="Coût total" strong>{totalCost == null ? "—" : <Amount value={totalCost + improvements} />}</Line>
-                </>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <CardTitle hint="part à votre charge">Crédits rattachés</CardTitle>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Crédit</Th>
-                  <Th align="right">Mensualité</Th>
-                  <Th align="right">Capital restant dû</Th>
-                  <Th>Fin</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.loans.length === 0 && (
-                  <EmptyRow cols={4}>
-                    Aucun crédit. Rattachez-en un depuis la page <Link to="/credits" className="underline">Crédits</Link>.
-                  </EmptyRow>
-                )}
-                {s.loans.map((l) => (
-                  <Tr key={l.loan.id}>
-                    <Td className="font-medium">
-                      {l.loan.name}
-                      <div className="text-xs font-normal text-fg-faint">{LOAN_KIND_LABELS[l.loan.kind]}</div>
-                    </Td>
-                    <Td align="right"><Amount value={l.heldMonthly} /></Td>
-                    <Td align="right"><Amount value={l.heldBalance} /></Td>
-                    <Td className="whitespace-nowrap text-fg-muted">{formatDate(l.endDate)}</Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
-          </Card>
-          <ValuesCard property={property} values={ws.propertyValues.filter((v) => v.propertyId === property.id)} />
-          <ExpensesCard propertyId={property.id} expenses={ws.propertyExpenses.filter((e) => e.propertyId === property.id)} />
-          {rented && <IncomesCard propertyId={property.id} incomes={ws.propertyIncomes.filter((i) => i.propertyId === property.id)} />}
+        <>
+          <CardColumns>
+            <CardColumn>
+              {sale && <SaleCard sale={sale} />}
+              <PurchaseCard property={property} improvements={improvements} />
+              <PropertyLoansCard loans={s.loans} />
+            </CardColumn>
+            <CardColumn>
+              <ValuesCard property={property} values={ws.propertyValues.filter((v) => v.propertyId === property.id)} />
+              <ExpensesCard propertyId={property.id} expenses={ws.propertyExpenses.filter((e) => e.propertyId === property.id)} />
+              {rented && <IncomesCard propertyId={property.id} incomes={ws.propertyIncomes.filter((i) => i.propertyId === property.id)} />}
+            </CardColumn>
+          </CardColumns>
           {rented && <PropertyYearsCard data={rentalData} today={pf.today} />}
-        </div>
+        </>
       )}
 
       <PropertyDialog open={editing} property={property} onClose={() => setEditing(false)} />
