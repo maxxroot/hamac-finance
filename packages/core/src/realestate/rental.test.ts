@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { NO_RENT_LEDGER, rentMonths, type Lease, type RentLedger } from "./leases";
 import { NO_PROPERTY_DETAILS, type Property } from "./realestate";
 import type { Loan } from "../loans";
-import { expenseDates, incomeSigned, propertyImprovements, propertyProfitability, propertyYears, type PropertyExpense, type RentalData } from "./rental";
+import { expenseDates, propertyImprovements, type PropertyExpense } from "./expenses";
+import { incomeSigned, propertyProfitability, propertyYears, type RentalData } from "./rental";
 
 /** Tous les loyers pointés reçus, à l'échéance, sauf les mois « bail:AAAA-MM » de `skip`. */
 const allPaid = (leases: readonly Lease[], skip: readonly string[] = [], waivers: RentLedger["waivers"] = []): RentLedger => ({
@@ -33,7 +34,7 @@ describe("dates d'une dépense", () => {
 describe("résultats par année", () => {
   const property: Property = { id: "b", kind: "locatif", ownership: "indivision", name: "Studio", value: 120_000, valueDate: null, purchasePrice: 92_000, purchaseDate: "2024-06-01", newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 8_000, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 0.5, inAllocation: null, classId: null, comment: "", archived: false };
   const lease: Lease = { id: "l", propertyId: "b", lotId: "lot", kind: "vide", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 50, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", dueDay: 1 };
-  const expense: PropertyExpense = { id: "e", propertyId: "b", date: "2025-10-15", category: "taxe_fonciere", amount: 600, label: "", yearly: true, untilYear: null, improvement: false };
+  const expense: PropertyExpense = { id: "e", propertyId: "b", date: "2025-10-15", category: "taxe_fonciere", amount: 600, label: "", yearly: true, untilYear: null, improvement: false, recoverableRate: 0 };
   const loan: Loan = { id: "c", kind: "immobilier", name: "Prêt", propertyId: "b", share: 0.5, principal: 50_000, rate: 0, termMonths: 100, firstPayment: "2025-02-05", insuranceMode: "montant", insurance: 10, insuranceRate: 0, manualPayment: null, manualBalance: null, manualBalanceDate: null, archived: false, closedOn: null, deferredMonths: 0, deferredKind: "partiel", prepayments: [] };
   const data: RentalData = { incomes: [], property, leases: [lease], rents: [], ledger: allPaid([lease]), expenses: [expense], loans: [loan] };
 
@@ -48,6 +49,14 @@ describe("résultats par année", () => {
     expect(y.grossYield).toBeCloseTo(0.06, 6);
     // Loyers et charges reçus (6 600 €) moins 600 € de dépenses.
     expect(y.netYield).toBeCloseTo(0.06, 6);
+  });
+
+  it("part récupérable : séparée des dépenses, sans changer ce qu'il reste", () => {
+    const copro: PropertyExpense = { ...expense, id: "copro", category: "copropriete", date: "2025-03-01", amount: 900, recoverableRate: 2 / 3 };
+    const avant = propertyYears({ ...data, expenses: [expense, copro] }, "2026-03-10")[1];
+    // 600 € de récupérable sur 1 500 € de dépenses, à la moitié détenue.
+    expect(avant).toMatchObject({ expenses: 750, recoverable: 300 });
+    expect(propertyYears({ ...data, expenses: [expense, { ...copro, recoverableRate: 0 }] }, "2026-03-10")[1].remaining).toBe(avant.remaining);
   });
 
   it("année en cours : arrêtée au mois en cours, rendement ramené à une année entière", () => {
@@ -119,7 +128,7 @@ describe("résultats par année", () => {
 describe("travaux d'amélioration et vente", () => {
   const property: Property = { id: "b", kind: "locatif", ownership: "nom_propre", name: "Studio", value: 120_000, valueDate: null, purchasePrice: 90_000, purchaseDate: "2025-01-01", newBuild: false, ...NO_PROPERTY_DETAILS, notaryFees: 10_000, agencyFees: 0, initialWorks: 0, otherFees: 0, share: 1, inAllocation: null, classId: null, comment: "", archived: false };
   const lease: Lease = { id: "l", propertyId: "b", lotId: "lot", kind: "vide", startDate: "2025-01-01", durationMonths: 36, rent: 500, charges: 0, deposit: 500, noticeBy: null, noticeDate: null, noticeMonths: null, actualEnd: null, comment: "", reminders: true, depositReturned: null, depositReturnedOn: null, depositReason: "", landlord: "", tenantInsuranceUntil: null, revisable: true, irlQuarter: null, landlordAddress: "", dueDay: 1 };
-  const travaux: PropertyExpense = { id: "t", propertyId: "b", date: "2025-06-01", category: "travaux", amount: 20_000, label: "", yearly: false, untilYear: null, improvement: true };
+  const travaux: PropertyExpense = { id: "t", propertyId: "b", date: "2025-06-01", category: "travaux", amount: 20_000, label: "", yearly: false, untilYear: null, improvement: true, recoverableRate: 0 };
   const data: RentalData = { incomes: [], property, leases: [lease], rents: [], ledger: allPaid([lease]), expenses: [travaux], loans: [] };
 
   it("total des améliorations jusqu'à une date", () => {

@@ -123,5 +123,9 @@ export const migrations: ReadonlyArray<{ tag: string; sql: string }> = [
   {
     "tag": "0030_condemned_human_robot",
     "sql": "ALTER TABLE \"accounts\" ADD COLUMN \"per_kind\" text;--> statement-breakpoint\n-- Les PER existants ont reçu un fonds euros (migration 0028) : ils sont assurantiels.\nUPDATE \"accounts\" SET \"per_kind\" = 'assurantiel' WHERE \"kind\" = 'per';\n"
+  },
+  {
+    "tag": "0031_volatile_morlun",
+    "sql": "ALTER TABLE \"property_expenses\" ADD COLUMN \"recoverable_rate\" double precision DEFAULT 0 NOT NULL;--> statement-breakpoint\n-- Charges de copropriété déjà saisies : deux tiers récupérables, la valeur proposée par défaut.\nUPDATE \"property_expenses\" SET \"recoverable_rate\" = 2.0 / 3 WHERE \"category\" = 'copropriete';\n"
   }
 ];

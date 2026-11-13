@@ -1,51 +1,11 @@
 import { addDays, addMonths, daysBetween, roundCents } from "../base";
+import { expenseDates, recoverableAmount, type PropertyExpense } from "./expenses";
 import { daysInMonth, depositRetained, leaseEnd, leaseRentAt, rentMonths, type Lease, type LeaseRent, type RentLedger, type RentMonth } from "./leases";
 import { lotIsActive, type Lot } from "./lots";
 import { propertyTotalCost, type Property } from "./realestate";
 import { loanYears, type Loan } from "../loans";
 
 /** Suivi financier d'un bien en location : dépenses, et résultats année par année. */
-
-export const EXPENSE_CATEGORIES = ["taxe_fonciere", "copropriete", "assurance", "gestion", "travaux", "autre"] as const;
-export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
-export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
-  taxe_fonciere: "Taxe foncière",
-  copropriete: "Charges de copropriété",
-  assurance: "Assurance propriétaire",
-  gestion: "Frais de gestion",
-  travaux: "Travaux et entretien",
-  autre: "Autre dépense",
-};
-
-/** Dépense du bien entier ; `yearly` la répète chaque année à la même date, jusqu'à `untilYear` inclus si indiqué. */
-export interface PropertyExpense {
-  id: string;
-  propertyId: string;
-  date: string;
-  category: ExpenseCategory;
-  amount: number;
-  label: string;
-  yearly: boolean;
-  untilYear: number | null;
-  /** Travaux qui améliorent le bien : ils s'ajoutent à son coût. */
-  improvement: boolean;
-}
-
-/** Dates où la dépense a été payée, jusqu'à `asOf` inclus. */
-export function expenseDates(expense: Pick<PropertyExpense, "date" | "yearly" | "untilYear">, asOf: string): string[] {
-  if (!expense.yearly) return expense.date <= asOf ? [expense.date] : [];
-  const out: string[] = [];
-  for (let k = 0; ; k++) {
-    const date = addMonths(expense.date, 12 * k);
-    if (date > asOf || (expense.untilYear != null && Number(date.slice(0, 4)) > expense.untilYear)) return out;
-    out.push(date);
-  }
-}
-
-/** Total des travaux d'amélioration payés jusqu'à `asOf`, pour le bien entier. */
-export function propertyImprovements(expenses: readonly PropertyExpense[], propertyId: string, asOf: string): number {
-  return roundCents(expenses.filter((e) => e.propertyId === propertyId && e.improvement).reduce((sum, e) => sum + expenseDates(e, asOf).length * e.amount, 0));
-}
 
 export const INCOME_CATEGORIES = ["regularisation_recue", "regularisation_rendue", "indemnite", "autre"] as const;
 export type IncomeCategory = (typeof INCOME_CATEGORIES)[number];
@@ -145,6 +105,8 @@ export interface PropertyYear {
   /** Recettes hors loyer : régularisations, indemnités, dépôt gardé. */
   otherIncome: number;
   expenses: number;
+  /** Part des dépenses récupérable sur le locataire ; les provisions de charges reçues (`charges`) la couvrent. */
+  recoverable: number;
   interest: number;
   insurance: number;
   capital: number;
@@ -184,7 +146,7 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
   const asOf = sold ? property.saleDate! : today;
   const leases = data.leases.filter((l) => l.propertyId === property.id);
   const months = leases.flatMap((l) => rentMonths(l, data.rents, data.ledger, asOf));
-  const expenses = data.expenses.filter((e) => e.propertyId === property.id).flatMap((e) => expenseDates(e, asOf).map((date) => ({ date, amount: e.amount, improvement: e.improvement })));
+  const expenses = data.expenses.filter((e) => e.propertyId === property.id).flatMap((e) => expenseDates(e, asOf).map((date) => ({ date, amount: e.amount, improvement: e.improvement, recoverable: recoverableAmount(e) })));
   const incomes = [
     ...data.incomes.filter((i) => i.propertyId === property.id && i.date <= asOf).map((i) => ({ date: i.date, amount: incomeSigned(i) })),
     ...leases.filter((l) => l.depositReturnedOn != null && l.depositReturnedOn <= asOf).map((l) => ({ date: l.depositReturnedOn!, amount: depositRetained(l) })),
@@ -218,6 +180,7 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
     const charges = ofYear.reduce((s, m) => s + m.receivedCharges, 0);
     const spent = expenses.filter((e) => e.date.startsWith(`${year}-`)).reduce((s, e) => s + e.amount, 0);
     // Les améliorations s'ajoutent au coût : elles ne pèsent pas aussi sur le rendement de l'année.
+    const recoverable = expenses.filter((e) => e.date.startsWith(`${year}-`)).reduce((s, e) => s + e.recoverable, 0);
     const running = expenses.filter((e) => e.date.startsWith(`${year}-`) && !e.improvement).reduce((s, e) => s + e.amount, 0);
     const improved = expenses.filter((e) => e.improvement && e.date <= yearEnd).reduce((s, e) => s + e.amount, 0);
     const received = incomes.filter((i) => i.date.startsWith(`${year}-`)).reduce((s, i) => s + i.amount, 0);
@@ -244,6 +207,7 @@ export function propertyYears(data: RentalData, today: string): PropertyYear[] {
       charges: roundCents(charges * property.share),
       otherIncome: roundCents(received * property.share),
       expenses: roundCents(spent * property.share),
+      recoverable: roundCents(recoverable * property.share),
       interest: roundCents(interest),
       insurance: roundCents(insurance),
       capital: roundCents(capital),

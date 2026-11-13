@@ -33,6 +33,8 @@ Ce qui manque : les quatre chiffres en tête de la page ignorent la location (le
 
 ## Tranche 0. Part récupérable des dépenses
 
+**Statut :** faite le 13 novembre 2026 (migration 0031). Décisions prises en codant : seules la copropriété, la taxe foncière (sa TEOM) et « autre dépense » peuvent avoir une part récupérable ; « ce qu'il reste » des résultats par année ne change pas (c'est le cash réel, où les provisions reçues couvrent la part récupérable) ; l'écart entre provisions et charges récupérables sera montré dans l'onglet Rentabilité (tranche 1).
+
 **Pourquoi.** Le propriétaire paie toute la copropriété et toute la taxe foncière, puis en récupère une partie sur le locataire (provisions, TEOM). Sans cette répartition, on ne connaît ni ce qui reste vraiment à sa charge, ni l'écart avec les provisions reçues, ni les charges déductibles au réel.
 
 **Ce qu'on ajoute.**

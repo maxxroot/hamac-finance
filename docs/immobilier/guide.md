@@ -51,7 +51,7 @@ L'onglet **Finances** contient, dans l'ordre :
 - *Achat*, pour le bien entier : date, neuf ou ancien, prix, frais de notaire, frais d'agence, travaux à l'achat, autres frais, coût d'achat complet, et les travaux d'amélioration depuis l'achat ;
 - *Crédits rattachés*, à votre charge : mensualité, capital restant dû, date de fin ;
 - *Valeur dans le temps* : l'estimation actuelle et les estimations plus anciennes ;
-- *Dépenses* : taxe foncière, copropriété, assurance, gestion, travaux, autres ;
+- *Dépenses* : taxe foncière, copropriété, assurance, gestion, travaux, autres. La colonne *À votre charge* montre ce qui vous reste une fois la part récupérable demandée au locataire ;
 - *Autres recettes* (biens en location) : régularisations de charges, indemnités d'assurance ;
 - *Résultats par année* (biens en location) : voir plus bas.
 
@@ -105,6 +105,14 @@ Les alertes DPE se désactivent bien par bien, dans la fiche. Les rappels que vo
 **Compléter la description.** Ouvrez la fiche, puis « Compléter la fiche ». Pour l'adresse, tapez quelques mots : des suggestions viennent de la Base Adresse Nationale, et remplissent le code postal et la ville. Le code postal sert aussi à choisir l'indice des loyers (Corse, outre-mer) et le calendrier d'interdiction de louer (outre-mer).
 
 **Noter une dépense.** Onglet Finances, « Nouvelle dépense ». Cochez « Chaque année » pour une dépense qui revient (taxe foncière). Si le montant change, indiquez la dernière année puis créez une nouvelle dépense. Pour des travaux, la case « Améliore le bien » ajoute la dépense au coût du bien.
+
+**Indiquer ce que le locataire rembourse.** Une partie de certaines dépenses se récupère sur le locataire, avec ses provisions de charges :
+
+- *Charges de copropriété* : saisissez le montant total de l'appel du syndic, et la *part récupérable* en pourcentage. Hamac propose les deux tiers, la proportion habituelle ; le chiffre exact figure sur le décompte annuel du syndic. La valeur proposée se règle dans Paramètres › Plan › Biens en location.
+- *Taxe foncière* : saisissez le montant total de l'avis, et la ligne *Dont ordures ménagères (TEOM)*. Seule la TEOM est à la charge du locataire.
+- *Autre dépense* : une part récupérable si c'est une charge que le locataire rembourse.
+
+L'assurance du propriétaire, les frais de gestion et les travaux restent à votre charge. Les charges de copropriété déjà saisies avant cette version sont passées aux deux tiers récupérables : corrigez-les si votre décompte dit autre chose.
 
 **Noter une recette hors loyer.** Onglet Finances, « Nouvelle recette » : régularisation de charges reçue ou rendue, indemnité d'assurance. Le montant est toujours positif, le type donne le sens.
 

@@ -3,7 +3,8 @@ import { one } from "../../db/driver";
 import { RpcError, type realestateProcedures } from "@hamac/api";
 import type { BackendContext } from "../../context";
 import * as t from "../../db/schema";
-import { mapPropertyReminder, mapCompany, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome } from "../../repo";
+import { RECOVERABLE_CATEGORIES, defaultRecoverableRate } from "@hamac/core";
+import { loadParams, mapPropertyReminder, mapCompany, mapProperty, mapPropertyDocument, mapPropertyExpense, mapPropertyIncome } from "../../repo";
 import { newId, nowIso, toCents } from "../../db/units";
 import { OK, type DomainHandlers } from "../_types";
 
@@ -131,7 +132,10 @@ export const propertyHandlers = {
     if (!property) throw new RpcError("NOT_FOUND", "Bien introuvable.");
     if (input.yearly && input.untilYear != null && input.untilYear < Number(input.date.slice(0, 4))) throw new RpcError("VALIDATION", "La dernière année précède la date de la dépense.");
     const id = input.id ?? newId();
-    const row = { propertyId: input.propertyId, date: input.date, category: input.category, amountCents: toCents(input.amount), label: input.label, yearly: input.yearly, untilYear: input.yearly ? input.untilYear : null, improvement: input.category === "travaux" && input.improvement, updatedAt: nowIso() };
+    const improvement = input.category === "travaux" && input.improvement;
+    // Ni une amélioration ni l'assurance, la gestion ou les travaux du propriétaire ne se récupèrent sur le locataire.
+    const recoverableRate = improvement || !RECOVERABLE_CATEGORIES.includes(input.category) ? 0 : (input.recoverableRate ?? defaultRecoverableRate(input.category, (await loadParams(ctx.db)).rental.coproRecoverable));
+    const row = { propertyId: input.propertyId, date: input.date, category: input.category, amountCents: toCents(input.amount), label: input.label, yearly: input.yearly, untilYear: input.yearly ? input.untilYear : null, improvement, recoverableRate, updatedAt: nowIso() };
     if (input.id) await ctx.db.update(t.propertyExpenses).set(row).where(eq(t.propertyExpenses.id, id));
     else await ctx.db.insert(t.propertyExpenses).values({ id, ...row });
     return mapPropertyExpense((await ctx.db.select().from(t.propertyExpenses).where(eq(t.propertyExpenses.id, id)).limit(1).then(one))!);

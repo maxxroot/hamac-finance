@@ -9,7 +9,8 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | Couche | Fichier | Rôle |
 |---|---|---|
 | core | `packages/core/src/realestate/realestate.ts` | Types `Property`, `PropertyValue`, libellés ; `propertyValue`, `propertySqm`, `propertyFees`, `propertyTotalCost`, `propertySummary`, `estimateNotaryFees`, `propertyHeldValueAt`, `loanPayoffAt`, `propertySale`, `companySummary`. |
-| core | `packages/core/src/realestate/rental.ts` | Dépenses (`PropertyExpense`, `expenseDates`, `propertyImprovements`), recettes (`PropertyIncome`, `incomeSigned`), résultats par année (`propertyYears`, `propertyProfitability`), registre des documents (`PropertyDocument`). |
+| core | `packages/core/src/realestate/expenses.ts` | Dépenses (`PropertyExpense`, `EXPENSE_CATEGORIES`, `expenseDates`, `propertyImprovements`) et leur part récupérable sur le locataire (`RECOVERABLE_CATEGORIES`, `defaultRecoverableRate`, `recoverableAmount`, `ownerAmount`, `rateFromAmount`). |
+| core | `packages/core/src/realestate/rental.ts` | Recettes (`PropertyIncome`, `incomeSigned`), résultats par année (`propertyYears`, `propertyProfitability`), registre des documents (`PropertyDocument`). |
 | core | `packages/core/src/realestate/energy.ts` | DPE : `dpeExpiry`, `dpeRentalBan`, `dpeFreezesRent`. |
 | core | `packages/core/src/model/ownership.ts` | Démembrement (`dismembermentRatio`, `usufructRate`, `DISMEMBERMENT_SOURCE`), sociétés (`Company`, `companyShare`, `withCompanyShares`), `heldShareLabel`. |
 | core | `packages/core/src/portfolio/engine.ts` | `netWorth.realEstate` (biens non archivés, `propertyValue`) et place des biens dans l'allocation. |
@@ -33,7 +34,8 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | ui | `packages/ui/src/features/realestate/components/PropertySheetCards.tsx` | `SaleCard` (bilan de la vente). |
 | ui | `packages/ui/src/features/realestate/components/CompaniesCard.tsx` | Carte « Sociétés (SCI) » et formulaire d'une société. |
 | ui | `packages/ui/src/features/realestate/components/ValuesCard.tsx` | « Valeur dans le temps » et ajout d'une estimation. |
-| ui | `packages/ui/src/features/realestate/components/ExpensesCard.tsx` | Dépenses. |
+| ui | `packages/ui/src/features/realestate/components/ExpensesCard.tsx` | Dépenses, avec la colonne « À votre charge ». |
+| ui | `packages/ui/src/features/realestate/dialogs/ExpenseDialog.tsx` | Saisie d'une dépense : part récupérable en pourcentage (copropriété, autre), TEOM en montant (taxe foncière). |
 | ui | `packages/ui/src/features/realestate/components/IncomesCard.tsx` | Autres recettes et leur formulaire. |
 | ui | `packages/ui/src/features/realestate/components/PropertyYearsCard.tsx` | Résultats par année. |
 | ui | `packages/ui/src/features/realestate/components/DocumentsCard.tsx` | Registre des documents et son formulaire. |
@@ -59,7 +61,7 @@ Périmètre : la page `/immobilier`, la page d'un bien `/immobilier/:id` (onglet
 | `companies` | SCI : nom, `share` (part des parts), commentaire, archivée. | `properties.company_id` → `companies.id`, `ON DELETE SET NULL` : supprimer une société garde ses biens. |
 | `properties` | Le bien : utilisation (`kind`), statut (`ownership`), valeur et date, achat et frais (`*_cents`), `new_build`, fiche descriptive, DPE et GES, `dpe_reminders`, `rental_mode`, vente (`sale_date`, `sale_price_cents`, `sale_fees_cents`), `share`, `company_id`, démembrement (`dismemberment`, `usufruct_birth_date`, `usufruct_end`), `in_allocation`, `class_id`, archivé. | La valeur actuelle reste sur le bien. |
 | `property_values` | Estimations passées : `property_id`, `date`, `value_cents`. | Index unique (`property_id`, `date`). Cascade à la suppression du bien. |
-| `property_expenses` | Dépenses : date, catégorie, montant, libellé, `yearly`, `until_year`, `improvement`. | Cascade. |
+| `property_expenses` | Dépenses : date, catégorie, montant, libellé, `yearly`, `until_year`, `improvement`, `recoverable_rate` (part récupérable sur le locataire, de 0 à 1 ; migration 0031, qui passe la copropriété existante aux deux tiers). | Cascade. |
 | `property_incomes` | Recettes hors loyer : date, catégorie, montant positif, libellé. | Cascade. |
 | `property_documents` | Registre : type, nom, date, `expires_on`, emplacement. | Cascade. |
 
@@ -144,6 +146,16 @@ Prix nul ou négatif : 0. Le formulaire suit l'estimation tant que `notaryFees` 
 - `expenseDates` : une dépense ponctuelle compte à sa date si elle est passée ; une dépense annuelle chaque année à la même date, jusqu'à `untilYear` inclus.
 - `incomeSigned` : `regularisation_rendue` compte en négatif, les autres catégories en positif.
 
+### Part récupérable des dépenses (`expenses.ts`)
+
+Source : décret n° 87-713 du 26 août 1987, annexe (liste limitative des charges récupérables), dont la taxe d'enlèvement des ordures ménagères (TEOM) ; le reste de la taxe foncière n'est pas récupérable. Relu le 13 novembre 2026 sur des sources secondaires, à confirmer sur Légifrance.
+
+- `recoverableRate` (0 à 1) sur chaque dépense. Seules `copropriete`, `taxe_fonciere` et `autre` peuvent en avoir une (`RECOVERABLE_CATEGORIES`) ; le backend force 0 ailleurs et sur une amélioration.
+- Valeur proposée (`defaultRecoverableRate`) : `params.rental.coproRecoverable` pour la copropriété (deux tiers par défaut), 0 ailleurs. Le backend l'applique quand l'entrée n'a pas de `recoverableRate`.
+- Taxe foncière : l'interface demande le montant de la TEOM et le convertit (`rateFromAmount`, borné entre 0 et 1).
+- `recoverableAmount` = montant × part (0 pour une amélioration) ; `ownerAmount` = montant − récupérable.
+- Une sauvegarde d'avant la migration 0031 reçoit la même reprise à la restauration (`upgradeLegacyExpenses`, `packages/backend/src/backup/dumpUpgrade.ts`).
+
 ### Résultats par année (`propertyYears`, `propertyProfitability`)
 
 Calculés pour un bien en location, sur les données après parts de SCI. Horizon : la date de vente si elle est passée, sinon aujourd'hui ; le dernier jour compté est la fin du mois en cours (ou la date de vente).
@@ -152,6 +164,7 @@ Calculés pour un bien en location, sur les données après parts de SCI. Horizo
 - `rents`, `charges` : `receivedRent` et `receivedCharges` des mois de loyer de l'année (rattachés au mois du loyer, pas à la date du paiement), × `share`.
 - `otherIncome` : recettes signées, plus `depositRetained` à la date `depositReturnedOn`, × `share`.
 - `expenses` : toutes les occurrences de l'année, améliorations comprises, × `share`.
+- `recoverable` : part récupérable de ces dépenses, × `share`. Information seule : `remaining` compte le cash réel, où les provisions reçues (`charges`) couvrent cette part.
 - `interest`, `insurance`, `capital` : `loanYears(loan, horizon)` des crédits du bien, × `loan.share`.
 - `remaining = (rents + charges + otherIncome − expenses) × share − interest − insurance − capital` (rents, charges… avant la part).
 - `rentalDays` : du premier bail (ou du 1er janvier) au dernier jour compté, dans l'année. `partial` si 0 < `rentalDays` < jours de l'année.
@@ -192,11 +205,13 @@ Les deux renvoient vers `/immobilier/<id>`.
 | Fichier | Ce qu'il couvre |
 |---|---|
 | `packages/core/src/realestate/realestate.test.ts` (bloc « biens ») | Frais de notaire chiffrés, synthèse, vente, valeur dans le temps, crédit à solder, repères au m², coût complet. |
-| `packages/core/src/realestate/rental.test.ts` | Dates des dépenses, résultats par année, améliorations, recettes, dépôt gardé, vente. |
+| `packages/core/src/realestate/expenses.test.ts` | Part récupérable : valeur proposée, montant récupérable et reste à charge, TEOM convertie. |
+| `packages/core/src/realestate/rental.test.ts` | Dates des dépenses, résultats par année, part récupérable, améliorations, recettes, dépôt gardé, vente. |
 | `packages/core/src/realestate/energy.test.ts` | Validité du DPE, interdiction de louer, alertes DPE. |
 | `packages/core/src/model/ownership.test.ts` | Barème de l'usufruit, valeur détenue, parts de SCI. |
 | `packages/core/src/portfolio/engine.test.ts` | Part détenue des biens dans le patrimoine, nue-propriété. |
 | `packages/core/src/realestate/leases.test.ts` (bloc « rappels de documents et d'assurance ») | Alertes de documents. |
+| `packages/backend/src/handlers/realestate/properties.test.ts` | Part récupérable des dépenses : valeur proposée et réglage, catégories exclues, migration 0031, ancienne sauvegarde. |
 | `packages/backend/src/handlers/loans.test.ts` (blocs « statut et frais d'un bien », « vie d'un bien », et le test des documents dans « différé, remboursements anticipés et documents ») | Statut, frais, fiche descriptive, estimations, vente et annulation, améliorations, documents, sauvegardes. |
 | `packages/backend/src/backend.test.ts` | SCI et démembrement d'un bien. |
 | `packages/ui/src/features/realestate/lib/addressSearch.test.ts` | Lecture de la réponse du service d'adresse, seuil de 3 caractères, panne. |

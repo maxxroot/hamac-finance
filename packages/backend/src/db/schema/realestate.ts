@@ -326,6 +326,8 @@ export const propertyExpenses = pgTable(
     yearly: boolean("yearly").notNull().default(false),
     untilYear: bigint("until_year", { mode: "number" }),
     improvement: boolean("improvement").notNull().default(false),
+    /** Part récupérable sur le locataire, de 0 à 1. */
+    recoverableRate: doublePrecision("recoverable_rate").notNull().default(0),
     ...timestamps,
   },
   (t) => [index("property_expenses_property_idx").on(t.propertyId)],

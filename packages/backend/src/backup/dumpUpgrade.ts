@@ -98,3 +98,9 @@ export function upgradeLegacyEuroFunds(tables: Tables): void {
   const rates = Array.isArray(tables.fund_rates) ? tables.fund_rates : [];
   tables.fund_rates = rates.filter((r) => contracts.has(String(r.account_id))).map((r) => ({ ...r, asset_id: `fe-${String(r.account_id)}` }));
 }
+
+/** Sauvegarde d'avant la part récupérable des dépenses (migration 0031) : la copropriété reçoit les deux tiers, comme à la migration. */
+export function upgradeLegacyExpenses(tables: Tables): void {
+  const expenses = Array.isArray(tables.property_expenses) ? tables.property_expenses : [];
+  for (const e of expenses) if (!("recoverable_rate" in e)) e.recoverable_rate = e.category === "copropriete" ? 2 / 3 : 0;
+}

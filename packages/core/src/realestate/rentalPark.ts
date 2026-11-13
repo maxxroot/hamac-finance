@@ -7,7 +7,8 @@ import { lotStatus } from "./lotStatus";
 import type { Property } from "./realestate";
 import type { Loan } from "../loans";
 import { LEASE_GUARANTEE_LABELS, leaseRenterNames, type LeaseGuarantee, type LeaseRenter, type Renter } from "./renters";
-import { EXPENSE_CATEGORY_LABELS, propertyProfitability, propertyYears, rentalWindows, windowOverlapDays, type PropertyDocument, type PropertyExpense, type PropertyIncome, type RentalData } from "./rental";
+import { EXPENSE_CATEGORY_LABELS, type PropertyExpense } from "./expenses";
+import { propertyProfitability, propertyYears, rentalWindows, windowOverlapDays, type PropertyDocument, type PropertyIncome, type RentalData } from "./rental";
 
 /**
  * Vue d'ensemble du parc loué, comme la tient une agence : loyers du mois, impayés, lots vides,

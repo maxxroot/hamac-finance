@@ -101,6 +101,11 @@ export const PlanParams = z
       /** Plafond de déduction des versements sur un PER, lu sur l'avis d'impôt ; 0 = non renseigné. */
       perDeductionCeiling: eur,
     }),
+    /** Biens en location : valeurs proposées pour les nouvelles dépenses et, plus tard, les hypothèses de rentabilité. */
+    rental: z.object({
+      /** Part des charges de copropriété récupérable sur le locataire, proposée à la saisie. */
+      coproRecoverable: pct,
+    }),
     /** Pages affichées dans le menu. Masquer un module ne change aucun calcul. */
     modules: z.object(Object.fromEntries(MODULES.map((m) => [m, z.boolean()])) as Record<ModuleKey, z.ZodBoolean>),
     /** Versements : gestion libre (montants saisis compte par compte) ou suggérée (depuis la capacité mensuelle). */
@@ -197,6 +202,7 @@ export function defaultParams(today = new Date()): PlanParams {
       peaBefore5: 0.128,
       perDeductionCeiling: 0,
     },
+    rental: { coproRecoverable: 2 / 3 },
     modules: Object.fromEntries(MODULES.map((m) => [m, true])) as Record<ModuleKey, boolean>,
     contributions: { mode: "libre", capacity: 0 },
     customAllocations: [],

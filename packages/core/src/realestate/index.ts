@@ -5,6 +5,7 @@ export * from "./lotStatus";
 export * from "./renters";
 export * from "./irl";
 export * from "./energy";
+export * from "./expenses";
 export * from "./rental";
 export * from "./rentalPark";
 export * from "./rentNotices";

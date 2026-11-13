@@ -1,7 +1,7 @@
 import { RpcError, type DataDump } from "@hamac/api";
 import type { BackendContext } from "../context";
 import type { SqlValue } from "../db/driver";
-import { upgradeLegacyDump, upgradeLegacyEuroFunds, upgradeLegacyRentExceptions } from "./dumpUpgrade";
+import { upgradeLegacyDump, upgradeLegacyEuroFunds, upgradeLegacyExpenses, upgradeLegacyRentExceptions } from "./dumpUpgrade";
 import { MARKET_SECRETS_KEY } from "../market/config";
 
 /** Tables exportées, dans l'ordre d'insertion (clés étrangères). */
@@ -69,6 +69,7 @@ export async function importDump(ctx: BackendContext, dump: unknown): Promise<Re
   upgradeLegacyDump(d.tables as Parameters<typeof upgradeLegacyDump>[0]);
   upgradeLegacyRentExceptions(d.tables as Parameters<typeof upgradeLegacyRentExceptions>[0]);
   upgradeLegacyEuroFunds(d.tables as Parameters<typeof upgradeLegacyEuroFunds>[0]);
+  upgradeLegacyExpenses(d.tables as Parameters<typeof upgradeLegacyExpenses>[0]);
   try {
     await ctx.raw.transaction(async () => {
       for (const t of [...TABLES].reverse()) await ctx.raw.exec(`DELETE FROM ${t}`);

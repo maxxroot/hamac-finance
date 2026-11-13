@@ -153,4 +153,5 @@ export const mapPropertyExpense = (r: typeof t.propertyExpenses.$inferSelect): P
   yearly: r.yearly,
   untilYear: r.untilYear,
   improvement: r.improvement,
+  recoverableRate: r.recoverableRate,
 });

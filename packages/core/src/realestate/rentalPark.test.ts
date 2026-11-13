@@ -29,7 +29,7 @@ const data: ParkData = {
   renters: [{ id: "r", firstName: "Alice", lastName: "Fictive", email: "", phone: "", forwardingAddress: "", comment: "" }],
   leaseRenters: [{ leaseId: "a", renterId: "r", sortOrder: 0 }],
   leaseGuarantees: [{ id: "g", leaseId: "a", kind: "visale", name: "", contact: "", amount: null, until: "2026-03-01", comment: "", sortOrder: 0 }],
-  propertyExpenses: [{ id: "tf", propertyId: "b", date: "2024-10-15", category: "taxe_fonciere", amount: 1_200, label: "", yearly: true, untilYear: null, improvement: false }],
+  propertyExpenses: [{ id: "tf", propertyId: "b", date: "2024-10-15", category: "taxe_fonciere", amount: 1_200, label: "", yearly: true, untilYear: null, improvement: false, recoverableRate: 0 }],
   propertyIncomes: [],
   propertyDocuments: [],
   propertyReminders: [reminder("AG de copropriété", "2024-03-15", { yearly: true }), reminder("Chaudière", "2025-10-01"), reminder("Fait", "2025-10-01", { doneOn: "2025-10-02" })],

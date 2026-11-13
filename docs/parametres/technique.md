@@ -62,7 +62,7 @@
 
 Les paramètres arrivent à l'interface dans `Workspace.params` (`workspace.load`).
 
-**Sections de `PlanParams`** : `profile`, `returns`, `allocation`, `targets`, `livrets`, `broker`, `crypto`, `tax`, `modules`, `contributions`, `customAllocations`, `customClasses`, `removedTargets`, `alerts`. Les taux sont des fractions (`0.128`), les montants des euros décimaux.
+**Sections de `PlanParams`** : `profile`, `returns`, `allocation`, `targets`, `livrets`, `broker`, `crypto`, `tax`, `modules`, `contributions`, `customAllocations`, `customClasses`, `removedTargets`, `alerts`, `rental` (biens en location : `coproRecoverable`, part de la copropriété récupérable proposée à la saisie). Les taux sont des fractions (`0.128`), les montants des euros décimaux.
 
 ## Règles
 

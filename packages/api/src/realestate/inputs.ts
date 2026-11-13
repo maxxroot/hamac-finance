@@ -182,6 +182,8 @@ export const PropertyExpenseInput = z.object({
   yearly: z.boolean().default(false),
   untilYear: z.number().int().min(1900).max(2200).nullable().default(null),
   improvement: z.boolean().default(false),
+  /** Part récupérable sur le locataire ; absente, celle proposée pour la catégorie (copropriété : réglage du plan). */
+  recoverableRate: z.number().min(0).max(1).optional(),
 });
 export type PropertyExpenseInput = z.input<typeof PropertyExpenseInput>;
 

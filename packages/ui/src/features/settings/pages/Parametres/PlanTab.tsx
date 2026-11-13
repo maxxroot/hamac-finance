@@ -119,6 +119,14 @@ export function PlanTab({ draft }: { draft: PlanDraft }) {
         </FormGrid>
       </Section>
 
+      {p.modules.immobilier && (
+        <Section title="Biens en location" hint="Valeurs proposées à la saisie : chaque dépense garde la sienne, modifiable.">
+          <FormGrid cols={3}>
+            {pctField("Copropriété récupérable sur le locataire", ["rental", "coproRecoverable"], "Part des charges du syndic que le locataire rembourse. Deux tiers en général.")}
+          </FormGrid>
+        </Section>
+      )}
+
       <Section title="Seuils d'alerte">
         <FormGrid cols={3}>
           {eurField("Espèces du compte-titres à investir", ["alerts", "ctoCashThreshold"], "Alerte quand de quoi acheter une obligation attend.")}
