@@ -61,10 +61,14 @@ export const journalHandlers: DomainHandlers<typeof journalProcedures> = {
     if (withdrawal.accountId === deposit.accountId) throw new RpcError("VALIDATION", "Choisissez un autre compte à créditer.");
     if (withdrawal.date !== deposit.date || withdrawal.amount !== deposit.amount) throw new RpcError("VALIDATION", "Le versement doit avoir la date et le montant du retrait.");
     // Une seule transaction : si le versement est refusé, le retrait n'est pas enregistré.
-    return ctx.raw.transaction(async () => ({
-      withdrawal: await journalHandlers["transactions.upsert"](withdrawal, ctx),
-      deposit: await journalHandlers["transactions.upsert"](deposit, ctx),
-    }));
+    return ctx.raw.transaction(async () => {
+      const w = await journalHandlers["transactions.upsert"](withdrawal, ctx);
+      const d = await journalHandlers["transactions.upsert"](deposit, ctx);
+      // Même instant SQL pour les deux : le versement est daté juste après le retrait, pour l'ordre du journal.
+      const row = await ctx.db.select({ createdAt: t.transactions.createdAt }).from(t.transactions).where(eq(t.transactions.id, w.id)).limit(1).then(one);
+      if (row) await ctx.db.update(t.transactions).set({ createdAt: new Date(Date.parse(row.createdAt) + 1).toISOString() }).where(eq(t.transactions.id, d.id));
+      return { withdrawal: w, deposit: d };
+    });
   },
 
   async "transactions.delete"({ id }, ctx) {

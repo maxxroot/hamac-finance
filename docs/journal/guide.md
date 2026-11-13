@@ -109,7 +109,7 @@ Choisissez **Transfert** sur le compte de départ, puis le compte d'arrivée dan
 
 ### Retirer de l'argent et le verser sur un autre compte
 
-En notant un **Retrait**, cochez **« Verser aussi cette somme sur un autre compte »**, puis choisissez le **compte à créditer** (et, pour une assurance-vie ou un PER, le fonds euros qui reçoit l'argent). À l'enregistrement, Hamac crée deux opérations : le retrait sur le premier compte, et un versement du même montant, à la même date, sur le second. Le commentaire est repris sur les deux.
+En notant un **Retrait**, cochez **« Verser aussi cette somme sur un autre compte »**, puis choisissez le **compte à créditer** (et, pour une assurance-vie ou un PER, le fonds euros qui reçoit l'argent). À l'enregistrement, Hamac crée deux opérations : le retrait sur le premier compte, et un versement du même montant, à la même date, sur le second. Le commentaire est repris sur les deux. Le retrait passe en premier : dans le journal trié du plus récent au plus ancien, le versement apparaît juste au-dessus de lui.
 
 Ces deux opérations restent indépendantes ensuite : pour corriger le montant, modifiez-les l'une après l'autre. La case n'apparaît qu'à la création d'un retrait.
 
@@ -184,6 +184,8 @@ Hamac retient, pour un même format de fichier CSV (mêmes en-têtes) ou un mêm
 **Obligation.** Total d'un achat = nominal × prix ÷ 100 + coupon couru + frais. Exemple fictif : nominal 1 000 €, prix 98 %, coupon couru 10 €, frais 2 € : 992 €. À la vente, les frais se retranchent.
 
 **Versements programmés.** Le versement d'un mois apparaît une fois son jour de prélèvement passé (Paramètres › Plan, « Jour des versements »). Un mois manqué en partie apparaît pour la somme réellement versée, avec « … € manqués ce mois » en commentaire. Un mois manqué en entier n'apparaît pas.
+
+**Ordre d'affichage le même jour.** Les frais et les impôts s'affichent toujours après l'opération du même jour qu'ils accompagnent (achat, vente, intérêts…), même si vous les avez saisis avant. Les autres opérations suivent l'ordre de saisie.
 
 **Plusieurs opérations le même jour.** Hamac les traite dans un ordre fixe : apports et versements d'abord, puis transferts, revenus, corrections, ventes, arbitrages, achats, et enfin retraits, frais et impôts. Un versement et un achat du même jour ne créent donc pas d'espèces négatives.
 

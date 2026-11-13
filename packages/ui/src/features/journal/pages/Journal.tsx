@@ -12,6 +12,7 @@ import { EmptyRow, Table, Td, Th, Tr } from "@/shared/components/table";
 import { Badge, Button, Card, PageHeader } from "@/shared/components/ui";
 import { formatDate, formatQty } from "@/shared/lib/numbers";
 import { useMutate, useWorkspaceIndex } from "@/shared/lib/workspace";
+import { dateOrderKey } from "@/features/journal/lib/dateOrder";
 
 /** Sens de l'opération pour le compte principal : + entrée, − sortie, 0 interne. */
 function direction(t: Transaction): 1 | -1 | 0 {
@@ -90,10 +91,11 @@ export function Journal() {
     });
   }, [idx, all, account, type, year, q, du, au]);
 
+  const dateKey = useMemo(() => dateOrderKey(idx?.ws.transactions ?? []), [idx]);
   const { sorted, by } = useSortable(
     rows,
     {
-      date: (t) => t.date,
+      date: dateKey,
       compte: (t) => idx?.accountById.get(t.accountId)?.name,
       type: (t) => TX_LABELS[t.type],
       titre: (t) => (t.assetId ? idx?.assetById.get(t.assetId)?.name : null),

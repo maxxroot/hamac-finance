@@ -6,6 +6,7 @@
 
 | Couche | Fichier | Rôle |
 |---|---|---|
+| UI, tri | `packages/ui/src/features/journal/lib/dateOrder.ts` | `dateOrderKey` : tri « Date », puis à date égale frais et impôts après les autres opérations (comme `RANK` du moteur), puis ordre de saisie ; dans les deux sens. |
 | UI, page | `packages/ui/src/features/journal/pages/Journal.tsx` | Page `/journal` : filtres (y compris `du`, `au`, `filtre` dans l'adresse), tableau trié, export CSV, actions par ligne, saisie pré-remplie par `?nouveau=1&compte=&type=&titre=`. |
 | UI, fenêtre | `packages/ui/src/features/journal/dialogs/StatementImportDialog.tsx` | Import d'un relevé : choix du fichier, rôle des colonnes CSV, titres inconnus, aperçu, envoi groupé, mémoire par format. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Fenêtre « Nouvelle opération » : champs selon le type, frais suggérés, prix unitaire ↔ total, coupon couru, support fonds euros, arbitrage. Préréglage `NEW_FUND_PRESET`. |
@@ -46,7 +47,7 @@
 | `transactions.upsert` | `TransactionInput` | Valide avec `validateTransaction`, crée ou met à jour. Erreur `VALIDATION` avec la liste des champs, `NOT_FOUND` si l'id n'existe pas. |
 | `transactions.delete` | `{ id }` | Supprime. |
 | `transactions.createWithAsset` | `{ asset, transaction }` | Crée le titre (`assets.upsert`) puis l'opération, dans une seule transaction SQL. |
-| `transactions.createWithdrawalAndDeposit` | `{ withdrawal, deposit }` | Retrait puis versement sur un autre compte, dans une seule transaction SQL (chacun par `transactions.upsert`). `VALIDATION` si l'un a un id, si les types ne sont pas `retrait` puis `versement`, si le compte est le même, ou si la date ou le montant diffèrent. |
+| `transactions.createWithdrawalAndDeposit` | `{ withdrawal, deposit }` | Retrait puis versement sur un autre compte, dans une seule transaction SQL (chacun par `transactions.upsert`). Le `created_at` du versement est celui du retrait + 1 ms : dans une même transaction, `now()` donne le même instant aux deux. `VALIDATION` si l'un a un id, si les types ne sont pas `retrait` puis `versement`, si le compte est le même, ou si la date ou le montant diffèrent. |
 | `transactions.bulkCreate` | `{ items }` (1 à 5 000) | Valide chaque ligne, insère les valides dans une seule transaction SQL, renvoie `{ created, errors: [{ index, message }] }`. Sert à l'import de relevés et à `DeclareInterestDialog` (crowdlending). |
 | `skips.upsert` | `SkipInput` | Bouton « mois manqué » d'une ligne programmée. |
 | `assets.upsert` | `AssetInput` | Création d'un titre inconnu depuis l'aperçu d'import. |
@@ -111,7 +112,8 @@ Les lignes cochées partent par `transactions.bulkCreate`. Le compte rendu affic
 - `packages/core/src/imports/csv.test.ts`, `packages/core/src/imports/statementImport.test.ts` : lecture des formats, doublons, programmés, titres, signe.
 - `packages/ui/src/features/entry/lib/tradeAmounts.test.ts` : prix unitaire ↔ total.
 - `packages/ui/src/shared/lib/expression.test.ts` : calculs « = » (priorités, parenthèses, saisies incomplètes, arrondi).
-- `packages/backend/src/handlers/journal.test.ts` : retrait et versement ensemble (même commentaire, tout ou rien, refus des incohérences).
+- `packages/backend/src/handlers/journal.test.ts` : retrait et versement ensemble (même commentaire, versement créé après le retrait, tout ou rien, refus des incohérences).
+- `packages/ui/src/features/journal/lib/dateOrder.test.ts` : à date égale, frais et impôts après l'action, puis ordre de saisie, dans les deux sens de tri.
 - `packages/backend/src/backend.test.ts` : import groupé (lignes valides, erreurs par ligne, brut et retenues conservés), achat avec création du titre.
 - `packages/ui/src/flows/suivi.flow.test.tsx` : blocs « journal », « fenêtre de saisie d'une opération », « mouvements d'un compte ».
 - `packages/ui/src/flows/reglages.flow.test.tsx` (« import d'un relevé ») et `packages/ui/src/flows/flows.test.tsx` (import, puis doublon au second passage).

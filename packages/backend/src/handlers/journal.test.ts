@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Transaction } from "@hamac/core";
 import type { Backend } from "../index";
-import { testBackend } from "../testkit";
+import { enterTenant, rawFor } from "../db/postgres";
+import { testBackend, testProvider } from "../testkit";
 
 // Montants fictifs.
 
@@ -18,8 +19,9 @@ async function call<T = unknown>(b: Backend, name: string, input?: unknown): Pro
 }
 
 describe("retrait et versement sur un autre compte", () => {
-  async function setup() {
-    backend = await testBackend();
+  const tenantId = () => crypto.randomUUID();
+  async function setup(tenant = tenantId()) {
+    backend = await testBackend({ tenantId: tenant });
     const b = backend;
     const livret = await call<{ id: string }>(b, "accounts.upsert", { kind: "livret", name: "Livret fictif" });
     const cto = await call<{ id: string }>(b, "accounts.upsert", { kind: "cto", name: "CTO fictif" });
@@ -36,7 +38,20 @@ describe("retrait et versement sur un autre compte", () => {
     const r = await call<{ withdrawal: Transaction; deposit: Transaction }>(b, "transactions.createWithdrawalAndDeposit", pair());
     expect(r.withdrawal).toMatchObject({ type: "retrait", accountId: livret.id, amount: 400, comment: "Vers le CTO" });
     expect(r.deposit).toMatchObject({ type: "versement", accountId: cto.id, amount: 400, comment: "Vers le CTO" });
-    expect(await transactions()).toHaveLength(2);
+    // Le versement est créé après le retrait : au journal (du plus récent au plus ancien), il passe au-dessus.
+    expect((await transactions()).map((x) => x.type)).toEqual(["versement", "retrait"]);
+  });
+
+  it("le versement est créé juste après le retrait, même dans une seule transaction SQL", async () => {
+    const tenant = tenantId();
+    const { b, pair } = await setup(tenant);
+    const r = await call<{ withdrawal: Transaction; deposit: Transaction }>(b, "transactions.createWithdrawalAndDeposit", pair());
+    const session = await testProvider().session();
+    await enterTenant(session, tenant);
+    const raw = rawFor(session);
+    const created = async (id: string) => (await raw.all<{ created_at: string }>("SELECT created_at FROM transactions WHERE id = ?", [id]))[0].created_at;
+    expect(await created(r.deposit.id) > (await created(r.withdrawal.id))).toBe(true);
+    await raw.close();
   });
 
   it("tout ou rien : un versement refusé n'enregistre pas le retrait", async () => {
