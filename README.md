@@ -195,7 +195,7 @@ Les captures utilisent uniquement le jeu de démonstration, entièrement fictif.
 Il faut [Docker](https://www.docker.com) avec Docker Compose, rien d'autre.
 
 ```bash
-git clone <adresse-du-dépôt> hamac
+git clone https://github.com/maxxroot/hamac-finance.git hamac
 cd hamac
 docker compose up -d --build
 ```
@@ -344,6 +344,7 @@ Les contributions sont bienvenues : signalements, idées, corrections, nouvelles
 - **Documentation** : une fonctionnalité nouvelle ou modifiée met à jour son `docs/<sujet>/guide.md` et son
   `technique.md` dans la même pull request.
 - **Avant d'envoyer** : `pnpm typecheck` et `pnpm test` doivent passer.
+- **Une faille de sécurité** : ne la signalez pas dans une issue publique ; suivez [SECURITY.md](SECURITY.md).
 
 ## Feuille de route
 
