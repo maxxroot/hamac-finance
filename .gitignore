@@ -30,3 +30,6 @@ docs/cahier-des-charges/
 # Copie générée de l'interface (pnpm build)
 /hamac-export-*.json
 data/
+
+# Outils personnels, hors dépôt
+/scripts/

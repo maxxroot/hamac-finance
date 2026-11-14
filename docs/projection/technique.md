@@ -105,7 +105,7 @@ Aucune règle fiscale n'intervient : la projection est avant impôts. Le code ne
 
 | Fichier | Ce qui est couvert |
 |---|---|
-| `packages/core/src/planning/projection.test.ts` | Valeurs de non-régression du sheet (2027, 2061, 2062), revenu mensuel, épuisement du capital à l'âge horizon, plafond et plancher des livrets, formule PMT, fourchette ordonnée et reproductible, effet des frais, autres classes avec rendement attendu. |
+| `packages/core/src/planning/projection.test.ts` | Valeurs de non-régression (mécanique du sheet, montants fictifs : 2027, 2061, 2062), revenu mensuel, épuisement du capital à l'âge horizon, plafond et plancher des livrets, formule PMT, fourchette ordonnée et reproductible, effet des frais, autres classes avec rendement attendu. |
 | `packages/core/src/model/params.test.ts` | `etfTarget` (baisse linéaire de la part d'actions). |
 | `packages/ui/src/flows/suivi.flow.test.tsx`, bloc `describe("projection")` | Accueil sans compte, message en gestion de patrimoine, résultats, fourchette, graphique et tableau avec le jeu de démonstration, scénario « Et si… » et « Revenir au plan », ajout et suppression d'une dépense imprévue. |
 | `packages/ui/src/flows/suivi.flow.test.tsx`, bloc `describe("tableau de bord")` | Carte de projection du tableau de bord, absence en gestion de patrimoine. |
