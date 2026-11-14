@@ -1679,7 +1679,8 @@ describe("import Bricks : cas particuliers", () => {
       ["a1", "05/01/2026", "Achat de bricks", "Validée", "Projet Un", "loan", -300, 10],
     ]);
     const first = await open(user);
-    await user.click(first.dialog.getByRole("button", { name: "Appliquer 2 changements" }));
+    // La lecture du classeur est asynchrone : attendre le bouton plutôt que le supposer déjà là.
+    await user.click(await first.dialog.findByRole("button", { name: "Appliquer 2 changements" }));
     expect(await first.dialog.findByText("2 changement(s) appliqué(s).")).toBeTruthy();
     first.view.unmount();
     expect((await workspace()).crowdProjects).toMatchObject([{ name: "Projet Un", amount: 300, accountId: a.id }]);
