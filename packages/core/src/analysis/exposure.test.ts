@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   countryCode,
   currencyCode,
-  EQUIVALENT_REFERENCES,
+  EQUIVALENT_INDEXES,
   resolveComposition,
   SECTOR_LABELS,
   SECTORS,
@@ -88,11 +88,11 @@ describe("exposition : résumé d'une composition", () => {
 
 describe("exposition : équivalent proposé", () => {
   it("trouve l'indice dans le nom, le plus précis d'abord", () => {
-    expect(suggestEquivalent(["Amundi MSCI World Swap UCITS ETF EUR Acc"])?.isin).toBe("IE00B4L5Y983");
+    expect(suggestEquivalent(["Amundi MSCI World Swap UCITS ETF EUR Acc"])?.isin).toBe("IE000BI8OT95");
     expect(suggestEquivalent(["Amundi PEA Monde (MSCI World)"])?.index).toBe("MSCI World");
     expect(suggestEquivalent(["iShares MSCI World Small Cap"])?.index).toBe("MSCI World Small Cap");
     expect(suggestEquivalent(["Vanguard FTSE All-World"])?.index).toBe("MSCI ACWI");
-    expect(suggestEquivalent(["Amundi PEA S&P 500 UCITS ETF Acc"])?.isin).toBe("IE00B5BMR087");
+    expect(suggestEquivalent(["Amundi PEA S&P 500 UCITS ETF Acc"])?.isin).toBe("IE000UBAW7M3");
     expect(suggestEquivalent(["Amundi PEA Emergent (MSCI Emerging) ESG Transition"])?.index).toBe("MSCI Emerging Markets");
     expect(suggestEquivalent(["Xtrackers MSCI Emerging Markets IMI"])?.index).toBe("MSCI Emerging Markets IMI");
     expect(suggestEquivalent(["Amundi MSCI Pacific ex Japan"])?.index).toBe("MSCI Pacific ex Japan");
@@ -102,19 +102,26 @@ describe("exposition : équivalent proposé", () => {
 
   it("essaie chaque nom connu, jamais l'ETF lui-même, rien si l'indice est inconnu", () => {
     expect(suggestEquivalent([null, "Amundi PEA Nasdaq-100"])?.index).toBe("Nasdaq-100");
-    expect(suggestEquivalent(["iShares Core MSCI World"], "IE00B4L5Y983")).toBeNull();
+    expect(suggestEquivalent(["iShares Core MSCI World"], "IE00B4L5Y983")?.isin).toBe("IE000BI8OT95");
+    expect(suggestEquivalent(["Amundi Core MSCI World"], "IE000BI8OT95")?.isin).toBe("IE00B4L5Y983");
+    expect(suggestEquivalent(["iShares MSCI China"], "IE00BJ5JPG56")).toBeNull();
     expect(suggestEquivalent(["Fonds thématique robotique"])).toBeNull();
   });
 
+  it("Amundi d'abord quand il réplique l'indice : iShares refuse souvent les serveurs hébergés", () => {
+    for (const r of EQUIVALENT_INDEXES) if (r.funds.some((f) => f.name.startsWith("Amundi"))) expect(r.funds[0]!.name, r.index).toMatch(/^Amundi/);
+    expect(suggestEquivalent(["iShares Core S&P 500 UCITS ETF USD (Acc)"], "IE00B5BMR087")).toMatchObject({ isin: "IE000UBAW7M3", index: "S&P 500" });
+  });
+
   it("chaque référence a un ISIN valide, une seule fois", () => {
-    const isins = EQUIVALENT_REFERENCES.map((r) => r.isin);
+    const isins = EQUIVALENT_INDEXES.flatMap((r) => r.funds.map((f) => f.isin));
     expect(new Set(isins).size).toBe(isins.length);
     for (const i of isins) expect(i).toMatch(/^[A-Z]{2}[A-Z0-9]{9}\d$/);
   });
 });
 
 describe("exposition : composition utilisée", () => {
-  const info = (over: Partial<CompositionInfo>): CompositionInfo => ({ isin: "IE0000000001", state: "ok", issuer: "amundi", fundName: null, replication: "physique", asOf: "2026-11-09", lineCount: 10, checkedAt: null, fetchedAt: null, message: null, ...over });
+  const info = (over: Partial<CompositionInfo>): CompositionInfo => ({ isin: "IE0000000001", state: "ok", issuer: "amundi", fundName: null, replication: "physique", asOf: "2026-11-09", lineCount: 10, checkedAt: null, fetchedAt: null, message: null, manual: false, ...over });
   const synthetic = info({ replication: "synthetique" });
   const proxy = info({ isin: "IE0000000002" });
 

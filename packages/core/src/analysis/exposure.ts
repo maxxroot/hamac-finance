@@ -233,6 +233,8 @@ export interface CompositionInfo {
   checkedAt: string | null;
   fetchedAt: string | null;
   message: string | null;
+  /** Composition déposée à la main par l'administrateur (fichier de l'émetteur), et non téléchargée par Hamac. */
+  manual: boolean;
 }
 
 /** Ligne gardée dans un résumé : les plus grosses positions du fonds. */
@@ -284,44 +286,134 @@ export function summarizeComposition(lines: readonly EtfHolding[], topCount = 30
 /** ETF physique proposé comme équivalent pour un indice. */
 export interface EquivalentReference {
   index: string;
-  pattern: RegExp;
   isin: string;
   name: string;
 }
 
+/** Grand indice et ETF physiques qui le répliquent, dans l'ordre où ils sont proposés. */
+export interface EquivalentIndex {
+  index: string;
+  pattern: RegExp;
+  funds: ReadonlyArray<{ isin: string; name: string }>;
+}
+
 /**
- * ETF physiques de référence, un par grand indice, proposés comme équivalents d'un ETF synthétique ou d'un émetteur non géré.
- * Chacun a été vérifié le 12 novembre 2026 : physique d'après son émetteur, composition récupérable.
+ * ETF physiques de référence par grand indice, proposés comme équivalents d'un ETF synthétique, d'un émetteur non géré
+ * ou d'un émetteur injoignable. Amundi d'abord : iShares refuse souvent les serveurs hébergés (403), Amundi leur répond.
+ * Seulement des fonds qui suivent exactement l'indice : ni variante ESG, ni « Climate », ni indice maison (« Prime »).
+ * Fonds iShares vérifiés le 12 novembre 2026 ; fonds Amundi le 14 novembre 2026 (physiques d'après Amundi, composition publiée).
  * Les plus précis d'abord (« MSCI World Small Cap » avant « MSCI World »).
  */
-export const EQUIVALENT_REFERENCES: readonly EquivalentReference[] = [
-  { index: "MSCI World Small Cap", pattern: /world small[- ]?cap/i, isin: "IE00BF4RFH31", name: "iShares MSCI World Small Cap UCITS ETF" },
-  { index: "MSCI World SRI", pattern: /world sri\b/i, isin: "IE00BYX2JD69", name: "iShares MSCI World SRI UCITS ETF" },
-  { index: "MSCI ACWI", pattern: /\bacwi\b|all[- ]country|all[- ]world/i, isin: "IE00B6R52259", name: "iShares MSCI ACWI UCITS ETF" },
-  { index: "MSCI World", pattern: /msci world|\bmonde\b|\bworld\b/i, isin: "IE00B4L5Y983", name: "iShares Core MSCI World UCITS ETF" },
-  { index: "S&P 500", pattern: /s&p ?500|\bsp ?500\b/i, isin: "IE00B5BMR087", name: "iShares Core S&P 500 UCITS ETF" },
-  { index: "Nasdaq-100", pattern: /nasdaq/i, isin: "IE00B53SZB19", name: "iShares Nasdaq 100 UCITS ETF" },
-  { index: "MSCI Emerging Markets IMI", pattern: /(emerging|emergent|\bem\b).*\bimi\b/i, isin: "IE00BKM4GZ66", name: "iShares Core MSCI EM IMI UCITS ETF" },
-  { index: "MSCI Emerging Markets", pattern: /emerging|[ée]mergent|\bmsci em\b/i, isin: "IE00B4L5YC18", name: "iShares MSCI EM UCITS ETF" },
-  { index: "MSCI USA", pattern: /msci usa/i, isin: "IE00B52SFT06", name: "iShares MSCI USA UCITS ETF" },
-  { index: "Stoxx Europe 600", pattern: /stoxx (europe )?600/i, isin: "LU0908500753", name: "Amundi Core Stoxx Europe 600 UCITS ETF" },
-  { index: "Euro Stoxx 50", pattern: /euro ?stoxx 50/i, isin: "IE0008471009", name: "iShares Core EURO STOXX 50 UCITS ETF" },
-  { index: "MSCI EMU", pattern: /msci emu|zone euro|eurozone/i, isin: "IE00B53QG562", name: "iShares Core MSCI EMU UCITS ETF" },
-  { index: "MSCI Europe", pattern: /msci europe|\beurope\b/i, isin: "IE00B4K48X80", name: "iShares Core MSCI Europe UCITS ETF" },
-  { index: "MSCI Pacific ex Japan", pattern: /pacific ex[- ]?japan|pacifique hors japon/i, isin: "IE00B52MJY50", name: "iShares Core MSCI Pacific ex-Japan UCITS ETF" },
-  { index: "MSCI Japan", pattern: /japan|japon|topix|nikkei/i, isin: "IE00B4L5YX21", name: "iShares Core MSCI Japan IMI UCITS ETF" },
-  { index: "CAC 40", pattern: /cac ?40/i, isin: "FR0007052782", name: "Amundi CAC 40 UCITS ETF" },
-  { index: "DAX", pattern: /\bdax\b/i, isin: "DE0005933931", name: "iShares Core DAX UCITS ETF" },
-  { index: "MSCI China", pattern: /china|chine/i, isin: "IE00BJ5JPG56", name: "iShares MSCI China UCITS ETF" },
-  { index: "MSCI India", pattern: /india|\binde\b/i, isin: "IE00BZCQB185", name: "iShares MSCI India UCITS ETF" },
+export const EQUIVALENT_INDEXES: readonly EquivalentIndex[] = [
+  { index: "MSCI World Small Cap", pattern: /world small[- ]?cap/i, funds: [{ isin: "IE00BF4RFH31", name: "iShares MSCI World Small Cap UCITS ETF" }] },
+  { index: "MSCI World SRI", pattern: /world sri\b/i, funds: [{ isin: "IE00BYX2JD69", name: "iShares MSCI World SRI UCITS ETF" }] },
+  { index: "MSCI ACWI", pattern: /\bacwi\b|all[- ]country|all[- ]world/i, funds: [{ isin: "IE00B6R52259", name: "iShares MSCI ACWI UCITS ETF" }] },
+  {
+    index: "MSCI World",
+    pattern: /msci world|\bmonde\b|\bworld\b/i,
+    funds: [
+      { isin: "IE000BI8OT95", name: "Amundi Core MSCI World UCITS ETF" },
+      { isin: "IE00B4L5Y983", name: "iShares Core MSCI World UCITS ETF" },
+    ],
+  },
+  {
+    index: "S&P 500",
+    pattern: /s&p ?500|\bsp ?500\b/i,
+    funds: [
+      { isin: "IE000UBAW7M3", name: "Amundi Core S&P 500 UCITS ETF" },
+      { isin: "IE00B5BMR087", name: "iShares Core S&P 500 UCITS ETF" },
+    ],
+  },
+  {
+    index: "Nasdaq-100",
+    pattern: /nasdaq/i,
+    funds: [
+      { isin: "IE000A2YGZU5", name: "Amundi Core Nasdaq-100 UCITS ETF" },
+      { isin: "IE00B53SZB19", name: "iShares Nasdaq 100 UCITS ETF" },
+    ],
+  },
+  { index: "MSCI Emerging Markets IMI", pattern: /(emerging|emergent|\bem\b).*\bimi\b/i, funds: [{ isin: "IE00BKM4GZ66", name: "iShares Core MSCI EM IMI UCITS ETF" }] },
+  {
+    index: "MSCI Emerging Markets",
+    pattern: /emerging|[ée]mergent|\bmsci em\b/i,
+    funds: [
+      { isin: "LU1437017350", name: "Amundi Core MSCI Emerging Markets UCITS ETF" },
+      { isin: "IE00B4L5YC18", name: "iShares MSCI EM UCITS ETF" },
+    ],
+  },
+  {
+    index: "MSCI USA",
+    pattern: /msci usa/i,
+    funds: [
+      { isin: "IE000FSN19U2", name: "Amundi Core MSCI USA UCITS ETF" },
+      { isin: "IE00B52SFT06", name: "iShares MSCI USA UCITS ETF" },
+    ],
+  },
+  { index: "Stoxx Europe 600", pattern: /stoxx (europe )?600/i, funds: [{ isin: "LU0908500753", name: "Amundi Core Stoxx Europe 600 UCITS ETF" }] },
+  {
+    index: "Euro Stoxx 50",
+    pattern: /euro ?stoxx 50/i,
+    funds: [
+      { isin: "FR0007054358", name: "Amundi EURO STOXX 50 II UCITS ETF" },
+      { isin: "IE0008471009", name: "iShares Core EURO STOXX 50 UCITS ETF" },
+    ],
+  },
+  {
+    index: "MSCI EMU",
+    pattern: /msci emu|zone euro|eurozone/i,
+    funds: [
+      { isin: "LU1646361276", name: "Amundi Core MSCI EMU UCITS ETF" },
+      { isin: "IE00B53QG562", name: "iShares Core MSCI EMU UCITS ETF" },
+    ],
+  },
+  {
+    index: "MSCI Europe",
+    pattern: /msci europe|\beurope\b/i,
+    funds: [
+      { isin: "LU1437015735", name: "Amundi Core MSCI Europe UCITS ETF" },
+      { isin: "IE00B4K48X80", name: "iShares Core MSCI Europe UCITS ETF" },
+    ],
+  },
+  {
+    index: "MSCI Pacific ex Japan",
+    pattern: /pacific ex[- ]?japan|pacifique hors japon/i,
+    funds: [
+      { isin: "LU1220245556", name: "Amundi MSCI Pacific Ex Japan UCITS ETF" },
+      { isin: "IE00B52MJY50", name: "iShares Core MSCI Pacific ex-Japan UCITS ETF" },
+    ],
+  },
+  {
+    index: "MSCI Japan",
+    pattern: /japan|japon|topix|nikkei/i,
+    funds: [
+      { isin: "LU1781541252", name: "Amundi Core MSCI Japan UCITS ETF" },
+      { isin: "IE00B4L5YX21", name: "iShares Core MSCI Japan IMI UCITS ETF" },
+    ],
+  },
+  { index: "CAC 40", pattern: /cac ?40/i, funds: [{ isin: "FR0007052782", name: "Amundi CAC 40 UCITS ETF" }] },
+  {
+    index: "DAX",
+    pattern: /\bdax\b/i,
+    funds: [
+      { isin: "LU0252633754", name: "Amundi DAX II UCITS ETF" },
+      { isin: "DE0005933931", name: "iShares Core DAX UCITS ETF" },
+    ],
+  },
+  { index: "MSCI China", pattern: /china|chine/i, funds: [{ isin: "IE00BJ5JPG56", name: "iShares MSCI China UCITS ETF" }] },
+  { index: "MSCI India", pattern: /india|\binde\b/i, funds: [{ isin: "IE00BZCQB185", name: "iShares MSCI India UCITS ETF" }] },
 ];
 
-/** Équivalent proposé d'après les noms connus de l'ETF (nom chez l'émetteur, nom saisi) ; jamais l'ETF lui-même. */
+/**
+ * Équivalent proposé d'après les noms connus de l'ETF (nom chez l'émetteur, nom saisi) : le premier fonds de référence
+ * de l'indice reconnu, jamais l'ETF lui-même.
+ */
 export function suggestEquivalent(names: ReadonlyArray<string | null | undefined>, excludeIsin?: string | null): EquivalentReference | null {
   for (const name of names) {
     if (!name) continue;
-    const found = EQUIVALENT_REFERENCES.find((r) => r.pattern.test(name));
-    if (found) return found.isin === excludeIsin ? null : found;
+    const found = EQUIVALENT_INDEXES.find((r) => r.pattern.test(name));
+    if (!found) continue;
+    const fund = found.funds.find((f) => f.isin !== excludeIsin);
+    return fund ? { index: found.index, ...fund } : null;
   }
   return null;
 }

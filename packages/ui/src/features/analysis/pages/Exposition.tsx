@@ -8,7 +8,7 @@ import { EmptyRow, Table, Td, Th, Tr } from "@/shared/components/table";
 import { Button, Card, CardTitle, PageHeader } from "@/shared/components/ui";
 import { EquivalentDialog } from "@/features/analysis/dialogs/EquivalentDialog";
 import { cn } from "@/shared/lib/cn";
-import { compositionStatus, countryLabel, currencyLabel, EXPOSURE_KEY, hasPending, kindLabel, sectorLabel, summariesByAsset, withOthers } from "@/features/entry";
+import { canImportFile, CompositionImportButton, compositionStatus, countryLabel, currencyLabel, EXPOSURE_KEY, hasPending, kindLabel, sectorLabel, summariesByAsset, withOthers } from "@/features/entry";
 import { usePortfolio } from "@/shared/lib/portfolio";
 import { call } from "@/shared/lib/transport";
 
@@ -30,6 +30,9 @@ export function Exposition() {
   const summaries = useMemo(() => summariesByAsset(q.data), [q.data]);
   const r = useMemo(() => (pf ? portfolioExposure(pf.state, summaries) : null), [pf, summaries]);
   const [choosing, setChoosing] = useState<EtfExposure | null>(null);
+  // Seul l'administrateur peut déposer un fichier de composition : il sert à toute l'instance.
+  const admin = useQuery({ queryKey: [EXPOSURE_KEY, "admin"], queryFn: () => call("exposure.admin") });
+  const canImport = !!admin.data?.canEdit;
   if (!pf || !r) return null;
 
   const etfs = new Map((q.data?.etfs ?? []).map((e) => [e.assetId, e]));
@@ -130,12 +133,13 @@ export function Exposition() {
                     <Td className={cn("text-xs", !status ? "text-warning" : status.tone === "warning" ? "text-warning" : status.tone === "muted" ? "text-fg-faint" : "text-fg-muted")}>
                       {status ? status.text : q.isLoading ? "…" : "Sans ISIN : ajoutez-le dans la fiche du titre pour récupérer sa composition."}
                     </Td>
-                    <Td align="right">
+                    <Td align="right" className="whitespace-nowrap">
                       {e && status?.canChoose && (
                         <Button variant="ghost" className="h-7 text-accent" onClick={() => setChoosing(e)}>
                           {e.used ? "Changer" : "Choisir un équivalent"}
                         </Button>
                       )}
+                      {e && canImport && canImportFile(e.own) && <CompositionImportButton isin={e.isin} name={a.name} />}
                     </Td>
                   </Tr>
                 );
@@ -144,7 +148,8 @@ export function Exposition() {
           </Table>
           <p className="text-xs text-fg-faint">
             Pour votre part des comptes joints. Compositions publiées par Amundi et iShares, mises à jour chaque trimestre. Un ETF synthétique publie le panier qu'il détient, pas l'exposition qu'il
-            donne : sa composition est reprise d'un ETF physique qui suit le même indice. Une action détenue en direct compte pour le pays de son ISIN, c'est-à-dire où elle est enregistrée. Les lignes
+            donne : sa composition est reprise d'un ETF physique qui suit le même indice, comme celle d'un ETF dont l'émetteur n'est pas géré ou ne répond pas. Quand iShares refuse le serveur,
+            l'administrateur peut aussi déposer le fichier de composition téléchargé depuis son navigateur. Une action détenue en direct compte pour le pays de son ISIN, c'est-à-dire où elle est enregistrée. Les lignes
             des ETF iShares n'ont pas d'ISIN : elles ne se regroupent avec celles d'un autre émetteur que par le nom.
           </p>
         </>

@@ -4,7 +4,7 @@ import type { CompositionAdmin } from "@hamac/api";
 import { TextInput } from "@/shared/components/form";
 import { EmptyRow, Table, Td, Th, Tr } from "@/shared/components/table";
 import { Button, Card, CardTitle } from "@/shared/components/ui";
-import { EXPOSURE_KEY } from "@/features/entry";
+import { CompositionImportButton, EXPOSURE_KEY, ISHARES_FILE_HINT } from "@/features/entry";
 import { formatDate } from "@/shared/lib/numbers";
 import { useToast } from "@/shared/lib/toast";
 import { call } from "@/shared/lib/transport";
@@ -13,8 +13,8 @@ const KEY = [EXPOSURE_KEY, "admin"] as const;
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}\d$/;
 
 /**
- * Paramètres › Cours, pour l'administrateur : compositions d'ETF en échec, et liens communs
- * « ETF synthétique ou non géré → ETF physique équivalent », à corriger ou supprimer.
+ * Paramètres › Cours, pour l'administrateur : compositions d'ETF en échec, à remplacer par le fichier de l'émetteur,
+ * et liens communs « ETF synthétique, non géré ou injoignable → ETF physique équivalent », à corriger ou supprimer.
  */
 export function CompositionAdminCard() {
   const qc = useQueryClient();
@@ -43,23 +43,29 @@ export function CompositionAdminCard() {
         ) : (
           <ul className="space-y-2 text-sm">
             {data.failures.map((f) => (
-              <li key={f.isin}>
-                <span className="font-mono text-xs">{f.isin}</span> {f.fundName && <span>· {f.fundName}</span>}
-                <div className="text-xs text-warning">
-                  {f.message} · essai du {formatDate(f.checkedAt?.slice(0, 10))}
-                  {f.fetchedAt ? ` · composition du ${formatDate(f.asOf)} gardée` : ""}
+              <li key={f.isin} className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-mono text-xs">{f.isin}</span> {f.fundName && <span>· {f.fundName}</span>}
+                  <div className="text-xs text-warning">
+                    {f.message} · essai du {formatDate(f.checkedAt?.slice(0, 10))}
+                    {f.fetchedAt ? ` · composition du ${formatDate(f.asOf)} gardée` : ""}
+                  </div>
                 </div>
+                <CompositionImportButton isin={f.isin} name={f.fundName} className="h-7 shrink-0 text-accent" />
               </li>
             ))}
           </ul>
         )}
-        <p className="mt-3 text-xs text-fg-faint">Nouvel essai automatique toutes les six heures. Un échec durable peut venir d'un changement de format chez Amundi ou iShares.</p>
+        <p className="mt-3 text-xs text-fg-faint">
+          Nouvel essai automatique toutes les six heures. Un échec durable peut venir d'un changement de format chez Amundi ou iShares, ou d'iShares qui refuse les serveurs hébergés (réponse 403).
+          Dans ce cas, déposez le fichier de composition : {ISHARES_FILE_HINT} Il sert jusqu'à la mise à jour du trimestre suivant.
+        </p>
       </Card>
 
       <Card>
         <CardTitle hint="commun à toute l'instance">ETF équivalents</CardTitle>
         <p className="mb-3 text-xs text-fg-muted">
-          Pour un ETF synthétique ou d'un émetteur non géré, le premier ETF physique choisi et vérifié sert à tous les utilisateurs, qui peuvent en choisir un autre pour eux seuls. Corrigez ici un lien qui
+          Pour un ETF synthétique, d'un émetteur non géré ou dont l'émetteur ne répond pas, le premier ETF physique choisi et vérifié sert à tous les utilisateurs, qui peuvent en choisir un autre pour eux seuls. Corrigez ici un lien qui
           ne suit pas le même indice.
         </p>
         <Table>

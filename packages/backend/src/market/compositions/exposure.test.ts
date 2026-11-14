@@ -3,6 +3,7 @@ import type { ExposureData } from "@hamac/api";
 import type { Backend } from "../../index";
 import type { SharedMarket } from "../shared";
 import { amundiFake, testBackend, testMarket } from "../../testkit";
+import type { Fetcher } from "../http";
 
 /** Deux utilisateurs d'une même instance, sur un faux site Amundi. */
 const FUNDS = {
@@ -58,7 +59,7 @@ describe("exposition réelle des ETF", () => {
     const a = await user();
     await addEtf(a, "LU1681043599", "Amundi MSCI World Swap");
     const [etf] = (await load(a, market)).etfs;
-    expect(etf).toMatchObject({ used: null, gap: "synthetic", suggestion: { isin: "IE00B4L5Y983", index: "MSCI World" } });
+    expect(etf).toMatchObject({ used: null, gap: "synthetic", suggestion: { isin: "IE000BI8OT95", index: "MSCI World" } });
   });
 
   it("l'équivalent est vérifié : pas lui-même, pas synthétique, composition récupérable", async () => {
@@ -145,5 +146,63 @@ describe("exposition réelle des ETF", () => {
     const a = await user();
     const { id } = await call<{ id: string }>(a, "assets.upsert", { kind: "action", name: "TotalEnergies", isin: "FR0000120271", priceSource: "manuel" });
     expect(await a.dispatch("exposure.choose", { assetId: id, proxyIsin: "IE000BI8OT95" })).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+  });
+});
+
+describe("exposition réelle : iShares refuse le serveur", () => {
+  /** Amundi répond, iShares renvoie 403 comme aux serveurs hébergés. */
+  async function blockedSetup() {
+    const amundi = amundiFake({ IE000UBAW7M3: { replication: "Direct(Physical)", name: "Amundi Core S&P 500 UCITS ETF Acc" } });
+    const fetcher: Fetcher = (url, init) => (url.includes("ishares.com") ? Promise.resolve(new Response("Access Denied", { status: 403 })) : amundi(url, init));
+    const market = await testMarket(fetcher);
+    const user = async (isAdmin = false) => {
+      const b = await testBackend({ market, isAdmin });
+      open.push(b);
+      return b;
+    };
+    return { market, user };
+  }
+
+  const CSV = [
+    "iShares Core S&P 500 UCITS ETF",
+    'Fund Holdings as of,"13/Nov/2026"',
+    "",
+    "Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,Shares,Price,Location,Exchange,Market Currency",
+    '"AAPL","APPLE INC","Information Technology","Equity","700.00","70.00","700.00","1.00","700.00","United States","NASDAQ","USD"',
+    '"MSFT","MICROSOFT CORP","Information Technology","Equity","300.00","30.00","300.00","1.00","300.00","United States","NASDAQ","USD"',
+  ].join("\n");
+
+  it("échec expliqué, équivalent Amundi proposé et partagé ; un équivalent iShares est refusé avec la conduite à tenir", async () => {
+    const { market, user } = await blockedSetup();
+    const a = await user();
+    const b = await user();
+    const { id } = await addEtf(a, "IE00B5BMR087", "iShares Core S&P 500");
+    const [etf] = (await load(a, market)).etfs;
+    expect(etf).toMatchObject({ gap: "failed", own: { state: "failed", message: expect.stringMatching(/^iShares refuse les requêtes venant de ce serveur/) }, suggestion: { isin: "IE000UBAW7M3", index: "S&P 500" } });
+
+    expect(await a.dispatch("exposure.choose", { assetId: id, proxyIsin: "IE00B52SFT06" })).toMatchObject({ ok: false, error: { message: expect.stringMatching(/Choisissez un ETF d'Amundi/) } });
+    await call(a, "exposure.choose", { assetId: id, proxyIsin: "IE000UBAW7M3" });
+    expect((await load(a, market)).etfs[0]).toMatchObject({ used: { origin: "choice", info: { isin: "IE000UBAW7M3" } } });
+    // L'échec ouvre le lien commun : un autre utilisateur du même ETF en profite.
+    await addEtf(b, "IE00B5BMR087");
+    expect((await load(b, market)).etfs[0]).toMatchObject({ used: { origin: "link", info: { isin: "IE000UBAW7M3" } } });
+  });
+
+  it("l'administrateur dépose le fichier d'iShares : la composition sert à tous ; personne d'autre ne le peut", async () => {
+    const { market, user } = await blockedSetup();
+    const admin = await user(true);
+    const other = await user();
+    await addEtf(other, "IE00B5BMR087", "CSPX");
+    await load(other, market);
+
+    expect(await other.dispatch("exposure.importFile", { isin: "IE00B5BMR087", csv: CSV, name: "CSPX" })).toMatchObject({ ok: false, error: { code: "UNAUTHORIZED" } });
+    expect(await admin.dispatch("exposure.importFile", { isin: "IE00B5BMR087", csv: "<html>Access Denied</html>", name: null })).toMatchObject({ ok: false, error: { code: "VALIDATION", message: expect.stringMatching(/format inattendu/) } });
+
+    const info = await call(admin, "exposure.importFile", { isin: "IE00B5BMR087", csv: CSV, name: "CSPX" });
+    expect(info).toMatchObject({ state: "ok", manual: true, issuer: "ishares", fundName: "iShares Core S&P 500 UCITS ETF", asOf: "2026-11-13", lineCount: 2 });
+    const data = await load(other, market);
+    expect(data.etfs[0]).toMatchObject({ gap: null, used: { origin: "own", info: { manual: true } } });
+    expect(data.summaries.IE00B5BMR087!.countries).toEqual({ US: 1 });
+    expect((await call<{ failures: unknown[] }>(admin, "exposure.admin")).failures).toEqual([]);
   });
 });

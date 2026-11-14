@@ -10,7 +10,8 @@
 | UI, dialogue | `packages/ui/src/features/analysis/dialogs/EquivalentDialog.tsx` | Choix d'un ETF physique équivalent (`exposure.choose`), proposition, retrait du choix. |
 | UI, logique testable | `packages/ui/src/features/entry/lib/exposure.ts` | `EXPOSURE_KEY`, libellés (pays, secteurs, devises, types), `withOthers`, `summariesByAsset`, `hasPending`, `compositionStatus`, `lookupPending`, `lookupMessage`. |
 | UI, saisie d'un titre | `packages/ui/src/features/entry/components/CompositionNotice.tsx` | Message affiché dès qu'un ISIN d'ETF est saisi (`exposure.lookup`, relu toutes les 3 s, 20 fois au plus). |
-| UI, administration | `packages/ui/src/features/settings/components/CompositionAdminCard.tsx` | Paramètres › Cours : échecs de téléchargement et liens communs (`exposure.admin`, `exposure.adminLink`). |
+| UI, administration | `packages/ui/src/features/settings/components/CompositionAdminCard.tsx` | Paramètres › Cours : échecs de téléchargement, dépôt du fichier, liens communs (`exposure.admin`, `exposure.adminLink`). |
+| UI, dépôt du fichier | `packages/ui/src/features/entry/components/CompositionImportButton.tsx` | Bouton « Déposer le fichier iShares » (`exposure.importFile`), sur la page et dans la carte de l'administrateur. |
 | UI, tableau de bord | `packages/ui/src/features/dashboard/pages/TableauDeBord.tsx` | Compte les échecs (`exposure.admin`) pour l'alerte de l'administrateur. |
 | Core, règles | `packages/core/src/analysis/exposure.ts` | Harmonisation (`sectorFromLabel`, `countryCode`, `currencyCode`), `summarizeComposition`, `EQUIVALENT_REFERENCES`, `suggestEquivalent`, `usableComposition`, `resolveComposition`, `isinCountry`, `portfolioExposure`. |
 | Core, alertes | `packages/core/src/alerts/alerts.ts` | Alerte `compositions-echecs`. |
@@ -32,10 +33,11 @@
   - `exposure.choose({ assetId, proxyIsin })` : enregistre (ou retire, `null`) l'équivalent choisi, après vérification.
   - `exposure.admin` → `CompositionAdmin` : `canEdit`, liens communs avec noms, échecs. Vide pour un compte qui n'est pas administrateur.
   - `exposure.adminLink({ isin, proxyIsin })` : remplace ou supprime un lien commun ; refusé (`UNAUTHORIZED`) hors administrateur.
+  - `exposure.importFile({ isin, csv, name })` → `CompositionInfo` : composition lue dans le fichier d'iShares déposé par l'administrateur (`parseIsharesHoldings`, 10 Mo au plus) ; refusé (`UNAUTHORIZED`) hors administrateur, `VALIDATION` si le fichier est illisible.
 - **Champs du `Workspace` lus** : `accounts` (dont `share`), `assets`, `transactions`, `prices`, via `PortfolioState` (`usePortfolio`). Les compositions ne passent pas par le `Workspace` : elles ont leur propre requête (clé `EXPOSURE_KEY`), qui ne recharge pas l'espace de travail.
 - **Tables** :
   - tenant : `assets` (`kind = 'etf'`, `isin`, `archived`, `composition_isin`) ; le choix est dans les sauvegardes ;
-  - instance, schéma `marche` (inaccessible aux rôles des tenants) : `compositions` (`isin`, `issuer`, `issuer_id`, `fund_name`, `replication`, `as_of`, `lines` en JSON, `line_count`, `checked_at`, `fetched_at`, `message`, `failed`) et `composition_links` (`isin`, `proxy_isin`, `created_at`). Un lien ne dit pas qui l'a créé.
+  - instance, schéma `marche` (inaccessible aux rôles des tenants) : `compositions` (`isin`, `issuer`, `issuer_id`, `fund_name`, `replication`, `as_of`, `lines` en JSON, `line_count`, `checked_at`, `fetched_at`, `message`, `failed`, `manual`) et `composition_links` (`isin`, `proxy_isin`, `created_at`). Un lien ne dit pas qui l'a créé.
 
 ## Règles de calcul
 
@@ -48,7 +50,11 @@
 3. le lien commun (`marche.composition_links`), mêmes règles que le choix ;
 4. sinon un manque : `synthetic` (composition connue mais synthétique), `pending`, `unknown` ou `failed`.
 
-**Équivalent proposé** (`suggestEquivalent`) : seulement si la composition propre ne sert pas. Première expression régulière de `EQUIVALENT_REFERENCES` qui correspond au nom chez l'émetteur, puis au nom saisi ; jamais l'ETF lui-même. Les références les plus précises passent d'abord (« MSCI World Small Cap » avant « MSCI World »). Le code indique une vérification de chaque référence le 12 novembre 2026.
+**Équivalent proposé** (`suggestEquivalent`) : seulement si la composition propre ne sert pas. Première expression régulière de `EQUIVALENT_INDEXES` qui correspond au nom chez l'émetteur, puis au nom saisi. Le premier fonds de l'indice est proposé, jamais l'ETF lui-même. Les fonds Amundi passent avant ceux d'iShares, qui refuse souvent les serveurs hébergés. Seuls des fonds qui suivent exactement l'indice sont retenus (ni ESG, ni « Climate », ni « Prime »). Les indices les plus précis passent d'abord (« MSCI World Small Cap » avant « MSCI World »). Fonds iShares vérifiés le 12 novembre 2026, fonds Amundi le 14 novembre 2026 (physiques d'après l'API Amundi, composition publiée).
+
+**iShares refuse le serveur** : un 403 de la recherche ou du CSV donne le message `ISHARES_BLOCKED` (`MarketError.status = 403`). `verifyEquivalent` refuse alors un équivalent iShares en invitant à choisir un ETF d'Amundi.
+
+**Fichier déposé** (`CompositionStore.importFile`) : `fetched_at` et `checked_at` à la date du dépôt, `manual = TRUE`, `failed = FALSE`. Le nom vient de la ligne qui précède la date dans le fichier, sinon du nom connu, sinon du nom saisi. La réplication connue est gardée, sauf si le fichier trahit un swap (`looksSynthetic`). La mise à jour trimestrielle retente l'émetteur : si elle réussit, `manual` repasse à `FALSE` ; si elle échoue, le fichier reste et l'échec est signalé. `parseIsharesHoldings` cherche la date dans les 15 premières lignes (« 10/Nov/2026 » ou « Nov 10, 2026 ») et refuse un fichier réenregistré par un tableur (séparateur « ; »).
 
 **Vérification d'un équivalent** (`verifyEquivalent`) : différent de l'ETF, téléchargé tout de suite si besoin (`ensure`), état `ok`, réplication `physique` (ni synthétique, ni inconnue). Chaque refus a son message.
 
@@ -91,8 +97,8 @@ En cas d'échec, la dernière composition connue est gardée (`failed = TRUE`, `
 - `packages/ui/src/features/entry/lib/exposure.test.ts` : libellés, regroupement « Autres », état de chaque ETF, message à la saisie d'un ETF.
 - `packages/ui/src/features/analysis/exposition.flow.test.tsx` : page complète (ETF physique, synthétique, équivalent proposé, refus d'un équivalent synthétique, annonce à la saisie, carte de l'administrateur, rien pour un autre utilisateur).
 - `packages/backend/src/market/compositions/composition.test.ts` : lecture des formats Amundi et iShares, réplication, téléchargement, adresse impossible à détourner.
-- `packages/backend/src/market/compositions/compositionStore.test.ts` : téléchargement unique, échecs gardés et réessayés, ISIN inconnu, lien commun, boucle de l'instance.
-- `packages/backend/src/market/compositions/exposure.test.ts` : de bout en bout par `dispatch` (faux émetteur `amundiFake` de `packages/backend/src/testkit.ts`), vérification de l'équivalent, lien commun partagé, droits de l'administrateur, sauvegarde du choix.
+- `packages/backend/src/market/compositions/compositionStore.test.ts` : téléchargement unique, échecs gardés et réessayés, ISIN inconnu, fichier déposé puis remplacé, lien commun, boucle de l'instance.
+- `packages/backend/src/market/compositions/exposure.test.ts` : de bout en bout par `dispatch` (faux émetteur `amundiFake` de `packages/backend/src/testkit.ts`), vérification de l'équivalent, lien commun partagé, droits de l'administrateur, sauvegarde du choix, iShares qui refuse le serveur (équivalent Amundi, dépôt du fichier).
 - `packages/core/src/alerts/alerts.test.ts` : alerte des compositions en échec.
 
 ## Limites connues

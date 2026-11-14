@@ -94,6 +94,19 @@ describe("composition des ETF : lecture", () => {
     expect(lines[1]!.name).toBe('ELECTRICITE DE FRANCE SA, "EDF" MTN');
   });
 
+  it("iShares, fichier téléchargé depuis le site : nom du fonds en tête, date européenne ou américaine", () => {
+    const fromSite = ["iShares Core S&P 500 UCITS ETF", ...ISHARES_EQUITY_CSV.split("\n")].join("\r\n");
+    expect(parseIsharesHoldings(fromSite)).toMatchObject({ fundName: "iShares Core S&P 500 UCITS ETF", asOf: "2026-11-10" });
+    expect(parseIsharesHoldings(ISHARES_EQUITY_CSV).fundName).toBeNull();
+    const us = ISHARES_EQUITY_CSV.replace('"10/Nov/2026"', '"Nov 10, 2026"');
+    expect(parseIsharesHoldings(us).asOf).toBe("2026-11-10");
+  });
+
+  it("iShares : un fichier réenregistré par un tableur est refusé avec une explication", () => {
+    const resaved = ISHARES_EQUITY_CSV.replace(/,/g, ";");
+    expect(() => parseIsharesHoldings(resaved)).toThrow(/tableur/);
+  });
+
   it("iShares : une page HTML à la place du CSV est refusée", () => {
     expect(() => parseIsharesHoldings("<!doctype html><html>…</html>")).toThrow(/format inattendu/);
   });
@@ -166,6 +179,12 @@ describe("composition des ETF : téléchargement", () => {
     const f = fakeFetcher((url) => (url.endsWith("latest-holdings.csv") ? new Response(ISHARES_SWAP_CSV) : undefined));
     const c = await fetchComposition(f, { issuer: "ishares", issuerId: "335184" });
     expect(c).toMatchObject({ replication: "synthetique", fundName: "iShares 335184" });
+  });
+
+  it("iShares refuse le serveur (403) : message clair, sans répéter le nom de l'émetteur", async () => {
+    const blocked = fakeFetcher((url) => (url.includes("amundietf") ? json({ products: [] }) : new Response("Access Denied", { status: 403 })));
+    await expect(findComposition(blocked, "IE00B5BMR087")).rejects.toThrow(/^iShares refuse les requêtes venant de ce serveur \(réponse 403\)/);
+    await expect(fetchComposition(blocked, { issuer: "ishares", issuerId: "253743" })).rejects.toThrow(/^iShares refuse/);
   });
 
   it("iShares : CSV absent → erreur claire", async () => {

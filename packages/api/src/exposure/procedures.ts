@@ -50,6 +50,9 @@ export interface CompositionAdmin {
   failures: CompositionInfo[];
 }
 
+/** Taille maximale d'un fichier de composition déposé : le plus gros fonds iShares (MSCI ACWI IMI, environ 10 000 lignes) fait 2 Mo. */
+export const MAX_COMPOSITION_FILE = 10_000_000;
+
 export const exposureProcedures = {
   /** Composition utilisée pour chaque ETF détenu ; demande en tâche de fond celles qui manquent. */
   "exposure.load": { input: z.void(), output: entity<ExposureData>() },
@@ -60,4 +63,12 @@ export const exposureProcedures = {
   "exposure.admin": { input: z.void(), output: entity<CompositionAdmin>() },
   /** Administrateur : remplace ou supprime (null) le lien commun d'un ETF. */
   "exposure.adminLink": { input: z.object({ isin, proxyIsin: isin.nullable() }), output: entity<CompositionAdmin>() },
+  /**
+   * Administrateur : dépose le fichier de composition d'iShares, téléchargé depuis son navigateur, quand iShares refuse le serveur.
+   * `name` : nom saisi du titre, gardé faute de nom dans le fichier.
+   */
+  "exposure.importFile": {
+    input: z.object({ isin, csv: z.string().min(1).max(MAX_COMPOSITION_FILE), name: z.string().trim().max(200).nullable() }),
+    output: entity<CompositionInfo>(),
+  },
 } as const;

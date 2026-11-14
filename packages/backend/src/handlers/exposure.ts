@@ -1,4 +1,4 @@
-import { chooseEquivalent, compositionAdmin, loadExposure, lookupComposition, setAdminLink } from "../market/compositions/exposure";
+import { chooseEquivalent, compositionAdmin, importComposition, loadExposure, lookupComposition, setAdminLink } from "../market/compositions/exposure";
 import { OK, type DomainHandlers } from "./_types";
 import type { exposureProcedures } from "@hamac/api";
 
@@ -24,5 +24,9 @@ export const exposureHandlers: DomainHandlers<typeof exposureProcedures> = {
 
   async "exposure.adminLink"({ isin, proxyIsin }, ctx) {
     return setAdminLink(ctx, isin, proxyIsin);
+  },
+
+  async "exposure.importFile"({ isin, csv, name }, ctx) {
+    return importComposition(ctx, isin, csv, name);
   },
 };

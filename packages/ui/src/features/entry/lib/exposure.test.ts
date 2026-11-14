@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CompositionLookup, EtfExposure } from "@hamac/api";
 import type { CompositionInfo } from "@hamac/core";
-import { compositionStatus, countryLabel, currencyLabel, lookupMessage, lookupPending, sectorLabel, withOthers } from "./exposure";
+import { canImportFile, compositionStatus, countryLabel, currencyLabel, lookupMessage, lookupPending, sectorLabel, withOthers } from "./exposure";
 
-const info = (over: Partial<CompositionInfo> = {}): CompositionInfo => ({ isin: "IE00B4L5Y983", state: "ok", issuer: "ishares", fundName: "iShares Core MSCI World UCITS ETF", replication: "physique", asOf: "2026-11-10", lineCount: 1285, checkedAt: null, fetchedAt: null, message: null, ...over });
+const info = (over: Partial<CompositionInfo> = {}): CompositionInfo => ({ isin: "IE00B4L5Y983", state: "ok", issuer: "ishares", fundName: "iShares Core MSCI World UCITS ETF", replication: "physique", asOf: "2026-11-10", lineCount: 1285, checkedAt: null, fetchedAt: null, message: null, manual: false, ...over });
 const etf = (over: Partial<EtfExposure>): EtfExposure => ({ assetId: "a", isin: "LU1681043599", name: "CW8", own: info({ isin: "LU1681043599", issuer: "amundi", replication: "synthetique" }), choice: null, link: null, used: null, gap: null, suggestion: null, ...over });
 
 describe("exposition : libellés", () => {
@@ -30,13 +30,26 @@ describe("exposition : état de chaque ETF", () => {
     expect(compositionStatus(etf({ used: { origin: "own", info: info() } }))).toMatchObject({ text: expect.stringMatching(/^iShares · physique · 1\s285 lignes · au 10\/11\/2026$/), tone: "ok", canChoose: false });
     expect(compositionStatus(etf({ used: { origin: "link", info: info() } })).text).toMatch(/reprise de l'ETF iShares Core MSCI World UCITS ETF \(physique, même indice\)/);
     expect(compositionStatus(etf({ used: { origin: "choice", info: info() } })).text).toMatch(/votre choix/);
-    expect(compositionStatus(etf({ used: { origin: "own", info: info({ message: "Réponse 500" }) } })).text).toMatch(/précédente gardée/);
+    // Mise à jour échouée : la composition gardée vieillit, un équivalent peut la remplacer.
+    expect(compositionStatus(etf({ used: { origin: "own", info: info({ message: "Réponse 500" }) } }))).toMatchObject({ text: expect.stringMatching(/\(Réponse 500\), composition précédente gardée/), canChoose: true });
+  });
+
+  it("fichier déposé par l'administrateur : dit comme tel", () => {
+    expect(compositionStatus(etf({ used: { origin: "own", info: info({ manual: true }) } })).text).toMatch(/^iShares \(fichier déposé\) · physique/);
+  });
+
+  it("dépôt du fichier possible après un échec, même avec une composition gardée", () => {
+    expect(canImportFile(info({ state: "failed", message: "403" }))).toBe(true);
+    expect(canImportFile(info({ message: "403" }))).toBe(true);
+    expect(canImportFile(info())).toBe(false);
+    expect(canImportFile(info({ state: "pending" }))).toBe(false);
+    expect(canImportFile(info({ state: "unknown" }))).toBe(false);
   });
 
   it("raisons, avec le bouton de choix quand il sert", () => {
     expect(compositionStatus(etf({ gap: "synthetic" }))).toMatchObject({ tone: "warning", canChoose: true, text: expect.stringMatching(/synthétique/) });
     expect(compositionStatus(etf({ gap: "unknown" })).text).toMatch(/Amundi et d'iShares/);
-    expect(compositionStatus(etf({ gap: "failed", own: info({ state: "failed", message: "Réponse 503" }) })).text).toMatch(/Réponse 503/);
+    expect(compositionStatus(etf({ gap: "failed", own: info({ state: "failed", message: "Réponse 503" }) }))).toMatchObject({ text: expect.stringMatching(/Réponse 503/), canChoose: true });
     expect(compositionStatus(etf({ gap: "equivalent-pending", choice: "IE00B4L5Y983" })).text).toMatch(/IE00B4L5Y983/);
     expect(compositionStatus(etf({ gap: "pending" }))).toMatchObject({ tone: "muted", canChoose: false });
   });
@@ -61,6 +74,11 @@ describe("exposition : annonce au choix d'un ETF", () => {
     expect(lookupPending(lookup({ own: info({ state: "pending" }) }))).toBe(true);
     expect(lookupPending(lookup({ own: info({ replication: "synthetique" }), link: { proxyIsin: "IE00B4L5Y983", info: info({ state: "pending" }) } }))).toBe(true);
     expect(lookupPending(lookup({}))).toBe(false);
+  });
+
+  it("échec : l'équivalent est proposé, comme pour un ETF synthétique", () => {
+    const m = lookupMessage(lookup({ own: info({ state: "failed", message: "iShares refuse les requêtes" }), suggestion: { isin: "IE000UBAW7M3", name: "Amundi Core S&P 500 UCITS ETF", index: "S&P 500" } }));
+    expect(m).toMatchObject({ tone: "warning", text: expect.stringMatching(/iShares refuse les requêtes.*équivalent.*proposera Amundi Core S&P 500 UCITS ETF \(S&P 500\)/) });
   });
 
   it("en attente, émetteur non géré", () => {

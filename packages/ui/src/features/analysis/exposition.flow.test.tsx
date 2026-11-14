@@ -80,12 +80,30 @@ describe("page Exposition réelle", () => {
 
     await user.click(screen.getByRole("button", { name: "Choisir un équivalent" }));
     const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByText(/iShares Core MSCI World UCITS ETF/)).toBeTruthy();
+    // Amundi d'abord : iShares refuse souvent les serveurs hébergés.
+    expect(dialog.getByText(/Amundi Core MSCI World UCITS ETF/)).toBeTruthy();
     await user.click(dialog.getByRole("button", { name: "Utiliser" }));
 
-    await waitFor(() => expect(screen.getByText(/Composition reprise de l'ETF iShares Core MSCI World UCITS ETF \(physique, votre choix\)/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Composition reprise de l'ETF Amundi Core MSCI World UCITS ETF Acc \(physique, votre choix\)/)).toBeTruthy());
     expect(screen.getByText("100 %")).toBeTruthy();
     expect(screen.getByText("aucun")).toBeTruthy();
+  });
+
+  it("émetteur injoignable : l'équivalent reste possible, et seul l'administrateur peut déposer le fichier", async () => {
+    h.down = true;
+    await seed();
+    show();
+    expect(await screen.findAllByText(/Composition non récupérée/)).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Choisir un équivalent" })).toHaveLength(2);
+    expect(await screen.findAllByRole("button", { name: "Déposer le fichier iShares" })).toHaveLength(2);
+
+    cleanup();
+    h.backend.close();
+    h.backend = await testBackend({ market: h.market, isAdmin: false });
+    await seed();
+    show();
+    expect(await screen.findAllByRole("button", { name: "Choisir un équivalent" })).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Déposer le fichier iShares" })).toBeNull();
   });
 
   it("un équivalent synthétique est refusé, avec la raison", async () => {
@@ -131,6 +149,7 @@ describe("page Exposition réelle", () => {
     expect(await screen.findByText("1 en échec")).toBeTruthy();
     expect(screen.getByText("FR0011871128")).toBeTruthy();
     expect(screen.getByText("Amundi Core MSCI World UCITS ETF Acc")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Déposer le fichier iShares" })).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Corriger" }));
     await user.type(screen.getByLabelText("Nouvel équivalent de LU1681043599"), "IE00B4L5Y983");

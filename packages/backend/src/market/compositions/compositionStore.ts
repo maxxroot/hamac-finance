@@ -1,6 +1,6 @@
 import type { CompositionInfo, CompositionIssuer, EtfHolding, Replication } from "@hamac/core";
 import type { RawDb } from "../../db/driver";
-import { fetchComposition, findComposition, type FetchedComposition } from "./composition";
+import { fetchComposition, findComposition, looksSynthetic, type FetchedComposition } from "./composition";
 import type { Fetcher } from "../http";
 
 /**
@@ -8,8 +8,10 @@ import type { Fetcher } from "../http";
  * Chaque ETF n'est téléchargé qu'une fois, quel que soit le nombre de personnes qui le détiennent,
  * puis remis à jour chaque trimestre, au rythme des révisions des grands indices.
  * La dernière composition valable est gardée quand une mise à jour échoue.
+ * Quand l'émetteur refuse le serveur, l'administrateur peut déposer le fichier de composition qu'il a téléchargé lui-même :
+ * il sert jusqu'à la mise à jour suivante, qui retente l'émetteur et le remplace si elle réussit.
  *
- * Les liens « ETF synthétique ou non géré → ETF physique équivalent » sont aussi communs : le premier lien vérifié
+ * Les liens « ETF synthétique, non géré ou injoignable → ETF physique équivalent » sont aussi communs : le premier lien vérifié
  * sert de proposition à tous. Ils ne disent pas qui les a choisis. Le choix propre à chaque utilisateur reste dans son schéma.
  */
 
@@ -37,6 +39,7 @@ export const COMPOSITION_TABLES = [
     message TEXT,
     failed BOOLEAN NOT NULL DEFAULT FALSE
   )`,
+  "ALTER TABLE marche.compositions ADD COLUMN IF NOT EXISTS manual BOOLEAN NOT NULL DEFAULT FALSE",
   `CREATE TABLE IF NOT EXISTS marche.composition_links (
     isin TEXT PRIMARY KEY,
     proxy_isin TEXT NOT NULL,
@@ -64,12 +67,13 @@ interface Row {
   fetched_at: string | null;
   message: string | null;
   failed: boolean;
+  manual: boolean;
 }
 
-const INFO_COLUMNS = "isin, issuer, issuer_id, fund_name, replication, as_of, line_count, checked_at, fetched_at, message, failed";
+const INFO_COLUMNS = "isin, issuer, issuer_id, fund_name, replication, as_of, line_count, checked_at, fetched_at, message, failed, manual";
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}\d$/;
 
-const pending = (isin: string): CompositionInfo => ({ isin, state: "pending", issuer: null, fundName: null, replication: null, asOf: null, lineCount: 0, checkedAt: null, fetchedAt: null, message: null });
+const pending = (isin: string): CompositionInfo => ({ isin, state: "pending", issuer: null, fundName: null, replication: null, asOf: null, lineCount: 0, checkedAt: null, fetchedAt: null, message: null, manual: false });
 
 function stateOf(r: Row): CompositionInfo["state"] {
   if (r.fetched_at) return "ok";
@@ -79,7 +83,7 @@ function stateOf(r: Row): CompositionInfo["state"] {
 
 function toInfo(r: Row): CompositionInfo {
   const state = stateOf(r);
-  return { isin: r.isin, state, issuer: r.issuer, fundName: r.fund_name, replication: r.replication, asOf: r.as_of, lineCount: Number(r.line_count), checkedAt: r.checked_at, fetchedAt: r.fetched_at, message: r.message };
+  return { isin: r.isin, state, issuer: r.issuer, fundName: r.fund_name, replication: r.replication, asOf: r.as_of, lineCount: Number(r.line_count), checkedAt: r.checked_at, fetchedAt: r.fetched_at, message: r.message, manual: !!r.manual };
 }
 
 export interface CompositionStoreOptions {
@@ -220,10 +224,10 @@ export class CompositionStore {
     }
     if (found) {
       await this.db.run(
-        `INSERT INTO marche.compositions (isin, issuer, issuer_id, fund_name, replication, as_of, lines, line_count, checked_at, fetched_at, message, failed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE)
+        `INSERT INTO marche.compositions (isin, issuer, issuer_id, fund_name, replication, as_of, lines, line_count, checked_at, fetched_at, message, failed, manual)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, FALSE)
          ON CONFLICT (isin) DO UPDATE SET issuer = excluded.issuer, issuer_id = excluded.issuer_id, fund_name = excluded.fund_name, replication = excluded.replication,
-           as_of = excluded.as_of, lines = excluded.lines, line_count = excluded.line_count, checked_at = excluded.checked_at, fetched_at = excluded.fetched_at, message = NULL, failed = FALSE`,
+           as_of = excluded.as_of, lines = excluded.lines, line_count = excluded.line_count, checked_at = excluded.checked_at, fetched_at = excluded.fetched_at, message = NULL, failed = FALSE, manual = FALSE`,
         [isin, found.issuer, found.issuerId, found.fundName, found.replication, found.asOf, JSON.stringify(found.lines), found.lines.length, at, at],
       );
       return;
@@ -244,6 +248,26 @@ export class CompositionStore {
        ON CONFLICT (isin) DO UPDATE SET checked_at = excluded.checked_at, message = excluded.message, failed = TRUE`,
       [isin, at, message],
     );
+  }
+
+  /**
+   * Composition déposée par l'administrateur, à partir du fichier de l'émetteur. Elle sert comme une composition téléchargée,
+   * jusqu'à la mise à jour trimestrielle suivante. La réplication connue est gardée, sauf si le fichier trahit un swap.
+   */
+  async importFile(isin: string, file: { issuer: CompositionIssuer; fundName: string | null; asOf: string; lines: EtfHolding[] }, fallbackName: string | null): Promise<CompositionInfo> {
+    if (!ISIN_RE.test(isin)) throw new Error("ISIN invalide.");
+    const [row] = await this.rows([isin]);
+    const at = new Date(this.now()).toISOString();
+    const replication: Replication | null = looksSynthetic(file.lines) ? "synthetique" : (row?.replication ?? null);
+    const fundName = file.fundName ?? row?.fund_name ?? fallbackName;
+    await this.db.run(
+      `INSERT INTO marche.compositions (isin, issuer, issuer_id, fund_name, replication, as_of, lines, line_count, checked_at, fetched_at, message, failed, manual)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, FALSE, TRUE)
+       ON CONFLICT (isin) DO UPDATE SET issuer = excluded.issuer, issuer_id = excluded.issuer_id, fund_name = excluded.fund_name, replication = excluded.replication, as_of = excluded.as_of,
+         lines = excluded.lines, line_count = excluded.line_count, checked_at = excluded.checked_at, fetched_at = excluded.fetched_at, message = NULL, failed = FALSE, manual = TRUE`,
+      [isin, file.issuer, row?.issuer === file.issuer ? row.issuer_id : null, fundName, replication, file.asOf, JSON.stringify(file.lines), file.lines.length, at, at],
+    );
+    return (await this.info([isin])).get(isin)!;
   }
 
   // ——— Liens vers un ETF physique équivalent ———

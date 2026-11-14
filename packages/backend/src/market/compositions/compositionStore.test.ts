@@ -68,6 +68,26 @@ describe("compositions partagées par l'instance", () => {
     expect((await s.ensure("IE00B4L5Y983")).state).toBe("failed");
   });
 
+  it("fichier déposé : sert comme une composition téléchargée, jusqu'à la mise à jour suivante qui le remplace", async () => {
+    const clock = { t: Date.parse("2026-11-12T10:00:00Z") };
+    let down = true;
+    const s = await store(amundiFake({ IE000BI8OT95: "Direct(Physical)" }, { down: () => down }), clock);
+    expect((await s.ensure("IE000BI8OT95")).state).toBe("failed");
+    const lines = [{ name: "APPLE", isin: null, ticker: "AAPL", weight: 1, kind: "action" as const, sector: null, country: "US", currency: "USD" }];
+    const info = await s.importFile("IE000BI8OT95", { issuer: "ishares", fundName: null, asOf: "2026-11-10", lines }, "Mon ETF");
+    expect(info).toMatchObject({ state: "ok", manual: true, fundName: "Mon ETF", lineCount: 1, asOf: "2026-11-10", message: null });
+    expect(await s.failures()).toEqual([]);
+    expect(await s.dueIsins(["IE000BI8OT95"])).toEqual([]);
+
+    // Un trimestre plus tard, l'émetteur ne répond toujours pas : le fichier reste, l'échec est signalé.
+    clock.t += 93 * DAY;
+    expect(await s.ensure("IE000BI8OT95")).toMatchObject({ state: "ok", manual: true, lineCount: 1, message: expect.stringMatching(/Réponse 500/) });
+    // Il répond de nouveau : la composition téléchargée remplace le fichier.
+    clock.t += 7 * 3_600_000;
+    down = false;
+    expect(await s.ensure("IE000BI8OT95")).toMatchObject({ state: "ok", manual: false, issuer: "amundi", lineCount: 2, message: null });
+  });
+
   it("lien commun : le premier gardé, remplaçable par l'administrateur, et protégé du ménage", async () => {
     const clock = { t: Date.parse("2026-11-12T10:00:00Z") };
     const s = await store(amundiFake({ IE000BI8OT95: "Direct(Physical)", FR0000000001: "Direct(Physical)" }), clock);

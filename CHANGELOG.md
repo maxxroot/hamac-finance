@@ -9,6 +9,11 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 ### Ajouté
 
 - Limite de mémoire facultative pour l'application et pour la base, à régler dans `.env` (`HAMAC_MEMORY`, `HAMAC_DB_MEMORY`).
+- Exposition réelle : l'administrateur peut déposer le fichier de composition d'un ETF iShares, téléchargé depuis son navigateur, quand iShares refuse le serveur.
+
+### Modifié
+
+- Exposition réelle : les équivalents proposés sont d'abord des ETF Amundi qui suivent exactement le même indice, car iShares refuse souvent les serveurs hébergés. Un refus d'iShares (403) est expliqué en clair, et un équivalent peut remplacer une composition qui ne se met plus à jour.
 
 ## [0.1.0] - 2026-11-14
 

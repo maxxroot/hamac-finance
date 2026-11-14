@@ -8,7 +8,7 @@ import { useToast } from "@/shared/lib/toast";
 import { call } from "@/shared/lib/transport";
 
 /**
- * Choix de l'ETF physique équivalent d'un ETF synthétique ou d'un émetteur non géré, pour en reprendre la composition.
+ * Choix de l'ETF physique équivalent d'un ETF synthétique, d'un émetteur non géré ou injoignable, pour en reprendre la composition.
  * Le choix ne vaut que pour soi ; le premier choix vérifié de l'instance devient la proposition des autres utilisateurs.
  */
 export function EquivalentDialog({ etf, onClose }: { etf: EtfExposure | null; onClose: () => void }) {

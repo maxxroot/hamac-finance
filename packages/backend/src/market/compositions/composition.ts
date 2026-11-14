@@ -146,6 +146,12 @@ function checkId(id: string): string {
 export const isharesHoldingsUrl = (id: string) => `${ISHARES_PRODUCTS}/${checkId(id)}/x/latest-holdings.csv`;
 export const isharesPageUrl = (id: string) => `${ISHARES_PRODUCTS}/${checkId(id)}/x`;
 
+/**
+ * iShares (Akamai) refuse en bloc les adresses des hébergeurs (OVH, Hetzner…) : un 403 ne dit rien du fonds.
+ * Le fichier de composition peut alors être déposé à la main par l'administrateur.
+ */
+export const ISHARES_BLOCKED = "iShares refuse les requêtes venant de ce serveur (réponse 403), comme souvent pour les serveurs hébergés";
+
 interface IsharesSearch {
   results?: Array<{ portfolioId?: string; fundName?: string; portfolioType?: string }>;
 }
@@ -154,7 +160,9 @@ interface IsharesSearch {
 export async function isharesFind(fetcher: Fetcher, isin: string): Promise<{ portfolioId: string; fundName: string } | null> {
   if (!ISIN_RE.test(isin)) throw new MarketError("ISIN invalide.");
   const q = new URLSearchParams({ site: "ishares-uk", locale: "en-gb", userType: "individual", rows: "5", start: "0", query: isin });
-  const j = await getJson<IsharesSearch>(fetcher, `${ISHARES}/varnish-api/core-search/search/products?${q}`);
+  const j = await getJson<IsharesSearch>(fetcher, `${ISHARES}/varnish-api/core-search/search/products?${q}`).catch((e: unknown) => {
+    throw e instanceof MarketError && e.status === 403 ? new MarketError(ISHARES_BLOCKED, 403) : e;
+  });
   const funds = (j.results ?? []).filter((r) => r.portfolioId && ID_RE.test(r.portfolioId));
   // Un ISIN désigne une seule part : plusieurs réponses veulent dire que la recherche a été approximative.
   if (funds.length !== 1) return null;
@@ -186,11 +194,14 @@ export function splitCsvLine(line: string): string[] {
 
 const MONTHS: Record<string, string> = { jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06", jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12" };
 
-/** « 10/Nov/2026 » → 2026-11-10. */
+/** « 10/Nov/2026 » (site européen) ou « Nov 10, 2026 » (site américain) → 2026-11-10. */
 function isharesDate(s: string): string | null {
-  const m = /^(\d{1,2})\/([A-Za-z]{3})\/(\d{4})$/.exec(s.trim());
-  const month = m && MONTHS[m[2]!.toLowerCase()];
-  return m && month ? `${m[3]}-${month}-${m[1]!.padStart(2, "0")}` : null;
+  const t = s.trim();
+  const eu = /^(\d{1,2})\/([A-Za-z]{3})\/(\d{4})$/.exec(t);
+  const us = /^([A-Za-z]{3})[a-z]* (\d{1,2}), (\d{4})$/.exec(t);
+  const [day, mon, year] = eu ? [eu[1]!, eu[2]!, eu[3]!] : us ? [us[2]!, us[1]!, us[3]!] : [];
+  const month = mon && MONTHS[mon.toLowerCase()];
+  return month ? `${year}-${month}-${day!.padStart(2, "0")}` : null;
 }
 
 /** « 1,234.56 » → 1234.56 ; « - » ou vide → null. */
@@ -213,12 +224,20 @@ const ISHARES_KIND: Record<string, HoldingKind> = {
   options: "derive",
 };
 
-/** Fichier « latest-holdings.csv » d'iShares → date et lignes. Les colonnes sont lues par leur nom : elles varient selon le fonds. */
-export function parseIsharesHoldings(csv: string): { asOf: string; lines: EtfHolding[] } {
+/**
+ * Fichier de composition d'iShares (« latest-holdings.csv », ou « Download » de la page du fonds) → nom, date et lignes.
+ * Les colonnes sont lues par leur nom : elles varient selon le fonds. Le fichier téléchargé depuis le site commence
+ * parfois par le nom du fonds, avant la date.
+ */
+export function parseIsharesHoldings(csv: string): { fundName: string | null; asOf: string; lines: EtfHolding[] } {
   const rows = csv.replace(/^﻿/, "").split(/\r?\n/);
-  const asOf = isharesDate(/^Fund Holdings as of,"?([^",]+)"?/.exec(rows[0] ?? "")?.[1] ?? "");
-  const hi = rows.findIndex((r) => r.startsWith("Ticker,"));
-  if (!asOf || hi < 0) throw new MarketError("Le fichier de composition d'iShares a un format inattendu.");
+  const di = rows.slice(0, 15).findIndex((r) => /^"?Fund Holdings as of"?,/.test(r));
+  const asOf = di < 0 ? null : isharesDate(splitCsvLine(rows[di]!)[1] ?? "");
+  const hi = rows.findIndex((r) => /^"?Ticker"?,/.test(r));
+  if (rows.slice(0, 20).some((r) => /^"?Ticker"?;/.test(r)))
+    throw new MarketError("Ce fichier a été réenregistré par un tableur (colonnes séparées par « ; ») : déposez le fichier tel que téléchargé depuis iShares.");
+  if (!asOf || hi < 0) throw new MarketError("Le fichier de composition d'iShares a un format inattendu. Téléchargez-le depuis la version anglaise du site (ishares.com/uk).");
+  const title = di > 0 ? splitCsvLine(rows[di - 1]!).filter((c) => c.trim())[0]?.trim() : undefined;
   const header = splitCsvLine(rows[hi]!);
   const col = (name: string) => header.indexOf(name);
   const [cName, cWeight, cClass] = [col("Name"), col("Weight (%)"), col("Asset Class")];
@@ -247,7 +266,7 @@ export function parseIsharesHoldings(csv: string): { asOf: string; lines: EtfHol
     });
   }
   if (!lines.length) throw new MarketError("Le fichier de composition d'iShares est vide.");
-  return { asOf, lines };
+  return { fundName: title || null, asOf, lines };
 }
 
 /** Page produit iShares → nom du fonds et structure (« Physical » ou « Synthetic »). */
@@ -279,6 +298,7 @@ export async function isharesComposition(fetcher: Fetcher, portfolioId: string, 
       .catch(() => null),
   ]);
   if (csvRes.status === 429) throw new MarketError("iShares limite l'accès, réessayez plus tard.");
+  if (csvRes.status === 403) throw new MarketError(ISHARES_BLOCKED, 403);
   if (!csvRes.ok) throw new MarketError(`iShares ne publie pas la composition de ce fonds (réponse ${csvRes.status}).`);
   const { asOf, lines } = parseIsharesHoldings(await csvRes.text());
   return {
@@ -303,6 +323,12 @@ export function fetchComposition(fetcher: Fetcher, source: CompositionSource): P
   return isharesComposition(fetcher, source.issuerId);
 }
 
+/** « iShares : Réponse 500… », sans répéter le nom quand le message commence déjà par lui. */
+const fromIssuer = (issuer: string, e: unknown): string => {
+  const message = (e as Error).message;
+  return message.startsWith(issuer) ? message : `${issuer} : ${message}`;
+};
+
 /**
  * Cherche la composition d'un ETF chez chaque émetteur géré, Amundi puis iShares.
  * null si aucun ne connaît l'ISIN ; une erreur seulement si aucun n'a pu répondre.
@@ -313,13 +339,13 @@ export async function findComposition(fetcher: Fetcher, isin: string): Promise<F
     const c = await amundiComposition(fetcher, isin);
     if (c) return c;
   } catch (e) {
-    errors.push(`Amundi : ${(e as Error).message}`);
+    errors.push(fromIssuer("Amundi", e));
   }
   try {
     const found = await isharesFind(fetcher, isin);
     if (found) return await isharesComposition(fetcher, found.portfolioId, found.fundName);
   } catch (e) {
-    errors.push(`iShares : ${(e as Error).message}`);
+    errors.push(fromIssuer("iShares", e));
   }
   if (errors.length === 2) throw new MarketError(errors.join(" ; "));
   // Un émetteur a répondu qu'il ne connaît pas l'ISIN, l'autre a échoué : on le dit, sans conclure.

@@ -2,6 +2,8 @@ import { RpcError, type CompositionAdmin, type CompositionLookup, type Equivalen
 import { resolveComposition, suggestEquivalent, summarizeComposition, usableComposition, type CompositionInfo } from "@hamac/core";
 import type { BackendContext } from "../../context";
 import { nowIso } from "../../db/units";
+import { MarketError } from "../http";
+import { ISHARES_BLOCKED, parseIsharesHoldings } from "./composition";
 
 /**
  * Exposition réelle derrière les ETF : quelle composition sert pour chaque ETF de l'utilisateur.
@@ -57,6 +59,8 @@ async function verifyEquivalent(ctx: BackendContext, isin: string, proxyIsin: st
   if (proxyIsin === isin) throw new RpcError("VALIDATION", "Choisissez un autre ETF que celui-ci.");
   const info = await ctx.market.compositions.ensure(proxyIsin);
   if (info.state === "unknown") throw new RpcError("VALIDATION", "Ni Amundi ni iShares ne publient la composition de cet ETF : choisissez-en un autre.");
+  if (info.state !== "ok" && info.message?.startsWith(ISHARES_BLOCKED))
+    throw new RpcError("VALIDATION", `${ISHARES_BLOCKED}. Choisissez un ETF d'Amundi qui suit le même indice.`);
   if (info.state !== "ok") throw new RpcError("VALIDATION", `La composition de cet ETF n'a pas pu être récupérée${info.message ? ` (${info.message})` : ""}. Réessayez plus tard.`);
   if (info.replication === "synthetique") throw new RpcError("VALIDATION", "Cet ETF est lui aussi synthétique : sa composition est le panier qu'il détient. Choisissez un ETF physique.");
   if (info.replication !== "physique") throw new RpcError("VALIDATION", "Hamac n'a pas pu vérifier que cet ETF est physique : choisissez-en un autre ou réessayez plus tard.");
@@ -95,6 +99,22 @@ export async function setAdminLink(ctx: BackendContext, isin: string, proxyIsin:
     await ctx.market.compositions.setLink(isin, proxyIsin, true);
   } else await ctx.market.compositions.deleteLink(isin);
   return compositionAdmin(ctx);
+}
+
+/**
+ * Administrateur : composition d'un ETF à partir du fichier d'iShares qu'il a téléchargé lui-même.
+ * Réservé à l'administrateur, car la composition sert à toute l'instance et rien, dans le fichier, ne dit de quel ETF il s'agit.
+ */
+export async function importComposition(ctx: BackendContext, isin: string, csv: string, name: string | null): Promise<CompositionInfo> {
+  if (!ctx.isAdmin) throw new RpcError("UNAUTHORIZED", "Réservé à l'administrateur de l'instance.");
+  let file: ReturnType<typeof parseIsharesHoldings>;
+  try {
+    file = parseIsharesHoldings(csv);
+  } catch (e) {
+    if (e instanceof MarketError) throw new RpcError("VALIDATION", e.message);
+    throw e;
+  }
+  return ctx.market.compositions.importFile(isin, { issuer: "ishares", ...file }, name || null);
 }
 
 /** Un ETF vient d'être enregistré : sa composition est demandée en tâche de fond. */

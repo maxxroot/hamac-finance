@@ -10,12 +10,20 @@ export const defaultFetcher: Fetcher = (url, init = {}) =>
     signal: init.signal ?? AbortSignal.timeout(15_000),
   });
 
-export class MarketError extends Error {}
+export class MarketError extends Error {
+  constructor(
+    message: string,
+    /** Code HTTP qui a provoqué l'erreur, s'il y en a un. */
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
 
 export async function getJson<T>(fetcher: Fetcher, url: string, init?: RequestInit): Promise<T> {
   const res = await fetcher(url, init);
   if (res.status === 429) throw new MarketError("Trop de requêtes : le fournisseur limite l'accès, réessayez plus tard.");
-  if (!res.ok) throw new MarketError(`Réponse ${res.status} de ${new URL(url).host}`);
+  if (!res.ok) throw new MarketError(`Réponse ${res.status} de ${new URL(url).host}`, res.status);
   return (await res.json()) as T;
 }
 

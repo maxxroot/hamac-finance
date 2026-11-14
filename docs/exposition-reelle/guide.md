@@ -25,7 +25,7 @@ Sans action ni ETF détenu, la page l'indique simplement. Sinon :
    - **Devises** : les huit premières, puis « Autres devises » ; c'est la devise de cotation des titres ;
    - **Types de ligne** : actions, obligations, liquidités, dérivés, autres.
 3. **Plus grosses lignes, tous titres confondus** : les quinze plus grosses positions, avec leur part, leur montant et les titres par lesquels vous les détenez (le nom de l'ETF, ou « en direct »).
-4. **Vos ETF** : pour chaque ETF, son montant et l'état de sa composition (émetteur, physique ou synthétique, nombre de lignes, date), ou la raison pour laquelle elle manque. Un bouton « Choisir un équivalent » ou « Changer » apparaît quand c'est utile.
+4. **Vos ETF** : pour chaque ETF, son montant et l'état de sa composition (émetteur, physique ou synthétique, nombre de lignes, date), ou la raison pour laquelle elle manque. Un bouton « Choisir un équivalent » ou « Changer » apparaît quand c'est utile. Pour l'administrateur, un bouton « Déposer le fichier iShares » apparaît aussi quand la composition n'a pas pu être téléchargée.
 5. **Une note** qui rappelle les règles de lecture.
 
 Pendant qu'une composition se télécharge, la page se met à jour d'elle-même toutes les quelques secondes, pendant deux minutes au plus.
@@ -34,16 +34,24 @@ Pendant qu'une composition se télécharge, la page se met à jour d'elle-même 
 
 **Faire analyser un nouvel ETF** : donnez-lui son ISIN quand vous le créez ou le modifiez. Dès que l'ISIN est saisi, avant même l'enregistrement, Hamac demande sa composition et affiche ce qu'il en sait déjà (connue, reprise d'un équivalent, ETF synthétique, émetteur non lu). Sans ISIN, la page vous invite à l'ajouter.
 
-**Choisir un ETF équivalent** (pour un ETF synthétique ou d'un émetteur que Hamac ne lit pas) :
+**Choisir un ETF équivalent** (pour un ETF synthétique, d'un émetteur que Hamac ne lit pas, ou dont l'émetteur ne répond pas) :
 
 1. Dans « Vos ETF », cliquez sur « Choisir un équivalent ».
-2. Si Hamac reconnaît l'indice dans le nom de l'ETF, il propose un ETF physique qui le suit : cliquez sur « Utiliser ».
+2. Si Hamac reconnaît l'indice dans le nom de l'ETF, il propose un ETF physique qui le suit, de préférence chez Amundi : cliquez sur « Utiliser ».
 3. Sinon, saisissez l'ISIN d'un ETF **physique** publié par Amundi ou iShares, puis « Vérifier et utiliser ».
 4. Hamac vérifie que ce n'est pas le même ETF, qu'il est bien physique et que sa composition se télécharge. Sinon, il explique pourquoi il refuse.
 
 Ce choix ne vaut que pour vous. Pour revenir en arrière, rouvrez la fenêtre et cliquez sur « Retirer mon choix » (ou « Revenir à la proposition commune » s'il en existe une).
 
-**Pour l'administrateur de l'instance** : Paramètres › Cours affiche deux cartes. « Compositions des ETF » liste les téléchargements en échec. « ETF équivalents » liste les liens communs (voir plus bas) : vous pouvez corriger un lien qui ne suit pas le même indice, ou le supprimer. Le tableau de bord de l'administrateur signale aussi les échecs dans « À regarder ».
+**Déposer le fichier de composition d'iShares** (administrateur) : le site d'iShares refuse souvent les serveurs hébergés (OVH, Hetzner…) et répond « 403 ». Hamac l'indique alors en clair. Vous pouvez télécharger le fichier vous-même, depuis votre navigateur :
+
+1. Sur ishares.com, version anglaise (ishares.com/uk), ouvrez la page du fonds, onglet « Holdings », puis « Download ».
+2. Dans Hamac, cliquez sur « Déposer le fichier iShares » sur la ligne de l'ETF (page Exposition réelle ou Paramètres › Cours), puis choisissez le fichier tel quel, sans l'ouvrir dans un tableur.
+3. Hamac lit la date et les lignes et annonce le résultat. La composition sert à tous les utilisateurs de l'instance, avec la mention « fichier déposé ».
+
+Elle sert jusqu'à la mise à jour du trimestre suivant : Hamac retente alors iShares, et garde le fichier si iShares refuse toujours. Il suffit alors d'en déposer un plus récent. Le fichier ne dit pas de quel ETF il s'agit : vérifiez que vous le déposez sur la bonne ligne. C'est pour cela que seul l'administrateur peut le faire.
+
+**Pour l'administrateur de l'instance** : Paramètres › Cours affiche deux cartes. « Compositions des ETF » liste les téléchargements en échec, avec le bouton de dépôt du fichier. « ETF équivalents » liste les liens communs (voir plus bas) : vous pouvez corriger un lien qui ne suit pas le même indice, ou le supprimer. Le tableau de bord de l'administrateur signale aussi les échecs dans « À regarder ».
 
 ## Comprendre les chiffres
 
@@ -66,13 +74,14 @@ Ce choix ne vaut que pour vous. Pour revenir en arrière, rouvrez la fenêtre et
 3. sinon, l'**équivalent commun** de l'instance ;
 4. sinon, rien : l'ETF est compté dans « ETF sans composition ».
 
-**Équivalent commun** : la première personne de l'instance qui choisit un équivalent vérifié pour un ETF synthétique ou non lu par Hamac crée un lien commun. Il sert ensuite de proposition à tous les autres utilisateurs qui détiennent cet ETF, sans dire qui l'a choisi. Chacun peut en choisir un autre pour lui seul. L'administrateur peut corriger ou supprimer ce lien. Un ETF physique n'ouvre jamais de lien commun, même si son détenteur choisit un équivalent.
+**Équivalent commun** : la première personne de l'instance qui choisit un équivalent vérifié pour un ETF synthétique, non lu par Hamac ou dont la composition n'a pas pu être téléchargée crée un lien commun. Il sert ensuite de proposition à tous les autres utilisateurs qui détiennent cet ETF, sans dire qui l'a choisi. Chacun peut en choisir un autre pour lui seul. L'administrateur peut corriger ou supprimer ce lien. Un ETF physique n'ouvre jamais de lien commun, même si son détenteur choisit un équivalent.
 
 **Compositions partagées** : chaque composition n'est téléchargée qu'une fois pour toute l'instance, quel que soit le nombre de personnes qui détiennent l'ETF. Elle est remise à jour chaque trimestre, au rythme des révisions des grands indices. Si une mise à jour échoue, la composition précédente est gardée et la page le signale ; un nouvel essai a lieu après quelques heures. Un ETF qu'aucun des deux émetteurs ne connaît est recherché de nouveau au bout d'un mois. Les autres utilisateurs ne voient jamais vos montants : seul l'ISIN sert au téléchargement.
 
 ## Limites
 
 - Seuls Amundi et iShares sont lus. Pour un ETF d'un autre émetteur, il faut choisir un équivalent physique chez l'un d'eux.
+- iShares refuse souvent les serveurs hébergés. Hamac propose alors un équivalent Amundi quand il en existe un pour le même indice. Sinon, l'administrateur dépose le fichier, à renouveler chaque trimestre.
 - Une composition date de sa dernière publication, parfois de plusieurs semaines ; elle est relue chaque trimestre.
 - La devise affichée est celle de cotation des titres, pas le risque de change réel d'une part couverte.
 - Les actions détenues en direct n'ont ni secteur ni devise.

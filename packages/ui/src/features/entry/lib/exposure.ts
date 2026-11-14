@@ -94,10 +94,12 @@ export function compositionStatus(e: EtfExposure): CompositionStatus {
   if (e.used) {
     const info = e.used.info;
     const date = `au ${formatDate(info.asOf)}`;
-    const stale = info.message ? " · dernière mise à jour échouée, composition précédente gardée" : "";
+    const stale = info.message ? ` · dernière mise à jour échouée (${info.message}), composition précédente gardée` : "";
     if (e.used.origin === "own") {
       const issuer = info.issuer ? ISSUER_LABELS[info.issuer] : "Émetteur";
-      return { text: `${issuer} · ${replicationLabel(info)} · ${info.lineCount.toLocaleString("fr-FR")} lignes · ${date}${stale}`, tone: "ok", canChoose: false };
+      const manual = info.manual ? " (fichier déposé)" : "";
+      // Une mise à jour qui échoue durablement laisse vieillir la composition : un équivalent peut la remplacer.
+      return { text: `${issuer}${manual} · ${replicationLabel(info)} · ${info.lineCount.toLocaleString("fr-FR")} lignes · ${date}${stale}`, tone: "ok", canChoose: !!info.message };
     }
     const why = e.used.origin === "choice" ? "votre choix" : "même indice";
     return { text: `Composition reprise de l'ETF ${fundName(info)} (physique, ${why}), ${date}${stale}`, tone: "ok", canChoose: true };
@@ -108,7 +110,7 @@ export function compositionStatus(e: EtfExposure): CompositionStatus {
     case "unknown":
       return { text: "Hamac ne récupère que les compositions d'Amundi et d'iShares. Choisissez un ETF physique de l'un d'eux qui suit le même indice.", tone: "warning", canChoose: true };
     case "failed":
-      return { text: `Composition non récupérée${e.own.message ? ` : ${e.own.message}` : ""}. Nouvel essai dans quelques heures, ou choisissez un équivalent.`, tone: "warning", canChoose: true };
+      return { text: `Composition non récupérée${e.own.message ? ` : ${e.own.message}` : ""}. Nouvel essai dans quelques heures, ou choisissez un ETF physique équivalent.`, tone: "warning", canChoose: true };
     case "equivalent-pending":
       return { text: `Récupération de la composition de l'équivalent ${e.choice ?? e.link}…`, tone: "muted", canChoose: true };
     case "equivalent-failed":
@@ -117,6 +119,12 @@ export function compositionStatus(e: EtfExposure): CompositionStatus {
       return { text: "Récupération de la composition chez l'émetteur…", tone: "muted", canChoose: false };
   }
 }
+
+/**
+ * L'administrateur peut déposer le fichier de l'émetteur : téléchargement en échec, ou émetteur qui ne répond plus
+ * alors qu'une composition plus ancienne est gardée.
+ */
+export const canImportFile = (info: CompositionInfo): boolean => info.state === "failed" || (info.state === "ok" && !!info.message);
 
 /** La composition de l'ETF, ou celle de son équivalent commun, est encore attendue. */
 export const lookupPending = (l: CompositionLookup): boolean => l.own.state === "pending" || l.link?.info.state === "pending";
@@ -136,6 +144,7 @@ export function lookupMessage(l: CompositionLookup): { text: string; tone: "ok" 
   const suggestion = l.suggestion ? ` Hamac vous proposera ${l.suggestion.name} (${l.suggestion.index}).` : "";
   if (own.state === "ok") return { text: `ETF synthétique : la composition qu'il publie est le panier qu'il détient, pas son exposition. Choisissez un ETF physique équivalent dans Exposition réelle.${suggestion}`, tone: "warning" };
   if (own.state === "unknown") return { text: `Hamac ne récupère que les compositions d'Amundi et d'iShares : vous pourrez choisir un ETF physique équivalent dans Exposition réelle.${suggestion}`, tone: "warning" };
-  if (own.state === "failed") return { text: `La composition n'a pas pu être récupérée${own.message ? ` (${own.message})` : ""}. Nouvel essai plus tard.`, tone: "warning" };
+  if (own.state === "failed")
+    return { text: `La composition n'a pas pu être récupérée${own.message ? ` (${own.message})` : ""}. Nouvel essai plus tard, ou choisissez un ETF physique équivalent dans Exposition réelle.${suggestion}`, tone: "warning" };
   return { text: "Récupération de la composition chez l'émetteur…", tone: "muted" };
 }
