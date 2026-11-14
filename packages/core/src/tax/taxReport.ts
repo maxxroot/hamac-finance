@@ -1,4 +1,4 @@
-import { crowdTaxOf, grossFromNet, institutionWithholds, NO_INSTITUTION_TAX, withholdingDispensed, type Account, type Asset, type Institution, type InstitutionTax, type PlanParams, type Transaction } from "../model";
+import { crowdTaxOf, grossFromNet, institutionWithholds, NO_INSTITUTION_TAX, withholdingDispensed, type Account, type CrowdInstrument, type Asset, type Institution, type InstitutionTax, type PlanParams, type Transaction } from "../model";
 import { computePortfolio, securitiesGains, type Disposal, type EngineData, type SecuritiesYear } from "../portfolio";
 import { fiscalRulesFor, LAST_VERIFIED_INCOME_YEAR, socialRateFor, type FiscalYearRules, type TaxBoxKey, type TaxBoxRule } from "./fiscalRules";
 import { roundCents } from "../base";
@@ -140,6 +140,8 @@ export interface TaxSheet {
   institutionId: string | null;
   name: string;
   mode: SheetMode;
+  /** Plateforme de crowdlending : prêts (case 2TT) ou obligations (case 2TR) ; null hors établissement. */
+  crowdInstrument: CrowdInstrument | null;
   accounts: Account[];
   lines: TaxLine[];
   incomes: IncomeDetail[];
@@ -252,9 +254,12 @@ export function buildTaxReport(data: EngineData, disposals: readonly Disposal[],
     if (!report && incomes.length === 0 && details.length === 0 && cryptoSales.length === 0) continue;
 
     const isCrowd = (x: IncomeDetail) => accountsById.get(x.tx.accountId)!.kind === "crowdlending";
+    // Plateforme qui fait souscrire des obligations ou titres de créance : intérêts en case 2TR, comme sur son IFU.
+    const crowdInstrument = institution?.tax?.crowdInstrument ?? "prets";
     const dividends = incomes.filter((x) => x.tx.type === "dividende");
-    const interests = incomes.filter((x) => x.tx.type === "interets" && !isCrowd(x));
-    const crowd = incomes.filter(isCrowd);
+    const crowdBonds = crowdInstrument === "obligations" ? incomes.filter(isCrowd) : [];
+    const interests = [...incomes.filter((x) => x.tx.type === "interets" && !isCrowd(x)), ...crowdBonds];
+    const crowd = crowdInstrument === "obligations" ? [] : incomes.filter(isCrowd);
     const fund = dividends.some((x) => {
       const kind = x.tx.assetId ? assets.get(x.tx.assetId)?.kind : undefined;
       return kind === "etf" || kind === "fonds";
@@ -267,7 +272,12 @@ export function buildTaxReport(data: EngineData, disposals: readonly Disposal[],
       : [];
     const lines = [
       line(rules, "dividendes", dividends.map((x) => item(x, x.gross)), fund ? ["Distributions d'ETF ou de fonds : vérifiez sur le relevé la répartition entre cette case et les intérêts."] : [], fund ? "a_verifier" : undefined),
-      line(rules, "interets", interests.map((x) => item(x, x.gross)), dispenseNote),
+      line(
+        rules,
+        "interets",
+        interests.map((x) => item(x, x.gross)),
+        [...(crowdBonds.length ? [`Intérêts de crowdlending souscrits sous forme d'obligations ou de titres de créance : case ${rules.boxes.interets.box}, pas ${rules.boxes.crowdlending.box} (réglage de la fiche de l'établissement, à vérifier sur son IFU).`] : []), ...dispenseNote],
+      ),
       line(rules, "crowdlending", crowd.map((x) => item(x, x.gross)), ["Case réservée aux prêts participatifs et aux minibons. Obligations et bons de caisse : case des intérêts.", ...dispenseNote]),
       line(rules, "psDejaPreleves", incomes.filter((x) => x.social > 0).map((x) => item(x, x.gross)), ["Revenus sur lesquels les prélèvements sociaux ont déjà été retenus."]),
       line(rules, "acompte", incomes.map((x) => item(x, x.incomeTax))),
@@ -281,6 +291,7 @@ export function buildTaxReport(data: EngineData, disposals: readonly Disposal[],
       institutionId: institution?.id ?? null,
       name: institution?.name ?? "Comptes sans établissement",
       mode: report ? "a_saisir" : "a_controler",
+      crowdInstrument: institution ? crowdInstrument : null,
       accounts,
       lines,
       incomes,
@@ -389,14 +400,16 @@ export interface StatementComparison {
   gap: number | null;
 }
 
-const COMPARED_KEYS: Record<"cto" | "crowdlending", readonly TaxBoxKey[]> = {
+const COMPARED_KEYS: Record<"cto" | "crowdlending" | "crowdlendingBonds", readonly TaxBoxKey[]> = {
   cto: ["dividendes", "interets", "psDejaPreleves", "acompte", "creditImpot", "plusValue", "moinsValue"],
   crowdlending: ["crowdlending", "psDejaPreleves", "acompte"],
+  crowdlendingBonds: ["interets", "psDejaPreleves", "acompte"],
 };
 
 /** Compare une fiche à ce qui est écrit sur le document de l'établissement, case par case. */
 export function compareWithStatement(sheet: TaxSheet, rules: FiscalYearRules, official: ReadonlyMap<string, number>): StatementComparison[] {
-  const keys = [...new Set(sheet.accounts.flatMap((a) => (a.kind === "cto" || a.kind === "crowdlending" ? COMPARED_KEYS[a.kind] : [])))];
+  const crowdKeys = sheet.crowdInstrument === "obligations" ? COMPARED_KEYS.crowdlendingBonds : COMPARED_KEYS.crowdlending;
+  const keys = [...new Set(sheet.accounts.flatMap((a) => (a.kind === "cto" ? COMPARED_KEYS.cto : a.kind === "crowdlending" ? crowdKeys : [])))];
   return keys.map((key) => {
     const rule = rules.boxes[key];
     const hamac = key === "plusValue" ? Math.max(0, sheet.securities.net) : key === "moinsValue" ? Math.max(0, -sheet.securities.net) : (sheet.lines.find((l) => l.key === key)?.amount ?? 0);

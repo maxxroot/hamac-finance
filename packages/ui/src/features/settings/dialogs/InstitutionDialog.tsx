@@ -7,6 +7,7 @@ import {
   INSTITUTION_KINDS,
   emptyOffer,
   formatEur,
+  CROWD_INSTRUMENT_LABELS,
   formatPct,
   institutionWithholds,
   NO_INSTITUTION_TAX,
@@ -17,6 +18,7 @@ import {
   withholdingDispensed,
   type AvOffer,
   type BrokerOffer,
+  type CrowdInstrument,
   type CryptoOffer,
   type Institution,
   type InstitutionKind,
@@ -195,7 +197,18 @@ export function InstitutionDialog({ open, onClose, institution }: { open: boolea
         )}
         {d.offers.crowdlending && (
           <Section title="Crowdlending">
-            <p className="text-sm text-fg-muted">Pas de frais à régler ici. Les impôts sur les intérêts se règlent dans la rubrique Fiscalité ci-dessous.</p>
+            <Field label="Ce que vous souscrivez" help="Il fixe la case des intérêts dans l'aide à la déclaration : celle de l'IFU de la plateforme fait foi. Prêts : 2TT, où les pertes en capital peuvent se déduire. Obligations ou titres (Bricks, par exemple) : 2TR.">
+              {(id) => (
+                <Select id={id} value={d.tax.crowdInstrument ?? "prets"} onChange={(e) => setD({ ...d, tax: { ...d.tax, crowdInstrument: e.target.value as CrowdInstrument } })}>
+                  {(Object.keys(CROWD_INSTRUMENT_LABELS) as CrowdInstrument[]).map((k) => (
+                    <option key={k} value={k}>
+                      {CROWD_INSTRUMENT_LABELS[k]}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <p className="mt-2 text-sm text-fg-muted">Pas de frais à régler ici. Les impôts sur les intérêts se règlent dans la rubrique Fiscalité ci-dessous.</p>
           </Section>
         )}
         {d.offers.crypto && (

@@ -534,6 +534,21 @@ describe("parcours de l'interface", () => {
     expect(ws.institutions[0]).toMatchObject({ kind: "crowdlending", tax: { withholds: false } });
   });
 
+  it("plateforme de crowdlending : ce que l'on souscrit (prêts ou obligations) fixe la case des intérêts, et s'enregistre", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    show(<InstitutionDialog open institution={null} onClose={onClose} />);
+    await user.type(await screen.findByLabelText("Nom"), "Bricks");
+    await user.selectOptions(fieldOf("Type"), "crowdlending");
+    const choix = await screen.findByLabelText("Ce que vous souscrivez");
+    expect((choix as HTMLSelectElement).value).toBe("prets");
+    await user.selectOptions(choix, "obligations");
+    await user.click(screen.getByRole("button", { name: /^(Ajouter|Créer|Enregistrer|Valider)/ }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const ws = await rpc<{ institutions: Array<{ tax: { crowdInstrument: string } }> }>("workspace.load");
+    expect(ws.institutions[0]!.tax.crowdInstrument).toBe("obligations");
+  });
+
   it("intérêts déclarés pour toute la plateforme : un montant par mois, rendement affiché", async () => {
     const user = userEvent.setup();
     const c = await rpc<{ id: string }>("accounts.upsert", { kind: "crowdlending", name: "Bricks" });

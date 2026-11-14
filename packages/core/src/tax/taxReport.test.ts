@@ -13,7 +13,7 @@ const asset = (id: string, kind: Asset["kind"]): Asset => ({
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number, extra: Partial<Transaction> = {}): Transaction => ({ id: `t${n++}`, date, type, accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "", ...extra });
-const etab = (id: string, tax: Partial<InstitutionTax> = {}, offers: Institution["offers"] = {}): Institution => ({ id, name: id, kind: "courtier", website: "", score: null, comment: "", offers, tax: { report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null, ...tax }, protection: { guarantor: "", country: "france" } });
+const etab = (id: string, tax: Partial<InstitutionTax> = {}, offers: Institution["offers"] = {}): Institution => ({ id, name: id, kind: "courtier", website: "", score: null, comment: "", offers, tax: { report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null, crowdInstrument: "prets", ...tax }, protection: { guarantor: "", country: "france" } });
 
 function data(over: Partial<EngineData>): EngineData {
   const params = defaultParams(new Date(2026, 10, 7));
@@ -313,5 +313,32 @@ describe("dispense de l'acompte de 12,8 % (CGI art. 125 A)", () => {
     const sheet = r.sheets.find((x) => x.institutionId === "e")!;
     expect(sheet.lines.find((l) => l.key === "interets")!.notes.join(" ")).toMatch(/Dispense de l'acompte de 12,8 % pour 2025 auprès de cet établissement : aucun acompte retenu/);
     expect(sheet.lines.some((l) => l.key === "acompte")).toBe(false);
+  });
+});
+
+describe("crowdlending : prêts (case 2TT) ou obligations (case 2TR)", () => {
+  const plateforme = acc("p", "crowdlending", "pl");
+  const crowd = (instrument: "prets" | "obligations") =>
+    data({ accounts: [plateforme], institutions: [etab("pl", { report: true, withholds: false, crowdInstrument: instrument }, { crowdlending: { taxWithheld: false, taxRate: null } })], transactions: [tx("2025-03-31", "interets", "p", 50)] });
+
+  it("prêts participatifs ou minibons : case 2TT", () => {
+    const r = report(crowd("prets"));
+    expect(box(r, "2TT")!.total).toBe(50);
+    expect(box(r, "2TR")).toBeUndefined();
+    expect(compareWithStatement(r.sheets[0]!, r.rules, new Map()).map((c) => c.rule.box)).toContain("2TT");
+  });
+
+  it("obligations ou titres de créance (Bricks, par exemple) : case 2TR, comme sur l'IFU, avec une remarque", () => {
+    const r = report(crowd("obligations"));
+    expect(box(r, "2TR")!.total).toBe(50);
+    expect(box(r, "2TT")).toBeUndefined();
+    const sheet = r.sheets[0]!;
+    expect(sheet.crowdInstrument).toBe("obligations");
+    expect(sheet.lines.find((l) => l.key === "interets")!.notes.join(" ")).toMatch(/obligations ou de titres de créance : case 2TR, pas 2TT/);
+    // Comparée à l'IFU sur la case 2TR : pas d'écart.
+    const rows = compareWithStatement(sheet, r.rules, new Map([["2TR", 50]]));
+    expect(rows.map((c) => c.rule.box)).not.toContain("2TT");
+    expect(rows.find((c) => c.rule.box === "2TR")).toMatchObject({ hamac: 50, official: 50, gap: 0 });
+    expect(reportTotalsMismatches(r)).toEqual([]);
   });
 });

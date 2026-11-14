@@ -28,7 +28,7 @@
 | ui | `packages/ui/src/features/settings/pages/Parametres/Section.tsx` | Carte de section. |
 | ui | `packages/ui/src/features/settings/lib/planDraft.ts` | `rebaseDraft`, `issueTabs`. |
 | ui | `packages/ui/src/features/settings/pages/Etablissements.tsx` | Onglet Établissements : cartes, comparatifs, `DefaultFees`. |
-| ui | `packages/ui/src/features/settings/dialogs/InstitutionDialog.tsx` | Fiche d'un établissement. |
+| ui | `packages/ui/src/features/settings/dialogs/InstitutionDialog.tsx` | Fiche d'un établissement ; partie Crowdlending : « Ce que vous souscrivez » (`tax.crowdInstrument`, case 2TT ou 2TR). |
 | ui | `packages/ui/src/features/settings/dialogs/AssetDialog.tsx` | Fiche d'un titre. |
 | ui | `packages/ui/src/features/settings/dialogs/AllocationDialog.tsx` | Fiche d'une allocation personnalisée. |
 | ui | `packages/ui/src/features/settings/components/AllocationTargets.tsx` | Tableau « Ma répartition cible ». |

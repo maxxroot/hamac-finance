@@ -102,6 +102,8 @@ Cliquez sur **Détail (CSV)** : un fichier `recapitulatif-fiscal-<année>.csv` c
 - si l'établissement ne prélève rien, le montant reçu est le brut ;
 - sinon, il applique les taux de l'établissement, ou ceux de Paramètres › Plan : 12,8 % d'acompte (0 % sur les intérêts d'une année et d'un établissement où vous êtes dispensé, cochés dans la page Impôts) et les prélèvements sociaux de l'année. Ce dernier cas est « À vérifier », sauf si les deux taux sont réglés sur l'établissement ou si Hamac rédige sa fiche.
 
+**Crowdlending : case 2TT ou 2TR.** La case dépend de ce que vous souscrivez sur la plateforme, pas de la plateforme elle-même. Des prêts participatifs ou des minibons vont en case 2TT (la seule où les pertes en capital sur ces prêts se déduisent des intérêts). Des obligations ou titres de créance vont en case 2TR, comme les coupons. Réglez-le sur la fiche de la plateforme (Paramètres › Établissements, partie Crowdlending, « Ce que vous souscrivez ») d'après la case remplie sur son IFU : Bricks, par exemple, remplit la case 2TR. Par défaut, Hamac compte des prêts.
+
 **Dispense de l'acompte.** Pour un établissement coché dans l'encadré « Dispense de l'acompte » de la page Impôts, pour l'année de la fiche, rien n'est compté en case 2CK sur ses intérêts : seuls les prélèvements sociaux ont été retenus. Les intérêts restent à déclarer (case 2TR, ou 2TT pour le crowdlending) et en case 2BH. Une remarque le rappelle sur la case des intérêts : l'impôt sur ces intérêts est réglé en totalité avec le solde de l'impôt sur le revenu, à partir de septembre de l'année suivante. Si l'IFU de l'établissement indique tout de même un acompte, la comparaison le signale : vérifiez que la demande a bien été prise en compte.
 
 Exemple fictif, revenus 2026, taux par défaut : un dividende de 68,60 € reçu donne 100 € bruts (case 2DC), 12,80 € d'acompte (case 2CK) et 18,60 € de prélèvements sociaux. Les 100 € comptent aussi en case 2BH, puisque les prélèvements sociaux ont déjà été retenus.
@@ -111,8 +113,8 @@ Exemple fictif, revenus 2026, taux par défaut : un dividende de 68,60 € reçu
 | Case | Formulaire | Ce que Hamac y met |
 |---|---|---|
 | 2DC | 2042 | Dividendes bruts. Distributions d'ETF ou de fonds : « À vérifier », la répartition avec les intérêts est sur le relevé. |
-| 2TR | 2042 | Intérêts bruts (hors crowdlending). |
-| 2TT | 2042 | Intérêts bruts des prêts participatifs et des minibons (crowdlending). |
+| 2TR | 2042 | Intérêts bruts : coupons, intérêts du compte-titres, et crowdlending souscrit sous forme d'obligations ou de titres de créance (Bricks, par exemple). |
+| 2TT | 2042 | Intérêts bruts des prêts participatifs et des minibons (crowdlending en prêts). |
 | 2BH | 2042 | Revenus bruts sur lesquels les prélèvements sociaux ont déjà été retenus. |
 | 2CK | 2042 | Acompte d'impôt déjà retenu. |
 | 2AB | 2042 | Retenues à l'étranger, toujours « À vérifier » (le crédit d'impôt dépend de la convention du pays). |

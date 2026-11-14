@@ -82,7 +82,7 @@ Les taux par défaut de Paramètres › Plan (`defaultParams` dans `packages/cor
 - Lignes d'une fiche :
   - `dividendes` = somme des bruts ; forcée `a_verifier` avec une note si un dividende vient d'un actif `etf` ou `fonds` ;
   - `interets` = bruts des intérêts hors crowdlending ;
-  - `crowdlending` = bruts des intérêts des comptes de crowdlending ;
+  - `crowdlending` = bruts des intérêts des comptes de crowdlending dont l'établissement a `tax.crowdInstrument = "prets"` (défaut) ; avec `"obligations"`, ces intérêts vont dans `interets` (case 2TR), avec une remarque ;
   - `psDejaPreleves` = bruts des revenus avec `social > 0` ;
   - `acompte` = somme des `incomeTax` (0 pour les intérêts d'un établissement dispensé l'année de la fiche : `effectiveWithholding` et `crowdTaxOf` lisent `withholdingDispensed(params, année, établissement)`, voir [Impôts](../impots/technique.md#dispense-de-lacompte-sur-les-intérêts)) ;
   - remarque de dispense sur les cases `interets` et `crowdlending` quand l'établissement est dispensé pour l'année et qu'aucun de ses intérêts n'a d'acompte (saisi ou calculé) ;
@@ -102,7 +102,7 @@ Niveau `attention` : année non couverte ; revenu dont brut − retenues ≠ re�
 
 ### Comparaison avec le document (`compareWithStatement`)
 
-Cases comparées selon les comptes de la fiche : compte-titres → 2DC, 2TR, 2BH, 2CK, 2AB, 3VG, 3VH ; crowdlending → 2TT, 2BH, 2CK. Pour 3VG / 3VH, Hamac compare le résultat de la fiche avant compensation (`securities.net`). `gap = hamac − document`. L'UI ne propose la comparaison que sur une fiche `a_saisir` (les seules qu'on peut ouvrir) liée à un établissement.
+Cases comparées selon les comptes de la fiche : compte-titres → 2DC, 2TR, 2BH, 2CK, 2AB, 3VG, 3VH ; crowdlending → 2TT, 2BH, 2CK, ou 2TR, 2BH, 2CK quand la plateforme fait souscrire des obligations (`TaxSheet.crowdInstrument`). Pour 3VG / 3VH, Hamac compare le résultat de la fiche avant compensation (`securities.net`). `gap = hamac − document`. L'UI ne propose la comparaison que sur une fiche `a_saisir` (les seules qu'on peut ouvrir) liée à un établissement.
 
 ### Export et impression
 

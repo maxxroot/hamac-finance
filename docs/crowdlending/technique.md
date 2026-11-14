@@ -80,7 +80,7 @@ Champs du `Workspace` : `crowdProjects`, `accounts`, `transactions`, `institutio
 
 Rapprochement : même `externalId` → inchangé ou `modifie` ; sinon, pour les intérêts, une saisie manuelle du même mois donne un `conflit` (non coché par défaut, devient `nouveau` si on l'accepte) ; pour les autres types, une saisie manuelle de même type, date et montant compte comme déjà à jour. Une ligne `bricks:` absente du fichier devient `retire`. Un projet existant est retrouvé par `externalId`, sinon par nom ; un statut posé à la main (retard, défaut) n'est remplacé que par un remboursement complet. `withheldRate = Σ prélèvements / Σ revenus` sert aux avertissements de la fenêtre.
 
-Source fiscale : aucune n'est citée dans ces fichiers ; les taux viennent de `params.tax` et des fiches d'établissement. Les cases de déclaration (2TT pour les intérêts de prêts participatifs) sont dans `packages/core/src/tax/fiscalRules.ts`, vérifiées le 2026-11-09.
+Source fiscale : aucune n'est citée dans ces fichiers ; les taux viennent de `params.tax` et des fiches d'établissement. Les cases de déclaration (2TT pour les intérêts de prêts participatifs et minibons, 2TR pour les obligations et titres de créance) sont dans `packages/core/src/tax/fiscalRules.ts`, vérifiées le 2026-11-09. Le choix se règle par plateforme : `InstitutionTax.crowdInstrument` (`"prets"` par défaut, ou `"obligations"`), champ « Ce que vous souscrivez » de la fiche d'établissement ; l'IFU de la plateforme fait foi (Bricks remplit la case 2TR).
 
 ## Tests
 

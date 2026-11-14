@@ -36,7 +36,7 @@ const details = (d: EngineData, asOf: string) => {
 };
 
 const courtier = (id: string, withholds: boolean | null, extra: Partial<Institution> = {}): Institution => ({
-  id, name: id, kind: "courtier", website: "", score: null, comment: "", offers: {}, tax: { report: false, withholds, withheldIncomeTax: null, withheldSocial: null }, protection: { guarantor: "", country: "france" }, ...extra,
+  id, name: id, kind: "courtier", website: "", score: null, comment: "", offers: {}, tax: { report: false, withholds, withheldIncomeTax: null, withheldSocial: null, crowdInstrument: "prets" }, protection: { guarantor: "", country: "france" }, ...extra,
 });
 
 describe("l'établissement prélève-t-il les impôts ?", () => {
@@ -45,7 +45,7 @@ describe("l'établissement prélève-t-il les impôts ?", () => {
     expect(institutionWithholds(courtier("b", null))).toBe(true);
     expect(institutionWithholds(courtier("c", null, { protection: { guarantor: "", country: "ue" } }))).toBe(false);
     expect(institutionWithholds(courtier("d", null, { kind: "crypto" }))).toBe(false);
-    expect(institutionWithholds(courtier("e", null, { tax: { report: false, withholds: null, withheldIncomeTax: 0, withheldSocial: 0 } }))).toBe(false);
+    expect(institutionWithholds(courtier("e", null, { tax: { report: false, withholds: null, withheldIncomeTax: 0, withheldSocial: 0, crowdInstrument: "prets" } }))).toBe(false);
     expect(institutionWithholds(etab("f", { taxWithheld: true, taxRate: 0.3 }))).toBe(true);
   });
 

@@ -104,10 +104,21 @@ export const InstitutionTax = z.object({
   /** Taux retenus sur les revenus, seulement s'ils diffèrent : null = taux par défaut (Paramètres › Plan), 0 = rien n'est retenu. */
   withheldIncomeTax: z.number().min(0).max(0.9).nullable().default(null),
   withheldSocial: z.number().min(0).max(0.9).nullable().default(null),
+  /**
+   * Plateforme de crowdlending : ce que l'on souscrit. Prêts participatifs ou minibons : intérêts en case 2TT ;
+   * obligations ou titres de créance : produits de placement à revenu fixe, case 2TR (comme sur l'IFU de la plateforme).
+   */
+  crowdInstrument: z.enum(["prets", "obligations"]).default("prets"),
 });
 export type InstitutionTax = z.infer<typeof InstitutionTax>;
+export type CrowdInstrument = InstitutionTax["crowdInstrument"];
 
-export const NO_INSTITUTION_TAX: InstitutionTax = { report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null };
+export const CROWD_INSTRUMENT_LABELS: Record<CrowdInstrument, string> = {
+  prets: "Prêts participatifs ou minibons (case 2TT)",
+  obligations: "Obligations ou titres de créance (case 2TR)",
+};
+
+export const NO_INSTITUTION_TAX: InstitutionTax = { report: false, withholds: null, withheldIncomeTax: null, withheldSocial: null, crowdInstrument: "prets" };
 
 /** Brut et retenues d'un revenu d'après des taux de retenue. */
 export function grossFromNet(net: number, rates: { incomeTax: number; social: number }): { gross: number; incomeTax: number; social: number } {
