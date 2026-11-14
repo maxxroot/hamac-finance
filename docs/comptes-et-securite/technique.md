@@ -63,6 +63,8 @@ Toutes les routes POST exigent l'en-tête `X-Hamac: 1`.
 
 **Réglages** (`.env`, voir `.env.example`) : `HAMAC_SIGNUP` (`invite` par défaut, `open`, `closed`), `HAMAC_SESSION_DAYS` (30), `HAMAC_SECURE`, `HAMAC_ALLOW_HTTP`, `HAMAC_TRUST_PROXY`, `HAMAC_2FA_KEY`, `HAMAC_DB_PASSWORD`, `HAMAC_BIND`, `HAMAC_PORT`.
 
+**Mémoire** : `HAMAC_MEMORY` et `HAMAC_DB_MEMORY` deviennent le `mem_limit` des services `hamac` et `db` de `docker-compose.yml` (`0` par défaut : pas de limite). Le code ne les lit pas. Node 24 dimensionne son tas d'après la limite du conteneur (environ 560 Mio pour `1g`) ; sous 512m, le tas peut atteindre la limite avant que le ramasse-miettes ne se déclenche, d'où le minimum conseillé. Un conteneur qui dépasse sa limite est tué par le noyau et relancé par `restart: unless-stopped`.
+
 ## Règles
 
 **Inscription et administrateur**

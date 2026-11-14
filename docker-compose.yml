@@ -8,6 +8,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    # Mémoire maximale du conteneur (HAMAC_DB_MEMORY dans .env) ; 0 : aucune limite.
+    mem_limit: ${HAMAC_DB_MEMORY:-0}
     security_opt:
       - no-new-privileges:true
     environment:
@@ -25,6 +27,8 @@ services:
   hamac:
     build: .
     restart: unless-stopped
+    # Mémoire maximale du conteneur (HAMAC_MEMORY dans .env) ; 0 : aucune limite. Node y adapte la taille de son tas.
+    mem_limit: ${HAMAC_MEMORY:-0}
     # Système de fichiers en lecture seule et aucun privilège : seuls /data et /tmp sont modifiables.
     read_only: true
     tmpfs:

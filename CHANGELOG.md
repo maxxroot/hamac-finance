@@ -6,6 +6,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+### Ajouté
+
+- Limite de mémoire facultative pour l'application et pour la base, à régler dans `.env` (`HAMAC_MEMORY`, `HAMAC_DB_MEMORY`).
+
 ## [0.1.0] - 2026-11-14
 
 Première version publique : une application web auto-hébergée, avec PostgreSQL, un espace isolé par compte et toute la fiscalité française de base. Elle reprend la logique d'un tableur personnel.

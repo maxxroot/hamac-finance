@@ -232,6 +232,8 @@ Toutes les variables se règlent dans ce fichier `.env`, facultatif, exclu de gi
 | `HAMAC_ALLOW_HTTP` | `0` | `1` pour autoriser le HTTP simple hors de la machine (déconseillé) |
 | `HAMAC_SIGNUP` | `invite` | `invite`, `open` ou `closed` |
 | `HAMAC_DB_PASSWORD` | `hamac` | Mot de passe PostgreSQL, lettres et chiffres ; la base n'est jamais exposée hors de Docker |
+| `HAMAC_MEMORY` | `0` | Mémoire maximale du conteneur de l'application (`512m`, `1g`…), `0` pour aucune limite. 512m au minimum |
+| `HAMAC_DB_MEMORY` | `0` | Mémoire maximale du conteneur PostgreSQL, `0` pour aucune limite. 256m au minimum |
 | `HAMAC_PORT` | `8080` | Port publié sur la machine |
 | `HAMAC_SESSION_DAYS` | `30` | Durée d'une session avant de devoir se reconnecter |
 | `HAMAC_PRICES` | `1` | `0` pour ne pas actualiser les cours automatiquement, ni remettre à jour chaque trimestre les compositions d'ETF (elles le sont alors à l'ouverture de la page Exposition réelle) |
