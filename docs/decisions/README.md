@@ -13,3 +13,4 @@ Les décisions 0001 à 0005 sont rétroactives : elles ont été rédigées le 2
 | [0005](0005-cle-twelve-data-dans-env.md) | La clé Twelve Data ne vit que dans `.env` | Acceptée |
 | [0006](0006-code-par-couches-et-domaines.md) | Le code est rangé par couche puis par domaine, frontières vérifiées par un test | Acceptée |
 | [0007](0007-documentation-guide-et-technique.md) | Chaque fonctionnalité a un guide et une documentation technique | Acceptée |
+| [0008](0008-versions-et-journal-des-modifications.md) | Versions sémantiques, tags `vX.Y.Z` et journal des modifications tenu à la main | Acceptée |

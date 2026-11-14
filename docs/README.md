@@ -63,6 +63,7 @@ Une fonctionnalité nouvelle ou modifiée met à jour ses deux fichiers dans le 
 | Sources de cours | [guide](sources-de-cours/guide.md) | [technique](sources-de-cours/technique.md) |
 | Sauvegardes | [guide](sauvegardes/guide.md) | [technique](sauvegardes/technique.md) |
 | Comptes et sécurité | [guide](comptes-et-securite/guide.md) | [technique](comptes-et-securite/technique.md) |
+| Versions et mises à jour | [guide](versions/guide.md) | [technique](versions/technique.md) |
 
 ## Pour les développeurs
 
