@@ -103,7 +103,7 @@ Découpage d'un compte (`partsOf`, sur `value × share` et `cash × share`) : li
 - Route `/comptes/:id` (`App.tsx`), hors de `ALL_ITEMS` : l'entrée « Mes comptes » du menu reste active (`NavLink` sans `end`).
 - Sous-menu : `sidebarAccounts` garde les comptes non archivés, rangés par type (`pea`, `pea_pme`, `cto`, `assurance_vie`, `per`, `epargne_salariale`, `crypto`, `crowdlending`, `livret`), puis `sortOrder`, puis nom. Masqué quand la barre est réduite.
 - Répartition (`accountClasses`) : positions par `holdingClassOf` (ETF, actions, fonds séparés ; les autres par classe), projets de crowdlending, espèces dans `cashBucketOf` (fonds euros d'un contrat, liquidités ailleurs, précaution pour un livret). Classes de valeur > 0,005 €, affichée seulement s'il y en a au moins deux. L'allocation du patrimoine garde la classe `croissance` entière.
-- Composition : la colonne Type donne le type du titre (`ASSET_KIND_LABELS`, en court pour ETC et fonds).
+- Composition : la colonne Classe donne `holdingClassOf` (mêmes classes, couleurs et pages que la répartition), avec un lien vers la page de la classe.
 - Composition : `positions`, puis une ligne « Projets de crowdlending » (`Σ crowdProjects.value`) et une ligne « Espèces » (si `|cash| > 0,005`). Part du compte = valeur ÷ `AccountState.value`. Le tableau n'apparaît que s'il y a des positions ou des projets.
 - Quatrième chiffre : `fiscalAnniversary(openedOn, 5)` pour `pea`/`pea_pme`, `(openedOn, 8)` pour `assurance_vie`, `interests` pour un livret, `fees` sinon.
 - Caractéristiques : grille de `tradeFeeFor` pour `pea`, `pea_pme`, `cto`, `crypto` ; FGAP (`alerts.fgapGuarantee − value`) si `holdsEuroFunds` ; frais d'une assurance-vie lus dans `institution.offers.assurance_vie`.

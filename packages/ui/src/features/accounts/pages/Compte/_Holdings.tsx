@@ -1,17 +1,36 @@
 import { Fragment } from "react";
 import { Link } from "react-router";
-import { ASSET_KIND_LABELS, type AccountState, type AssetKind } from "@hamac/core";
+import type { AccountState } from "@hamac/core";
 import { PositionEvolution } from "@/shared/components/AccountEvolution";
 import { Amount } from "@/shared/components/Amount";
 import { Pct } from "@/shared/components/Stat";
 import { DetailRow, ExpandButton, Table, Td, Tr, useExpandedRow } from "@/shared/components/table";
 import { formatQty } from "@/shared/lib/numbers";
 import { SortTh, useSortable } from "@/shared/lib/sort";
+import { holdingClassOf, type HoldingClass } from "@/features/accounts/lib/holdingClass";
 
 const COLS = 10;
 
-/** Type du titre : un ETF est un ETF, une action une action. */
-const kindLabel = (kind: AssetKind) => (kind === "etc" ? "ETC" : kind === "fonds" ? "Fonds" : ASSET_KIND_LABELS[kind]);
+/** Classe de la ligne dans le compte (un ETF est un ETF, une action une action), avec sa pastille et le lien vers sa page. */
+function ClassCell({ c }: { c: HoldingClass }) {
+  const label = (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+      <span className="size-2.5 rounded-sm" style={{ background: c.color }} aria-hidden />
+      {c.label}
+    </span>
+  );
+  return (
+    <Td>
+      {c.page ? (
+        <Link to={c.page} onClick={(e) => e.stopPropagation()} className="hover:text-accent hover:underline" title={`Voir la page ${c.label}`}>
+          {label}
+        </Link>
+      ) : (
+        label
+      )}
+    </Td>
+  );
+}
 
 /** Tout ce que détient le compte : chaque titre ou support, puis les projets de crowdlending et les espèces. */
 export function Holdings({ s }: { s: AccountState }) {
@@ -21,7 +40,7 @@ export function Holdings({ s }: { s: AccountState }) {
     s.positions,
     {
       titre: (p) => p.asset.name,
-      type: (p) => kindLabel(p.asset.kind),
+      classe: (p) => holdingClassOf(p.bucket, p.asset.kind).label,
       parts: (p) => p.quantity,
       pru: (p) => p.pru,
       investi: (p) => p.cost,
@@ -43,7 +62,7 @@ export function Holdings({ s }: { s: AccountState }) {
       <thead>
         <tr>
           <SortTh {...by("titre")}>Titre ou support</SortTh>
-          <SortTh {...by("type")}>Type</SortTh>
+          <SortTh {...by("classe")}>Classe</SortTh>
           <SortTh {...by("parts")} align="right">
             Parts
           </SortTh>
@@ -79,9 +98,7 @@ export function Holdings({ s }: { s: AccountState }) {
                 {p.asset.name}
                 {p.asset.isin && <div className="ml-[21px] font-mono text-xs font-normal text-fg-faint">{p.asset.isin}</div>}
               </Td>
-              <Td>
-                {kindLabel(p.asset.kind)}
-              </Td>
+              <ClassCell c={holdingClassOf(p.bucket, p.asset.kind)} />
               {/* Un fonds euros n'a ni parts ni cours : seul son solde compte. */}
               <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : formatQty(p.quantity)}</Td>
               <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : <Amount value={p.pru} />}</Td>
@@ -117,7 +134,7 @@ export function Holdings({ s }: { s: AccountState }) {
               </Link>
               <div className="ml-[21px] text-xs font-normal text-fg-faint">{running} en cours</div>
             </Td>
-            <Td>Crowdlending</Td>
+            <ClassCell c={holdingClassOf("crowdlending", null)} />
             <Td colSpan={4} />
             <Td align="right" className="font-medium">
               <Amount value={crowd} />

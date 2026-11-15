@@ -302,6 +302,10 @@ describe("Page d'un compte", () => {
     expect(repartition.getByRole("link", { name: "ETF" }).getAttribute("href")).toBe("/actions");
     expect(repartition.queryByText("Actions")).toBeNull();
     expect(texte(ligne("ETF Monde UC"))).toMatch(/ETF Monde UCIE000BI8OT95ETF4.*600.*50,0 %$/);
+    // La classe de la ligne garde sa pastille et mène à la page de la classe.
+    const classe = within(ligne("ETF Monde UC")).getByRole("link", { name: "ETF" });
+    expect(classe.getAttribute("href")).toBe("/actions");
+    expect(classe.querySelector("span[aria-hidden]")).toBeTruthy();
     const fonds = screen.getAllByRole("row").find((r) => /Fonds euros/.test(texte(r)) && /—/.test(texte(r)))!;
     expect(texte(fonds)).toMatch(/600.*50,0 %$/);
     expect(screen.getByText("Fiscalité allégée (8 ans)")).toBeTruthy();
