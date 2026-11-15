@@ -18,6 +18,8 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ### Modifié
 
+- La page Fonds euros montre tous vos contrats ensemble : un seul tableau, une ligne par fonds euros et par contrat, avec son dernier taux servi ; dépliée, la ligne montre les taux servis de chaque année. La fiche du contrat (ancienneté, clause bénéficiaire, frais, garantie) et le contrôle avec le relevé de l'assureur passent sur la page du contrat, tout comme les alertes qui s'y rapportent.
+- La page Obligations indique le compte de chaque ligne et rappelle, en haut, les comptes qui détiennent des obligations.
 - La page Actions & ETF montre tous vos comptes ensemble : un seul tableau, une ligne par titre et par compte, au lieu d'un bloc par compte. Les parts cibles se comparent sur l'ensemble des comptes (un ETF détenu dans le PEA et le compte-titres est additionné). La date des 5 ans du PEA et la grille de courtage passent sur la page du compte.
 - Assistants (MCP) : l'outil `create_asset` s'appelle désormais `save_asset` et sert aussi à modifier un titre. L'accès « Lecture et import » d'un jeton s'appelle désormais « Lecture et écriture ».
 - Un compte-titres n'est plus rangé d'office du côté des obligations : la page Obligations ne reprend que les comptes qui en détiennent, et seulement les mouvements de ces obligations ; un nouveau titre saisi sur un compte-titres n'est plus une OAT par défaut.

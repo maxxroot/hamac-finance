@@ -35,6 +35,6 @@ describe("contrôle avec le relevé", () => {
     const d = data({ accounts: [acc("av", "assurance_vie", { beneficiaryClause: true })], transactions: [tx("2025-01-10", "apport_initial", "av", 5_000)], statements: [releve("av", "2025-12-31", 5_042.5)] });
     const [row] = reconcile(d, "2026-01-15");
     expect(row).toMatchObject({ status: "ecart", valueGap: 42.5 });
-    expect(computeAlerts(d, computePortfolio(d, "2026-01-15")).find((a) => a.id === "releve-av")?.link).toBe("/fonds-euros");
+    expect(computeAlerts(d, computePortfolio(d, "2026-01-15")).find((a) => a.id === "releve-av")?.link).toBe("/comptes/av");
   });
 });

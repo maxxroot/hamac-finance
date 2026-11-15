@@ -479,6 +479,22 @@ describe("Crypto", () => {
 });
 
 describe("Fonds euros", () => {
+  /** La page Fonds euros et celle d'un contrat, pour suivre les liens de l'une à l'autre. */
+  const pages = (path = "/fonds-euros") =>
+    show(
+      <Routes>
+        <Route path="/fonds-euros" element={<FondsEuros />} />
+        <Route path="/comptes/:id" element={<Compte />} />
+      </Routes>,
+      path,
+    );
+  /** Ligne du tableau des fonds (le premier tableau de la page). */
+  const ligneFonds = (nom: string) => within(screen.getAllByRole("table")[0]!).getAllByText(nom)[0]!.closest("tr") as HTMLElement;
+  const deplier = async (user: ReturnType<typeof userEvent.setup>, nom: string) => {
+    await user.click(within(ligneFonds(nom)).getByRole("button", { name: /Afficher le détail/ }));
+    return (await screen.findByText("Taux servis")).parentElement as HTMLElement;
+  };
+
   it("sans contrat, la page propose d'en créer un", async () => {
     await compte("livret", "Livret A", { livretType: "LIVRET_A" });
     show(<FondsEuros />);
@@ -486,47 +502,56 @@ describe("Fonds euros", () => {
     expect(screen.getByRole("button", { name: "Ajouter un contrat" })).toBeTruthy();
   });
 
-  it("fiche du contrat : ancienneté, règle des 8 ans, clause, frais et taux moyen servi", async () => {
+  it("deux contrats : une ligne par fonds et par contrat, le taux moyen servi, le contrat mène à sa page", async () => {
+    const user = userEvent.setup();
+    const av = await compte("assurance_vie", "Contrat principal", { openedOn: "2010-06-15" });
+    const per = await compte("per", "Mon PER");
+    await operation("2023-01-05", "versement", av.id, 3_000);
+    await operation("2023-01-05", "versement", per.id, 1_000);
+    await rpc("fundRates.set", { accountId: av.id, assetId: fondsDe(av), year: 2023, rate: 0.025 });
+    await rpc("fundRates.set", { accountId: av.id, assetId: fondsDe(av), year: 2024, rate: 0.035 });
+    await rpc("fundRates.set", { accountId: per.id, assetId: fondsDe(per), year: 2024, rate: 0.02 });
+    pages();
+    const bandeau = within(await screen.findByRole("navigation", { name: "Comptes concernés" }));
+    expect(bandeau.getByText("8 ans passés")).toBeTruthy();
+    // Taux moyen de chaque fonds : (2,5 + 3,5) / 2 = 3 % et 2 % ; pondéré par les soldes : (3 000 × 3 % + 1 000 × 2 %) / 4 000.
+    const rowAv = ligneFonds("Fonds euros (Contrat principal)");
+    expect(texte(rowAv)).toMatch(/Contrat principal.*3 000,00 €.*3,50 % en 2024.*3,00 %.*75,0 %$/);
+    expect(texte(ligneFonds("Fonds euros (Mon PER)"))).toMatch(/Mon PER.*1 000,00 €.*2,00 % en 2024.*2,00 %.*25,0 %$/);
+    const moyen = screen.getAllByText("Taux moyen servi").find((el) => el.tagName === "SPAN")!;
+    expect(texte(moyen.parentElement)).toMatch(/2,75 %/);
+    // Le nom du contrat ouvre sa page.
+    await user.click(within(rowAv).getByRole("link", { name: "Contrat principal" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Contrat principal" })).toBeTruthy();
+  });
+
+  it("page du contrat : ancienneté, règle des 8 ans, clause, garantie et frais", async () => {
     const assureur = await rpc<Id>("institutions.upsert", { name: "Assureur Fictif", kind: "assureur", offers: { assurance_vie: { entryFee: 0.01, euroFee: 0.007 } } });
     const av = await compte("assurance_vie", "Contrat principal", { institutionId: assureur.id, openedOn: dansAns(-3).replace(/-\d\d-\d\d$/, "-01-15"), beneficiaryClause: true });
     await operation("2023-01-05", "versement", av.id, 1_000);
-    await rpc("fundRates.set", { accountId: av.id, assetId: fondsDe(av), year: 2023, rate: 0.025 });
-    await rpc("fundRates.set", { accountId: av.id, assetId: fondsDe(av), year: 2024, rate: 0.035 });
-    await operation("2023-12-31", "interets", av.id, 25);
-    show(<FondsEuros />);
-    expect(await screen.findByRole("heading", { name: /^Contrat principal/ })).toBeTruthy();
-    expect(texte(screen.getByRole("heading", { name: /^Contrat principal/ }))).toContain("Assureur Fictif");
+    pages(`/comptes/${av.id}`);
+    expect(await screen.findByRole("heading", { level: 1, name: "Contrat principal" })).toBeTruthy();
     expect(screen.getByText(/ans? et \d+ mois/)).toBeTruthy();
     // Moins de 8 ans : la date d'allègement est future.
-    expect(screen.getByText(/\(8 ans\)/)).toBeTruthy();
+    expect(screen.getByText("Fiscalité allégée (8 ans)")).toBeTruthy();
     expect(screen.getByText("rédigée")).toBeTruthy();
     expect(texte(screen.getByText("Garantie FGAP").nextElementSibling)).toMatch(/^marge de .* sous 70 000 €$/);
-    expect(texte(screen.getByText("Frais").nextElementSibling)).toBe("versements 1,00 % · gestion 0,70 % / an");
-    // Taux moyen servi : (2,5 + 3,5) / 2 = 3,0 %.
-    const dd = screen.getByText("Taux moyen servi").nextElementSibling as HTMLElement;
-    expect(texte(dd)).toMatch(/^3,0+ %/);
-    // Taux servis : les intérêts saisis de l'année sont rappelés.
-    expect(texte(ligne("2023"))).toMatch(/25,00 €/);
+    expect(texte(screen.getByText("Frais du contrat").nextElementSibling)).toBe("versements 1,00 % · gestion 0,70 % / an");
   });
 
-  it("contrat sans date ni assureur : les informations manquantes sont signalées ; un contrat de plus de 8 ans est allégé", async () => {
-    await compte("assurance_vie", "Contrat sans fiche");
-    await compte("assurance_vie", "Vieux contrat", { openedOn: "2010-06-15" });
-    show(<FondsEuros />);
-    expect(await screen.findByRole("heading", { name: /^Contrat sans fiche/ })).toBeTruthy();
-    expect(screen.getByText("renseigner la date d'ouverture")).toBeTruthy();
-    expect(screen.getAllByText("à rédiger")).toHaveLength(2);
-    expect(screen.getAllByText("à renseigner dans Paramètres › Établissements").length).toBeGreaterThan(0);
-    expect(screen.getByText(/depuis le 15\/06\/2018/)).toBeTruthy();
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Aucun taux saisi.")).toHaveLength(2);
+  it("contrat sans date ni assureur : les informations manquantes sont signalées", async () => {
+    const av = await compte("assurance_vie", "Contrat sans fiche");
+    pages(`/comptes/${av.id}`);
+    expect(await screen.findByText("date d'ouverture à renseigner")).toBeTruthy();
+    expect(screen.getByText("à rédiger")).toBeTruthy();
+    expect(screen.getByText("à renseigner dans Paramètres › Établissements")).toBeTruthy();
   });
 
-  it("relevé de l'assureur : l'écart avec le calcul est signalé, puis la concordance", async () => {
+  it("relevé de l'assureur, sur la page du contrat : l'écart avec le calcul est signalé, puis la concordance", async () => {
     const user = userEvent.setup();
     const av = await compte("assurance_vie", "Contrat principal", { openedOn: "2020-01-15" });
     await operation("2024-01-05", "versement", av.id, 1_000);
-    show(<FondsEuros />);
+    pages(`/comptes/${av.id}`);
     expect(await screen.findByText(/Relevez la valeur sur le site de l'assureur/)).toBeTruthy();
     expect((screen.getByRole("button", { name: "Enregistrer le relevé" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(fieldOf("Le"), { target: { value: "2024-06-01" } });
@@ -543,12 +568,16 @@ describe("Fonds euros", () => {
     expect(await screen.findByText(/Concorde avec le calcul/)).toBeTruthy();
   });
 
-  it("taux servis : ajout d'une année, refus tant que le taux manque, puis suppression", async () => {
+  it("taux servis, dans la ligne dépliée : ajout d'une année avec les intérêts saisis, refus tant que le taux manque, puis suppression", async () => {
     const user = userEvent.setup();
     const av = await compte("assurance_vie", "Contrat principal", { openedOn: "2020-01-15" });
     await operation("2023-01-05", "versement", av.id, 1_000);
+    await operation("2023-12-31", "interets", av.id, 25);
     show(<FondsEuros />);
-    const carte = carteDe("Taux servis", await screen.findByText("Taux servis"));
+    await screen.findByText("Fonds euros (Contrat principal)");
+    const carte = await deplier(user, "Fonds euros (Contrat principal)");
+    // L'évolution du fonds s'affiche à côté.
+    expect(screen.getByText(/L'évolution apparaîtra après un mois d'historique|Valeur totale :/)).toBeTruthy();
     const ajouter = within(carte).getByRole("button", { name: "Ajouter" }) as HTMLButtonElement;
     expect(ajouter.disabled).toBe(true);
     const annee = within(carte).getByLabelText("Année") as HTMLInputElement;
@@ -559,22 +588,24 @@ describe("Fonds euros", () => {
     await user.click(ajouter);
     await waitFor(async () => expect((await workspace()).fundRates).toMatchObject([{ accountId: av.id, year: 2023, rate: 0.026 }]));
     const row = (await within(carte).findByText("2023")).closest("tr") as HTMLElement;
-    expect(texte(row)).toMatch(/2,6 %/);
+    expect(texte(row)).toMatch(/2,6 %.*25,00 €/);
+    // La ligne reste dépliée et le dernier taux servi apparaît.
+    expect(texte(ligneFonds("Fonds euros (Contrat principal)"))).toMatch(/2,60 % en 2023/);
     await user.click(within(row).getByRole("button", { name: "Supprimer" }));
     await waitFor(async () => expect((await workspace()).fundRates).toEqual([]));
     expect(await within(carte).findByText("Aucun taux saisi.")).toBeTruthy();
   });
 
-  it("chaque fonds euros du contrat a son solde, ses intérêts et ses taux ; un second se crée depuis la page", async () => {
+  it("chaque fonds euros a sa ligne, avec son solde et ses intérêts ; un second se crée depuis la page", async () => {
     const user = userEvent.setup();
     const av = await compte("assurance_vie", "Contrat principal", { openedOn: "2020-01-15" });
     await operation("2024-01-05", "versement", av.id, 1_000);
     await operation("2024-12-31", "interets", av.id, 30);
     show(<FondsEuros />);
-    const defaut = carteDe("Fonds euros (Contrat principal)", await screen.findByText("Fonds euros (Contrat principal)"));
-    expect(within(defaut).getByText("support par défaut")).toBeTruthy();
-    expect(texte(within(defaut).getByText("Solde").nextElementSibling)).toBe("1 030,00 €");
-    expect(texte(within(defaut).getByText("Intérêts reçus").nextElementSibling)).toBe("30,00 €");
+    await screen.findByText("Fonds euros (Contrat principal)");
+    const defaut = () => ligneFonds("Fonds euros (Contrat principal)");
+    expect(within(defaut()).getByText("support par défaut")).toBeTruthy();
+    expect(texte(defaut())).toMatch(/1 030,00 €30,00 €/);
 
     // « Verser sur un autre fonds euros » : le support est créé avec le versement.
     await user.click(screen.getByRole("button", { name: "Verser sur un autre fonds euros" }));
@@ -582,16 +613,16 @@ describe("Fonds euros", () => {
     await user.type(within(dialog).getByLabelText("Nom du fonds euros"), "Euro Croissance Fictif");
     await user.type(within(dialog).getByLabelText("Montant"), "500");
     await user.click(within(dialog).getByRole("button", { name: "Enregistrer" }));
-    // Son nom figure aussi dans les mouvements : on prend la carte du fonds.
-    const second = (await screen.findAllByText("Euro Croissance Fictif")).map((el) => carteDe("", el)).find((c) => c && within(c).queryByText("Solde"))!;
+    await waitFor(() => expect(within(screen.getAllByRole("table")[0]!).queryByText("Euro Croissance Fictif")).toBeTruthy());
+    const second = ligneFonds("Euro Croissance Fictif");
     expect(within(second).queryByText("support par défaut")).toBeNull();
-    expect(texte(within(second).getByText("Solde").nextElementSibling)).toBe("500,00 €");
+    expect(texte(second)).toMatch(/500,00 €/);
     const ws = await workspace();
     const fund = (ws.assets as Array<{ id: string; name: string; kind: string }>).find((a) => a.name === "Euro Croissance Fictif")!;
     expect(fund.kind).toBe("fonds_euros");
     expect((ws.transactions as Array<{ amount: number }>).find((t) => t.amount === 500)).toMatchObject({ type: "versement", accountId: av.id, assetId: fund.id });
     // Le fonds par défaut n'a pas bougé.
-    expect(texte(within(defaut).getByText("Solde").nextElementSibling)).toBe("1 030,00 €");
+    expect(texte(defaut())).toMatch(/1 030,00 €/);
   });
 
   it("arbitrage : du fonds euros vers une unité de compte, sans passer par les espèces", async () => {
@@ -612,17 +643,7 @@ describe("Fonds euros", () => {
     await waitFor(async () =>
       expect((await workspace()).transactions.find((t: { type: string }) => t.type === "arbitrage")).toMatchObject({ accountId: av.id, assetId: fondsDe(av), quantity: null, counterAssetId: etf.id, counterQuantity: 4, amount: 400 }),
     );
-    const defaut = carteDe("Fonds euros (Contrat principal)", (await screen.findAllByText("Fonds euros (Contrat principal)"))[0]);
-    expect(texte(within(defaut).getByText("Solde").nextElementSibling)).toBe("600,00 €");
-  });
-
-  it("le bouton d'évolution du contrat déplie son historique", async () => {
-    const user = userEvent.setup();
-    const av = await compte("assurance_vie", "Contrat principal");
-    await operation("2024-01-05", "versement", av.id, 1_000);
-    show(<FondsEuros />);
-    await user.click(await screen.findByRole("button", { name: /Évolution/ }));
-    expect(await screen.findByText(/L'évolution apparaîtra après un mois d'historique|Valeur totale :/)).toBeTruthy();
+    await waitFor(() => expect(texte(ligneFonds("Fonds euros (Contrat principal)"))).toMatch(/600,00 €/));
   });
 });
 
@@ -691,6 +712,10 @@ describe("Obligations", () => {
     expect(texte(rowOat)).toContain("Détenue");
     expect(texte(rowOat)).toMatch(/3,00 %/);
     expect(texte(rowOat)).not.toContain("FR0099999991");
+    // Chaque ligne dit dans quel compte elle est détenue, et le bandeau rappelle le compte.
+    expect(within(rowOat).getByRole("link", { name: "CTO obligations" }).getAttribute("href")).toBe(`/comptes/${cto.id}`);
+    expect(within(ligne("Ligne longue")).getByRole("link", { name: "CTO obligations" })).toBeTruthy();
+    expect(texte(within(screen.getByRole("navigation", { name: "Comptes concernés" })).getByRole("link", { name: "CTO obligations" }).closest("div.rounded-2xl"))).toMatch(/15 000 € de nominal/);
     expect(texte(rowOat)).not.toMatch(/le 25\/05\/\d{4}/);
     // Échue : barrée, avec son état.
     const rowEchue = ligne("OAT 1 % mai 2023");
@@ -713,7 +738,7 @@ describe("Obligations", () => {
     expect(ordre()).toEqual(["Soc", "OAT"]);
     await user.click(within(tete("Échéance")).getByRole("button"));
     expect(ordre()).toEqual(["OAT", "Soc"]);
-    for (const nom of ["Obligation", "Coupon", "Nominal", "Coût \\(frais compris\\)", "Valeur", "Plus-value \\(%\\)", "Rendement à l'échéance", "Âge à l'échéance", "Reste"]) {
+    for (const nom of ["Obligation", "Compte", "Coupon", "Nominal", "Coût \\(frais compris\\)", "Valeur", "Plus-value \\(%\\)", "Rendement à l'échéance", "Âge à l'échéance", "Reste"]) {
       await user.click(within(tete(nom)).getByRole("button"));
       expect(ordre()).toHaveLength(2);
     }

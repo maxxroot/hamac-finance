@@ -1,4 +1,4 @@
-import { allocationReport, GUARANTEE_LABELS, isRetirementPlan, protectionOf } from "../model";
+import { allocationReport, GUARANTEE_LABELS, holdsEuroFunds, isRetirementPlan, protectionOf } from "../model";
 import { proposeContributions } from "../planning";
 import { addDays, addMonths, daysBetween, formatEur, monthsBetween } from "../base";
 import { currentLease, dpeExpiry, dpeFreezesRent, dpeRentalBan, LEASE_GUARANTEE_LABELS, leaseArrears, leaseRevisionDue, leaseState, lotIsActive, NOTICE_LEVEL_LABELS, noticeStep, rentIsLate, rentMonths, sortLots } from "../realestate";
@@ -154,12 +154,12 @@ export function computeAlerts(
 
   // Assurance-vie.
   for (const a of active.filter((x) => x.account.kind === "assurance_vie")) {
-    if (!a.account.beneficiaryClause && a.value > 0) out.push({ id: `clause-${a.account.id}`, level: "attention", title: `Clause bénéficiaire à rédiger : ${a.account.name}`, link: "/fonds-euros" });
+    if (!a.account.beneficiaryClause && a.value > 0) out.push({ id: `clause-${a.account.id}`, level: "attention", title: `Clause bénéficiaire à rédiger : ${a.account.name}`, link: `/comptes/${a.account.id}` });
   }
 
   // Contrôle avec le relevé : écart à la date du dernier relevé saisi.
   for (const r of reconcile(data, today).filter((x) => x.status === "ecart" && !x.account.archived)) {
-    out.push({ id: `releve-${r.account.id}`, level: "attention", title: `Écart de ${eur(r.valueGap ?? 0)} avec le relevé de ${r.account.name}`, detail: `Relevé du ${frDate(r.statement!.date)}. Saisir une correction dans le journal.`, link: r.account.kind === "assurance_vie" ? "/fonds-euros" : "/journal" });
+    out.push({ id: `releve-${r.account.id}`, level: "attention", title: `Écart de ${eur(r.valueGap ?? 0)} avec le relevé de ${r.account.name}`, detail: `Relevé du ${frDate(r.statement!.date)}. Saisir une correction dans le journal.`, link: holdsEuroFunds(r.account) ? `/comptes/${r.account.id}` : "/journal" });
   }
 
   // Fin d'année : gestes fiscaux à faire avant le 31 décembre.

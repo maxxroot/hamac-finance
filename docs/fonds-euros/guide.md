@@ -6,12 +6,9 @@
 
 Le fonds euros est le support à capital garanti d'un contrat d'assurance-vie ou de PER assurantiel. Ce n'est pas une enveloppe : c'est un support du contrat, à côté des unités de compte (ETF, fonds…). Il appartient à l'assureur, et deux contrats du même assureur peuvent avoir le même.
 
-La page montre, pour chaque contrat :
+La page montre vos fonds euros **tous contrats confondus** : le solde, les intérêts et les taux servis de chaque fonds, dans chaque contrat.
 
-- sa valeur calculée et ce que vous y avez versé ;
-- ses informations utiles (ancienneté, règle des 8 ans, clause bénéficiaire, garantie, frais) ;
-- le contrôle avec la valeur relevée chez l'assureur ;
-- le solde, les intérêts et les taux servis de chacun de ses fonds euros.
+Ce qui concerne un contrat en entier est sur la [page du contrat](../comptes/guide.md#la-page-dun-compte), qu'on ouvre en cliquant sur son nom : sa valeur et ses unités de compte, son ancienneté et la règle des 8 ans, la clause bénéficiaire, la garantie, les frais, et le contrôle avec la valeur relevée chez l'assureur.
 
 Les mouvements se saisissent dans le [Journal](../journal/guide.md).
 
@@ -25,39 +22,28 @@ La page est la même dans les deux formats. Elle peut être masquée du menu dan
 
 ### En-tête
 
-Le bouton **Nouvelle opération** ouvre la saisie d'un versement sur le premier contrat.
+Trois boutons : **Arbitrage**, **Verser sur un autre fonds euros** et **Ajouter une opération** (un versement). Ils s'ouvrent sur le premier contrat ; le contrat se change dans la saisie.
 
-### Pour chaque contrat
+### Les contrats
 
-**Titre.** Le nom du contrat et de son établissement, un crayon pour modifier la fiche, et un bouton pour afficher la courbe d'évolution.
+Une carte par contrat d'assurance-vie ou de PER assurantiel : son nom (qui ouvre sa page), son établissement, l'argent placé sur ses fonds euros et, pour une assurance-vie, où en est la règle des 8 ans (« 8 ans passés », la date à venir, ou la date d'ouverture à renseigner).
 
-**Quatre chiffres.**
+### Les chiffres d'ensemble
 
-- **Valeur calculée** : tout le contrat, fonds euros et unités de compte compris.
-- **Versé net** : ce que vous y avez mis, moins ce que vous en avez retiré.
-- **Gain cumulé** : valeur − versé net, avec la part des intérêts.
-- **Versement mensuel** : le versement programmé ce mois-ci.
+- **Encours des fonds euros** : le solde de tous vos fonds euros, et sa part dans le total de vos comptes.
+- **Intérêts reçus** : tous les intérêts notés sur ces fonds depuis l'ouverture des contrats.
+- **Taux moyen servi** : la moyenne des taux servis de chaque fonds, pondérée par son solde, à côté de l'hypothèse de rendement du plan.
+- **Versements mensuels** : les versements programmés ce mois-ci sur ces contrats.
 
-**Carte « Contrat ».**
+### Le tableau des fonds
 
-- Date d'ouverture et ancienneté.
-- Pour une assurance-vie : la date de la **fiscalité allégée** (8 ans après l'ouverture), et l'état de la **clause bénéficiaire** (« rédigée » ou « à rédiger »).
-- **Garantie FGAP** : la marge entre la valeur du contrat et le plafond de la garantie des assureurs.
-- Pour une assurance-vie : les **frais** sur versements et de gestion, lus dans l'offre de l'établissement.
+**Une ligne par fonds euros et par contrat** : le fonds par défaut de chaque contrat, ceux qui ont un solde et ceux qui ont des taux saisis. Colonnes : nom du fonds (avec l'étiquette « support par défaut » s'il l'est), contrat, solde, intérêts reçus, dernier taux servi et son année, taux moyen servi, part. Cliquez sur un en-tête pour trier, sur le nom du contrat pour ouvrir sa page.
 
-**Carte « Contrôle avec le relevé ».** Le dernier relevé enregistré et son résultat : « ✓ Concorde avec le calcul », ou un écart à corriger. Un formulaire permet d'enregistrer une nouvelle valeur relevée et sa date.
+Cliquez sur une ligne pour la déplier : le tableau des **taux servis** (année, taux net, intérêts saisis cette année-là, la plus récente en haut), un formulaire pour en ajouter, et l'évolution du fonds dans ce contrat.
 
-**« Fonds euros du contrat ».** Deux boutons : **Arbitrage** et **Verser sur un autre fonds euros**. Puis une carte par fonds euros du contrat : son fonds par défaut, ceux qui ont un solde et ceux qui ont des taux saisis. Chaque carte montre :
+### Les mouvements
 
-- l'étiquette « support par défaut » s'il l'est ;
-- le **solde** du fonds dans ce contrat ;
-- les **intérêts reçus** ;
-- le **taux moyen servi**, à côté de l'hypothèse de rendement du plan ;
-- le tableau des **taux servis** (année, taux net, intérêts saisis cette année-là), et un formulaire pour en ajouter.
-
-S'il n'y a aucun fonds euros, un message explique que l'argent hors unités de compte reste en espèces.
-
-**Mouvements.** Les 15 dernières opérations du contrat.
+Les 20 dernières opérations de vos contrats, repris du Journal.
 
 ## Comment faire
 
@@ -86,12 +72,12 @@ Cliquez sur **Arbitrage**. Indiquez le support cédé, le support reçu, la quan
 ### Contrôler le calcul avec le relevé de l'assureur
 
 1. Relevez la valeur du contrat sur le site de l'assureur.
-2. Dans **Contrôle avec le relevé**, saisissez la **valeur relevée** et sa **date**, puis **Enregistrer le relevé**.
+2. Ouvrez la page du contrat (cliquez sur son nom). Dans **Contrôle avec le relevé**, saisissez la **valeur relevée** et sa **date**, puis **Enregistrer le relevé**.
 3. S'il y a un écart, ajoutez dans le Journal une **Correction** du montant de l'écart, datée du relevé.
 
 ### Saisir les taux servis
 
-Sur la carte du fonds, indiquez l'**année** et le **taux**, puis **Ajouter**. Une année déjà saisie est remplacée. La corbeille retire une année.
+Dépliez la ligne du fonds dans le tableau, indiquez l'**année** et le **taux**, puis **Ajouter**. Une année déjà saisie est remplacée. La corbeille retire une année.
 
 ### Noter les intérêts de l'année
 
@@ -107,17 +93,17 @@ Exemple fictif : 10 000 € versés sur le fonds, 3 000 € d'unités de compte 
 
 **Intérêts reçus.** Les intérêts notés sur ce fonds, ou sans support s'il est le fonds par défaut. Le coupon d'une obligation détenue dans le contrat n'en fait pas partie.
 
-**Taux moyen servi.** La moyenne simple des taux saisis, sans tenir compte du solde de chaque année. Ces taux sont informatifs : la projection utilise l'hypothèse de rendement du fonds euros de vos paramètres, et les intérêts réels viennent du Journal.
+**Taux moyen servi.** Pour chaque fonds, la moyenne simple des taux saisis, sans tenir compte du solde de chaque année. Le chiffre du haut de page pondère ces moyennes par le solde actuel de chaque fonds : 3 000 € à 3 % et 1 000 € à 2 % donnent 2,75 %. Ces taux sont informatifs : la projection utilise l'hypothèse de rendement du fonds euros de vos paramètres, et les intérêts réels viennent du Journal.
 
 **Contrôle avec le relevé.** Hamac recalcule la valeur du contrat à la date du relevé, pas à aujourd'hui, et la compare à la valeur relevée. Un écart de moins de 1 € est attribué aux arrondis et affiché comme concordant.
 
-**Fiscalité allégée.** Date d'ouverture + 8 ans. Sans date d'ouverture, la carte demande de la renseigner.
+**Fiscalité allégée.** Date d'ouverture + 8 ans. Sans date d'ouverture, la page du contrat demande de la renseigner.
 
 **Garantie FGAP.** Plafond de la garantie des assureurs (Paramètres › Plan, 70 000 € par défaut) − valeur du contrat. Exemple fictif : un contrat de 50 000 € laisse 20 000 € de marge.
 
 ## Limites
 
-- La marge FGAP de la carte « Contrat » porte sur ce seul contrat. Or le plafond s'applique par assureur, tous contrats confondus : pour le calcul complet, voir la carte « Protection en cas de faillite » de [Mes comptes](../comptes/guide.md).
+- La marge FGAP de la page du contrat porte sur ce seul contrat. Or le plafond s'applique par assureur, tous contrats confondus : pour le calcul complet, voir la carte « Protection en cas de faillite » de [Mes comptes](../comptes/guide.md).
 - Les frais affichés viennent de l'offre de l'établissement, pas des frais saisis sur la fiche du contrat.
 - Les taux servis ne servent à aucun calcul.
 - Seul le dernier relevé est affiché. Les relevés précédents restent enregistrés, mais ne se consultent ni ne se suppriment depuis la page.

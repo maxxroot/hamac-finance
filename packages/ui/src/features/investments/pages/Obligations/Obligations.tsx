@@ -1,4 +1,6 @@
 import { AddTransactionButton, EmptyAccount, Movements, Onboarding } from "@/features/entry";
+import { AccountStrip } from "@/shared/components/AccountStrip";
+import { Amount } from "@/shared/components/Amount";
 import { Notice } from "@/shared/components/Stat";
 import { PageHeader } from "@/shared/components/ui";
 import { cn } from "@/shared/lib/cn";
@@ -30,6 +32,28 @@ export function Obligations() {
           </EmptyAccount>
         </div>
       )}
+      <AccountStrip
+        accounts={d.accounts}
+        body={(s) => {
+          const nominal = s.positions.reduce((t, p) => t + (p.bond?.nominal ?? 0), 0);
+          return (
+            <>
+              {nominal > 0 ? (
+                <span>
+                  <Amount value={nominal} compact /> <span className="text-fg-muted">de nominal</span>
+                </span>
+              ) : (
+                <span className="text-fg-muted">aucune obligation détenue</span>
+              )}
+              {s.account.kind === "cto" && (
+                <span className="text-fg-muted">
+                  espèces <Amount value={s.cash} compact />
+                </span>
+              )}
+            </>
+          );
+        }}
+      />
       <BondStats d={d} />
       <DispenseStatus accounts={d.taxAccounts} institutions={d.institutions} params={d.params} today={d.today} />
       <BondTable d={d} />

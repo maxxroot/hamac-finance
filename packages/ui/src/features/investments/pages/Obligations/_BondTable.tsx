@@ -2,13 +2,14 @@ import { ShoppingCart, Trash2 } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router";
 import { lineKey, maturityLabel } from "@hamac/core";
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Amount } from "@/shared/components/Amount";
 import { Pct } from "@/shared/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/shared/components/table";
 import { Badge } from "@/shared/components/ui";
 import { formatDate } from "@/shared/lib/numbers";
 import { SortTh, useSortable } from "@/shared/lib/sort";
-import { useMutate } from "@/shared/lib/workspace";
+import { useMutate, useWorkspaceIndex } from "@/shared/lib/workspace";
 import { BondDetail } from "./_BondDetail";
 import type { BondData } from "./_useBondData";
 
@@ -19,10 +20,18 @@ import type { BondData } from "./_useBondData";
 export function BondTable({ d }: { d: BondData }) {
   const { isOpen, rowProps } = useExpandedRow();
   const delPlan = useMutate("bondPlans.delete");
+  const idx = useWorkspaceIndex();
+  const accountOf = (id: string | null | undefined) => (id ? idx?.accountById.get(id) : undefined);
+  const accountCell = (id: string | null | undefined) => (
+    <Td className="whitespace-nowrap">
+      <AccountLink account={accountOf(id)} />
+    </Td>
+  );
   const ladder = useSortable(
     d.held,
     {
       nom: (p) => p.asset.name,
+      compte: (p) => accountOf(p.accountId)?.name,
       echeance: (p) => p.bond!.terms.maturityDate,
       coupon: (p) => p.bond!.terms.couponRate,
       nominal: (p) => p.bond!.nominal,
@@ -36,7 +45,7 @@ export function BondTable({ d }: { d: BondData }) {
     { key: "echeance", dir: "asc" },
   );
   const age = d.ageOf;
-  const cols = age ? 11 : 10;
+  const cols = age ? 12 : 11;
   const ageCell = (content?: ReactNode) => (age ? <Td align="right">{content}</Td> : null);
 
   return (
@@ -44,6 +53,7 @@ export function BondTable({ d }: { d: BondData }) {
       <thead>
         <tr>
           <SortTh {...ladder.by("nom")}>Obligation</SortTh>
+          <SortTh {...ladder.by("compte")}>Compte</SortTh>
           <SortTh {...ladder.by("echeance")}>Échéance</SortTh>
           <SortTh {...ladder.by("coupon")} align="right">Coupon</SortTh>
           <SortTh {...ladder.by("nominal")} align="right">Nominal</SortTh>
@@ -67,6 +77,7 @@ export function BondTable({ d }: { d: BondData }) {
                   <ExpandButton open={isOpen(key)} label={p.asset.name} />
                   {p.asset.name}
                 </Td>
+                {accountCell(p.accountId)}
                 <Td className="whitespace-nowrap">
                   {maturityLabel(p.bond!.terms.maturityDate)}
                 </Td>
@@ -111,6 +122,7 @@ export function BondTable({ d }: { d: BondData }) {
               {b.label}
               {b.comment && <div className="text-xs font-normal text-fg-faint">{b.comment}</div>}
             </Td>
+            {accountCell(b.accountId)}
             <Td className="text-fg-muted">vers {b.targetYear}</Td>
             <Td />
             <Td align="right">
@@ -143,6 +155,7 @@ export function BondTable({ d }: { d: BondData }) {
           return (
             <Tr key={`m-${key}`} className="text-fg-faint">
               <Td className="line-through">{p.asset.name}</Td>
+              {accountCell(p.accountId)}
               <Td>{formatDate(p.asset.maturityDate)}</Td>
               <Td align="right">
                 <Pct value={p.asset.couponRate} digits={2} />

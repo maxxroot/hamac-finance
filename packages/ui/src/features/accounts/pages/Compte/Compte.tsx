@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router";
-import { ACCOUNT_KIND_LABELS, fiscalAnniversary, LIVRET_LABELS, type AccountState } from "@hamac/core";
+import { ACCOUNT_KIND_LABELS, fiscalAnniversary, holdsEuroFunds, LIVRET_LABELS, type AccountState } from "@hamac/core";
 import { AddTransactionButton, AdvisedPurchaseCard, EditAccountButton, Movements } from "@/features/entry";
 import { AccountEvolution } from "@/shared/components/AccountEvolution";
 import { Amount } from "@/shared/components/Amount";
@@ -8,6 +8,7 @@ import { Pct, Stat, StatGrid } from "@/shared/components/Stat";
 import { Badge, Card, CardTitle, PageHeader } from "@/shared/components/ui";
 import { formatDate } from "@/shared/lib/numbers";
 import { usePortfolio } from "@/shared/lib/portfolio";
+import { StatementCard } from "@/features/accounts/components/StatementCard";
 import { Composition } from "./_Composition";
 import { Facts } from "./_Facts";
 import { Holdings } from "./_Holdings";
@@ -73,6 +74,7 @@ export function Compte() {
       <div className="mb-5 grid gap-5 @3xl:grid-cols-3">
         <Facts s={s} />
         {isPea && <AdvisedPurchaseCard s={s} />}
+        {holdsEuroFunds(account) && <StatementCard s={s} />}
       </div>
 
       <Card className="mb-5">

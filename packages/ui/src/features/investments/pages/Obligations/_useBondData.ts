@@ -36,6 +36,8 @@ export function useBondData() {
     // Sans obligation encore, la première s'achètera dans l'un des comptes-titres ouverts.
     const ctos = bondCtos.length ? bondCtos : openCtos;
     const retraite = isRetirementPlan(params);
+    // Bandeau : les comptes qui détiennent des obligations, sinon ceux où acheter la première.
+    const shown = holders.filter((a) => !a.account.archived);
 
     const costHeld = held.reduce((s, p) => s + p.cost, 0);
     const flows = upcomingBondFlows(held, today);
@@ -59,6 +61,7 @@ export function useBondData() {
       matured,
       ctos,
       cto: ctos[0],
+      accounts: shown.length ? shown : openCtos,
       cash: ctos.reduce((s, a) => s + a.cash, 0),
       // Comptes dont les coupons subissent l'acompte de 12,8 % : hors assurance-vie et PER.
       taxAccounts: holders.filter((a) => a.account.kind !== "assurance_vie" && a.account.kind !== "per").map((a) => a.account),

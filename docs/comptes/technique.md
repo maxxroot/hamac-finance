@@ -106,7 +106,8 @@ Découpage d'un compte (`partsOf`, sur `value × share` et `cash × share`) : li
 - Composition : la colonne Type donne le type du titre (`ASSET_KIND_LABELS`, en court pour ETC et fonds).
 - Composition : `positions`, puis une ligne « Projets de crowdlending » (`Σ crowdProjects.value`) et une ligne « Espèces » (si `|cash| > 0,005`). Part du compte = valeur ÷ `AccountState.value`. Le tableau n'apparaît que s'il y a des positions ou des projets.
 - Quatrième chiffre : `fiscalAnniversary(openedOn, 5)` pour `pea`/`pea_pme`, `(openedOn, 8)` pour `assurance_vie`, `interests` pour un livret, `fees` sinon.
-- Caractéristiques : grille de `tradeFeeFor` pour `pea`, `pea_pme`, `cto`, `crypto` ; FGAP (`alerts.fgapGuarantee − value`) si `holdsEuroFunds`.
+- Caractéristiques : grille de `tradeFeeFor` pour `pea`, `pea_pme`, `cto`, `crypto` ; FGAP (`alerts.fgapGuarantee − value`) si `holdsEuroFunds` ; frais d'une assurance-vie lus dans `institution.offers.assurance_vie`.
+- Contrôle avec le relevé (`StatementCard`, `packages/ui/src/features/accounts/components/StatementCard.tsx`) si `holdsEuroFunds`.
 
 ### Création et archivage
 

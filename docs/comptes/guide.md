@@ -100,8 +100,8 @@ On y trouve :
 - **quatre chiffres** : la valeur et sa part du patrimoine ; le gain ou la perte (et le versé net) ; les espèces non investies et le versement mensuel (pour un livret, son taux et son plafond) ; selon le compte, la date de la fiscalité allégée (5 ans pour un PEA, 8 ans pour une assurance-vie), les intérêts reçus (livret) ou les frais payés ;
 - **la répartition par classe d'actifs**, quand le compte en mélange plusieurs : une barre de couleurs, puis chaque classe avec son montant et sa part ; le nom d'une classe ouvre sa page. Dans un compte, les ETF, les actions et les fonds sont des classes séparées (dans la répartition du patrimoine, ils forment ensemble la classe « Actions ») ;
 - **la composition** : une ligne par titre ou support (type de titre : ETF, action, fonds, ETC, obligation, fonds euros ; parts, PRU, investi, cours, valeur, plus-value, part du compte), puis les projets de crowdlending et les espèces, et un total. Un clic sur une ligne déplie l'évolution du titre. Un fonds euros n'a ni parts ni cours : seul son solde compte ;
-- **les caractéristiques** : ancienneté, part détenue d'un compte joint, marge sous le plafond d'un livret, clause bénéficiaire d'une assurance-vie, marge sous la garantie FGAP d'un contrat, grille de courtage et courtage payé, frais de gestion des ETF, dividendes, intérêts et plus-values réalisées ;
-- pour un PEA, **l'achat conseillé ce mois-ci** ;
+- **les caractéristiques** : ancienneté, part détenue d'un compte joint, marge sous le plafond d'un livret, clause bénéficiaire et frais d'une assurance-vie, marge sous la garantie FGAP d'un contrat, grille de courtage et courtage payé, frais de gestion des ETF, dividendes, intérêts et plus-values réalisées ;
+- pour un PEA, **l'achat conseillé ce mois-ci** ; pour un contrat d'assurance-vie ou de PER assurantiel, le **contrôle avec le relevé** de l'assureur (voir [Fonds euros](../fonds-euros/guide.md#contrôler-le-calcul-avec-le-relevé-de-lassureur)) ;
 - **l'évolution** du compte, avec une courbe par titre ;
 - **les mouvements** du compte (les 30 derniers), repris du Journal.
 

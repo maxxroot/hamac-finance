@@ -23,10 +23,21 @@ export function Facts({ s }: { s: AccountState }) {
   }
   if (account.kind === "assurance_vie") {
     rows.push(["Clause bénéficiaire", account.beneficiaryClause ? <Badge tone="positive">rédigée</Badge> : <Badge tone="accent">à rédiger</Badge>]);
+    const offer = account.institutionId ? pf.idx.institutionById.get(account.institutionId)?.offers.assurance_vie : undefined;
+    rows.push([
+      "Frais du contrat",
+      offer ? (
+        <span key="av-fees">
+          versements <Pct value={offer.entryFee} digits={2} /> · gestion <Pct value={offer.euroFee} digits={2} /> / an
+        </span>
+      ) : (
+        <span key="av-fees" className="text-fg-faint">à renseigner dans Paramètres › Établissements</span>
+      ),
+    ]);
   }
   if (holdsEuroFunds(account)) {
     const fgap = params.alerts.fgapGuarantee;
-    rows.push(["Garantie FGAP", <span key="fgap">marge de <Amount value={fgap - s.value} compact /></span>]);
+    rows.push(["Garantie FGAP", <span key="fgap">marge de <Amount value={fgap - s.value} compact /> sous {fgap.toLocaleString("fr-FR")} €</span>]);
   }
   if (account.kind === "pea" || account.kind === "pea_pme" || account.kind === "cto" || account.kind === "crypto") {
     const fees = tradeFeeFor(account, pf.idx.institutionById, params);

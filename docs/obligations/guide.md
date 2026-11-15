@@ -23,6 +23,8 @@ Si vous préparez votre retraite (format « retraite »), la page montre aussi v
 
 En haut, le bouton **Ajouter une opération** (un achat d'obligation sur votre premier compte-titres). Si vous n'avez pas de compte-titres, un encadré vous propose d'en créer un : les obligations se détiennent dans un compte-titres, ou dans une assurance-vie.
 
+**Les comptes concernés** : une carte par compte qui détient des obligations (ou par compte-titres, tant que vous n'en avez aucune), avec son nominal et, pour un compte-titres, ses espèces. Le nom du compte ouvre sa [page](../comptes/guide.md#la-page-dun-compte).
+
 **Huit chiffres**, sur deux rangées. La première dit ce que vous détenez et ce que cela rapporte :
 
 - **Nominal détenu** : le total du nominal de vos lignes, et en dessous ce qu'elles vous ont coûté.
@@ -41,7 +43,9 @@ La seconde dit ce qui arrive :
 
 **Le tableau de vos obligations**, dans cet ordre :
 
-1. les lignes **détenues**, triées par échéance : nom ; mois d'échéance ; taux du coupon ; nominal ; coût frais compris ; valeur ; plus-value ; rendement à l'échéance ; votre âge à l'échéance (format retraite seulement) ; années restantes. Cliquez sur un en-tête pour trier. Cliquez sur une ligne pour la déplier : coupon annuel brut (nominal × taux, et le nombre de détachements par an), prix d'achat pied de coupon en % du nominal, coupon couru du jour, coupons perçus (et ceux non saisis), performance cumulée, rendement net de fiscalité, puis l'évolution de la ligne ;
+Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compte.
+
+1. les lignes **détenues**, triées par échéance : nom ; compte ; mois d'échéance ; taux du coupon ; nominal ; coût frais compris ; valeur ; plus-value ; rendement à l'échéance ; votre âge à l'échéance (format retraite seulement) ; années restantes. Cliquez sur un en-tête pour trier. Cliquez sur une ligne pour la déplier : coupon annuel brut (nominal × taux, et le nombre de détachements par an), prix d'achat pied de coupon en % du nominal, coupon couru du jour, coupons perçus (et ceux non saisis), performance cumulée, rendement net de fiscalité, puis l'évolution de la ligne ;
 2. les lignes **prévues** : votre libellé, l'année visée, le nominal, votre âge cette année-là (format retraite seulement), un lien pour saisir l'achat et un bouton pour supprimer la ligne ;
 3. les lignes **échues** (barrées) : date d'échéance, coupon, la plus-value réalisée au remboursement avec les coupons perçus, et le rendement réalisé.
 
