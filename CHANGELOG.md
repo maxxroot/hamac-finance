@@ -6,6 +6,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.3.0] - 2026-11-15
+
+Chaque compte a désormais sa page, et les pages de placement montrent tous vos comptes ensemble. L'assistant tient vos comptes et prépare vos impôts, toujours après votre accord.
+
 ### Ajouté
 
 - Assistants (MCP) : l'assistant tient désormais vos comptes, toujours après votre accord. Il crée et modifie les établissements (fiscalité, protection, grilles de frais), les comptes et contrats, les titres (dont obligations et fonds euros) et leurs cours saisis, les opérations, les versements programmés, les taux des livrets et les taux servis des fonds euros. Il peut aussi supprimer, en deux temps : il annonce ce qui disparaîtra, puis supprime une fois que vous avez confirmé.
@@ -18,10 +22,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ### Modifié
 
+- **Changement incompatible pour les assistants (MCP)** : l'outil `create_asset` s'appelle désormais `save_asset` et sert aussi à modifier un titre. À faire : reconnectez votre assistant pour qu'il relise la liste des outils, et remplacez `create_asset` par `save_asset` dans vos scénarios ou instructions. L'accès « Lecture et import » d'un jeton s'appelle désormais « Lecture et écriture » : un jeton de ce type créé avant cette version permet donc maintenant à l'assistant de créer, modifier et supprimer vos données (toujours après votre accord). Si vous ne le souhaitez pas, révoquez-le dans Paramètres › Application et créez un jeton « Lecture seule ».
 - La page Fonds euros montre tous vos contrats ensemble : un seul tableau, une ligne par fonds euros et par contrat, avec son dernier taux servi ; dépliée, la ligne montre les taux servis de chaque année. La fiche du contrat (ancienneté, clause bénéficiaire, frais, garantie) et le contrôle avec le relevé de l'assureur passent sur la page du contrat, tout comme les alertes qui s'y rapportent.
 - La page Obligations indique le compte de chaque ligne et rappelle, en haut, les comptes qui détiennent des obligations.
 - La page Actions & ETF montre tous vos comptes ensemble : un seul tableau, une ligne par titre et par compte, au lieu d'un bloc par compte. Les parts cibles se comparent sur l'ensemble des comptes (un ETF détenu dans le PEA et le compte-titres est additionné). La date des 5 ans du PEA et la grille de courtage passent sur la page du compte.
-- Assistants (MCP) : l'outil `create_asset` s'appelle désormais `save_asset` et sert aussi à modifier un titre. L'accès « Lecture et import » d'un jeton s'appelle désormais « Lecture et écriture ».
 - Un compte-titres n'est plus rangé d'office du côté des obligations : la page Obligations ne reprend que les comptes qui en détiennent, et seulement les mouvements de ces obligations ; un nouveau titre saisi sur un compte-titres n'est plus une OAT par défaut.
 
 ## [0.2.0] - 2026-11-15
@@ -100,6 +104,7 @@ Première version publique : une application web auto-hébergée, avec PostgreSQ
 
 - L'application de bureau (Electron) : seule la version web est maintenue. La dernière version de bureau reste disponible au tag `derniere-version-desktop`.
 
-[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.2.0...HEAD
+[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/maxxroot/hamac-finance/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/maxxroot/hamac-finance/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maxxroot/hamac-finance/releases/tag/v0.1.0
