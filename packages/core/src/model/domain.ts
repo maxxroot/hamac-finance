@@ -78,7 +78,7 @@ export const LIVRET_LEGAL_CEILINGS: Record<LivretType, number | null> = {
  * dans « Ma répartition cible », et chaque élément peut y déroger.
  * Identifiants techniques inchangés, libellés concrets.
  */
-export const BUCKETS = ["precaution", "liquidites", "garanti", "obligations", "croissance", "immobilier", "crowdlending", "speculatif"] as const;
+export const BUCKETS = ["precaution", "liquidites", "garanti", "obligations", "croissance", "matieres_premieres", "immobilier", "crowdlending", "speculatif"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 export const BUCKET_LABELS: Record<Bucket, string> = {
   precaution: "Livrets",
@@ -86,6 +86,7 @@ export const BUCKET_LABELS: Record<Bucket, string> = {
   garanti: "Fonds euros",
   obligations: "Obligations",
   croissance: "Actions",
+  matieres_premieres: "Matières premières",
   immobilier: "Immobilier",
   crowdlending: "Crowdlending",
   speculatif: "Crypto",
@@ -107,10 +108,12 @@ const PLANNED_BUCKET: Record<AccountKind, Bucket> = {
   crypto: "speculatif",
 };
 
-export const ASSET_KINDS = ["etf", "action", "obligation", "crypto", "fonds", "scpi", "fonds_euros"] as const;
+/** ETC : titre coté adossé à une matière première (or, argent…), sans composition de titres. */
+export const ASSET_KINDS = ["etf", "etc", "action", "obligation", "crypto", "fonds", "scpi", "fonds_euros"] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 export const ASSET_KIND_LABELS: Record<AssetKind, string> = {
   etf: "ETF",
+  etc: "ETC (matières premières)",
   action: "Action",
   obligation: "Obligation",
   crypto: "Crypto",
@@ -118,8 +121,19 @@ export const ASSET_KIND_LABELS: Record<AssetKind, string> = {
   scpi: "SCPI",
   fonds_euros: "Fonds euros",
 };
+/**
+ * Le nom désigne-t-il un ETC (or, argent, métaux… physiques) ? Les émetteurs l'écrivent en toutes lettres
+ * (« iShares Physical Gold ETC », « Amundi Physical Gold »). Les ETN sur crypto, cotés à côté, n'en sont pas.
+ */
+export function looksLikeEtc(name: string | null | undefined): boolean {
+  const n = name ?? "";
+  if (/bitcoin|\bbtc\b|ether|crypto|solana/i.test(n)) return false;
+  return /\bETC\b/i.test(n) || /\bphys(ical|ique)?\b.*\b(gold|silver|platinum|palladium|precious|metals?|or|argent)\b/i.test(n);
+}
+
 export const ASSET_BUCKET: Record<AssetKind, Bucket> = {
   etf: "croissance",
+  etc: "matieres_premieres",
   action: "croissance",
   fonds: "croissance",
   obligation: "obligations",

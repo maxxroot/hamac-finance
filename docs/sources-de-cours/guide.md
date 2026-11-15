@@ -20,7 +20,7 @@ La liste des sources, numérotées. Pour chaque titre, Hamac essaie les sources 
 
 | Source | Ce qu'elle couvre |
 |---|---|
-| justETF | ETF en euros, par ISIN. Sans clé. |
+| justETF | ETF et ETC en euros, par ISIN. Sans clé. |
 | Euronext | Actions et ETF cotés en euros (Paris, Bruxelles, Lisbonne, Dublin, Milan), par ISIN. Sans clé, site public non documenté. |
 | Twelve Data | Par symbole, avec une clé. L'offre gratuite ne couvre que le marché américain. |
 | Yahoo Finance | Dernier recours, par symbole. Non officiel : l'accès peut être refusé selon le réseau. |

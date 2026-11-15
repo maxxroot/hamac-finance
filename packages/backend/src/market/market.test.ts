@@ -56,6 +56,7 @@ describe("sources de cours", () => {
 
   it("construit la chaîne de sources selon le titre", () => {
     expect(chainFor({ ...base, kind: "etf", isin: "FR0011871128" }, order, false).chain).toEqual(["justetf", "euronext"]);
+    expect(chainFor({ ...base, kind: "etc", isin: "IE00B4ND3602" }, order, false).chain).toEqual(["justetf", "euronext"]);
     expect(chainFor({ ...base, kind: "action", isin: "FR0000120073", symbol: "AI.PA" }, order, true).chain).toEqual(["euronext", "twelvedata", "yahoo"]);
     expect(chainFor({ ...base, kind: "action", symbol: "TTE.PA" }, order, false).chain).toEqual(["yahoo"]);
     expect(chainFor({ ...base, kind: "crypto", symbol: "bitcoin" }, order, false).chain).toEqual(["coingecko"]);
@@ -218,6 +219,17 @@ describe("sources de cours", () => {
     expect(candidates.map((c) => c.isin)).toEqual(["LU1681043599", "FR0000120271"]);
     expect(candidates[0]).toMatchObject({ source: "euronext", kind: "etf", name: "Amundi MSCI World Swap & Co", symbol: null, exchange: "XPAR" });
     expect(candidates[1]).toMatchObject({ kind: "action", symbol: "TTE.PA" });
+  });
+
+  it("recherche par nom : les ETC sont reconnus, les ETN sur crypto écartés", async () => {
+    const f = fakeFetcher([
+      [/searchJSON/, [euronextHit("FR0013416716", "XPAR", "AMUNDI PHYS GOLD", "GOLD", "etvs"), euronextHit("XS3438606090", "XPAR", "HANETCBTC1XPAR", "BTC1", "etvs")]],
+      [/openfigi.*search/, { data: [] }],
+    ]);
+    const { candidates } = await searchAssets(f, "physical gold");
+    expect(candidates.map((c) => [c.name, c.kind])).toEqual([["AMUNDI PHYS GOLD", "etc"]]);
+    const byIsin = await searchAssets(fakeFetcher([[/openfigi.*mapping/, [{ data: [{ name: "ISHARES PHYSICAL GOLD ETC", ticker: "IGLN", exchCode: "LN", securityType: "ETP", securityType2: "Mutual Fund" }] }]]]), "IE00B4ND3602");
+    expect(byIsin.candidates[0]).toMatchObject({ kind: "etc", isin: "IE00B4ND3602" });
   });
 
   it("recherche par nom : si Euronext tombe, le reste répond quand même", async () => {

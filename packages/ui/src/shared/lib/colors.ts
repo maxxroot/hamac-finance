@@ -11,6 +11,7 @@ export const BUCKET_COLORS: Record<Bucket, string> = {
   garanti: "var(--color-garanti)",
   obligations: "var(--color-obligations)",
   croissance: "var(--color-croissance)",
+  matieres_premieres: "var(--color-matieres-premieres)",
   immobilier: "var(--color-immobilier)",
   crowdlending: "var(--color-crowdlending)",
   speculatif: "var(--color-speculatif)",
@@ -37,7 +38,7 @@ const CHART_COLORS: Record<Theme, ChartColors> = {
   clair: {
     ink: { fg: "#1a2b23", muted: "#4f5e55", faint: "#66726a", line: "#e2d9c6", surface: "#fbf8f1", surface2: "#fffdf8" },
     primary: "#1f4a3a",
-    buckets: { precaution: "#1c69aa", liquidites: "#4a6b7a", garanti: "#189546", obligations: "#5f61b4", croissance: "#d3791f", immobilier: "#7d4f00", crowdlending: "#e06693", speculatif: "#715898" },
+    buckets: { precaution: "#1c69aa", liquidites: "#4a6b7a", garanti: "#189546", obligations: "#5f61b4", croissance: "#d3791f", matieres_premieres: "#a46800", immobilier: "#7d4f00", crowdlending: "#e06693", speculatif: "#715898" },
     polarity: { positive: "#2f7d55", negative: "#a8432f" },
     compare: ["#d3791f", "#1c69aa"],
     series: ["#189546", "#715898", "#d3791f", "#1c69aa", "#e06693"],
@@ -45,7 +46,7 @@ const CHART_COLORS: Record<Theme, ChartColors> = {
   sombre: {
     ink: { fg: "#ede6d6", muted: "#a9b3a8", faint: "#7e8c83", line: "#263b33", surface: "#142420", surface2: "#1a2d27" },
     primary: "#d0ae6a",
-    buckets: { precaution: "#0f7dc3", liquidites: "#7fa3b0", garanti: "#3f9465", obligations: "#7d83e0", croissance: "#dc750d", immobilier: "#8f6401", crowdlending: "#ce548b", speculatif: "#a171e4" },
+    buckets: { precaution: "#0f7dc3", liquidites: "#7fa3b0", garanti: "#3f9465", obligations: "#7d83e0", croissance: "#dc750d", matieres_premieres: "#e8a000", immobilier: "#8f6401", crowdlending: "#ce548b", speculatif: "#a171e4" },
     polarity: { positive: "#6cc08b", negative: "#e07a5f" },
     compare: ["#dc750d", "#0f7dc3"],
     series: ["#3f9465", "#a171e4", "#dc750d", "#0f7dc3", "#ce548b"],

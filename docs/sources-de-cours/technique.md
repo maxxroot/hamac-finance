@@ -64,7 +64,7 @@
 ## Règles
 
 - **Ordre par défaut** : `justetf`, `euronext`, `twelvedata`, `yahoo`, `coingecko`. `normalizeOrder` retire `url` et les doublons, et ajoute à la fin les fournisseurs absents de l'ordre enregistré.
-- **Couverture** (`supports`) : justETF pour `etf` et `fonds` avec ISIN ; Euronext hors crypto avec ISIN ; Twelve Data hors crypto avec symbole et clé ; Yahoo hors crypto avec symbole ; CoinGecko pour la crypto avec symbole ; `url` si `priceUrl` et `pricePath`.
+- **Couverture** (`supports`) : justETF pour `etf`, `etc` et `fonds` avec ISIN ; Euronext hors crypto avec ISIN ; Twelve Data hors crypto avec symbole et clé ; Yahoo hors crypto avec symbole ; CoinGecko pour la crypto avec symbole ; `url` si `priceUrl` et `pricePath`.
 - **Chaîne d'un titre** (`chainFor`) : vide pour un cours manuel ou calculé, une obligation, une SCPI sans `url`. Un `priceProvider` imposé donne une chaîne d'un seul élément. Sinon : `url` en tête si l'adresse est renseignée, puis les sources actives de l'ordre qui couvrent le titre. La raison d'une chaîne vide est renvoyée et affichée.
 - **Identité commune** (`instrumentKey`) : `kind|ISIN|SYMBOLE|priceProvider`, ou `null` pour un titre hors base commune (non automatique, adresse personnalisée, `priceProvider = url`, obligation, SCPI, ni ISIN ni symbole).
 - **Actualisation commune** (`SharedMarket.refresh`) : dédoublonne par clé, partage les téléchargements en cours (`inFlight`), saute un titre vérifié depuis moins de 10 minutes (`COOLDOWN_MS`). Premier chargement : 24 mois d'historique ; ensuite, depuis le dernier cours connu moins 3 jours. Écrit le compteur Twelve Data dans `marche.config` à la fin.

@@ -4,13 +4,14 @@
 
 ## À quoi sert cette page
 
-La page **Actions & ETF** (menu Placements) montre les actions, les ETF et les fonds que vous détenez, compte par compte : combien de parts, combien vous les avez payées, ce qu'elles valent aujourd'hui et ce que vous avez gagné ou perdu. Pour le PEA, elle propose aussi le montant à investir ce mois-ci et sa répartition entre vos titres.
+La page **Actions & ETF** (menu Placements) montre les actions, les ETF, les fonds et les ETC que vous détenez, compte par compte : combien de parts, combien vous les avez payées, ce qu'elles valent aujourd'hui et ce que vous avez gagné ou perdu. Pour le PEA, elle propose aussi le montant à investir ce mois-ci et sa répartition entre vos titres.
 
 Rien ne se saisit directement sur cette page, sauf un cours à la main. Les positions sont recalculées à partir du **Journal** : chaque achat, vente, dividende ou versement que vous y notez met la page à jour.
 
 Quelques mots utilisés sur la page :
 
 - **ETF** : un fonds coté en bourse qui suit un indice (par exemple les 500 plus grandes entreprises américaines). On l'achète et on le vend comme une action.
+- **ETC** : un titre coté adossé à une matière première, le plus souvent de l'or ou de l'argent physique stocké en coffre. Il ne contient pas d'actions : il compte dans la classe **Matières premières**, pas dans les Actions.
 - **PRU** (prix de revient unitaire) : ce qu'une part vous a coûté en moyenne, frais d'achat compris.
 - **Cours** : le prix d'une part sur le marché, à la dernière date connue.
 - **Plus-value** : ce que vaut la position moins ce qu'elle vous a coûté. Elle est « latente » tant que vous n'avez pas vendu.

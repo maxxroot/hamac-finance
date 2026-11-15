@@ -326,7 +326,7 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
         }
       }
       others.push({ key: line.key, start: value, rate: line.expectedReturn!, contribution: () => 0 });
-    } else if (line.key === "immobilier" || line.key === "crowdlending" || line.key === "speculatif") {
+    } else if (line.key === "matieres_premieres" || line.key === "immobilier" || line.key === "crowdlending" || line.key === "speculatif") {
       const kind: AccountKind | null = line.key === "crowdlending" ? "crowdlending" : line.key === "speculatif" ? "crypto" : null;
       if (kind) projectedKinds.add(kind);
       others.push({ key: line.key, start: startOf(line.key), rate: line.expectedReturn!, contribution: (year) => (kind ? data.accounts.filter((a) => a.kind === kind).reduce((s, a) => s + schedule.inYear(a.id, year), 0) : 0) });

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import {
   ALLOWED_ASSETS,
   ASSET_KIND_LABELS,
+  looksLikeEtc,
   Schedule,
   TX_LABELS,
   buildImport,
@@ -133,8 +134,9 @@ export function StatementImportDialog({ open, onClose }: { open: boolean; onClos
   const unknown = [...new Map(proposals.filter((p) => p.unknownAsset).map((p) => [p.unknownAsset!.key, p.unknownAsset!])).values()];
   const account = idx?.accountById.get(accountId);
   const creatableKinds: AssetKind[] = account ? ALLOWED_ASSETS[account.kind].filter((k) => k !== "obligation") : [];
-  // Le type lu dans le fichier (colonne de classe d'actifs) est proposé d'office ; une obligation se crée avec ses caractéristiques, pas ici.
-  const kindFor = (u: (typeof unknown)[number]): AssetKind => newKinds.get(u.key) ?? (u.kind && creatableKinds.includes(u.kind) ? u.kind : (creatableKinds[0] ?? "etf"));
+  // Le type lu dans le fichier (colonne de classe d'actifs) est proposé d'office, sinon ETC si le nom le dit ; une obligation se crée avec ses caractéristiques, pas ici.
+  const kindFor = (u: (typeof unknown)[number]): AssetKind =>
+    newKinds.get(u.key) ?? (u.kind && creatableKinds.includes(u.kind) ? u.kind : looksLikeEtc(u.name) && creatableKinds.includes("etc") ? "etc" : (creatableKinds[0] ?? "etf"));
 
   const close = () => {
     setFile(null);

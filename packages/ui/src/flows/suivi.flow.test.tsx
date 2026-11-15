@@ -1712,7 +1712,7 @@ describe("projets", () => {
     const card = (name: string) => screen.getByText(name).closest("div.rounded-2xl") as HTMLElement;
     expect(within(card("Atteint fictif")).getByText("Atteint")).toBeTruthy();
     expect(within(card("Atteint fictif")).queryByText(/À mettre de côté/)).toBeNull();
-    expect(within(card("Échéance proche fictive")).getByText(/Échéance dans \d+ mois avec \d+ % en actions ou en crypto/)).toBeTruthy();
+    expect(within(card("Échéance proche fictive")).getByText(/Échéance dans \d+ mois avec \d+ % en actions, matières premières ou crypto/)).toBeTruthy();
     expect(within(card("Date passée fictive")).getByText("Date passée")).toBeTruthy();
     expect(within(card("Date passée fictive")).getByText(/Il manque : la date est passée\./)).toBeTruthy();
     expect(within(card("Date passée fictive")).getByText("Retard fictif")).toBeTruthy();

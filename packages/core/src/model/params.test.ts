@@ -86,6 +86,15 @@ describe("paramètres", () => {
     expect(normalizeParams(n, new Date(2026, 10, 7)).targets).toEqual(n.targets);
   });
 
+  it("ligne Matières premières ajoutée, hors allocation, aux répartitions enregistrées avant elle", () => {
+    const stored = { targets: defaultParams(new Date(2026, 10, 15)).targets.filter((l) => l.key !== "matieres_premieres" && l.key !== "liquidites") };
+    const n = normalizeParams(stored, new Date(2026, 10, 15));
+    expect(n.targets.find((l) => l.key === "matieres_premieres")).toEqual({ key: "matieres_premieres", inAllocation: false, target: 0, expectedReturn: null });
+    expect(n.targets.filter((l) => l.key === "matieres_premieres")).toHaveLength(1);
+    expect(n.targets.filter((l) => l.key === "liquidites")).toHaveLength(1);
+    expect(normalizeParams(n, new Date(2026, 10, 15)).targets).toEqual(n.targets);
+  });
+
   it("modules : tous affichés par défaut, y compris depuis d'anciens paramètres", () => {
     const n = normalizeParams({ modules: { crypto: false } }, new Date(2026, 10, 7));
     expect(n.modules.crypto).toBe(false);

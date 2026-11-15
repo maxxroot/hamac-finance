@@ -14,6 +14,9 @@ import { usePortfolio } from "@/shared/lib/portfolio";
 
 const PRICE_LABEL = { marche: "marché", manuel: "manuel", modele: "calculé", cout: "prix de revient" } as const;
 
+/** Lignes de cette page : actions, ETF et fonds, et les ETC (matières premières) détenus dans les mêmes comptes. */
+const listed = (p: PositionState) => p.bucket === "croissance" || p.bucket === "matieres_premieres";
+
 export function Actions() {
   const pf = usePortfolio();
   const [pricing, setPricing] = useState<Asset | null>(null);
@@ -23,9 +26,9 @@ export function Actions() {
   const active = pf.state.accounts.filter((a) => !a.account.archived);
   const pea = active.filter((a) => a.account.kind === "pea" || a.account.kind === "pea_pme");
   const ctos = active.filter((a) => a.account.kind === "cto");
-  const others = active.filter((a) => (a.account.kind === "assurance_vie" || a.account.kind === "per" || a.account.kind === "epargne_salariale") && a.positions.some((p) => p.bucket === "croissance"));
-  const accounts = [...pea, ...ctos.filter((c) => c.positions.some((p) => p.bucket === "croissance")), ...others];
-  const emptyCtos = ctos.filter((c) => !c.positions.some((p) => p.bucket === "croissance"));
+  const others = active.filter((a) => (a.account.kind === "assurance_vie" || a.account.kind === "per" || a.account.kind === "epargne_salariale") && a.positions.some(listed));
+  const accounts = [...pea, ...ctos.filter((c) => c.positions.some(listed)), ...others];
+  const emptyCtos = ctos.filter((c) => !c.positions.some(listed));
   const target = accounts[0] ?? emptyCtos[0];
   return (
     <>
@@ -35,7 +38,7 @@ export function Actions() {
         actions={
           <>
             <AddAccountButton kind="cto" label="Ajouter un compte-titres" variant="ghost" />
-            {target && <AddTransactionButton accountId={target.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} />}
+            {target && <AddTransactionButton accountId={target.account.id} type="achat" assetKinds={["etf", "etc", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} />}
           </>
         }
       />
@@ -65,7 +68,7 @@ export function Actions() {
                 <span className="text-fg-muted">
                   espèces <Amount value={c.cash} compact />
                 </span>
-                <AddTransactionButton accountId={c.account.id} type="achat" assetKinds={["etf", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} label="Acheter des actions ou ETF" variant="secondary" />
+                <AddTransactionButton accountId={c.account.id} type="achat" assetKinds={["etf", "etc", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} label="Acheter des actions ou ETF" variant="secondary" />
               </div>
             </Card>
           ))}
@@ -81,7 +84,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
   const { isOpen, rowProps } = useExpandedRow();
   const pf = usePortfolio()!;
   const { params } = pf.data;
-  const equities = s.positions.filter((p) => p.bucket === "croissance");
+  const equities = s.positions.filter(listed);
   const equityValue = equities.reduce((t, p) => t + p.value, 0);
   const posShare = (p: PositionState) => (equityValue > 0 ? p.value / equityValue : 0);
   const { sorted, by } = useSortable(equities, {
@@ -100,7 +103,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
   const isPea = s.account.kind === "pea" || s.account.kind === "pea_pme";
   const five = isPea ? fiscalAnniversary(s.account.openedOn, 5) : null;
   const advised = isPea ? advisedMonthlyPurchase(s.cash, s.account.monthsToInvest, monthsElapsed(params, pf.today)) : 0;
-  const targets = pf.idx.activeAssets.filter((a) => a.targetWeight && (a.kind === "etf" || a.kind === "action" || a.kind === "fonds"));
+  const targets = pf.idx.activeAssets.filter((a) => a.targetWeight && (a.kind === "etf" || a.kind === "etc" || a.kind === "action" || a.kind === "fonds"));
   const split = splitByTarget(
     advised,
     targets.map((a) => ({ assetId: a.id, value: equities.find((p) => p.asset.id === a.id)?.value ?? 0, target: a.targetWeight ?? 0 })),
@@ -270,7 +273,7 @@ function Envelope({ s, onPrice }: { s: AccountState; onPrice: (a: Asset) => void
           </div>
         </Card>
       </div>
-      <Movements accountIds={[s.account.id]} limit={15} type="achat" assetKinds={isPea ? undefined : ["etf", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} title={s.account.kind === "pea" ? "Mouvements" : "Mouvements (actions, ETF et espèces)"} />
+      <Movements accountIds={[s.account.id]} limit={15} type="achat" assetKinds={isPea ? undefined : ["etf", "etc", "action", "fonds"]} accountKinds={["pea", "pea_pme", "cto", "assurance_vie", "per", "epargne_salariale"]} title={s.account.kind === "pea" ? "Mouvements" : "Mouvements (actions, ETF et espèces)"} />
     </section>
   );
 }

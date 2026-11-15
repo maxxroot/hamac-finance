@@ -42,7 +42,7 @@ export function supports(p: PriceProvider, asset: MarketAsset, hasTwelveDataKey:
   const crypto = asset.kind === "crypto";
   switch (p) {
     case "justetf":
-      return (asset.kind === "etf" || asset.kind === "fonds") && !!asset.isin;
+      return (asset.kind === "etf" || asset.kind === "etc" || asset.kind === "fonds") && !!asset.isin;
     case "euronext":
       return !crypto && !!asset.isin;
     case "twelvedata":

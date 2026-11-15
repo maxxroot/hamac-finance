@@ -48,7 +48,7 @@ export function registerAssetTools(tool: ToolRegistrar, call: Call, canWrite: bo
       description: `Sans id : ajoute un titre absent de list_assets (kind et name requis) ; si l'ISIN est déjà connu, renvoie le titre existant sans rien créer. Les cours sont récupérés automatiquement, sauf pour une SCPI ou une action sans symbole (cours saisi avec set_price). Une obligation demande couponRate et maturityDate ; un fonds euros n'a pas de cours (une part vaut 1 €). Avec id : modifie seulement les champs donnés ; archived: true le retire des listes sans toucher aux opérations. ${AFTER_CONSENT}`,
       inputSchema: {
         id: z.string().optional().describe("Identifiant de list_assets, pour une modification."),
-        kind: z.enum(ASSET_KINDS).optional(),
+        kind: z.enum(ASSET_KINDS).optional().describe("etc : or, argent ou autre matière première physique cotée (classe Matières premières), à ne pas saisir en etf."),
         name: z.string().trim().min(1).max(120).optional(),
         isin: isin.nullable().optional(),
         symbol: z.string().trim().max(40).nullable().optional().describe("Symbole de cotation, si connu (ex. CW8 pour un ETF, BTC pour une crypto)."),

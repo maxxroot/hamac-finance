@@ -6,6 +6,8 @@
 
 Un ETF contient souvent des centaines, voire des milliers d'actions. La page Exposition réelle regarde à l'intérieur de vos ETF et de vos actions pour montrer où votre argent est vraiment placé : dans quels pays, quels secteurs, quelles devises, et quelles sont les plus grosses lignes, tous titres confondus.
 
+Les ETC (or, argent… physiques) n'y figurent pas : ils ne détiennent que du métal, sans pays, secteur ni composition à télécharger. Ils comptent dans la classe Matières premières de votre répartition.
+
 Elle s'appuie sur la composition que l'émetteur publie pour chaque ETF. Hamac sait la récupérer chez deux émetteurs : **Amundi** et **iShares**.
 
 La page est la même en plan de retraite et en gestion de patrimoine. Elle fait partie du module « Actions & ETF » : si ce module est retiré du menu (Paramètres › Plan › Modules), la page l'est aussi.

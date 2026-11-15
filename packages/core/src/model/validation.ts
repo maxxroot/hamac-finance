@@ -11,11 +11,11 @@ export const EURO_FUND_TYPES: readonly TxType[] = ["apport_initial", "versement"
 /** Titres qu'on peut détenir dans chaque type de compte. */
 export const ALLOWED_ASSETS: Record<AccountKind, readonly AssetKind[]> = {
   livret: [],
-  assurance_vie: ["fonds_euros", "etf", "fonds", "obligation", "scpi"],
+  assurance_vie: ["fonds_euros", "etf", "etc", "fonds", "obligation", "scpi"],
   pea: ["etf", "action", "fonds"],
   pea_pme: ["etf", "action", "fonds"],
-  cto: ["etf", "action", "obligation", "fonds", "scpi"],
-  per: ["fonds_euros", "etf", "action", "obligation", "fonds", "scpi"],
+  cto: ["etf", "etc", "action", "obligation", "fonds", "scpi"],
+  per: ["fonds_euros", "etf", "etc", "action", "obligation", "fonds", "scpi"],
   epargne_salariale: ["etf", "fonds"],
   crowdlending: [],
   crypto: ["crypto"],

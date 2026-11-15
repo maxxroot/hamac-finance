@@ -12,6 +12,7 @@ export const LEXIQUE: ReadonlyArray<readonly [string, string]> = [
   ["Crowdlending", "Un prêt à des entreprises ou à des projets via une plateforme, en échange d'intérêts, avec un risque de perdre le capital."],
   ["Enveloppe", "Le cadre fiscal qui contient vos placements : livret réglementé, assurance-vie, PEA, compte-titres, PER, épargne salariale. La crypto et le crowdlending n'en sont pas : ce sont des placements détenus en direct."],
   ["Espèces", "L'argent arrivé sur un compte mais pas encore investi. Dans la répartition, il compte en Liquidités (sauf sur un livret)."],
+  ["ETC", "Un titre coté adossé à une matière première, le plus souvent de l'or ou de l'argent physique stocké en coffre. Il compte dans la classe Matières premières, pas dans les actions."],
   ["ETF", "Un fonds coté en bourse qui suit un indice, par exemple les grandes entreprises mondiales. Une part d'ETF revient à détenir un peu de chacune."],
   ["Fonds euros", "Un support d'assurance-vie ou de PER dont le capital est garanti par l'assureur, avec un taux annoncé chaque année. Ce n'est pas une enveloppe : c'est un placement dans un contrat."],
   ["Gain", "La valeur actuelle moins le versé net."],

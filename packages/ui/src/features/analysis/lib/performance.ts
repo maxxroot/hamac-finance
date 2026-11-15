@@ -59,13 +59,13 @@ export const assetKey = (assetId: string) => `asset:${assetId}`;
 
 /** Titre recherché pour une comparaison : il n'est pas ajouté au portefeuille. */
 export interface Reference {
-  kind: "etf" | "action" | "fonds" | "crypto";
+  kind: "etf" | "etc" | "action" | "fonds" | "crypto";
   name: string;
   isin: string | null;
   symbol: string | null;
 }
 
-export const REFERENCE_KINDS: readonly AssetKind[] = ["etf", "action", "fonds", "crypto"];
+export const REFERENCE_KINDS: readonly AssetKind[] = ["etf", "etc", "action", "fonds", "crypto"];
 const MAX_REFERENCES = 8;
 
 export const referenceKey = (r: Pick<Reference, "kind" | "isin" | "symbol">) => `ref:${r.kind}|${r.isin ?? ""}|${r.symbol ?? ""}`;

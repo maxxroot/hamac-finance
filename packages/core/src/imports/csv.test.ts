@@ -39,5 +39,6 @@ describe("CSV", () => {
 
   it("devine le type de titre d'après la classe indiquée par le relevé", () => {
     expect(["STOCK", "ETF", "BOND", "FUND", "CRYPTO", "Action", "Obligation", "OPCVM", "", "DERIVATIVE"].map(guessAssetKind)).toEqual(["action", "etf", "obligation", "fonds", "crypto", "action", "obligation", "fonds", null, null]);
+    expect(["ETC", "Commodity", "Matières premières"].map(guessAssetKind)).toEqual(["etc", "etc", "etc"]);
   });
 });

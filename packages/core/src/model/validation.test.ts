@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
-import type { Account, Asset } from "./domain";
-import { uniqueAccountConflict, validateTransaction } from "./validation";
+import { ASSET_BUCKET, looksLikeEtc, type Account, type Asset } from "./domain";
+import { ALLOWED_ASSETS, uniqueAccountConflict, validateTransaction } from "./validation";
+
+describe("ETC (matières premières)", () => {
+  it("se reconnaît au nom, sans prendre un ETN sur crypto ni un ETF pour un ETC", () => {
+    expect(["iShares Physical Gold ETC", "ISHARES PHYSICAL SILVER ETC", "AMUNDI PHYS GOLD", "Xtrackers Physical Gold EUR Hedged", "WisdomTree Physical Precious Metals"].map(looksLikeEtc)).toEqual([true, true, true, true, true]);
+    expect(["iShares Core S&P 500 UCITS ETF", "21Shares Bitcoin ETP", "CoinShares Physical Bitcoin", "Amundi MSCI World", null].map(looksLikeEtc)).toEqual([false, false, false, false, false]);
+  });
+
+  it("compte en Matières premières et ne se détient pas dans un PEA", () => {
+    expect(ASSET_BUCKET.etc).toBe("matieres_premieres");
+    expect(ALLOWED_ASSETS.cto).toContain("etc");
+    expect(ALLOWED_ASSETS.pea).not.toContain("etc");
+    expect(ALLOWED_ASSETS.pea_pme).not.toContain("etc");
+  });
+});
 
 const acc = (id: string, kind: Account["kind"]): Account => ({
   id, kind, livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "",

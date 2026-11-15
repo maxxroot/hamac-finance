@@ -47,7 +47,8 @@ export interface EuronextHit {
   mic: string;
 }
 
-const KIND_BY_SECTION: Record<string, AssetKind> = { etfs: "etf", equities: "action", funds: "fonds" };
+/** « etvs » : ETC et ETN. Les ETN sur crypto, rangés au même endroit, sont écartés : ce ne sont pas des matières premières. */
+const KIND_BY_SECTION: Record<string, AssetKind> = { etfs: "etf", etvs: "etc", equities: "action", funds: "fonds" };
 
 const decodeHtml = (s: string) => s.replace(/&amp;/g, "&").replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').trim();
 
@@ -60,6 +61,7 @@ export async function euronextSearch(fetcher: Fetcher, query: string): Promise<E
     const kind = KIND_BY_SECTION[/\/product\/([a-z-]+)\//.exec(r.link ?? "")?.[1] ?? ""];
     const name = /<a [^>]*>([^<]+)<\/a>/.exec(r.label ?? "")?.[1];
     if (!kind || !name || !r.isin || !r.mic || !/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(r.isin)) continue;
+    if (kind === "etc" && /btc|bitcoin|ether|crypto|solana/i.test(name)) continue;
     const known = byIsin.get(r.isin);
     if (known && rank(known.mic) <= rank(r.mic)) continue;
     byIsin.set(r.isin, { isin: r.isin, name: decodeHtml(name), kind, ticker: /<span class='symbol'>([^<]+)/.exec(r.label ?? "")?.[1]?.trim() ?? null, mic: r.mic });

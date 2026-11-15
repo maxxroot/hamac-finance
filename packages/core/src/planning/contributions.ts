@@ -29,7 +29,7 @@ export interface ContributionProposal {
 }
 
 /** Compte qui reçoit chaque classe d'actifs de l'allocation de base. */
-const BUCKET_ACCOUNTS: Partial<Record<Bucket, AccountKind[]>> = { precaution: ["livret"], garanti: ["assurance_vie"], obligations: ["cto"], croissance: ["pea", "pea_pme"], crowdlending: ["crowdlending"], speculatif: ["crypto"] };
+const BUCKET_ACCOUNTS: Partial<Record<Bucket, AccountKind[]>> = { precaution: ["livret"], garanti: ["assurance_vie"], obligations: ["cto"], croissance: ["pea", "pea_pme"], matieres_premieres: ["cto"], crowdlending: ["crowdlending"], speculatif: ["crypto"] };
 
 const pctLabel = (v: number) => `${(Math.round(v * 1000) / 10).toLocaleString("fr-FR")} %`;
 const eurLabel = (v: number) => `${Math.round(v).toLocaleString("fr-FR")} €`;
@@ -107,9 +107,10 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
   if (rest > 0) {
     const enabled = (key: string) => classEnabled(params, key);
     const membersOf = (r: PortfolioState["allocation"]["rows"][number]) => {
-      // Comptes qui détiennent déjà des titres de la classe (classe créée, SCPI), sinon comptes de ce type inclus dans l'allocation :
+      // Comptes qui détiennent déjà des titres de la classe (classe créée, SCPI, ETC), sinon comptes de ce type inclus dans l'allocation :
       // le choix du compte, sinon celui de la classe visée (ses espèces, des liquidités, peuvent en être exclues).
-      const holders = accounts.filter((a) => a.positions.some((p) => p.inAllocation && (p.classId === r.key || (r.key === "immobilier" && p.bucket === "immobilier"))));
+      const held = r.key === "immobilier" || r.key === "matieres_premieres";
+      const holders = accounts.filter((a) => a.positions.some((p) => p.inAllocation && (p.classId === r.key || (held && p.bucket === r.key))));
       if (holders.length) return holders;
       return r.bucket ? accounts.filter((a) => BUCKET_ACCOUNTS[r.bucket!]?.includes(a.account.kind) && (a.account.inAllocation ?? enabled(r.bucket!))) : [];
     };

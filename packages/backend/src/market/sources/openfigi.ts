@@ -1,4 +1,4 @@
-import type { AssetKind } from "@hamac/core";
+import { looksLikeEtc, type AssetKind } from "@hamac/core";
 import { type Fetcher, getJson } from "../http";
 import { YAHOO_SUFFIX } from "./yahoo";
 
@@ -46,6 +46,7 @@ function kindOf(r: FigiRecord): AssetKind | null {
   const t2 = r.securityType2 ?? "";
   const t = r.securityType ?? "";
   if (r.marketSector === "Govt" || r.marketSector === "Corp" || t2 === "Govt" || t2 === "Corp") return "obligation";
+  if (t === "ETP" && looksLikeEtc(r.name)) return "etc";
   if (t === "ETP" || /ETF/i.test(r.name ?? "")) return "etf";
   if (t2 === "Mutual Fund") return "fonds";
   if (t2 === "Common Stock" || t2 === "Depositary Receipt" || t2 === "Preference") return "action";

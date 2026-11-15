@@ -162,6 +162,19 @@ describe("Actions & ETF", () => {
     expect(prix).toMatchObject([{ price: 12, date: todayIso() }]);
   });
 
+  it("compte-titres qui ne détient qu'un ETC : affiché avec ses positions, pas parmi les comptes sans titres", async () => {
+    const cto = await compte("cto", "Mon CTO");
+    const or = await titre("etc", "iShares Physical Gold ETC", { isin: "IE00B4ND3602" });
+    await operation("2025-01-05", "apport_initial", cto.id, 1000);
+    await operation("2025-01-06", "achat", cto.id, 600, { assetId: or.id, quantity: 10 });
+    await cours(or.id, 68);
+    show(<Actions />);
+
+    expect(await screen.findByRole("heading", { name: /Mon CTO/ })).toBeTruthy();
+    expect(texte(ligne("iShares Physical Gold ETC"))).toContain("IE00B4ND3602");
+    expect(screen.queryByText("Comptes-titres sans actions ni ETF")).toBeNull();
+  });
+
   it("le tri des colonnes réordonne les lignes, et un clic sur la ligne déplie l'évolution du titre", async () => {
     const user = userEvent.setup();
     const pea = await compte("pea", "Mon PEA");
@@ -734,7 +747,7 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
 
   it("compte-titres : mêmes choix que les autres comptes, sans obligation proposée d'office", () => {
     expect(choicesFor("cto")[0]).toMatchObject({ kind: "etf" });
-    expect(choicesFor("cto").map((c) => c.label)).toEqual(["ETF", "Action", "OAT (État)", "Obligation d'entreprise", "Fonds / OPCVM", "SCPI"]);
+    expect(choicesFor("cto").map((c) => c.label)).toEqual(["ETF", "ETC (matières premières)", "Action", "OAT (État)", "Obligation d'entreprise", "Fonds / OPCVM", "SCPI"]);
     expect(choicesFor("cto", ["obligation"])[0]).toMatchObject({ kind: "obligation", bondKind: "etat" });
   });
 

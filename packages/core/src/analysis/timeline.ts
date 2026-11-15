@@ -334,7 +334,7 @@ export function monthByMonth(data: EngineData, history: readonly HistoryPoint[],
 
 /**
  * Rendement annuel attendu de chaque classe, d'après les réglages de la projection : les quatre lignes de base,
- * puis le rendement saisi sur la ligne de la répartition cible pour l'immobilier, le crowdlending et la crypto.
+ * puis le rendement saisi sur la ligne de la répartition cible pour les matières premières, l'immobilier, le crowdlending et la crypto.
  * Les liquidités, argent en attente, ne rapportent rien. null : aucun rendement attendu, la classe est supposée ne rien rapporter.
  */
 export function expectedRates(params: EngineData["params"]): Record<Bucket, number | null> {
@@ -345,6 +345,7 @@ export function expectedRates(params: EngineData["params"]): Record<Bucket, numb
     garanti: params.returns.fondsEuros,
     obligations: params.returns.obligations,
     croissance: params.returns.actions,
+    matieres_premieres: line("matieres_premieres"),
     immobilier: line("immobilier"),
     crowdlending: line("crowdlending"),
     speculatif: line("speculatif"),

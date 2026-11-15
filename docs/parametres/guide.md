@@ -33,7 +33,7 @@ La page a sept onglets, dans cet ordre : Plan, Répartition, Établissements, Co
 
 ### Répartition
 
-- **Ma répartition cible** : un tableau avec une ligne par classe que vous détenez (Livrets, Liquidités, Fonds euros, Obligations, Actions, Immobilier, Crowdlending, Crypto), plus les classes que vous avez créées. Liquidités regroupe l'argent pas encore investi de vos comptes (hors livrets) : hors allocation par défaut, sans rendement à saisir. Pour chaque ligne :
+- **Ma répartition cible** : un tableau avec une ligne par classe que vous détenez (Livrets, Liquidités, Fonds euros, Obligations, Actions, Matières premières, Immobilier, Crowdlending, Crypto), plus les classes que vous avez créées. Liquidités regroupe l'argent pas encore investi de vos comptes (hors livrets) : hors allocation par défaut, sans rendement à saisir. Pour chaque ligne :
   - « Inclus » : la classe compte dans l'allocation ou non ;
   - la cible, en pourcentage ;
   - le rendement attendu, facultatif. Pour les livrets, la moyenne actuelle de vos livrets s'affiche comme repère.

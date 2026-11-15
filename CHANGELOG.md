@@ -13,6 +13,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 - L'interface se met à jour seule quand des données changent ailleurs (assistant, autre onglet) : quand vous revenez sur l'onglet, puis toutes les 20 secondes tant qu'il est affiché.
 - Nouvelle classe d'actifs « Liquidités » : l'argent pas encore investi d'un compte (PEA, compte-titres, plateforme…) y compte, au lieu de la classe du compte. Elle est hors de l'allocation cible par défaut, et la projection range cet argent là où le plan place celui du compte.
 - Import de relevés CSV : le nom et le type du titre (action, ETF, fonds…) sont lus dans le fichier, et le relevé Trade Republic est reconnu sans réglage (quantité, ISIN, type d'opération).
+- Nouveau type de titre « ETC (matières premières) », pour l'or, l'argent et les autres métaux physiques cotés, et nouvelle classe d'actifs « Matières premières » qui les regroupe (hors allocation cible par défaut). Un ETC se détient en compte-titres, assurance-vie ou PER, pas en PEA ; son cours vient de justETF par l'ISIN, et Hamac ne cherche plus de composition pour lui. La recherche de titres et l'import de relevés reconnaissent les ETC. Un ETC déjà saisi comme ETF se corrige en changeant son type dans sa fiche.
 
 ### Modifié
 

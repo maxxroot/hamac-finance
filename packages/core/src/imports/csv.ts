@@ -96,6 +96,7 @@ export function guessType(label: string, amount: number): TxType {
 /** Type de titre d'après la classe indiquée par un relevé (« STOCK », « ETF », « Obligation »…) ; null si elle ne dit rien. */
 export function guessAssetKind(hint: string): AssetKind | null {
   const h = hint.toLowerCase();
+  if (/\betc\b|commodit|mati[èe]res? premi[èe]res/.test(h)) return "etc";
   if (/\betf|\betp\b|tracker/.test(h)) return "etf";
   if (/bond|obligation|\boat\b/.test(h)) return "obligation";
   if (/crypto/.test(h)) return "crypto";

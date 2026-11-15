@@ -68,6 +68,7 @@
   --color-garanti: #189546;
   --color-obligations: #5f61b4;
   --color-croissance: #d3791f;
+  --color-matieres-premieres: #a46800;
   --color-immobilier: #7d4f00;
   --color-crowdlending: #e06693;
   --color-speculatif: #715898;
@@ -108,6 +109,7 @@
     --color-garanti: #3f9465;
     --color-obligations: #7d83e0;
     --color-croissance: #dc750d;
+    --color-matieres-premieres: #e8a000;
     --color-immobilier: #8f6401;
     --color-crowdlending: #ce548b;
     --color-speculatif: #a171e4;
@@ -144,6 +146,7 @@
       --color-garanti: #3f9465;
       --color-obligations: #7d83e0;
       --color-croissance: #dc750d;
+      --color-matieres-premieres: #e8a000;
       --color-immobilier: #8f6401;
       --color-crowdlending: #ce548b;
       --color-speculatif: #a171e4;

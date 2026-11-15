@@ -27,7 +27,7 @@ Les projets en cours apparaissent aussi sur le tableau de bord, dans la carte «
    - la somme réunie sur la somme visée, le pourcentage et une barre d'avancement ;
    - « À mettre de côté : … par mois », avec le rendement supposé, ou « Il manque … : la date est passée » ;
    - la liste des comptes qui financent le projet, avec leur part (« 50 % du compte » ou « 3 000 € réservés ») et ce qu'ils apportent aujourd'hui ;
-   - un avertissement si la date approche alors que l'argent est surtout en actions ou en crypto ;
+   - un avertissement si la date approche alors que l'argent est surtout en actions, matières premières ou crypto ;
    - votre commentaire.
 
    Sans projet, la page affiche « Aucun projet. Ajoutez ce que vous voulez financer, avec sa somme et sa date. »
@@ -79,7 +79,7 @@ Exemple : 50 % d'un livret de 10 000 € et 3 000 € réservés sur un PEA de 2
 
 **Somme à mettre de côté chaque mois (résumé).** L'addition des montants mensuels de tous les projets en cours.
 
-**Avertissement de risque.** Il apparaît quand la date visée est dans 36 mois ou moins et que plus de 30 % de l'argent du projet est en actions ou en crypto. Cette part se calcule selon le contenu de chaque compte affecté. Une baisse des marchés juste avant la date ferait manquer la somme.
+**Avertissement de risque.** Il apparaît quand la date visée est dans 36 mois ou moins et que plus de 30 % de l'argent du projet est en actions, matières premières ou crypto. Cette part se calcule selon le contenu de chaque compte affecté. Une baisse des marchés juste avant la date ferait manquer la somme.
 
 **Compte trop affecté.** Pour chaque compte, Hamac additionne ce qui lui est demandé par tous les projets en cours (archivés exclus). Si le total dépasse la valeur du compte, l'alerte s'affiche. Ici, le montant réservé compte en entier, même s'il dépasse la valeur du compte.
 

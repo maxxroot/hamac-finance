@@ -43,7 +43,7 @@ export interface GoalProgress {
   /** Versement à faire chaque mois jusqu'à la date, au taux du projet ; 0 si la somme est réunie. */
   monthlyNeeded: number;
   status: "atteint" | "en_avance" | "en_retard" | "echu";
-  /** Part de l'argent du projet placée en actions ou en crypto. */
+  /** Part de l'argent du projet placée en actions, matières premières ou crypto. */
   riskyShare: number;
   warning: string | null;
 }
@@ -69,7 +69,7 @@ export function monthlySaving(target: number, saved: number, months: number, ann
   return roundCents(i === 0 ? missing / months : (missing * i) / (Math.pow(1 + i, months) - 1));
 }
 
-const RISKY_BUCKETS = new Set(["croissance", "speculatif"]);
+const RISKY_BUCKETS = new Set(["croissance", "matieres_premieres", "speculatif"]);
 
 export function goalProgress(goal: Goal, state: PortfolioState): GoalProgress {
   const contributions = goal.allocations.map((a) => {
@@ -81,7 +81,7 @@ export function goalProgress(goal: Goal, state: PortfolioState): GoalProgress {
   const saved = roundCents(contributions.reduce((t, c) => t + c.amount, 0));
   const monthsLeft = Math.max(0, monthsBetween(state.asOf, goal.targetDate));
   const remaining = roundCents(Math.max(0, goal.target - saved));
-  // Part placée en actions ou crypto, au prorata de ce que chaque compte apporte.
+  // Part placée en actions, matières premières ou crypto, au prorata de ce que chaque compte apporte.
   let risky = 0;
   for (const c of contributions) {
     const s = state.accountById.get(c.accountId);
@@ -96,7 +96,7 @@ export function goalProgress(goal: Goal, state: PortfolioState): GoalProgress {
   const status: GoalProgress["status"] = saved >= goal.target ? "atteint" : goal.targetDate <= state.asOf ? "echu" : saved >= expected ? "en_avance" : "en_retard";
   const warning =
     status !== "atteint" && monthsLeft <= 36 && riskyShare > 0.3
-      ? `Échéance dans ${monthsLeft} mois avec ${Math.round(riskyShare * 100)} % en actions ou en crypto : une baisse des marchés juste avant la date ferait manquer la somme. Mieux vaut sécuriser à mesure que la date approche.`
+      ? `Échéance dans ${monthsLeft} mois avec ${Math.round(riskyShare * 100)} % en actions, matières premières ou crypto : une baisse des marchés juste avant la date ferait manquer la somme. Mieux vaut sécuriser à mesure que la date approche.`
       : null;
   return {
     goal,
