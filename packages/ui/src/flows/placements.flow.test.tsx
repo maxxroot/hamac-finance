@@ -299,7 +299,7 @@ describe("Page d'un compte", () => {
     const repartition = within(screen.getByText("Répartition par classe d'actifs").closest("div.rounded-2xl") as HTMLElement);
     expect(repartition.getByRole("link", { name: "Fonds euros" }).getAttribute("href")).toBe("/fonds-euros");
     expect(repartition.getByRole("link", { name: "Actions" }).getAttribute("href")).toBe("/actions");
-    expect(texte(ligne("ETF Monde UC"))).toMatch(/Actions.*600.*50,0 %$/);
+    expect(texte(ligne("ETF Monde UC"))).toMatch(/ETFActions.*600.*50,0 %$/);
     const fonds = screen.getAllByRole("row").find((r) => /Fonds euros/.test(texte(r)) && /—/.test(texte(r)))!;
     expect(texte(fonds)).toMatch(/600.*50,0 %$/);
     expect(screen.getByText("Fiscalité allégée (8 ans)")).toBeTruthy();
