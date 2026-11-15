@@ -4,12 +4,12 @@ import { buildGraph } from "./graph";
 import { checkBoundaries, formatReport } from "./rules";
 
 /**
- * Frontières d'apps/server : auth (mots de passe, comptes, double authentification) → http (Hono) et cli (commandes).
+ * Frontières d'apps/server : auth (mots de passe, comptes, double authentification, jetons d'accès) → mcp (outils des assistants) → http (Hono) ; cli (commandes) au-dessus d'auth.
  * À la racine : les points d'entrée cités par tsup.config.ts (main.ts, cli.ts) et env.ts.
  */
 
 const ROOT = fileURLToPath(new URL("../../../apps/server/src", import.meta.url));
-const LAYERS: Record<string, number> = { auth: 0, http: 1, cli: 1 };
+const LAYERS: Record<string, number> = { auth: 0, mcp: 1, cli: 1, http: 2 };
 const domainOf = (file: string): string | null => (file.includes("/") ? file.split("/")[0]! : null);
 
 describe("frontières d'apps/server", () => {

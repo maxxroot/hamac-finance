@@ -20,6 +20,10 @@ export interface StatementLine {
   isin: string | null;
   assetName: string | null;
   fee: number | null;
+  /** Type imposé par l'appelant (un assistant qui a lu le document) : ni deviné ni corrigé d'après le signe. */
+  type?: TxType | null;
+  /** Titre imposé par l'appelant : l'emporte sur la recherche par ISIN ou par nom. */
+  assetId?: string | null;
 }
 
 const ISIN = /\b[A-Z]{2}[A-Z0-9]{9}[0-9]\b/;
@@ -253,14 +257,16 @@ export function buildImport(input: BuildImportInput): ImportProposal[] {
 
   return lines.map((l): ImportProposal => {
     const raw = l.amount ?? 0;
-    let type: TxType = defaultType === "auto" ? guessType(`${l.typeHint} ${l.label}`, raw) : defaultType;
-    if (defaultType === "auto" && signedFile) type = matchSign(type, raw);
-    if (!ALLOWED_TYPES[account.kind].includes(type)) type = raw < 0 ? "retrait" : "versement";
+    // Un type imposé n'est pas corrigé : s'il ne convient pas au compte, la validation le dit.
+    let type: TxType = l.type ?? (defaultType === "auto" ? guessType(`${l.typeHint} ${l.label}`, raw) : defaultType);
+    if (!l.type && defaultType === "auto" && signedFile) type = matchSign(type, raw);
+    if (!l.type && !ALLOWED_TYPES[account.kind].includes(type)) type = raw < 0 ? "retrait" : "versement";
     const isin = l.isin ?? ISIN.exec(l.label.toUpperCase())?.[0] ?? null;
     const unknownKey = isin ?? l.assetName?.trim() ?? null;
     const usesAsset = TX_NEEDS_ASSET.includes(type) || type === "dividende" || type === "interets";
     const override = unknownKey ? assetOverrides?.get(unknownKey) : undefined;
-    const asset = usesAsset ? (override ? assetMap.get(override) : undefined) ?? find(l) : undefined;
+    const imposed = l.assetId ? (assetMap.get(l.assetId) ?? null) : undefined;
+    const asset = usesAsset ? (imposed === undefined ? ((override ? assetMap.get(override) : undefined) ?? find(l)) : (imposed ?? undefined)) : undefined;
     const tx: Omit<Transaction, "id"> = {
       date: l.date ?? "",
       type,
@@ -273,7 +279,7 @@ export function buildImport(input: BuildImportInput): ImportProposal[] {
       comment: l.label.slice(0, 500),
     };
     const unknownAsset = usesAsset && !asset && unknownKey ? { key: unknownKey, isin, name: l.assetName?.trim() || unknownKey } : null;
-    const errors = [...(l.date ? [] : ["Date illisible"]), ...(l.amount == null ? ["Montant illisible"] : []), ...validateTransaction(tx, accounts, assetMap).map((e) => e.message)];
+    const errors = [...(l.date ? [] : ["Date illisible"]), ...(l.amount == null ? ["Montant illisible"] : []), ...(imposed === null ? ["Titre introuvable."] : []), ...validateTransaction(tx, accounts, assetMap).map((e) => e.message)];
     const base = { tx, errors, signedAmount: raw, unknownAsset, assetName: asset?.name ?? unknownAsset?.name ?? null };
     if (errors.length) return { ...base, status: "erreur" };
     if ((type === "versement" || type === "retrait") && matchTransfer(tx.date, raw)) return { ...base, status: "doublon" };

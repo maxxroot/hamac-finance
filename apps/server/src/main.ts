@@ -21,6 +21,7 @@ import { databaseUrl, intFromEnv } from "./env";
  *   HAMAC_REFRESH_MINUTES         minutes entre deux actualisations des cours, 10 au minimum (défaut : 30)
  *   HAMAC_SESSION_DAYS            durée d'une session en jours (défaut : 30)
  *   HAMAC_2FA_KEY                 clé de la double authentification (défaut : fichier 2fa.key du dossier de données, créé au besoin)
+ *   HAMAC_MCP                     0 pour couper les assistants (route /api/mcp et jetons d'accès)
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const signup = (process.env.HAMAC_SIGNUP ?? "invite") as SignupMode;
@@ -58,6 +59,7 @@ const { app, close } = await createApp({
   market,
   sessionDays,
   twoFactorKey: process.env.HAMAC_2FA_KEY,
+  mcp: process.env.HAMAC_MCP !== "0",
 });
 
 const port = Number(process.env.HAMAC_PORT ?? 8080);

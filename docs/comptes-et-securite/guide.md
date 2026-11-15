@@ -50,11 +50,11 @@ Le mode d'inscription se règle dans `.env` avec `HAMAC_SIGNUP` : `invite` (par 
 
 1. Paramètres › Application › Mot de passe.
 2. Saisissez l'actuel, puis deux fois le nouveau.
-3. Enregistrez. Vos autres appareils sont déconnectés ; celui-ci reste connecté.
+3. Enregistrez. Vos autres appareils sont déconnectés ; celui-ci reste connecté. Les jetons d'accès des [assistants](../assistants-mcp/guide.md) sont révoqués : recréez ceux dont vous avez besoin.
 
 ### Réinitialiser le mot de passe d'une personne (administration)
 
-`docker compose exec hamac node cli.mjs password <e-mail>`, puis saisissez le nouveau mot de passe (10 caractères minimum). Toutes les sessions de ce compte sont fermées.
+`docker compose exec hamac node cli.mjs password <e-mail>`, puis saisissez le nouveau mot de passe (10 caractères minimum). Toutes les sessions de ce compte sont fermées et ses jetons d'accès révoqués.
 
 ### Activer la double authentification
 

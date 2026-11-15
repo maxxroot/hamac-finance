@@ -14,11 +14,14 @@
   "devDependencies": {
     "@hamac/api": "workspace:^",
     "@hamac/backend": "workspace:^",
+    "@hamac/core": "workspace:^",
     "@hono/node-server": "^2.1.6",
     "hono": "^4.13.17",
     "tsup": "^9.0.0"
   },
   "dependencies": {
-    "hash-wasm": "4.12.0"
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "hash-wasm": "4.12.0",
+    "zod": "^4.6.7"
   }
 }

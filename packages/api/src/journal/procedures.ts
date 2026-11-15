@@ -19,6 +19,7 @@ export const journalProcedures = {
   "skips.delete": { input: byId, output: ok },
   "transactions.bulkCreate": {
     input: z.object({ items: z.array(TransactionInput).min(1).max(5000) }),
-    output: entity<{ created: number; errors: Array<{ index: number; message: string }> }>(),
+    /** `ids` : opérations créées, dans l'ordre des lignes valides. */
+    output: entity<{ created: number; ids: string[]; errors: Array<{ index: number; message: string }> }>(),
   },
 } as const;

@@ -9,6 +9,7 @@ import { createBackend, SharedMarket, type Backend, type MarketConfig, type PgPr
 import { CHALLENGE_MAX_TRIES, ChallengeStore, TwoFactor } from "../auth/twoFactor";
 import { KEY_FILE, loadTwoFactorKey } from "../auth/twoFactorKey";
 import { sameSecret, UserStore, type User } from "../auth/users";
+import { mountMcpRoutes } from "./mcpRoutes";
 
 export type SignupMode = "invite" | "open" | "closed";
 
@@ -39,6 +40,8 @@ export interface ServerConfig {
   twoFactorKey?: string;
   /** Horloge des codes et des défis, remplacée en test. */
   now?: () => number;
+  /** Assistants (MCP) : route /api/mcp et jetons d'accès. Actifs par défaut ; false avec HAMAC_MCP=0. */
+  mcp?: boolean;
 }
 
 const COOKIE = "hamac_session";
@@ -423,6 +426,17 @@ export async function createApp(cfg: ServerConfig) {
     const input = await c.req.json().catch(() => null);
     const result = await (await pool.get(user)).dispatch(c.req.param("name"), input ?? undefined);
     return c.json(result);
+  });
+
+  mountMcpRoutes(app, {
+    enabled: cfg.mcp !== false,
+    users,
+    backendFor: (user) => pool.get(user),
+    currentUser,
+    csrfOk,
+    unauthorized,
+    allow: (key) => limiter.allow(key),
+    appVersion: cfg.appVersion,
   });
 
   app.all("/api/*", (c) => c.json({ error: "Introuvable" }, 404));

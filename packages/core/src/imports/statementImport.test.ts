@@ -126,6 +126,21 @@ describe("comparaison avec le journal", () => {
     expect(run([line({ amount: 500 })], [sortant])[0]!.status).toBe("ok");
   });
 
+  it("type et titre imposés par l'appelant : ni devinés ni corrigés d'après le signe", () => {
+    const [imposed] = run([line({ amount: -541.5, label: "ORDRE 123", type: "achat", assetId: "ai", quantity: 3, fee: 1.5 })]);
+    expect(imposed).toMatchObject({ status: "ok", tx: { type: "achat", assetId: "ai", amount: 541.5, quantity: 3, fee: 1.5 } });
+    // Sans type imposé, un montant positif libellé « frais » devient une correction ; imposé, il reste des frais.
+    const [fee] = run([line({ amount: 4, label: "FRAIS", type: "frais" }), line({ amount: -1 })]);
+    expect(fee.tx.type).toBe("frais");
+  });
+
+  it("type imposé non permis sur le compte, ou titre imposé inconnu : erreur", () => {
+    const [notAllowed, unknown] = run([line({ type: "arbitrage" }), line({ amount: -100, type: "achat", assetId: "absent", quantity: 1 })]);
+    expect(notAllowed.status).toBe("erreur");
+    expect(unknown).toMatchObject({ status: "erreur" });
+    expect(unknown.errors).toContain("Titre introuvable.");
+  });
+
   it("date ou montant illisible : erreur", () => {
     expect(run([line({ date: null })])[0]!.errors).toContain("Date illisible");
     expect(run([line({ amount: null })])[0]!.errors).toContain("Montant illisible");

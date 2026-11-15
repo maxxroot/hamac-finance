@@ -42,6 +42,7 @@
 | `comptes.invites` | `code`, `expires_at`, `used_by` |
 | `comptes.two_factor` | `user_id`, `secret` (scellé `v1.<iv>.<données>.<tag>`), `confirmed_at` (nul : activation en cours), `last_step`, `created_at` |
 | `comptes.recovery_codes` | `user_id`, `code_hash` (HMAC) |
+| `comptes.api_tokens` | jetons d'accès des assistants : voir [Assistants (MCP)](../assistants-mcp/technique.md) |
 
 **Tenants** : schéma `t_<hex>` et rôle `hamac_t_<hex>` (`NOLOGIN`), où `<hex>` est l'UUID du tenant sans tirets. Seul un UUID est accepté dans un nom SQL (`tenantNames`).
 
@@ -58,10 +59,11 @@
 | `/api/auth/password` | POST | oui | Change le mot de passe. |
 | `/api/auth/2fa/setup`, `/confirm`, `/disable`, `/recovery-codes` | POST | oui | Gestion de la double authentification. |
 | `/api/rpc/:name` | POST | oui | `Backend.dispatch` du tenant de l'utilisateur. |
+| `/api/auth/tokens`, `/api/auth/tokens/revoke`, `/api/mcp` | GET, POST | session ou jeton | Jetons d'accès et serveur MCP : voir [Assistants (MCP)](../assistants-mcp/technique.md). |
 
-Toutes les routes POST exigent l'en-tête `X-Hamac: 1`.
+Toutes les routes POST exigent l'en-tête `X-Hamac: 1`, sauf `/api/mcp`, qui ne lit aucun cookie et exige un jeton dans `Authorization`.
 
-**Réglages** (`.env`, voir `.env.example`) : `HAMAC_SIGNUP` (`invite` par défaut, `open`, `closed`), `HAMAC_SESSION_DAYS` (30), `HAMAC_SECURE`, `HAMAC_ALLOW_HTTP`, `HAMAC_TRUST_PROXY`, `HAMAC_2FA_KEY`, `HAMAC_DB_PASSWORD`, `HAMAC_BIND`, `HAMAC_PORT`.
+**Réglages** (`.env`, voir `.env.example`) : `HAMAC_SIGNUP` (`invite` par défaut, `open`, `closed`), `HAMAC_SESSION_DAYS` (30), `HAMAC_SECURE`, `HAMAC_ALLOW_HTTP`, `HAMAC_TRUST_PROXY`, `HAMAC_2FA_KEY`, `HAMAC_MCP`, `HAMAC_DB_PASSWORD`, `HAMAC_BIND`, `HAMAC_PORT`.
 
 **Mémoire** : `HAMAC_MEMORY` et `HAMAC_DB_MEMORY` deviennent le `mem_limit` des services `hamac` et `db` de `docker-compose.yml` (`0` par défaut : pas de limite). Le code ne les lit pas. Node 24 dimensionne son tas d'après la limite du conteneur (environ 560 Mio pour `1g`) ; sous 512m, le tas peut atteindre la limite avant que le ramasse-miettes ne se déclenche, d'où le minimum conseillé. Un conteneur qui dépasse sa limite est tué par le noyau et relancé par `restart: unless-stopped`.
 

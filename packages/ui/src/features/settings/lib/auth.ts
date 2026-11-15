@@ -1,3 +1,5 @@
+import type { ApiToken, TokenScope } from "./assistants";
+
 /** Authentification du mode web (le bureau n'en a pas besoin). */
 export class AuthError extends Error {
   constructor(
@@ -51,6 +53,15 @@ export const auth = {
   signup: (email: string, password: string, invite?: string) => post("/api/auth/signup", { email, password, invite }),
   logout: () => post("/api/auth/logout"),
   changePassword: (current: string, next: string) => post("/api/auth/password", { current, next }),
+  tokens: {
+    async list(): Promise<{ enabled: boolean; tokens: ApiToken[] }> {
+      const res = await fetch("/api/auth/tokens", { credentials: "include" });
+      if (!res.ok) throw new AuthError("Impossible de lire les jetons d'accès.");
+      return (await res.json()) as { enabled: boolean; tokens: ApiToken[] };
+    },
+    create: (name: string, scope: TokenScope, days: number, password: string) => post<ApiToken & { token: string }>("/api/auth/tokens", { name, scope, days, password }),
+    revoke: (id: string) => post<{ ok: true }>("/api/auth/tokens/revoke", { id }),
+  },
   twoFactor: {
     setup: (password: string) => post<{ secret: string; uri: string }>("/api/auth/2fa/setup", { password }),
     confirm: (code: string) => post<{ recoveryCodes: string[] }>("/api/auth/2fa/confirm", { code }),

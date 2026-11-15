@@ -7,6 +7,7 @@ import { call } from "@/shared/lib/transport";
 import { useToast } from "@/shared/lib/toast";
 import { useState } from "react";
 import { AppearanceCard } from "@/features/settings/components/AppearanceCard";
+import { AssistantsCard } from "@/features/settings/components/AssistantsCard";
 import { PasswordCard } from "@/features/settings/components/PasswordCard";
 import { TwoFactorCard } from "@/features/settings/components/TwoFactorCard";
 import { Button, Card, CardTitle } from "@/shared/components/ui";
@@ -20,6 +21,7 @@ export function AppTab() {
       <AppearanceCard />
       <PasswordCard />
       <TwoFactorCard />
+      <AssistantsCard />
       <BackupCard />
       <AppInfo info={info} />
     </div>

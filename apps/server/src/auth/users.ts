@@ -1,11 +1,12 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { rawFor, type PgProvider, type PgSession } from "@hamac/backend";
+import { API_TOKENS_TABLE, ApiTokenStore } from "./apiTokens";
 import { PasswordHasher } from "./password";
 
 /**
  * Comptes, sessions et invitations de l'instance (schéma « comptes », inaccessible aux tenants).
  * Mots de passe : Argon2id (voir password.ts).
- * Jetons de session : seule leur empreinte SHA-256 est stockée.
+ * Jetons de session et jetons d'accès (apiTokens.ts) : seule leur empreinte SHA-256 est stockée.
  */
 export interface User {
   id: string;
@@ -46,8 +47,12 @@ export class UserStore {
     private session: PgSession,
     private db: ReturnType<typeof rawFor>,
     private sessionDays: number,
-  ) {}
+  ) {
+    this.tokens = new ApiTokenStore(db);
+  }
 
+  /** Jetons d'accès des assistants (MCP), révoqués avec les sessions. */
+  readonly tokens: ApiTokenStore;
   private hasher = new PasswordHasher();
   private decoy: Promise<string> | null = null;
 
@@ -91,6 +96,7 @@ export class UserStore {
         code_hash TEXT NOT NULL,
         PRIMARY KEY (user_id, code_hash)
       )`,
+      API_TOKENS_TABLE,
     ])
       await db.exec(statement);
     return new UserStore(session, db, sessionDays);
@@ -147,7 +153,7 @@ export class UserStore {
 
   async setPassword(userId: string, password: string): Promise<void> {
     await this.db.run("UPDATE comptes.users SET password_hash = ? WHERE id = ?", [await this.hasher.hash(password), userId]);
-    await this.db.run("DELETE FROM comptes.sessions WHERE user_id = ?", [userId]);
+    await this.closeSessions(userId);
   }
 
   async count(): Promise<number> {
@@ -175,13 +181,16 @@ export class UserStore {
     await this.db.run("DELETE FROM comptes.sessions WHERE token_hash = ?", [sha(token)]);
   }
 
+  /** Ferme les sessions et révoque les jetons d'accès : un mot de passe connu d'un tiers ne doit rien laisser derrière lui. */
   async closeSessions(userId: string): Promise<void> {
     await this.db.run("DELETE FROM comptes.sessions WHERE user_id = ?", [userId]);
+    await this.tokens.revokeAll(userId);
   }
 
   async purgeExpired(): Promise<void> {
     await this.db.run("DELETE FROM comptes.sessions WHERE expires_at <= ?", [new Date().toISOString()]);
     await this.db.run("DELETE FROM comptes.two_factor WHERE confirmed_at IS NULL AND created_at <= ?", [new Date(Date.now() - TWO_FACTOR_SETUP_MS).toISOString()]);
+    await this.tokens.purgeExpired();
   }
 
   // ——— Double authentification. Chiffrement et vérification des codes : voir twoFactor.ts. ———
@@ -207,7 +216,7 @@ export class UserStore {
 
   /**
    * Active, en une seule requête : le secret (s'il est toujours celui qui a été vérifié), les codes de secours,
-   * et la fermeture des sessions du compte. Rien n'est appliqué si l'activation n'est plus en attente.
+   * la fermeture des sessions du compte et la révocation de ses jetons d'accès. Rien n'est appliqué si l'activation n'est plus en attente.
    */
   async confirmTwoFactor(userId: string, secret: string, step: number, recoveryHashes: string[]): Promise<boolean> {
     return !!(await this.db.get(
@@ -217,6 +226,8 @@ export class UserStore {
          INSERT INTO comptes.recovery_codes (user_id, code_hash) SELECT activated.user_id, h FROM activated, json_array_elements_text(?::json) AS h
        ), closed AS (
          DELETE FROM comptes.sessions WHERE user_id IN (SELECT user_id FROM activated)
+       ), revoked AS (
+         DELETE FROM comptes.api_tokens WHERE user_id IN (SELECT user_id FROM activated)
        )
        SELECT user_id FROM activated`,
       [new Date().toISOString(), step, userId, secret, JSON.stringify(recoveryHashes)],

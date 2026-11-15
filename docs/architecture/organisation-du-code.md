@@ -73,7 +73,7 @@ La logique testable de l'interface va dans des fichiers `.ts` de `lib/` : les te
 
 ## `apps/server` : le serveur web
 
-`auth/` (mots de passe, comptes, double authentification) → `http/` (Hono : `app.ts`) et `cli/` (commandes). À la racine : les points d'entrée cités par `tsup.config.ts` (`main.ts`, `cli.ts`) et `env.ts`.
+`auth/` (mots de passe, comptes, double authentification, jetons d'accès) → `mcp/` (serveur MCP des assistants : outils dans `mcp/tools/`, accès aux données par `Backend.dispatch` seulement, [décision 0009](../decisions/0009-serveur-mcp-et-jetons-d-acces.md)) → `http/` (Hono : `app.ts`, `mcpRoutes.ts`). `cli/` (commandes) est au même niveau que `mcp/`. À la racine : les points d'entrée cités par `tsup.config.ts` (`main.ts`, `cli.ts`) et `env.ts`.
 
 ## Où va un nouveau fichier
 
@@ -86,6 +86,7 @@ La logique testable de l'interface va dans des fichiers `.ts` de `lib/` : les te
 | une nouvelle page | `packages/ui/src/features/<domaine>/pages/`, exportée par la façade du domaine, routée dans `app/App.tsx`, déclarée dans `shared/nav.ts` |
 | un composant utilisé par plusieurs fonctionnalités | `shared/components/` s'il ne porte aucune règle métier, sinon `features/entry/` |
 | un nouveau domaine | un dossier au bon endroit, sa façade `index.ts`, et une ligne dans la table des couches du test de son paquet (`packages/architecture/src/<paquet>.test.ts`) |
+| un outil pour les assistants (MCP) | `apps/server/src/mcp/tools/`, déclaré dans `mcp/server.ts`. Il lit et écrit par le contrat (`call`), calcule avec `@hamac/core`, et tout outil qui écrit à partir d'un document passe par un aperçu ([décision 0009](../decisions/0009-serveur-mcp-et-jetons-d-acces.md)). Test dans `mcp/mcp.test.ts`, documentation dans `docs/assistants-mcp/`. |
 | un réglage du plan | `packages/core/src/model/params.ts` : le schéma et `defaultParams` (`withDefaultParams` complète les anciennes données) |
 
 Et dans tous les cas : la documentation du sujet, `docs/<sujet>/guide.md` et `technique.md`, dans le même changement que le code.

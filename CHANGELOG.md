@@ -8,6 +8,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ### Ajouté
 
+- Assistants (MCP) : un assistant comme Claude Code peut se brancher sur Hamac avec un jeton d'accès créé dans Paramètres › Application. Il consulte le patrimoine, les comptes, les opérations et les contrôles de Hamac, compare un relevé de situation à l'encours calculé et, avec un jeton « lecture et import », importe les opérations d'un relevé (PDF, CSV, OFX, QIF) après un aperçu et votre accord, avec annulation possible pendant 24 heures. `HAMAC_MCP=0` coupe les assistants sur l'instance.
 - Limite de mémoire facultative pour l'application et pour la base, à régler dans `.env` (`HAMAC_MEMORY`, `HAMAC_DB_MEMORY`).
 - Exposition réelle : l'administrateur peut déposer le fichier de composition d'un ETF iShares, téléchargé depuis son navigateur, quand iShares refuse le serveur.
 

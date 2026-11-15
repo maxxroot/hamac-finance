@@ -29,7 +29,10 @@ en la fiabilisant.
 
 - **Pensé pour la France** : livrets réglementés, règle des quinzaines, assurance-vie (8 ans, abattement),
   PEA (5 ans), prélèvements sociaux, flat tax ou barème, plus-values crypto (art. 150 VH bis), aide à la déclaration.
-- **Vos données restent chez vous** : une application web que vous hébergez. Aucun service tiers.
+- **Vos données restent chez vous** : une application web que vous hébergez. Aucun service tiers, sauf
+  l'assistant que vous choisissez de brancher vous-même.
+- **Pilotable par un assistant** : branchez Claude ou un autre assistant compatible MCP, donnez-lui vos relevés
+  PDF ou CSV, il les importe après un aperçu et votre accord.
 - **Pour vous et vos proches** : chaque compte a son espace isolé dans PostgreSQL ; les cours sont communs
   à l'instance, téléchargés une seule fois et tenus à jour même quand personne n'est connecté.
 - **À votre mesure** : préparation de la retraite ou simple gestion de patrimoine, pages masquables, classes
@@ -136,6 +139,27 @@ en la fiabilisant.
 - Barre latérale réductible, tableaux triables, mode discret qui masque les montants, thème clair ou sombre,
   modules à afficher ou masquer.
 
+### Confier la saisie à un assistant (MCP)
+
+Hamac embarque également un serveur [MCP](https://modelcontextprotocol.io) (*Model Context Protocol*). Claude Code, Claude
+Desktop ou tout autre assistant compatible peut s'y brancher avec un jeton d'accès créé dans Paramètres › Application.
+
+- **Importer n'importe quel relevé** : PDF d'un assureur, avis d'opéré, export CSV, OFX ou QIF, capture d'écran.
+  L'assistant lit le document ; Hamac compare chaque ligne au journal, signale les doublons, les versements déjà
+  programmés et les lignes invalides, et n'écrit rien avant votre accord. Un import se défait pendant 24 heures.
+- **Interroger son patrimoine** : « combien ai-je versé sur mon PER depuis 2023 ? », « quelle plus-value latente sur
+  le PEA ? ». Les chiffres sont ceux que calcule Hamac, avec les mêmes règles que les écrans.
+- **Vérifier ses données** : encours d'un relevé de situation comparé à l'encours calculé, et contrôles de Hamac
+  (incohérences du journal, cours en échec, écarts à la cible).
+- **Accès maîtrisé** : jeton en lecture seule ou en lecture et import, avec une durée limitée et révocable à tout
+  moment. Seule son empreinte est stockée.
+
+```bash
+claude mcp add --transport http hamac https://votre-hamac.exemple.fr/api/mcp --header "Authorization: Bearer hamac_…"
+```
+
+La commande exacte s'affiche à la création du jeton. Détails dans le [guide des assistants](docs/assistants-mcp/guide.md).
+
 ## Captures
 
 <table>
@@ -241,11 +265,17 @@ Toutes les variables se règlent dans ce fichier `.env`, facultatif, exclu de gi
 | `HAMAC_TWELVEDATA_KEY` | vide | Clé [Twelve Data](https://twelvedata.com), facultative. C'est le seul endroit où elle se règle : ni en base, ni dans l'interface |
 | `HAMAC_TWELVEDATA_DAILY_LIMIT` | `800` | Requêtes par jour de votre offre Twelve Data |
 | `HAMAC_2FA_KEY` | vide | Clé de la double authentification (32 octets, `openssl rand -base64 32`). Vide : fichier `2fa.key` créé dans `/data` au premier lancement. À sauvegarder avec la base |
+| `HAMAC_MCP` | `1` | `0` pour couper les assistants sur toute l'instance : plus de route `/api/mcp` ni de jeton d'accès |
 
 **Sécurité** : mots de passe hachés avec Argon2id, sessions par cookie `HttpOnly`, `SameSite=Strict` et `Secure`
 en HTTPS, HSTS, en-tête anti-CSRF, limitation des tentatives de connexion et de la taille des requêtes, en-têtes
 CSP et anti-iframe, code d'installation à usage unique, conteneurs sans privilèges. Chaque compte a son propre
 schéma et son propre rôle PostgreSQL : il ne peut lire ni les données des autres ni les comptes de l'instance.
+
+**Jetons d'accès des assistants** : créés depuis une session ouverte, avec le mot de passe, et affichés une seule
+fois. Seule leur empreinte est stockée. Chacun est limité à un compte, en lecture ou en écriture, et expire au bout
+de 30 jours à 1 an. Ils passent dans l'en-tête `Authorization`, jamais dans un cookie, et sont limités à 120 requêtes
+par minute. Changer de mot de passe, activer la double authentification ou la faire réinitialiser les révoque tous.
 
 **Double authentification** : facultative, à activer dans Paramètres › Application, avec une application de codes
 (TOTP, RFC 6238). Un code déjà accepté ne ressert pas. Le secret de chaque compte est chiffré en AES-256-GCM, les
@@ -284,6 +314,10 @@ toutes les 30 minutes pour toute l'instance ; l'ordre des sources se règle dans
 | [OpenFIGI](https://www.openfigi.com) | Recherche et identification des titres (obligations comprises) |
 
 Ces requêtes révèlent aux fournisseurs les identifiants des titres que vous suivez, pas leurs montants.
+
+**Assistants (MCP)** : si vous branchez un assistant, ce qu'il lit dans Hamac (comptes, opérations, montants) part
+chez le fournisseur du modèle, comme tout ce que vous écrivez dans la conversation. C'est votre choix : sans jeton
+créé par vous, aucun assistant n'a accès à rien, et l'administrateur peut couper la fonction pour toute l'instance.
 Les obligations n'ont besoin d'aucun cours (valeur calculée). Tout cours peut être saisi à la main, et un titre
 peut imposer sa source ou une adresse personnalisée.
 Les accès non officiels peuvent cesser de fonctionner sans préavis ; respectez les conditions
@@ -302,7 +336,7 @@ Hamac est écrit entièrement en TypeScript, en monorepo pnpm :
 
 ```
 apps/
-  server/     serveur web (Hono) : comptes, tenants, interface
+  server/     serveur web (Hono) : comptes, tenants, interface, serveur MCP des assistants
 packages/
   core/       calculs métier purs : fiscalité, frais, obligations, projection, alertes (sans dépendance d'E/S)
   api/        contrat typé (zod) entre l'interface et le backend
@@ -312,7 +346,8 @@ packages/
 ```
 
 L'interface ne connaît que le contrat `@hamac/api`, qu'elle appelle en HTTP. Les calculs vivent dans
-`@hamac/core` et tournent dans le navigateur, ce qui rend les simulations instantanées.
+`@hamac/core` et tournent dans le navigateur, ce qui rend les simulations instantanées. Le serveur MCP
+(`apps/server/src/mcp/`) passe par le même contrat et appelle le même moteur ([décision 0009](docs/decisions/0009-serveur-mcp-et-jetons-d-acces.md)).
 
 ```bash
 pnpm dev:db         # PostgreSQL dans Docker, exposé en local (à lancer une fois)
@@ -357,6 +392,7 @@ Les contributions sont bienvenues : signalements, idées, corrections, nouvelles
 - Journal des connexions et vérification de l'e-mail, pour une instance ouverte au public
 - Modèles d'établissements pré-remplis (grilles de frais datées, à vérifier)
 - Formats d'import CSV prêts à l'emploi pour les principaux courtiers
+- Assistants (MCP) : saisie de l'immobilier, de la gestion locative et des crédits ; connecteurs claude.ai (OAuth)
 - Mémorisation des tris et des filtres
 
 ## Licence
