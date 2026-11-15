@@ -31,7 +31,7 @@ describe("outils exposés", () => {
   it("en lecture seule : aucun outil qui écrit", async () => {
     const { client, instructions } = await connect("read");
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(["check_data", "compare_statement", "get_account", "get_summary", "list_accounts", "list_assets", "list_institutions", "list_transactions"]);
+    expect(names).toEqual(["check_data", "compare_statement", "get_account", "get_summary", "get_tax_estimate", "get_tax_report", "get_tax_settings", "get_year_end_checklist", "list_accounts", "list_assets", "list_institutions", "list_transactions"]);
     expect(instructions).toContain("lecture seule");
   });
 

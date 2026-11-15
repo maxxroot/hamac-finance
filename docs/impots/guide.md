@@ -147,3 +147,7 @@ Exemple fictif : une assurance-vie de 10 ans, personne seule, 6 000 € de gain 
 - Crypto : la valeur du portefeuille au moment d'une vente utilise le dernier cours connu des autres cryptos (ou leur prix d'achat sans cours). Les intérêts reçus sur une plateforme crypto ne sont pas imposés ici.
 - Parts de SCPI vendues : elles relèvent des plus-values immobilières et ne sont pas reprises dans les plus-values du compte-titres.
 - Les taux par défaut sont ceux de 2026 et doivent être vérifiés chaque année.
+
+## Avec un assistant
+
+Un assistant branché sur Hamac (voir [Assistants (MCP)](../assistants-mcp/guide.md)) lit les mêmes estimations et la liste de fin d'année, et vous les présente. Il lit vos paramètres fiscaux sans pouvoir les modifier.

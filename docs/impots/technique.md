@@ -104,6 +104,10 @@ De min(`profile.startMonth`, première opération) à l'année en cours :
 - `estimatedValue` : un autre actif n'a pas de cours dans les 7 jours qui précèdent la cession.
 - Par année : base = 0 si ventes brutes ≤ `params.crypto.exemptionThreshold`, sinon max(0, gain net). Impôt = base × `incomeTaxRate` ; PS = base × `socialRateFor(année, "patrimoine")`.
 
+## Assistants (MCP)
+
+Les mêmes calculs sont servis aux assistants par `get_tax_estimate`, `get_year_end_checklist` et `get_tax_settings` (`apps/server/src/mcp/tools/tax/`) : voir [Assistants (MCP)](../assistants-mcp/technique.md).
+
 ## Tests
 
 | Fichier | Ce qu'il couvre |

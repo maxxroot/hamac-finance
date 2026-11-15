@@ -162,7 +162,7 @@ export function registerDeletionTools(tool: ToolRegistrar, call: Call, confirmat
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     },
     async ({ deletionId }) => {
-      const pending = confirmations.take(tenantId, deletionId);
+      const pending = confirmations.take(tenantId, deletionId, DELETION_KINDS);
       if (!pending) throw new ToolError("Confirmation introuvable, déjà utilisée ou expirée (15 minutes) : refaites prepare_deletion.");
       // Relu au dernier moment : l'objet peut avoir été supprimé ou s'être mis à servir depuis l'annonce.
       const d = describe(await call("workspace.load"), pending.kind, pending.targetId);

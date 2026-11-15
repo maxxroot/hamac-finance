@@ -143,3 +143,7 @@ Exemple fictif, revenus 2026, taux par défaut : un dividende de 68,60 € reçu
 - La comparaison avec le document de l'établissement n'existe que sur les fiches qu'Hamac rédige, et seulement pour les comptes-titres et le crowdlending.
 - L'option pour le barème (case 2OP) et celle des actifs numériques (case 3CN) sont seulement rappelées : c'est à vous de choisir.
 - Les cases ne sont vérifiées que pour les années indiquées sur le document.
+
+## Avec un assistant
+
+Un assistant branché sur Hamac (voir [Assistants (MCP)](../assistants-mcp/guide.md)) lit ce même récapitulatif. Il peut aussi lire l'IFU d'un établissement, vous montrer les écarts case par case et, avec votre accord, enregistrer ses montants comme le fait le tableau « Comparer avec le document de l'établissement ».

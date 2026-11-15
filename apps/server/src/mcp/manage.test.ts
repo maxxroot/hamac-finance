@@ -145,6 +145,6 @@ describe("suppressions avec accord préalable", () => {
     const store = new ConfirmationStore(() => now);
     const p = store.add("t", { kind: "transaction", targetId: "x", label: "x" });
     now = 16 * 60_000;
-    expect(store.take("t", p.id)).toBeNull();
+    expect(store.take("t", p.id, ["transaction"])).toBeNull();
   });
 });

@@ -69,7 +69,9 @@ Décidé le 15 novembre 2026 : l'utilisateur veut tout préparer avec l'assistan
 
 **Statut :** fait le 15 novembre 2026. Outils `list_institutions`, `save_institution`, `save_account`, `set_account_rate`, `set_fund_rate`, `save_asset` (remplace `create_asset`), `set_price`, `save_transaction`, `set_contribution_plan`, `save_contribution_skip`, `prepare_deletion`, `apply_deletion` ; `get_account` donne aussi les réglages, versements programmés et taux. Version des données (`workspace.revision`) et rechargement de l'interface.
 
-### B. Impôts (à faire)
+### B. Impôts
+
+**Statut :** fait le 15 novembre 2026. Outils `get_tax_report`, `get_tax_estimate`, `get_year_end_checklist`, `get_tax_settings`, `prepare_tax_statement` et `apply_tax_statement` ; scénarios `prepare_tax_return` et `year_end_review`. La fiscalité locative viendra avec la tranche C.
 
 - Lecture du récapitulatif fiscal d'une année (cases 2042 et 2042 C, fiches par établissement, détail 2074 et 2086, points à contrôler).
 - Estimation : à payer à la prochaine déclaration, si tout était retiré, impôts par année ; liste de fin d'année, dispense d'acompte.

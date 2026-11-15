@@ -9,6 +9,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 ### Ajouté
 
 - Assistants (MCP) : l'assistant tient désormais vos comptes, toujours après votre accord. Il crée et modifie les établissements (fiscalité, protection, grilles de frais), les comptes et contrats, les titres (dont obligations et fonds euros) et leurs cours saisis, les opérations, les versements programmés, les taux des livrets et les taux servis des fonds euros. Il peut aussi supprimer, en deux temps : il annonce ce qui disparaîtra, puis supprime une fois que vous avez confirmé.
+- Assistants (MCP) : l'assistant prépare vos impôts. Il donne les cases à reporter sur la déclaration et le détail par établissement, compare l'IFU d'un établissement aux calculs de Hamac case par case puis l'enregistre après votre accord, estime l'impôt restant à payer et passe en revue la liste de fin d'année. Deux scénarios prêts à l'emploi : « Préparer ma déclaration de revenus » et « Bilan fiscal de fin d'année ». Vos paramètres fiscaux restent en lecture seule.
 - L'interface se met à jour seule quand des données changent ailleurs (assistant, autre onglet) : quand vous revenez sur l'onglet, puis toutes les 20 secondes tant qu'il est affiché.
 
 ### Modifié

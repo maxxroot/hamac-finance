@@ -9,6 +9,7 @@ Un assistant conversationnel comme Claude peut se brancher sur votre Hamac. Vous
 - **lui confier la tenue de votre patrimoine** : créer un établissement, ouvrir un compte et l'y rattacher, ajouter un titre, saisir ou corriger une opération, régler un versement programmé, un taux de livret ou le taux servi d'un fonds euros. Il vous dit ce qu'il va enregistrer et attend votre accord ;
 - **lui confier vos relevés à importer** : PDF d'un assureur, avis d'opéré d'un courtier, export CSV de votre banque, capture d'écran. Il lit le document, Hamac compare chaque ligne à votre journal et vous montre ce qui sera ajouté. Rien n'est écrit sans votre accord ;
 - **lui poser des questions** : « combien ai-je versé sur mon PER depuis 2023 ? », « quelle est ma plus-value latente sur le PEA ? », « qu'est-ce qui cloche dans mes données ? » ;
+- **préparer vos impôts** : il vous donne les cases à reporter sur la déclaration, compare l'IFU de chaque établissement aux calculs de Hamac, estime ce qui reste à payer et passe en revue ce qui peut encore réduire l'impôt avant le 31 décembre ;
 - **vérifier un relevé de situation** : il compare l'encours que vous a envoyé votre assureur à celui que calcule Hamac, et cherche l'opération manquante.
 
 Les chiffres viennent toujours de Hamac : l'assistant cite les encours, les versements nets et les plus-values que calcule l'application, avec les mêmes règles que les écrans.
@@ -73,6 +74,19 @@ Parlez à l'assistant comme à quelqu'un qui tient vos comptes :
 
 Pour une modification, l'assistant ne change que ce que vous demandez : le reste de la fiche est gardé. Hamac applique les mêmes règles que les écrans (un seul PEA par personne, une obligation demande son taux et son échéance…) et l'assistant vous dit pourquoi une saisie est refusée.
 
+### Préparer votre déclaration
+
+Dans Claude Code ou Claude Desktop, choisissez le scénario **Préparer ma déclaration de revenus** proposé par Hamac (dans Claude Code : tapez `/` et cherchez « hamac »), ou demandez simplement « prépare ma déclaration pour les revenus 2025 ». L'assistant :
+
+1. contrôle vos données et vous signale ce qui fausserait les montants (achat manquant, compte sans établissement) ;
+2. vous demande l'IFU de chaque établissement, le lit et vous montre, case par case, l'écart avec le calcul de Hamac. Un écart vient souvent d'une opération manquante ou d'un montant brut mal saisi : il vous propose la correction ;
+3. avec votre accord, enregistre les montants de l'IFU dans Hamac (ils remplacent ceux déjà saisis pour cet établissement et cette année) ;
+4. vous donne les cases à reporter, en distinguant celles à saisir de celles à vérifier sur la déclaration préremplie, puis l'impôt restant à payer.
+
+Le scénario **Bilan fiscal de fin d'année** liste ce qui peut encore être fait avant le 31 décembre (moins-values, assurance-vie, PER, plafonds, dispense d'acompte à demander avant le 30 novembre), chiffré. L'assistant ne fait aucune opération à votre place.
+
+Les montants sont ceux des pages **Impôts** et **Aide à la déclaration**, avec les mêmes règles et les mêmes limites ; ils restent une aide, et vous restez responsable de votre déclaration. L'assistant lit vos paramètres fiscaux (tranche marginale, taux) sans pouvoir les modifier : changez-les dans Paramètres › Plan › Fiscalité.
+
 ### Supprimer
 
 1. Demandez : « supprime l'opération du 5 janvier ».
@@ -99,4 +113,4 @@ Ajoutez `HAMAC_MCP=0` dans le fichier `.env`, puis `docker compose up -d`. Plus 
 - Un aperçu reste valable une heure. Si le journal change entre l'aperçu et l'application (par exemple une saisie dans l'interface), l'assistant doit refaire l'aperçu.
 - L'assistant peut mal lire un PDF. Hamac vérifie la cohérence de chaque opération, pas qu'elle correspond au document : relisez l'aperçu.
 - Un document peut contenir du texte caché destiné à tromper l'assistant. Hamac n'écrit jamais rien sans aperçu, et votre assistant vous demande votre accord avant chaque outil qui modifie vos données. Gardez cette demande d'accord activée.
-- Pour l'instant, l'assistant gère les établissements, les comptes, les titres, le journal et les relevés de situation. La fiscalité, l'immobilier, la gestion locative, les crédits et les autres biens viendront ensuite ; en attendant, ils se saisissent dans l'interface. Les paramètres du plan et de la fiscalité ne se modifient pas depuis l'assistant.
+- Pour l'instant, l'assistant gère les établissements, les comptes, les titres, le journal, les relevés de situation et la fiscalité de l'épargne. L'immobilier (et sa fiscalité), la gestion locative, les crédits et les autres biens viendront ensuite ; en attendant, ils se saisissent dans l'interface. Les paramètres du plan et de la fiscalité ne se modifient pas depuis l'assistant.

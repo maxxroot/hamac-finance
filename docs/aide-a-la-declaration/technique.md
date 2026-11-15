@@ -109,6 +109,10 @@ Cases comparées selon les comptes de la fiche : compte-titres → 2DC, 2TR, 2BH
 - CSV : `taxReportCsvRows`, une ligne par revenu, cession et cession crypto (colonnes : établissement, traitement, compte, date, nature, titre, reçu ou prix de cession, brut, acompte, prélèvements sociaux, retenue étrangère, prix de revient, gain, statut, remarque). Fichier `recapitulatif-fiscal-<année>.csv`.
 - PDF : `window.print()`. `.no-print` masque l'en-tête de page, les choix et le bouton d'enregistrement ; le bloc de comparaison n'est imprimé que s'il contient au moins un montant.
 
+## Assistants (MCP)
+
+Les mêmes calculs sont servis aux assistants par `get_tax_report`, `prepare_tax_statement` et `apply_tax_statement` (`apps/server/src/mcp/tools/tax/`) : voir [Assistants (MCP)](../assistants-mcp/technique.md).
+
 ## Tests
 
 | Fichier | Ce qu'il couvre |
