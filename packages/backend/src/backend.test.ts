@@ -26,6 +26,23 @@ describe("backend", () => {
     if (res.ok) expect(res.data).toMatchObject({ appVersion: "test" });
   }, 20_000);
 
+  it("version des données : augmente après une écriture, pas après une lecture ni un réglage d'affichage", async () => {
+    const b = await memory();
+    const revision = async () => ((await b.dispatch("workspace.revision", undefined)) as { data: { revision: string } }).data.revision;
+    const first = await revision();
+    const loaded = (await b.dispatch("workspace.load", undefined)) as { data: Workspace };
+    expect(loaded.data.revision).toBe(first);
+    await b.dispatch("settings.set", { key: "ui.lastRoute", value: "/journal" });
+    expect(await revision()).toBe(first);
+    // Une écriture refusée ne change rien.
+    await b.dispatch("accounts.upsert", { kind: "pea", name: "" });
+    expect(await revision()).toBe(first);
+    await b.dispatch("accounts.upsert", { kind: "pea", name: "PEA" });
+    const after = await revision();
+    expect(after).not.toBe(first);
+    expect(((await b.dispatch("workspace.load", undefined)) as { data: Workspace }).data.revision).toBe(after);
+  });
+
   it("renvoie null pour un réglage jamais enregistré", async () => {
     expect(await (await memory()).dispatch("settings.get", { key: "ui.lastRoute" })).toEqual({ ok: true, data: null });
   });

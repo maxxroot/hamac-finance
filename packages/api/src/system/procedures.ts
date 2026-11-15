@@ -67,6 +67,8 @@ export interface Workspace {
   /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
   prices: PricePoint[];
   priceStatus: PriceStatus | null;
+  /** Version des données au chargement : comparée à `workspace.revision` pour voir une écriture faite ailleurs. */
+  revision: string;
 }
 
 /** Sauvegarde complète et portable, lignes brutes de chaque table. */
@@ -86,6 +88,8 @@ export const systemProcedures = {
   "settings.get": { input: z.object({ key: SettingKey }), output: z.unknown() },
   "settings.set": { input: z.object({ key: SettingKey, value: z.unknown() }), output: z.void() },
   "workspace.load": { input: z.void(), output: entity<Workspace>() },
+  /** Version actuelle des données, sans les charger : l'interface la relit pour savoir si elle doit se recharger. */
+  "workspace.revision": { input: z.void(), output: z.object({ revision: z.string() }) },
   "workspace.createStarter": { input: z.void(), output: ok },
   "params.update": { input: PlanParamsInput, output: PlanParams },
   "data.export": { input: z.void(), output: entity<DataDump>() },

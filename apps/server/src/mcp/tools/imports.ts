@@ -117,7 +117,7 @@ export function registerImportTools(tool: ToolRegistrar, call: Call, drafts: Dra
           label: p.tx.comment,
           ...(p.errors.length ? { errors: p.errors } : {}),
         })),
-        next: "Montrez ce résumé à l'utilisateur et demandez son accord avant apply_import. Un titre inconnu se crée avec create_asset (après accord), puis on refait prepare_import.",
+        next: "Montrez ce résumé à l'utilisateur et demandez son accord avant apply_import. Un titre inconnu se crée avec save_asset (après accord), puis on refait prepare_import.",
       };
     },
   );

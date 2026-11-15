@@ -1,12 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TokenScope } from "../auth/apiTokens";
+import type { ConfirmationStore } from "./confirmations";
 import type { DraftStore } from "./drafts";
 import type { Call } from "./engine";
 import { instructions } from "./instructions";
-import { registerEntryTools, registerStatementCheck } from "./tools/entries";
+import { registerAccountTools } from "./tools/accounts";
+import { registerAssetTools } from "./tools/assets";
+import { registerDeletionTools } from "./tools/deletions";
 import { registerImportTools } from "./tools/imports";
-import { registerReadTools } from "./tools/read";
+import { registerInstitutionTools } from "./tools/institutions";
+import { registerJournalTools } from "./tools/journal";
 import { registrar } from "./tools/registrar";
+import { registerStatementTools } from "./tools/statements";
+import { registerSummaryTools } from "./tools/summary";
 
 export interface McpContext {
   /** Appels du contrat sur le backend du tenant (`Backend.dispatch`). */
@@ -14,6 +20,7 @@ export interface McpContext {
   scope: TokenScope;
   tenantId: string;
   drafts: DraftStore;
+  confirmations: ConfirmationStore;
   appVersion: string;
 }
 
@@ -21,11 +28,16 @@ export interface McpContext {
 export function createMcpServer(ctx: McpContext): McpServer {
   const server = new McpServer({ name: "hamac", title: "Hamac", version: ctx.appVersion }, { instructions: instructions(ctx.scope), capabilities: { tools: {} } });
   const tool = registrar(server);
-  registerReadTools(tool, ctx.call);
-  registerStatementCheck(tool, ctx.call);
-  if (ctx.scope === "write") {
+  const canWrite = ctx.scope === "write";
+  registerSummaryTools(tool, ctx.call);
+  registerInstitutionTools(tool, ctx.call, canWrite);
+  registerAccountTools(tool, ctx.call, canWrite);
+  registerAssetTools(tool, ctx.call, canWrite);
+  registerJournalTools(tool, ctx.call, canWrite);
+  registerStatementTools(tool, ctx.call, canWrite);
+  if (canWrite) {
     registerImportTools(tool, ctx.call, ctx.drafts, ctx.tenantId);
-    registerEntryTools(tool, ctx.call);
+    registerDeletionTools(tool, ctx.call, ctx.confirmations, ctx.tenantId);
   }
   return server;
 }

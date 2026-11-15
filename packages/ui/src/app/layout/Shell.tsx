@@ -11,6 +11,7 @@ import { HamacMark, Wordmark } from "@/shared/components/Brand";
 import { PriceStatus } from "@/app/components/PriceStatus";
 import { TwoFactorBanner, TwoFactorPrompt } from "@/app/components/TwoFactorNudge";
 import { useWorkspace } from "@/shared/lib/workspace";
+import { useWorkspaceSync } from "@/shared/lib/workspaceSync";
 
 /** En dessous, la barre reste réduite pour laisser la place au contenu. */
 const WIDE_SCREEN = "(min-width: 1024px)";
@@ -62,6 +63,8 @@ export function Shell() {
   const { setChoice } = useThemeChoice();
   const theme = useTheme();
   const params = useWorkspace().data?.params;
+  // Les écritures de l'assistant (MCP) apparaissent sans recharger la page.
+  useWorkspaceSync();
   const retraite = params?.profile.goal !== "patrimoine";
   const visible = (item: NavItem) => (retraite || !item.retirementOnly) && (!item.module || params?.modules[item.module] !== false);
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter(visible) })).filter((g) => g.items.length);

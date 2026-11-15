@@ -6,11 +6,14 @@
 
 Un assistant conversationnel comme Claude peut se brancher sur votre Hamac. Vous pouvez alors :
 
+- **lui confier la tenue de votre patrimoine** : créer un établissement, ouvrir un compte et l'y rattacher, ajouter un titre, saisir ou corriger une opération, régler un versement programmé, un taux de livret ou le taux servi d'un fonds euros. Il vous dit ce qu'il va enregistrer et attend votre accord ;
 - **lui confier vos relevés à importer** : PDF d'un assureur, avis d'opéré d'un courtier, export CSV de votre banque, capture d'écran. Il lit le document, Hamac compare chaque ligne à votre journal et vous montre ce qui sera ajouté. Rien n'est écrit sans votre accord ;
 - **lui poser des questions** : « combien ai-je versé sur mon PER depuis 2023 ? », « quelle est ma plus-value latente sur le PEA ? », « qu'est-ce qui cloche dans mes données ? » ;
 - **vérifier un relevé de situation** : il compare l'encours que vous a envoyé votre assureur à celui que calcule Hamac, et cherche l'opération manquante.
 
 Les chiffres viennent toujours de Hamac : l'assistant cite les encours, les versements nets et les plus-values que calcule l'application, avec les mêmes règles que les écrans.
+
+Ce que l'assistant enregistre apparaît dans Hamac sans recharger la page : l'application vérifie quand vous revenez sur son onglet, et toutes les 20 secondes tant qu'il est affiché. Vous pouvez donc tout faire faire à l'assistant et ne garder Hamac ouvert que pour lire les graphiques.
 
 Le branchement utilise le [Model Context Protocol](https://modelcontextprotocol.io) (MCP), un standard ouvert. Claude Code et Claude Desktop le comprennent, comme d'autres assistants.
 
@@ -24,7 +27,7 @@ Ce que l'assistant lit dans Hamac (comptes, opérations, montants) est envoyé a
 
 - **Créer un jeton** : un nom (pour le reconnaître), l'accès, la durée et votre mot de passe.
   - *Lecture seule* : l'assistant consulte, il ne peut rien modifier.
-  - *Lecture et import* : il peut aussi préparer des imports, les appliquer après votre accord, créer un titre et enregistrer un relevé de situation.
+  - *Lecture et écriture* : il peut aussi créer et modifier vos établissements, comptes, titres et opérations, importer des relevés et supprimer, toujours après votre accord.
   - *Durée* : 30 jours, 90 jours ou 1 an. Le jeton cesse ensuite de fonctionner.
 - **Le jeton créé** s'affiche **une seule fois**, avec la commande toute prête pour Claude Code et une configuration pour les autres assistants. Hamac n'en garde qu'une empreinte : s'il est perdu, révoquez-le et créez-en un autre.
 - **La liste des jetons** : nom, accès, date d'expiration, dernière utilisation, et le bouton **Révoquer**.
@@ -58,6 +61,26 @@ Utilisez la configuration JSON affichée à la création du jeton : l'adresse es
 
 Pour un fichier CSV, OFX ou QIF, l'assistant transmet le fichier tel quel et Hamac le lit lui-même, comme dans la fenêtre d'import du Journal. Pour un PDF ou une image, c'est l'assistant qui lit le document : vérifiez l'aperçu.
 
+### Organiser vos comptes
+
+Parlez à l'assistant comme à quelqu'un qui tient vos comptes :
+
+- « Ajoute le courtier Bourse Direct, et rattache-lui mon PEA. »
+- « Ouvre une assurance-vie chez Linxea ouverte le 3 mars 2021. » Une assurance-vie ou un PER assurantiel reçoit son fonds euros, comme dans l'interface.
+- « Le LEP passe à 2,7 % au 1er février. » ; « Le fonds euros de mon assurance-vie a servi 2,5 % en 2025. »
+- « Je verse 200 € par mois sur le PEA à partir de mars ; je n'ai pas versé en avril. »
+- « Mon versement du 5 janvier était de 550 €, pas de 500. »
+
+Pour une modification, l'assistant ne change que ce que vous demandez : le reste de la fiche est gardé. Hamac applique les mêmes règles que les écrans (un seul PEA par personne, une obligation demande son taux et son échéance…) et l'assistant vous dit pourquoi une saisie est refusée.
+
+### Supprimer
+
+1. Demandez : « supprime l'opération du 5 janvier ».
+2. L'assistant vous montre ce qui disparaîtra, et ce qui part ou se détache avec : relevés de situation d'un compte, comptes d'un établissement (ils restent, sans établissement)… Rien n'est supprimé à cette étape.
+3. Confirmez : la suppression est faite. La confirmation ne vaut qu'une fois, pendant 15 minutes.
+
+Un compte ou un titre qui a des opérations ne se supprime pas : l'assistant vous propose de l'**archiver**, ce qui le retire des listes en gardant son historique. Une suppression ne s'annule pas ; seule une sauvegarde permet de revenir en arrière.
+
 ### Révoquer un jeton
 
 Paramètres › Application › Assistants (MCP), bouton **Révoquer** puis **Confirmer la révocation**. L'assistant perd l'accès immédiatement. Changer de mot de passe, activer la double authentification ou la faire réinitialiser révoque aussi **tous** vos jetons.
@@ -76,4 +99,4 @@ Ajoutez `HAMAC_MCP=0` dans le fichier `.env`, puis `docker compose up -d`. Plus 
 - Un aperçu reste valable une heure. Si le journal change entre l'aperçu et l'application (par exemple une saisie dans l'interface), l'assistant doit refaire l'aperçu.
 - L'assistant peut mal lire un PDF. Hamac vérifie la cohérence de chaque opération, pas qu'elle correspond au document : relisez l'aperçu.
 - Un document peut contenir du texte caché destiné à tromper l'assistant. Hamac n'écrit jamais rien sans aperçu, et votre assistant vous demande votre accord avant chaque outil qui modifie vos données. Gardez cette demande d'accord activée.
-- Pour l'instant, l'assistant ne saisit que des opérations sur les comptes et les supports, des titres et des relevés de situation. L'immobilier, la gestion locative et les crédits viendront ensuite.
+- Pour l'instant, l'assistant gère les établissements, les comptes, les titres, le journal et les relevés de situation. La fiscalité, l'immobilier, la gestion locative, les crédits et les autres biens viendront ensuite ; en attendant, ils se saisissent dans l'interface. Les paramètres du plan et de la fiscalité ne se modifient pas depuis l'assistant.

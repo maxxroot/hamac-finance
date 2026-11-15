@@ -2,6 +2,7 @@ import type { Context, Hono } from "hono";
 import type { Backend } from "@hamac/backend";
 import { TOKEN_DAYS, TOKEN_SCOPES, type TokenScope } from "../auth/apiTokens";
 import type { User, UserStore } from "../auth/users";
+import { ConfirmationStore } from "../mcp/confirmations";
 import { DraftStore } from "../mcp/drafts";
 import { handleMcpRequest } from "../mcp/endpoint";
 import { callThrough } from "../mcp/engine";
@@ -30,6 +31,7 @@ const DISABLED = "Les assistants (MCP) sont désactivés sur cette instance.";
 export function mountMcpRoutes(app: Hono, deps: McpRoutesDeps): void {
   const { users } = deps;
   const drafts = new DraftStore();
+  const confirmations = new ConfirmationStore();
   const hits = new Map<string, { n: number; reset: number }>();
   const allowCall = (tokenId: string): boolean => {
     const now = Date.now();
@@ -86,7 +88,7 @@ export function mountMcpRoutes(app: Hono, deps: McpRoutesDeps): void {
     if (!access) return c.json({ error: "Jeton d'accès absent, expiré ou révoqué." }, 401, { "WWW-Authenticate": 'Bearer realm="hamac"' });
     if (!allowCall(access.tokenId)) return c.json({ error: "Trop de requêtes : réessayez dans une minute." }, 429);
     const backend = await deps.backendFor(access.user);
-    return handleMcpRequest(c.req.raw, { call: callThrough((name, input) => backend.dispatch(name, input)), scope: access.scope, tenantId: access.user.tenantId, drafts, appVersion: deps.appVersion });
+    return handleMcpRequest(c.req.raw, { call: callThrough((name, input) => backend.dispatch(name, input)), scope: access.scope, tenantId: access.user.tenantId, drafts, confirmations, appVersion: deps.appVersion });
   });
 }
 

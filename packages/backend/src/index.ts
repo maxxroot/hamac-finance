@@ -59,6 +59,7 @@ export async function createBackend(opts: BackendOptions): Promise<Backend> {
       market: opts.market,
       isAdmin: opts.isAdmin,
       displayPath: opts.displayPath ?? "Base PostgreSQL de l'instance",
+      revision: { boot: crypto.randomUUID().slice(0, 8), n: 0 },
     };
     return startBackend(ctx, { autoRefreshPrices: opts.autoRefreshPrices });
   } catch (err) {
@@ -66,6 +67,26 @@ export async function createBackend(opts: BackendOptions): Promise<Backend> {
     throw err;
   }
 }
+
+/**
+ * Procédures qui ne changent pas l'espace de travail : lectures, et réglages d'affichage (`settings.*`, lus à part).
+ * Toute autre procédure réussie augmente `ctx.revision` ; en oublier une ici ne coûte qu'un rechargement de trop.
+ */
+const KEEPS_REVISION: ReadonlySet<string> = new Set<ProcName>([
+  "workspace.load",
+  "workspace.revision",
+  "system.info",
+  "settings.get",
+  "settings.set",
+  "data.export",
+  "market.settings",
+  "market.irl",
+  "market.series",
+  "assets.search",
+  "exposure.load",
+  "exposure.lookup",
+  "exposure.admin",
+]);
 
 /** Assemble un backend sur une base déjà ouverte et migrée, quel que soit son moteur. */
 export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: boolean }): Backend {
@@ -85,6 +106,7 @@ export function startBackend(ctx: BackendContext, opts: { autoRefreshPrices?: bo
     try {
       const handler = handlers[name as ProcName] as (i: unknown, c: BackendContext) => Promise<unknown>;
       const out = proc.output.parse(await handler(parsed.data, ctx));
+      if (!KEEPS_REVISION.has(name)) ctx.revision.n++;
       return { ok: true, data: out };
     } catch (err) {
       if (err instanceof RpcError) {

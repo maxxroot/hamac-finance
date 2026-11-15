@@ -52,18 +52,40 @@ La saisie est ce qui fait abandonner un outil de suivi. Hamac sait déjà import
 - Modification de `@hamac/core` : une ligne de relevé peut imposer son type et son titre (`StatementLine.type`, `StatementLine.assetId`), au lieu de les laisser deviner.
 - `transactions.bulkCreate` renvoie aussi les identifiants créés (pour l'annulation).
 
-## 3. Ressources et scénarios (à faire)
+## 3. Tout gérer depuis l'assistant
 
-- Servir les guides de `docs/` comme ressources MCP, pour que l'assistant connaisse le vocabulaire et les règles (enveloppe, support, fonds euros, PER assurantiel ou bancaire).
-- Scénarios prêts à l'emploi (« prompts » du protocole) : rapprocher un relevé de situation, faire le bilan du mois, préparer l'aide à la déclaration.
+Décidé le 15 novembre 2026 : l'utilisateur veut tout préparer avec l'assistant (saisie, fiscalité) et n'utiliser l'interface que pour lire les graphiques.
 
-## 4. Saisie assistée sur les autres domaines (à faire)
+| Sujet | Décision |
+|-------|----------|
+| Forme des outils | Un outil par objet métier (`save_institution`, `save_account`…), pas un outil par procédure (une centaine noierait le modèle), ni un passe-plat générique (ni descriptions ni garde-fous). |
+| Modification | Sans `id`, création ; avec `id`, seuls les champs donnés changent : l'outil fusionne avec l'objet existant, car les `*.upsert` du contrat remplacent tout. |
+| Écriture | Un objet entièrement décrit par ses paramètres s'écrit directement (le client MCP demande l'accord à chaque appel). Un lot tiré d'un document passe par un aperçu puis une application. |
+| Suppression | Autorisée avec accord préalable : `prepare_deletion` décrit ce qui disparaît, `apply_deletion` supprime après confirmation. Un objet encore utilisé s'archive. |
+| Paramètres | Paramètres du plan et de la fiscalité en lecture seule pour l'instant ; à terme, mise à jour par l'assistant quand la réglementation change. |
+| Interface | Elle relit une version des données pour se recharger après une écriture de l'assistant. |
 
-Gestion locative (encaissements pointés depuis un relevé bancaire, quittances), crédits (tableau d'amortissement), autres biens, valeurs de rachat des contrats. Même règle : aperçu, puis application.
+### A. Établissements, comptes, titres, journal
 
-**Question ouverte :** faut-il un aperçu générique (une liste d'appels de procédures validés à blanc), ou un outil par domaine ? Un outil par domaine est plus simple à décrire au modèle.
+**Statut :** fait le 15 novembre 2026. Outils `list_institutions`, `save_institution`, `save_account`, `set_account_rate`, `set_fund_rate`, `save_asset` (remplace `create_asset`), `set_price`, `save_transaction`, `set_contribution_plan`, `save_contribution_skip`, `prepare_deletion`, `apply_deletion` ; `get_account` donne aussi les réglages, versements programmés et taux. Version des données (`workspace.revision`) et rechargement de l'interface.
 
-## 5. Connecteurs claude.ai (à faire)
+### B. Impôts (à faire)
+
+- Lecture du récapitulatif fiscal d'une année (cases 2042 et 2042 C, fiches par établissement, détail 2074 et 2086, points à contrôler).
+- Estimation : à payer à la prochaine déclaration, si tout était retiré, impôts par année ; liste de fin d'année, dispense d'acompte.
+- Montants de l'IFU saisis en deux temps, puis comparés au calcul de Hamac.
+- Lecture des paramètres fiscaux du foyer.
+- Scénario MCP (« prompt ») « préparer ma déclaration » : contrôles → IFU → récapitulatif → écarts.
+
+### C. Immobilier et gestion locative (à faire)
+
+SCI, biens et valeurs, lots, locataires, baux, loyers ; encaissements pointés depuis un relevé bancaire (aperçu) ; charges, recettes, rappels ; lecture de la rentabilité et de la fiscalité locative.
+
+### D. Le reste (à faire)
+
+Crédits (échéancier lu dans un PDF, remboursements anticipés), autres biens et leurs valorisations, obligations suivies par plan, crowdlending, objectifs, dépenses prévues, donations. Puis les guides de `docs/` servis comme ressources MCP.
+
+## 4. Connecteurs claude.ai (à faire)
 
 Les connecteurs distants de claude.ai demandent une autorisation OAuth 2.1 : serveur d'autorisation (ou délégation), découverte (`/.well-known/oauth-protected-resource`), écran de consentement dans Hamac. À étudier après l'usage avec Claude Code et Claude Desktop, qui acceptent un jeton dans un en-tête.
 

@@ -23,7 +23,7 @@ import { fromCents } from "../db/units";
  * (`mappers/<domaine>.ts`), les cours du tenant fusionnés avec ceux de l'instance (`mergePrices`).
  * Une nouvelle table s'ajoute ici et dans le type `Workspace` du contrat.
  */
-export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Workspace> {
+export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Omit<Workspace, "revision">> {
   const [params, accounts, assets, txs, plans, skips, bondPlans, fundRates, statements, expenses, prices, status, institutions, rates, propertyRows, loanRows, crowdRows, taxStatementRows, leaseRows, leaseRentRows, rentPaymentRows, expenseRows, propertyValueRows, incomeRows, documentRows, prepaymentRows, companyRows, otherAssetRows, otherAssetValueRows, giftRows, goalRows, goalAllocationRows, lotRows, renterRows, leaseRenterRows, guaranteeRows, reminderRows, waiverRows, noticeRows] = await Promise.all([
     loadParams(db),
     db.select().from(t.accounts).orderBy(t.accounts.sortOrder, t.accounts.name),

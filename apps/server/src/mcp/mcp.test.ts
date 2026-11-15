@@ -1,25 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Backend } from "@hamac/backend";
 import { testBackend } from "@hamac/backend/testkit";
 import type { TokenScope } from "../auth/apiTokens";
 import { DraftStore } from "./drafts";
 import { callThrough, parisToday, type Call } from "./engine";
-import { createMcpServer } from "./server";
+import { connectTestClient, testStores, type TestStores } from "./testClient";
 
 /** Les outils MCP sur un vrai backend (PostgreSQL en mémoire), appelés par le client MCP officiel. */
 
 let backend: Backend;
 let call: Call;
-let drafts: DraftStore;
+let stores: TestStores;
 let pea: string;
 let etf: string;
 
 beforeEach(async () => {
   backend = await testBackend();
   call = callThrough((name, input) => backend.dispatch(name, input));
-  drafts = new DraftStore();
+  stores = testStores();
   pea = (await call("accounts.upsert", { kind: "pea", name: "PEA Bourse" })).id;
   etf = (await call("assets.upsert", { kind: "etf", name: "Amundi MSCI World", isin: "LU1681043599", priceSource: "manuel", manualPrice: 500, manualPriceDate: "2026-01-02" })).id;
   await call("transactions.upsert", { date: "2026-01-02", type: "versement", accountId: pea, amount: 2000 });
@@ -27,31 +25,20 @@ beforeEach(async () => {
 });
 afterEach(() => backend.close());
 
-async function connect(scope: TokenScope = "write", tenantId = "t1") {
-  const server = createMcpServer({ call, scope, tenantId, drafts, appVersion: "test" });
-  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: "test", version: "1" });
-  await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
-  const tool = async (name: string, args: Record<string, unknown> = {}) => {
-    const res = await client.callTool({ name, arguments: args });
-    const text = (res.content as Array<{ text: string }>)[0]!.text;
-    return { isError: res.isError === true, text, json: res.isError ? null : (JSON.parse(text) as any) };
-  };
-  return { client, tool, instructions: client.getInstructions() };
-}
+const connect = (scope: TokenScope = "write", tenantId = "t1") => connectTestClient(call, stores, scope, tenantId);
 
 describe("outils exposés", () => {
   it("en lecture seule : aucun outil qui écrit", async () => {
     const { client, instructions } = await connect("read");
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(["check_data", "compare_statement", "get_account", "get_summary", "list_accounts", "list_assets", "list_transactions"]);
+    expect(names).toEqual(["check_data", "compare_statement", "get_account", "get_summary", "list_accounts", "list_assets", "list_institutions", "list_transactions"]);
     expect(instructions).toContain("lecture seule");
   });
 
-  it("en écriture : import, annulation, titre et relevé en plus", async () => {
+  it("en écriture : import, saisie, suppression confirmée en plus", async () => {
     const { client, instructions } = await connect("write");
     const names = (await client.listTools()).tools.map((t) => t.name);
-    expect(names).toEqual(expect.arrayContaining(["prepare_import", "apply_import", "undo_import", "create_asset", "record_statement"]));
+    expect(names).toEqual(expect.arrayContaining(["prepare_import", "apply_import", "undo_import", "save_asset", "record_statement", "save_institution", "save_account", "save_transaction", "prepare_deletion", "apply_deletion"]));
     expect(instructions).toContain("accord explicite");
   });
 });
@@ -144,8 +131,8 @@ describe("import en deux temps", () => {
 
   it("titre inconnu créé, puis reconnu par un nouvel aperçu ; ISIN déjà connu : rien de créé", async () => {
     const { tool } = await connect();
-    expect((await tool("create_asset", { kind: "etf", name: "Doublon", isin: "LU1681043599" })).json).toMatchObject({ created: false, id: etf });
-    const created = (await tool("create_asset", { kind: "action", name: "ACME", isin: "FR0000120073" })).json;
+    expect((await tool("save_asset", { kind: "etf", name: "Doublon", isin: "LU1681043599" })).json).toMatchObject({ created: false, id: etf });
+    const created = (await tool("save_asset", { kind: "action", name: "ACME", isin: "FR0000120073" })).json;
     expect(created).toMatchObject({ created: true, kind: "action" });
     const preview = (await tool("prepare_import", { accountId: pea, lines })).json;
     expect(preview.lines[2]).toMatchObject({ status: "ok", assetId: created.id });

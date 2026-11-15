@@ -13,12 +13,12 @@ export interface ApiToken {
 
 export const SCOPE_LABELS: Record<TokenScope, string> = {
   read: "Lecture seule",
-  write: "Lecture et import",
+  write: "Lecture et écriture",
 };
 
 export const SCOPE_HELP: Record<TokenScope, string> = {
   read: "L'assistant consulte vos comptes, vos opérations et les contrôles de Hamac. Il ne peut rien modifier.",
-  write: "L'assistant peut aussi préparer des imports, les appliquer après votre accord, créer un titre et enregistrer un relevé de situation.",
+  write: "L'assistant peut aussi créer et modifier vos établissements, comptes, titres et opérations, importer des relevés et supprimer, toujours après votre accord.",
 };
 
 export const TOKEN_DAYS = [30, 90, 365] as const;

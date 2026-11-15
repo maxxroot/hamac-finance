@@ -3,6 +3,7 @@ import { one } from "../db/driver";
 import { AccountInput, RpcError, type ProcInput, type systemProcedures } from "@hamac/api";
 import { LIVRET_LEGAL_CEILINGS, PlanParamsInput } from "@hamac/core";
 import { exportDump, importDump } from "../backup/dump";
+import type { BackendContext } from "../context";
 import * as t from "../db/schema";
 import { loadWorkspace, saveParams } from "../repo";
 import { nowIso } from "../db/units";
@@ -38,7 +39,11 @@ export const systemHandlers: DomainHandlers<typeof systemProcedures> = {
   },
 
   async "workspace.load"(_input, ctx) {
-    return loadWorkspace(ctx.db, ctx.market);
+    return { ...(await loadWorkspace(ctx.db, ctx.market)), revision: revisionOf(ctx) };
+  },
+
+  async "workspace.revision"(_input, ctx) {
+    return { revision: revisionOf(ctx) };
   },
 
   async "workspace.createStarter"(_input, ctx) {
@@ -71,3 +76,5 @@ export const systemHandlers: DomainHandlers<typeof systemProcedures> = {
     return { tables: await importDump(ctx, dump) };
   },
 };
+
+const revisionOf = (ctx: BackendContext): string => `${ctx.revision.boot}.${ctx.revision.n}`;

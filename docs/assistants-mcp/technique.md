@@ -13,15 +13,26 @@
 | server, mcp | `apps/server/src/mcp/instructions.ts` | Consignes envoyées au client à l'initialisation (vocabulaire, marche à suivre de l'import, refus des consignes contenues dans un document). |
 | server, mcp | `apps/server/src/mcp/engine.ts` | `callThrough` (le contrat sur `Backend.dispatch`, erreurs en `ToolError` lisibles), `loadEngine` (même préparation que `packages/ui/src/shared/lib/portfolio.ts`), `parisToday`, `cents`. |
 | server, mcp | `apps/server/src/mcp/drafts.ts` | `DraftStore` : aperçus (une heure) et importations annulables (24 heures), en mémoire, par tenant, 20 au plus par tenant. |
+| server, mcp | `apps/server/src/mcp/confirmations.ts` | `ConfirmationStore` : suppressions annoncées par `prepare_deletion`, à usage unique, 15 minutes, par tenant, 50 au plus. |
+| server, mcp | `apps/server/src/mcp/testClient.ts` | Tests seulement : serveur MCP relié au client officiel en mémoire. |
 | server, mcp | `apps/server/src/mcp/tools/registrar.ts` | Déclaration d'un outil : résultat en JSON compact, `ToolError` en erreur d'outil, autre erreur journalisée. |
-| server, mcp | `apps/server/src/mcp/tools/read.ts` | `get_summary`, `list_accounts`, `get_account`, `list_assets`, `list_transactions`, `check_data`. |
+| server, mcp | `apps/server/src/mcp/tools/fields.ts` | Champs communs (dates, mois, ISIN, taux), annotations `READ_ONLY` et `WRITE`, `merge` (modification partielle), `found`. |
+| server, mcp | `apps/server/src/mcp/tools/summary.ts` | `get_summary`, `check_data`. |
+| server, mcp | `apps/server/src/mcp/tools/institutions.ts` | `list_institutions` ; `save_institution`. |
+| server, mcp | `apps/server/src/mcp/tools/accounts.ts` | `list_accounts`, `get_account` ; `save_account`, `set_account_rate`, `set_fund_rate`. |
+| server, mcp | `apps/server/src/mcp/tools/assets.ts` | `list_assets` ; `save_asset`, `set_price`. |
+| server, mcp | `apps/server/src/mcp/tools/journal.ts` | `list_transactions` ; `save_transaction`, `set_contribution_plan`, `save_contribution_skip`. |
+| server, mcp | `apps/server/src/mcp/tools/statements.ts` | `compare_statement` ; `record_statement`. |
 | server, mcp | `apps/server/src/mcp/tools/imports.ts` | `prepare_import`, `apply_import`, `undo_import`. |
-| server, mcp | `apps/server/src/mcp/tools/entries.ts` | `compare_statement` (lecture), `record_statement`, `create_asset`. |
+| server, mcp | `apps/server/src/mcp/tools/deletions.ts` | `prepare_deletion`, `apply_deletion` et la table des objets supprimables (`KINDS`). |
 | server, http | `apps/server/src/http/mcpRoutes.ts` | Routes `/api/auth/tokens` et `/api/mcp` : jeton Bearer, contrôle de l'origine, 120 requêtes par minute et par jeton. |
 | server, http | `apps/server/src/http/app.ts` | `ServerConfig.mcp`, montage des routes avant le `404` de `/api/*`. |
 | server | `apps/server/src/main.ts` | `HAMAC_MCP=0` → `mcp: false`. |
 | core, import | `packages/core/src/imports/statementImport.ts` | `StatementLine.type` et `StatementLine.assetId` : type et titre imposés par l'appelant. |
 | api, backend | `packages/api/src/journal/procedures.ts`, `packages/backend/src/handlers/journal.ts` | `transactions.bulkCreate` renvoie `ids`. |
+| backend | `packages/backend/src/index.ts`, `packages/backend/src/context.ts` | `ctx.revision` augmenté après chaque procédure réussie, sauf celles de `KEEPS_REVISION` (lectures et réglages d'affichage). |
+| api, backend | `packages/api/src/system/procedures.ts`, `packages/backend/src/handlers/system.ts` | `workspace.revision` ; `Workspace.revision` renvoyé par `workspace.load`. |
+| ui, données | `packages/ui/src/shared/lib/workspaceSync.ts` | `useWorkspaceSync` (appelé par `Shell`) : relit la version quand l'onglet redevient visible et toutes les 20 secondes, recharge l'espace de travail si elle a changé. |
 | ui, carte | `packages/ui/src/features/settings/components/AssistantsCard.tsx` | Création, affichage unique, liste et révocation des jetons. |
 | ui, logique | `packages/ui/src/features/settings/lib/assistants.ts` | Libellés, `claudeCodeCommand`, `jsonConfig`, `lastUsedText`. |
 | ui, client | `packages/ui/src/features/settings/lib/auth.ts` | `auth.tokens.list`, `create`, `revoke`. |
@@ -51,7 +62,13 @@ Jeton : `hamac_` puis 32 octets aléatoires en base64url (43 caractères). La ta
 
 **Révocation.** `closeSessions` (changement de mot de passe, `2fa-reset` de la ligne de commande) et `confirmTwoFactor` suppriment aussi les jetons du compte : quelqu'un qui aurait connu le mot de passe ne garde aucun accès.
 
-**Outils.** Annotations du protocole : `readOnlyHint` sur les outils de lecture et sur `prepare_import` (qui n'écrit qu'en mémoire), `destructiveHint` sur `undo_import`. Les arguments sont validés par le SDK avec les schémas zod de chaque outil, puis par `dispatch` avec ceux du contrat.
+**Outils.** Un fichier par domaine dans `tools/`, chacun déclare ses lectures puis, pour un jeton `write`, ses écritures. Annotations du protocole : `readOnlyHint` sur les lectures, `prepare_import` et `prepare_deletion` (qui n'écrivent qu'en mémoire), `destructiveHint` sur `undo_import` et `apply_deletion`. Les arguments sont validés par le SDK avec les schémas zod de chaque outil, puis par `dispatch` avec ceux du contrat. Noms en anglais, descriptions en français.
+
+**Saisie (`save_*`).** Sans `id`, l'outil crée l'objet (champs minimaux vérifiés avant l'appel) ; avec `id`, il relit l'objet dans `workspace.load` et `merge` n'y remplace que les champs donnés, car les procédures `*.upsert` remplacent tout l'objet (un champ absent reprendrait sa valeur par défaut). Les sous-objets de l'établissement (`tax`, `protection`) sont fusionnés de même ; une grille de `offers` donnée remplace celle du même type de compte. `save_asset` sans `id` renvoie le titre existant si l'ISIN est connu, et choisit la source de cours comme la fenêtre de l'interface. Les règles métier restent celles du backend (un seul PEA, obligation sans échéance, type changé sur un compte qui a des opérations…).
+
+**Suppressions.** `prepare_deletion` décrit l'objet et ce qui part ou se détache avec lui (d'après les cascades du schéma), refuse s'il est encore utilisé (compte ou titre qui a des opérations, plateforme qui a des projets) et garde une confirmation. `apply_deletion` consomme la confirmation, relit l'espace de travail, refuse si l'objet s'est mis à servir entre-temps, puis appelle la procédure `*.delete`. Objets pris en charge : `institution`, `account`, `asset`, `transaction`, `statement`, `account_rate`, `contribution_plan`, `contribution_skip`. Ajouter un objet = une entrée dans `KINDS`.
+
+**Rafraîchissement de l'interface.** L'interface ne recharge l'espace de travail qu'après ses propres écritures (`useMutate`). Pour voir celles de l'assistant, `Backend` tient une version des données (`ctx.revision` : un identifiant tiré à l'ouverture du backend et un compteur), augmentée après chaque procédure réussie hors `KEEPS_REVISION`. `workspace.load` la renvoie ; `useWorkspaceSync` relit `workspace.revision` (appel léger) et invalide l'espace de travail si elle diffère, sauf pendant un chargement ou une écriture de l'onglet. Oublier une lecture dans `KEEPS_REVISION` ne coûte qu'un rechargement de trop.
 
 **Import.** `prepare_import` construit des `StatementLine` (depuis `lines`, ou depuis `file` avec `detectFormat`, `parseOfx`, `parseQif`, `parseCsv` + `findHeaderRow` + `guessRoles` + `linesFromCsv`, comme `StatementImportDialog`), appelle `buildImport` avec le calendrier des versements programmés et garde les statuts. `apply_import` recalcule `buildImport` sur le journal actuel et refuse si un statut a changé ; il envoie les lignes `ok` (moins `exclude`) et les lignes `doublon` ou `programme` de `include` à `transactions.bulkCreate`, puis garde les `ids` pour `undo_import`. Une ligne `erreur` ne peut jamais être reprise.
 
@@ -64,6 +81,9 @@ Jeton : `hamac_` puis 32 octets aléatoires en base64url (43 caractères). La ta
 ## Tests
 
 - `apps/server/src/mcp/mcp.test.ts` : outils par portée, lecture (synthèse, comptes, positions, filtres, erreurs lisibles, arguments invalides), import (aperçu sans écriture, doublon, titre inconnu, application unique, `include` et `exclude`, journal modifié entre-temps, isolement par tenant, annulation, CSV lu par Hamac, colonnes fausses), création de titre, relevé de situation, expiration des aperçus. Client MCP officiel sur `InMemoryTransport`, backend PGlite.
+- `apps/server/src/mcp/manage.test.ts` : établissement et compte rattaché, modifications partielles (fiche, fiscalité, réglages), refus lisibles, taux de livret et de fonds euros, titre (ISIN connu, archivage, SCPI et cours saisi, obligation incomplète), opération saisie puis corrigée, versements programmés, suppression en deux temps (usage unique, compte utilisé, établissement qui détache ses comptes, objet devenu utilisé, autre tenant, expiration).
+- `packages/backend/src/backend.test.ts` : version des données (écriture, lecture, réglage d'affichage, écriture refusée).
+- `packages/ui/src/shared/lib/workspaceSync.test.ts` : quand recharger.
 - `apps/server/src/http/mcpRoutes.test.ts` : création (mot de passe, portée), jeton jamais relu, CSRF, 401 sans jeton ou avec un cookie seul, outils selon la portée, données du seul compte du jeton, client HTTP officiel du SDK de bout en bout, origine, méthode, révocation, changement de mot de passe, jeton d'un autre compte, `HAMAC_MCP=0`.
 - `packages/core/src/imports/statementImport.test.ts` : type et titre imposés.
 - `packages/ui/src/features/settings/lib/assistants.test.ts` : commandes de branchement, dernière utilisation.
@@ -71,7 +91,9 @@ Jeton : `hamac_` puis 32 octets aléatoires en base64url (43 caractères). La ta
 ## Limites connues
 
 - Aperçus et annulations en mémoire du processus : perdus au redémarrage, et propres à une seule instance du serveur (Hamac n'en lance qu'une).
-- Pas d'OAuth : les connecteurs distants de claude.ai ne peuvent pas se brancher (tranche 5 de la proposition).
+- Pas d'OAuth : les connecteurs distants de claude.ai ne peuvent pas se brancher (section 4 de la proposition).
 - `bulkCreate` n'enregistre pas `counterAssetId`, `counterQuantity` ni `accrued` : un arbitrage ou un achat d'obligation avec coupon couru se saisissent dans l'interface.
-- `create_asset` ne crée ni obligation ni fonds euros, qui demandent leurs caractéristiques.
+- Les confirmations de suppression sont en mémoire, comme les aperçus. Une suppression ne s'annule pas : seule une sauvegarde permet de revenir en arrière.
+- La version des données est en mémoire du backend du tenant : une écriture faite par un autre processus serveur ne serait pas vue (Hamac n'en lance qu'un). L'actualisation des cours en tâche de fond ne la change pas.
+- Pas encore d'outils pour l'immobilier, la gestion locative, les crédits, les autres biens, les obligations suivies par plan, le crowdlending, les objectifs, ni pour la fiscalité (tranches B à D de la section 3 de la proposition).
 - Le plafond de 120 requêtes par minute est en mémoire, par jeton.

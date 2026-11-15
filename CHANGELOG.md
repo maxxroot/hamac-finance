@@ -6,6 +6,15 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+### Ajouté
+
+- Assistants (MCP) : l'assistant tient désormais vos comptes, toujours après votre accord. Il crée et modifie les établissements (fiscalité, protection, grilles de frais), les comptes et contrats, les titres (dont obligations et fonds euros) et leurs cours saisis, les opérations, les versements programmés, les taux des livrets et les taux servis des fonds euros. Il peut aussi supprimer, en deux temps : il annonce ce qui disparaîtra, puis supprime une fois que vous avez confirmé.
+- L'interface se met à jour seule quand des données changent ailleurs (assistant, autre onglet) : quand vous revenez sur l'onglet, puis toutes les 20 secondes tant qu'il est affiché.
+
+### Modifié
+
+- Assistants (MCP) : l'outil `create_asset` s'appelle désormais `save_asset` et sert aussi à modifier un titre. L'accès « Lecture et import » d'un jeton s'appelle désormais « Lecture et écriture ».
+
 ## [0.2.0] - 2026-11-15
 
 Hamac se pilote désormais depuis un assistant conversationnel : on lui confie un relevé, il l'importe après un aperçu et votre accord.

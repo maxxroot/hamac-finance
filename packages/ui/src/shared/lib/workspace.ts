@@ -48,6 +48,7 @@ function normalizeWorkspace(ws: Partial<Workspace>): Workspace {
     taxStatements: list("taxStatements"),
     accountRates: list("accountRates"),
     priceStatus: ws.priceStatus ?? null,
+    revision: typeof ws.revision === "string" ? ws.revision : "",
     // Réglages ajoutés depuis : valeur par défaut plutôt qu'un champ vide dans les formulaires.
     params: normalizeParams(ws.params),
   };
