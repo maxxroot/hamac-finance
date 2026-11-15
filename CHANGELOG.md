@@ -6,6 +6,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.2.0] - 2026-11-15
+
+Hamac se pilote désormais depuis un assistant conversationnel : on lui confie un relevé, il l'importe après un aperçu et votre accord.
+
 ### Ajouté
 
 - Assistants (MCP) : un assistant comme Claude Code peut se brancher sur Hamac avec un jeton d'accès créé dans Paramètres › Application. Il consulte le patrimoine, les comptes, les opérations et les contrôles de Hamac, compare un relevé de situation à l'encours calculé et, avec un jeton « lecture et import », importe les opérations d'un relevé (PDF, CSV, OFX, QIF) après un aperçu et votre accord, avec annulation possible pendant 24 heures. `HAMAC_MCP=0` coupe les assistants sur l'instance.
@@ -78,5 +82,6 @@ Première version publique : une application web auto-hébergée, avec PostgreSQ
 
 - L'application de bureau (Electron) : seule la version web est maintenue. La dernière version de bureau reste disponible au tag `derniere-version-desktop`.
 
-[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.1.0...HEAD
+[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/maxxroot/hamac-finance/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maxxroot/hamac-finance/releases/tag/v0.1.0

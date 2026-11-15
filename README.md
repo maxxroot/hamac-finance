@@ -39,7 +39,7 @@ en la fiabilisant.
   d'actifs et répartition cible personnalisables.
 
 > Nom provisoire. Hamac est en développement actif : les fonctionnalités ci-dessous sont en place et
-> testées. La version actuelle est la [0.1.0](CHANGELOG.md) : tant que le numéro commence par `0.`,
+> testées. La version actuelle est la [0.2.0](CHANGELOG.md) : tant que le numéro commence par `0.`,
 > le fonctionnement peut encore changer d'une version à l'autre.
 
 ---
