@@ -8,7 +8,8 @@
 |---|---|---|
 | UI, page | `packages/ui/src/features/accounts/pages/Comptes.tsx` | Page `/comptes` (l'ancienne adresse `/enveloppes` redirige) : `AccountsTable`, évolution, allocation de la partie investie, `LivretsStatus` (réutilisé par Livrets). |
 | UI, page | `packages/ui/src/features/accounts/pages/Compte/Compte.tsx` | Page `/comptes/:id` : en-tête, quatre chiffres (`FourthStat`), évolution, mouvements, achat conseillé d'un PEA ; `Missing` pour un identifiant inconnu. |
-| UI, page | `packages/ui/src/features/accounts/pages/Compte/_Composition.tsx` | Barre de répartition par classe (`AccountState.byBucket`), liens `BUCKET_PAGES`. |
+| UI, page | `packages/ui/src/features/accounts/pages/Compte/_Composition.tsx` | Barre de répartition par classe du compte. |
+| UI, lib | `packages/ui/src/features/accounts/lib/holdingClass.ts` | `holdingClassOf`, `accountClasses` : classes du compte, la classe `croissance` séparée en ETF, actions et fonds (couleurs `--color-etf`, `--color-fonds`). |
 | UI, page | `packages/ui/src/features/accounts/pages/Compte/_Holdings.tsx` | Composition : positions, projets de crowdlending, espèces, total. |
 | UI, page | `packages/ui/src/features/accounts/pages/Compte/_Facts.tsx` | Carte « Caractéristiques », lignes selon le type de compte. |
 | UI, socle | `packages/ui/src/shared/components/AccountLink.tsx`, `packages/ui/src/shared/nav.ts` | `AccountLink` (nom cliquable, sans déplier la ligne qui le contient), `accountPath`, `BUCKET_PAGES`. |
@@ -101,7 +102,8 @@ Découpage d'un compte (`partsOf`, sur `value × share` et `cash × share`) : li
 
 - Route `/comptes/:id` (`App.tsx`), hors de `ALL_ITEMS` : l'entrée « Mes comptes » du menu reste active (`NavLink` sans `end`).
 - Sous-menu : `sidebarAccounts` garde les comptes non archivés, rangés par type (`pea`, `pea_pme`, `cto`, `assurance_vie`, `per`, `epargne_salariale`, `crypto`, `crowdlending`, `livret`), puis `sortOrder`, puis nom. Masqué quand la barre est réduite.
-- Répartition : classes de `byBucket` de valeur > 0,005 €, affichée seulement s'il y en a au moins deux. Les espèces comptent dans `cashBucketOf` (fonds euros d'un contrat, liquidités ailleurs, précaution pour un livret).
+- Répartition (`accountClasses`) : positions par `holdingClassOf` (ETF, actions, fonds séparés ; les autres par classe), projets de crowdlending, espèces dans `cashBucketOf` (fonds euros d'un contrat, liquidités ailleurs, précaution pour un livret). Classes de valeur > 0,005 €, affichée seulement s'il y en a au moins deux. L'allocation du patrimoine garde la classe `croissance` entière.
+- Composition : la colonne Type donne le type du titre (`ASSET_KIND_LABELS`, en court pour ETC et fonds).
 - Composition : `positions`, puis une ligne « Projets de crowdlending » (`Σ crowdProjects.value`) et une ligne « Espèces » (si `|cash| > 0,005`). Part du compte = valeur ÷ `AccountState.value`. Le tableau n'apparaît que s'il y a des positions ou des projets.
 - Quatrième chiffre : `fiscalAnniversary(openedOn, 5)` pour `pea`/`pea_pme`, `(openedOn, 8)` pour `assurance_vie`, `interests` pour un livret, `fees` sinon.
 - Caractéristiques : grille de `tradeFeeFor` pour `pea`, `pea_pme`, `cto`, `crypto` ; FGAP (`alerts.fgapGuarantee − value`) si `holdsEuroFunds`.

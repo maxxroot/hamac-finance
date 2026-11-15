@@ -298,7 +298,9 @@ describe("Page d'un compte", () => {
     // 600 € au fonds euros, 4 parts à 150 € : 1 200 €, moitié-moitié.
     const repartition = within(screen.getByText("Répartition par classe d'actifs").closest("div.rounded-2xl") as HTMLElement);
     expect(repartition.getByRole("link", { name: "Fonds euros" }).getAttribute("href")).toBe("/fonds-euros");
-    expect(repartition.getByRole("link", { name: "Actions" }).getAttribute("href")).toBe("/actions");
+    // Un ETF est un ETF : il n'est pas présenté comme une action.
+    expect(repartition.getByRole("link", { name: "ETF" }).getAttribute("href")).toBe("/actions");
+    expect(repartition.queryByText("Actions")).toBeNull();
     expect(texte(ligne("ETF Monde UC"))).toMatch(/ETF Monde UCIE000BI8OT95ETF4.*600.*50,0 %$/);
     const fonds = screen.getAllByRole("row").find((r) => /Fonds euros/.test(texte(r)) && /—/.test(texte(r)))!;
     expect(texte(fonds)).toMatch(/600.*50,0 %$/);

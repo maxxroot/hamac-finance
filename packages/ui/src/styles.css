@@ -68,6 +68,8 @@
   --color-garanti: #189546;
   --color-obligations: #5f61b4;
   --color-croissance: #d3791f;
+  --color-etf: #13807a;
+  --color-fonds: #b0892a;
   --color-matieres-premieres: #a46800;
   --color-immobilier: #7d4f00;
   --color-crowdlending: #e06693;
@@ -109,6 +111,8 @@
     --color-garanti: #3f9465;
     --color-obligations: #7d83e0;
     --color-croissance: #dc750d;
+    --color-etf: #2fb0a5;
+    --color-fonds: #d8b04a;
     --color-matieres-premieres: #e8a000;
     --color-immobilier: #8f6401;
     --color-crowdlending: #ce548b;
@@ -146,6 +150,8 @@
       --color-garanti: #3f9465;
       --color-obligations: #7d83e0;
       --color-croissance: #dc750d;
+      --color-etf: #2fb0a5;
+      --color-fonds: #d8b04a;
       --color-matieres-premieres: #e8a000;
       --color-immobilier: #8f6401;
       --color-crowdlending: #ce548b;
