@@ -51,7 +51,7 @@
 **Plan** (`planComparison`).
 
 - Départ : `max(0, buckets[b])` au point `from` (zéro depuis le tout début).
-- Chaque mois : `plan[b] *= (1 + taux[b])^(1/12)` ; apports initiaux du mois ajoutés dans `cashBucketOf(compte)` ; si `schedule.isPaid(mois, date)`, ajout de `schedule.planned(compte, mois)` (avant mois manqués) dans la même classe.
+- Chaque mois : `plan[b] *= (1 + taux[b])^(1/12)` ; apports initiaux du mois ajoutés dans `plannedBucketOf(compte)` (où le plan place l'argent du compte, comme la projection ; les liquidités ont un taux de 0) ; si `schedule.isPaid(mois, date)`, ajout de `schedule.planned(compte, mois)` (avant mois manqués) dans la même classe.
 - `expectedRates` : `returns.livrets`, `returns.fondsEuros`, `returns.obligations`, `returns.actions`, puis `targets[].expectedReturn` pour `immobilier`, `crowdlending`, `speculatif` ; `null` = pas de gain.
 - `gap = valeur réelle − valeur prévue = moneyGap + gainGap`, avec `moneyGap = argent apporté réel − plannedMoney` et `gainGap = gain réel − (valeur prévue − départ − plannedMoney)`.
 - `planVerdict` : « conforme » sous `max(20, 0,005 × |valeur prévue|)`.

@@ -57,7 +57,7 @@
 
 **D'où vient le gain** (`gainSources`) : différences, entre deux `HistoryPoint`, des cumuls de `detailByAccount`. `billedFees = fees − embeddedFees` ; `other = gain − (latentes + réalisées + dividendes + intérêts − billedFees − taxes)`, si bien que la somme des lignes redonne toujours le gain.
 
-**Par classe** (`classBreakdown`) : un titre va dans `ASSET_BUCKET[kind]`, les espèces et le reste du résultat d'un compte dans `cashBucketOf(compte)`. Rendement d'un mois par la méthode de Dietz simple : `gain / (valeur début + argent entré / 2)`, l'argent entré dans la classe étant la variation de valeur moins le gain (même source GIPS). La ligne « Frais facturés à part et impôts » complète jusqu'au gain total.
+**Par classe** (`classBreakdown`) : un titre va dans `ASSET_BUCKET[kind]`, les espèces et le reste du résultat d'un compte (intérêts des espèces…) dans `cashBucketOf(compte)`, en général `liquidites`. Rendement d'un mois par la méthode de Dietz simple : `gain / (valeur début + argent entré / 2)`, l'argent entré dans la classe étant la variation de valeur moins le gain (même source GIPS). La ligne « Frais facturés à part et impôts » complète jusqu'au gain total.
 
 **Année par année, mois par mois** (`periodsOf`, `periodTables`) : regroupement des `MonthReturn` par année ou par mois ; `rate` enchaîné, `income` = dividendes + intérêts, `fees` = tous les frais. Toujours sur tout l'historique du périmètre. Les parts dépliées (`breakdownParts`) sont calculées chacune avec ses propres flux, donc un transfert entre deux parts s'annule dans leur somme.
 

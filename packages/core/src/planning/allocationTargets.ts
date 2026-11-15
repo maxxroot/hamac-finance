@@ -14,6 +14,8 @@ export interface TargetRow {
   expectedReturn: number | null;
   /** Hypothèse de base associée à la classe ; null = rendement propre, facultatif. */
   returnField: "livrets" | "fondsEuros" | "obligations" | "actions" | null;
+  /** Liquidités : pas de rendement à saisir, la projection les place avec l'argent de leur compte. */
+  noReturn: boolean;
   /** Éléments inclus un par un alors que la classe est hors allocation. */
   included: number;
   /** La ligne compte dans le total. */
@@ -48,7 +50,7 @@ export function targetRows(p: PlanParams, data: TargetData): TargetRow[] {
     // Une ligne cochée reste affichée même à 0 % : sinon, vider le champ pour retaper une valeur la ferait disparaître.
     if (!cls && !held.has(line.key) && !line.inAllocation) continue;
     const count = line.inAllocation ? 0 : (included.get(line.key) ?? 0);
-    rows.push({ key: line.key, custom: !!cls, label: cls?.label ?? BUCKET_LABELS[line.key as Bucket], color: cls?.color ?? null, inAllocation: line.inAllocation, target: line.target, expectedReturn: line.expectedReturn, returnField: cls ? null : (RETURN_FIELDS[line.key as Bucket] ?? null), included: count, active: line.inAllocation || count > 0 });
+    rows.push({ key: line.key, custom: !!cls, label: cls?.label ?? BUCKET_LABELS[line.key as Bucket], color: cls?.color ?? null, inAllocation: line.inAllocation, target: line.target, expectedReturn: line.expectedReturn, returnField: cls ? null : (RETURN_FIELDS[line.key as Bucket] ?? null), noReturn: line.key === "liquidites", included: count, active: line.inAllocation || count > 0 });
   }
   return rows;
 }

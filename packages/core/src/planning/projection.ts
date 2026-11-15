@@ -1,4 +1,4 @@
-import { ageInYear, etfTarget, isBankPer, orderFee, retirementYear, Schedule, type AccountKind, type Bucket, type PlanParams } from "../model";
+import { ageInYear, etfTarget, isBankPer, orderFee, plannedBucketOf, retirementYear, Schedule, type AccountKind, type Bucket, type PlanParams } from "../model";
 import type { EngineData, PortfolioState } from "../portfolio";
 import { roundCents } from "../base";
 
@@ -301,8 +301,15 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
     return f;
   };
   const expenses = (year: number) => (data as { plannedExpenses?: Array<{ year: number; amount: number }> }).plannedExpenses?.filter((e) => e.year === year).reduce((s, e) => s + e.amount, 0) ?? 0;
+  // Les liquidités d'un compte attendent d'être placées : la projection les range là où le plan place l'argent du compte.
+  const idle: Partial<Record<Bucket, number>> = {};
+  for (const a of state.accounts) {
+    const cash = a.byBucket.liquidites ?? 0;
+    if (cash && (!a.account.archived || a.value !== 0)) idle[plannedBucketOf(a.account)] = (idle[plannedBucketOf(a.account)] ?? 0) + cash;
+  }
+  const startOf = (b: Bucket) => state.buckets[b] + (idle[b] ?? 0);
+  const start = { livrets: startOf("precaution"), fondsEuros: startOf("garanti"), obligations: startOf("obligations"), actions: startOf("croissance") };
   // Classes incluses avec un rendement attendu : hors des quatre lignes de base, elles suivent leur propre taux.
-  const start = { livrets: state.buckets.precaution, fondsEuros: state.buckets.garanti, obligations: state.buckets.obligations, actions: state.buckets.croissance };
   const naturalLine: Partial<Record<Bucket, keyof Flows>> = { garanti: "fondsEuros", obligations: "obligations", croissance: "actions" };
   const others: Array<{ key: string; start: number; rate: number; contribution: (year: number) => number }> = [];
   const projectedKinds = new Set<AccountKind>();
@@ -322,7 +329,7 @@ export function projectionInputFromState(data: EngineData, state: PortfolioState
     } else if (line.key === "immobilier" || line.key === "crowdlending" || line.key === "speculatif") {
       const kind: AccountKind | null = line.key === "crowdlending" ? "crowdlending" : line.key === "speculatif" ? "crypto" : null;
       if (kind) projectedKinds.add(kind);
-      others.push({ key: line.key, start: state.buckets[line.key], rate: line.expectedReturn!, contribution: (year) => (kind ? data.accounts.filter((a) => a.kind === kind).reduce((s, a) => s + schedule.inYear(a.id, year), 0) : 0) });
+      others.push({ key: line.key, start: startOf(line.key), rate: line.expectedReturn!, contribution: (year) => (kind ? data.accounts.filter((a) => a.kind === kind).reduce((s, a) => s + schedule.inYear(a.id, year), 0) : 0) });
     }
   }
   const excludedContrib = state.accounts.filter((a) => (a.account.kind === "crypto" || a.account.kind === "crowdlending") && !projectedKinds.has(a.account.kind)).reduce((s, a) => s + a.netContrib, 0);

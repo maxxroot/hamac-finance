@@ -51,7 +51,7 @@ Tout est dans `packages/core/src/planning/projection.ts`. Le commentaire d'en-t�
 ### Entrée (`projectionInputFromState`)
 
 - `startYear` = année de `state.asOf`.
-- `start` : `livrets = buckets.precaution`, `fondsEuros = buckets.garanti`, `obligations = buckets.obligations`, `actions = buckets.croissance`.
+- `start` : `livrets = buckets.precaution`, `fondsEuros = buckets.garanti`, `obligations = buckets.obligations`, `actions = buckets.croissance`, plus les liquidités de chaque compte dans la ligne de `plannedBucketOf(compte)` (PEA → actions, assurance-vie → fonds euros, compte-titres → obligations…).
 - `others` : lignes de `params.targets` avec `inAllocation && expectedReturn != null`.
   - Classe créée (`customClasses`) : valeur des positions de cette classe, retirée de sa ligne naturelle (`garanti`, `obligations` ou `croissance`) ; aucun versement.
   - `immobilier` : `buckets.immobilier`, aucun versement.

@@ -11,7 +11,7 @@
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/AccountDialog.tsx` | Fiche d'un livret : type, plafond légal pré-rempli, taux et « En vigueur depuis le ». |
 | UI, saisie partagée | `packages/ui/src/features/entry/components/Movements.tsx`, `TransactionButton.tsx` | Mouvements des livrets ; bouton « Nouvelle opération » ; `EmptyAccount`. |
 | Cœur, modèle | `packages/core/src/model/rates.ts` | `AccountRate`, `rateAt`, `livretInterest` (règle des quinzaines). |
-| Cœur, modèle | `packages/core/src/model/domain.ts` | `LIVRET_TYPES`, `LIVRET_LABELS`, `LIVRET_LEGAL_CEILINGS`, `CASH_BUCKET.livret = "precaution"`. |
+| Cœur, modèle | `packages/core/src/model/domain.ts` | `LIVRET_TYPES`, `LIVRET_LABELS`, `LIVRET_LEGAL_CEILINGS`, `cashBucketOf` : le solde d'un livret compte en `precaution`. |
 | Cœur, modèle | `packages/core/src/model/validation.ts` | `ALLOWED_TYPES.livret`, `ALLOWED_ASSETS.livret = []`, `uniqueAccountConflict`. |
 | Cœur, portefeuille | `packages/core/src/portfolio/engine.ts` | Solde du livret (`cash`), `interests`, `state.livrets` (total, statut, excédent). |
 | Cœur, projection | `packages/core/src/planning/contributions.ts` | Livrets dans la gestion suggérée (`livretRoom`, tri par taux). |

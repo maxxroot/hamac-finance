@@ -67,7 +67,7 @@ La date de vérification des règles et les sources officielles sont rappelées 
 
 ### Allocation de la partie investie
 
-Pour chaque classe d'actifs (livrets, fonds euros, obligations, actions, immobilier…) : la valeur, la part réelle, la part cible, l'écart et une action conseillée :
+Pour chaque classe d'actifs (livrets, liquidités, fonds euros, obligations, actions, immobilier…) : la valeur, la part réelle, la part cible, l'écart et une action conseillée :
 
 - **OK** : l'écart reste sous le seuil d'alerte ;
 - **Renforcer** : la classe est en retard sur sa cible ;

@@ -1,4 +1,4 @@
-import { allocationReport, cashInAllocation, classEnabled, LIVRET_LEGAL_CEILINGS, type AccountKind, type Bucket, type PlanParams } from "../model";
+import { allocationReport, classEnabled, LIVRET_LEGAL_CEILINGS, type AccountKind, type Bucket, type PlanParams } from "../model";
 import { splitByTarget, type AccountState, type PortfolioState } from "../portfolio";
 import { roundCents } from "../base";
 
@@ -107,10 +107,11 @@ export function proposeContributions(params: PlanParams, state: PortfolioState, 
   if (rest > 0) {
     const enabled = (key: string) => classEnabled(params, key);
     const membersOf = (r: PortfolioState["allocation"]["rows"][number]) => {
-      // Comptes qui détiennent déjà des titres de la classe (classe créée, SCPI), sinon comptes de ce type inclus dans l'allocation.
+      // Comptes qui détiennent déjà des titres de la classe (classe créée, SCPI), sinon comptes de ce type inclus dans l'allocation :
+      // le choix du compte, sinon celui de la classe visée (ses espèces, des liquidités, peuvent en être exclues).
       const holders = accounts.filter((a) => a.positions.some((p) => p.inAllocation && (p.classId === r.key || (r.key === "immobilier" && p.bucket === "immobilier"))));
       if (holders.length) return holders;
-      return r.bucket ? accounts.filter((a) => BUCKET_ACCOUNTS[r.bucket!]?.includes(a.account.kind) && cashInAllocation(a.account, enabled)) : [];
+      return r.bucket ? accounts.filter((a) => BUCKET_ACCOUNTS[r.bucket!]?.includes(a.account.kind) && (a.account.inAllocation ?? enabled(r.bucket!))) : [];
     };
     const rows = state.allocation.rows.filter((r) => membersOf(r).length);
     const totalTarget = rows.reduce((s, r) => s + r.target, 0);

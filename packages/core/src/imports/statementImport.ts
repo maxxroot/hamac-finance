@@ -1,5 +1,5 @@
-import { parseAmount, parseDate, guessType } from "./csv";
-import { ALLOWED_TYPES, monthOf, TX_NEEDS_ASSET, validateTransaction, type Account, type Asset, type Schedule, type Transaction, type TxType } from "../model";
+import { guessAssetKind, parseAmount, parseDate, guessType } from "./csv";
+import { ALLOWED_TYPES, monthOf, TX_NEEDS_ASSET, validateTransaction, type Account, type Asset, type AssetKind, type Schedule, type Transaction, type TxType } from "../model";
 import { daysBetween } from "../base";
 
 /**
@@ -20,6 +20,8 @@ export interface StatementLine {
   isin: string | null;
   assetName: string | null;
   fee: number | null;
+  /** Type de titre indiqué par le fichier (colonne de classe d'actifs), pour créer un titre inconnu. */
+  assetKind?: AssetKind | null;
   /** Type imposé par l'appelant (un assistant qui a lu le document) : ni deviné ni corrigé d'après le signe. */
   type?: TxType | null;
   /** Titre imposé par l'appelant : l'emporte sur la recherche par ISIN ou par nom. */
@@ -123,7 +125,7 @@ export function parseQif(text: string): StatementLine[] {
 
 // ——— CSV : rôle des colonnes ———
 
-export const CSV_ROLES = ["date", "amount", "debit", "credit", "label", "type", "quantity", "isin", "asset", "fee"] as const;
+export const CSV_ROLES = ["date", "amount", "debit", "credit", "label", "type", "quantity", "isin", "asset", "assetKind", "fee"] as const;
 export type CsvRole = (typeof CSV_ROLES)[number] | "";
 
 /** Ligne d'en-tête : la dernière ligne sans date juste avant les données (certains relevés ont un préambule). */
@@ -135,34 +137,57 @@ export function findHeaderRow(rows: readonly string[][]): number {
   return 0;
 }
 
-function guessRole(header: string): CsvRole {
-  const s = header.toLowerCase();
-  if (/date/.test(s)) return "date";
-  if (/isin/.test(s)) return "isin";
-  if (/d[ée]bit/.test(s)) return "debit";
-  if (/cr[ée]dit/.test(s)) return "credit";
-  if (/montant|amount|valeur nette|\bnet\b/.test(s)) return "amount";
-  if (/quantit|qty|nombre|parts/.test(s)) return "quantity";
-  if (/titre|instrument|valeur$|produit/.test(s)) return "asset";
-  if (/frais|commission|fee/.test(s)) return "fee";
-  if (/type|op[ée]ration|operation|sens/.test(s)) return "type";
-  if (/libell|description|label|d[ée]tail/.test(s)) return "label";
-  return "";
+/** Rôle d'une colonne d'après son en-tête ; `weak` : un rôle approché, qui cède la place à une colonne qui le porte en propre. */
+function guessRole(header: string): { role: CsvRole; weak: boolean } {
+  const s = header.toLowerCase().trim();
+  const found = (role: CsvRole, weak = false) => ({ role, weak });
+  // Une colonne qui parle du compte ou de la contrepartie ne décrit pas l'opération (« account_type », « counterparty_name »).
+  if (/account|compte|counterparty|contrepartie|b[ée]n[ée]ficiaire/.test(s)) return found("");
+  if (/date/.test(s)) return found("date", s !== "date");
+  if (/isin/.test(s)) return found("isin");
+  if (/^(symbol|symbole|ticker)$/.test(s)) return found("isin", true);
+  if (/asset.?class|asset.?type|classe|type de (titre|valeur|produit)|security.?type|instrument.?type/.test(s)) return found("assetKind");
+  if (/d[ée]bit/.test(s)) return found("debit");
+  if (/cr[ée]dit/.test(s)) return found("credit");
+  if (/montant|amount|valeur nette|\bnet\b/.test(s)) return found("amount", /original|origine|devise/.test(s));
+  if (/quantit|qty|nombre|parts|shares|units/.test(s)) return found("quantity");
+  if (/titre|instrument|valeur$|produit|^(name|nom)$|security|asset.?name/.test(s)) return found("asset");
+  if (/frais|commission|fee/.test(s)) return found("fee");
+  if (/type|op[ée]ration|operation|sens/.test(s)) return found("type", s !== "type");
+  if (/libell|description|label|d[ée]tail/.test(s)) return found("label");
+  return found("");
 }
 
-/** Un rôle par colonne, sans doublon ; la date d'opération passe avant la date de valeur. */
+/**
+ * Un rôle par colonne, sans doublon. Une colonne qui porte le rôle en propre passe avant une colonne approchée
+ * (« date » avant « datetime »), et la date d'opération avant la date de valeur.
+ */
 export function guessRoles(headers: readonly string[]): CsvRole[] {
-  const order = headers.map((h, i) => ({ h, i })).sort((a, b) => Number(/valeur/i.test(a.h)) - Number(/valeur/i.test(b.h)) || a.i - b.i);
+  const guesses = headers.map((h, i) => ({ h, i, ...guessRole(h) }));
+  const order = guesses.sort((a, b) => Number(a.weak) - Number(b.weak) || Number(/valeur/i.test(a.h)) - Number(/valeur/i.test(b.h)) || a.i - b.i);
   const taken = new Set<CsvRole>();
   const out: CsvRole[] = headers.map(() => "");
-  for (const { h, i } of order) {
-    const role = guessRole(h);
+  for (const { i, role } of order) {
     if (role && !taken.has(role)) {
       taken.add(role);
       out[i] = role;
     }
   }
   return out;
+}
+
+/**
+ * Correspondance mémorisée pour ce fichier, complétée : une colonne laissée de côté reçoit le rôle deviné
+ * si la correspondance n'a encore aucune colonne pour ce rôle (rôle reconnu depuis, comme le type de titre).
+ */
+export function completeRoles(remembered: readonly CsvRole[], guessed: readonly CsvRole[]): CsvRole[] {
+  const used = new Set(remembered.filter(Boolean));
+  return remembered.map((r, i) => {
+    const g = guessed[i] ?? "";
+    if (r || !g || used.has(g)) return r;
+    used.add(g);
+    return g;
+  });
 }
 
 export function linesFromCsv(rows: readonly string[][], roles: readonly CsvRole[]): StatementLine[] {
@@ -175,7 +200,7 @@ export function linesFromCsv(rows: readonly string[][], roles: readonly CsvRole[
     const quantity = parseAmount(get("quantity"));
     const fee = parseAmount(get("fee"));
     const name = get("asset").trim();
-    return { date: parseDate(get("date")), amount, label: get("label"), typeHint: get("type"), quantity: quantity == null ? null : Math.abs(quantity), isin: ISIN.exec(get("isin").toUpperCase())?.[0] ?? ISIN.exec(name.toUpperCase())?.[0] ?? null, assetName: name || null, fee: fee == null ? null : Math.abs(fee) };
+    return { date: parseDate(get("date")), amount, label: get("label"), typeHint: get("type"), quantity: quantity == null ? null : Math.abs(quantity), isin: ISIN.exec(get("isin").toUpperCase())?.[0] ?? ISIN.exec(name.toUpperCase())?.[0] ?? null, assetName: name || null, fee: fee == null ? null : Math.abs(fee), assetKind: guessAssetKind(get("assetKind")) };
   });
 }
 
@@ -190,7 +215,7 @@ export interface ImportProposal {
   /** Montant du relevé, avec son signe. */
   signedAmount: number;
   /** Titre cité par la ligne mais inconnu de Hamac. */
-  unknownAsset: { key: string; isin: string | null; name: string } | null;
+  unknownAsset: { key: string; isin: string | null; name: string; kind: AssetKind | null } | null;
   assetName: string | null;
 }
 
@@ -278,7 +303,7 @@ export function buildImport(input: BuildImportInput): ImportProposal[] {
       fee: type === "achat" || type === "vente" ? l.fee : null,
       comment: l.label.slice(0, 500),
     };
-    const unknownAsset = usesAsset && !asset && unknownKey ? { key: unknownKey, isin, name: l.assetName?.trim() || unknownKey } : null;
+    const unknownAsset = usesAsset && !asset && unknownKey ? { key: unknownKey, isin, name: l.assetName?.trim() || unknownKey, kind: l.assetKind ?? null } : null;
     const errors = [...(l.date ? [] : ["Date illisible"]), ...(l.amount == null ? ["Montant illisible"] : []), ...(imposed === null ? ["Titre introuvable."] : []), ...validateTransaction(tx, accounts, assetMap).map((e) => e.message)];
     const base = { tx, errors, signedAmount: raw, unknownAsset, assetName: asset?.name ?? unknownAsset?.name ?? null };
     if (errors.length) return { ...base, status: "erreur" };

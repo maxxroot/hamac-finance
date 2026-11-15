@@ -20,14 +20,17 @@ export function Movements({
   assetKinds,
   accountKinds,
   type,
+  withCash = true,
 }: {
   accountIds: string[];
   title?: string;
   limit?: number;
-  /** Ne montrer que ces titres (les mouvements d'espèces, sans titre, restent affichés). */
+  /** Ne montrer que ces titres (les mouvements d'espèces, sans titre, restent affichés sauf `withCash` à false). */
   assetKinds?: AssetKind[];
   accountKinds?: AccountKind[];
   type?: TxType;
+  /** Avec `assetKinds` : garder les mouvements d'espèces (versements, retraits…), qu'un compte partagé entre plusieurs classes ne rattache à aucune. */
+  withCash?: boolean;
 }) {
   const idx = useWorkspaceIndex();
   const all = useJournal();
@@ -35,7 +38,8 @@ export function Movements({
   const rows = idx
     ? all.filter((t) => {
         if (!(ids.has(t.accountId) || (t.counterAccountId && ids.has(t.counterAccountId)))) return false;
-        if (!assetKinds || !t.assetId) return true;
+        if (!assetKinds) return true;
+        if (!t.assetId) return withCash;
         // Un arbitrage concerne deux titres : il s'affiche si l'un des deux est du bon type.
         const kinds = [t.assetId, t.counterAssetId].flatMap((id) => (id ? (idx.assetById.get(id)?.kind ?? []) : []));
         return kinds.some((k) => assetKinds.includes(k));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guessType, parseAmount, parseCsv, parseDate } from "./csv";
+import { guessAssetKind, guessType, parseAmount, parseCsv, parseDate } from "./csv";
 
 describe("CSV", () => {
   it("détecte le point-virgule et gère les guillemets", () => {
@@ -34,5 +34,10 @@ describe("CSV", () => {
     expect(guessType("Prélèvements sociaux sur intérêts", -17.2)).toBe("impots");
     expect(guessType("Impôt retenu à la source", -12.8)).toBe("impots");
     expect(guessType("Dividende net d'impôt", 50)).toBe("dividende");
+    expect(guessType("INTEREST_PAYMENT Interest payment Booking", 0.17)).toBe("interets");
+  });
+
+  it("devine le type de titre d'après la classe indiquée par le relevé", () => {
+    expect(["STOCK", "ETF", "BOND", "FUND", "CRYPTO", "Action", "Obligation", "OPCVM", "", "DERIVATIVE"].map(guessAssetKind)).toEqual(["action", "etf", "obligation", "fonds", "crypto", "action", "obligation", "fonds", null, null]);
   });
 });

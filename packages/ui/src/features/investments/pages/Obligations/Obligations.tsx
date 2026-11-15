@@ -52,7 +52,7 @@ export function Obligations() {
           {d.retraite && " À l'échéance : avant l'âge de sécurisation, racheter une ligne plus longue ; après, transférer vers le fonds euros."} Les coupons se saisissent dans le journal (Intérêts / coupon).
         </Notice>
       </div>
-      {d.ctos.length > 0 && <Movements accountIds={d.ctos.map((c) => c.account.id)} limit={15} title="Mouvements (obligations et espèces)" type="achat" assetKinds={["obligation"]} accountKinds={["cto", "assurance_vie"]} />}
+      {d.ctos.length > 0 && <Movements accountIds={d.ctos.map((c) => c.account.id)} limit={15} title="Mouvements des obligations" type="achat" assetKinds={["obligation"]} withCash={false} accountKinds={["cto", "assurance_vie"]} />}
       <p className={cn("mt-2 text-xs text-fg-faint", !held.length && "hidden")}>Valeur « détenue jusqu'à l'échéance » : prix d'achat amorti linéairement vers 100 % + coupon couru. Un cours saisi à la main la remplace.</p>
     </>
   );

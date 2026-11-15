@@ -128,10 +128,11 @@ describe("page Performance sur un portefeuille", () => {
     const state = computePortfolio(d, ASOF);
     const p = scopePerformance(d, state, buildHistory(d, ASOF), ["pea", "cto"], null)!;
     const of = (b: string) => p.byClass.rows.find((r) => r.bucket === b)!;
-    // Ordre fixe des classes ; les espèces du compte-titres comptent en obligations, comme dans la répartition.
-    expect(p.byClass.rows.map((r) => r.bucket)).toEqual(["obligations", "croissance"]);
-    // Obligations : +40 € sur l'OAT (100 → 104 × 10) et 30 € d'intérêts sur les espèces du compte-titres.
-    expect(of("obligations").gain).toBe(70);
+    // Ordre fixe des classes ; les espèces des comptes comptent en liquidités, comme dans la répartition.
+    expect(p.byClass.rows.map((r) => r.bucket)).toEqual(["liquidites", "obligations", "croissance"]);
+    // Obligations : +40 € sur l'OAT (100 → 104 × 10). Les 30 € d'intérêts sur les espèces du compte-titres sont aux liquidités.
+    expect(of("obligations").gain).toBe(40);
+    expect(of("liquidites").gain).toBe(30);
     // Les 10 € de frais facturés à part ne vont dans aucune classe.
     expect(p.byClass.charges).toBe(-10);
     const total = p.byClass.rows.reduce((t, r) => t + r.gain, 0) + p.byClass.charges;
@@ -150,9 +151,11 @@ describe("page Performance sur un portefeuille", () => {
     const of = (b: string) => p.byClass.rows.find((r) => r.bucket === b)!;
     // A passe de 12 € à 15 € (50 parts) ; rien sur les espèces ni en frais depuis fin septembre.
     expect(of("croissance").gain).toBe(150);
-    // Les espèces du PEA (1 000 − 500 + 20 − 10 = 510 €) comptent aussi en actions : 150 ÷ (600 + 510).
-    expect(of("croissance").rate).toBeCloseTo(150 / 1110, 6);
-    expect(of("obligations").gain).toBe(0);
+    // Les espèces du PEA (1 000 − 500 + 20 − 10 = 510 €) sont des liquidités : 150 ÷ 600.
+    expect(of("croissance").rate).toBeCloseTo(150 / 600, 6);
+    expect(of("liquidites").gain).toBe(0);
+    // Le compte-titres ne détient pas d'obligation : la classe n'apparaît pas.
+    expect(p.byClass.rows.some((r) => r.bucket === "obligations")).toBe(false);
     expect(p.byClass.charges).toBe(0);
   });
 

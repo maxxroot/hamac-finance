@@ -18,7 +18,7 @@
 | Cœur, portefeuille | `packages/core/src/portfolio/engine.ts` | `computePortfolio` : `AccountState` (valeur, versé net, gain…), `totals`, `allocation`, `livrets`, `netWorth`. |
 | Cœur, portefeuille | `packages/core/src/portfolio/history.ts` | `buildHistory` : points mensuels des courbes. |
 | Cœur, modèle | `packages/core/src/model/protection.ts`, `packages/core/src/model/institutionProtection.ts` | `protectionOf`, plafonds, sources ; réglages « établissement garant » et « pays ». |
-| Cœur, modèle | `packages/core/src/model/domain.ts` | `Account`, `ACCOUNT_KIND_LABELS`, `isEnvelope`, `accountNoun`, `canBeJoint`, `holdsEuroFunds`, `CASH_BUCKET`, `cashBucketOf`. |
+| Cœur, modèle | `packages/core/src/model/domain.ts` | `Account`, `ACCOUNT_KIND_LABELS`, `isEnvelope`, `accountNoun`, `canBeJoint`, `holdsEuroFunds`, `cashBucketOf` (espèces en `liquidites`, sauf un livret), `plannedBucketOf` (classe où le plan place l'argent du compte). |
 | Cœur, modèle | `packages/core/src/model/validation.ts` | `uniqueAccountConflict` : un seul PEA, PEA-PME, LEP, LDDS, Livret A. |
 | Cœur, modèle | `packages/core/src/model/params.ts` | `classTargets`, `etfTarget`, `classEnabled`, `livrets`, `alerts.fgapGuarantee`, `alerts.concentrationMax`. |
 | Cœur, analyse | `packages/core/src/analysis/concentration.ts` | `concentrationReport`. |

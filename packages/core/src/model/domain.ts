@@ -78,10 +78,11 @@ export const LIVRET_LEGAL_CEILINGS: Record<LivretType, number | null> = {
  * dans « Ma répartition cible », et chaque élément peut y déroger.
  * Identifiants techniques inchangés, libellés concrets.
  */
-export const BUCKETS = ["precaution", "garanti", "obligations", "croissance", "immobilier", "crowdlending", "speculatif"] as const;
+export const BUCKETS = ["precaution", "liquidites", "garanti", "obligations", "croissance", "immobilier", "crowdlending", "speculatif"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 export const BUCKET_LABELS: Record<Bucket, string> = {
   precaution: "Livrets",
+  liquidites: "Liquidités",
   garanti: "Fonds euros",
   obligations: "Obligations",
   croissance: "Actions",
@@ -90,15 +91,18 @@ export const BUCKET_LABELS: Record<Bucket, string> = {
   speculatif: "Crypto",
 };
 
-/** Classe d'actifs des espèces d'un compte (le titre détermine celle des positions). */
-export const CASH_BUCKET: Record<AccountKind, Bucket> = {
+/**
+ * Classe où le plan place l'argent d'un compte : la projection y verse ses versements programmés,
+ * et l'écart au plan y fait grandir ses espèces et ses versements. Le compte-titres reste celui des obligations du plan.
+ */
+const PLANNED_BUCKET: Record<AccountKind, Bucket> = {
   livret: "precaution",
-  assurance_vie: "garanti", // argent du contrat hors support (sans fonds euros par défaut)
+  assurance_vie: "garanti",
   pea: "croissance",
   pea_pme: "croissance",
   cto: "obligations",
-  per: "garanti", // PER assurantiel, comme une assurance-vie ; un PER bancaire : voir cashBucketOf
-  epargne_salariale: "croissance", // en attente d'investissement dans les FCPE, comme les espèces d'un PEA
+  per: "garanti", // PER assurantiel, comme une assurance-vie ; un PER bancaire : voir plannedBucketOf
+  epargne_salariale: "croissance",
   crowdlending: "crowdlending",
   crypto: "speculatif",
 };
@@ -136,9 +140,20 @@ export function holdsEuroFunds(a: AccountKind | AccountLike): boolean {
   return EURO_FUND_ACCOUNT_KINDS.includes(x.kind) && !isBankPer(x);
 }
 
-/** Classe d'actifs des espèces de ce compte : celle du type, sauf un PER bancaire, dont l'argent attend d'être investi comme dans un PEA. */
+/**
+ * Classe d'actifs des espèces de ce compte. Le solde d'un livret est le placement lui-même, et l'argent d'un contrat
+ * à fonds euros (assurance-vie, PER assurantiel) sans support précisé est celui du fonds euros, comme avant les supports.
+ * Ailleurs, les espèces sont de l'argent disponible, qui n'appartient à aucune classe de titres : un compte-titres peut
+ * aussi bien acheter des actions que des obligations. Les titres, eux, comptent dans la classe de leur type.
+ */
 export function cashBucketOf(a: AccountLike): Bucket {
-  return isBankPer(a) ? "croissance" : CASH_BUCKET[a.kind];
+  if (a.kind === "livret") return "precaution";
+  return holdsEuroFunds(a) ? "garanti" : "liquidites";
+}
+
+/** Classe où le plan place l'argent de ce compte (projection, écart au plan) : un PER bancaire investit comme un PEA. */
+export function plannedBucketOf(a: AccountLike): Bucket {
+  return isBankPer(a) ? "croissance" : PLANNED_BUCKET[a.kind];
 }
 
 /** Les espèces de ce compte comptent-elles dans l'allocation cible ? Le choix du compte prime sur celui de sa classe. */

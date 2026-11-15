@@ -27,10 +27,14 @@ export function useBondData() {
     if (!pf) return null;
     const { state, idx, data, today } = pf;
     const params = data.params;
-    const holders = state.accounts.filter((a) => a.positions.some((p) => p.bond) || a.maturedBonds.length || a.account.kind === "cto");
+    // Un compte-titres peut détenir des actions comme des obligations : seuls comptent ceux qui ont des obligations.
+    const holders = state.accounts.filter((a) => a.positions.some((p) => p.bond) || a.maturedBonds.length);
     const held: PositionState[] = holders.flatMap((a) => a.positions.filter((p) => p.bond));
     const matured: PositionState[] = holders.flatMap((a) => a.maturedBonds);
-    const ctos = state.accounts.filter((a) => a.account.kind === "cto" && !a.account.archived);
+    const openCtos = state.accounts.filter((a) => a.account.kind === "cto" && !a.account.archived);
+    const bondCtos = openCtos.filter((a) => holders.includes(a));
+    // Sans obligation encore, la première s'achètera dans l'un des comptes-titres ouverts.
+    const ctos = bondCtos.length ? bondCtos : openCtos;
     const retraite = isRetirementPlan(params);
 
     const costHeld = held.reduce((s, p) => s + p.cost, 0);

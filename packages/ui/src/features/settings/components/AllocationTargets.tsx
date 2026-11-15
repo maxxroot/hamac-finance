@@ -61,9 +61,13 @@ export function AllocationTargets({ params, data, onChange, labelErrors, returnH
                 </div>
               </Td>
               <Td align="right" className="align-top">
-                <div className="ml-auto w-28">
-                  <PercentInput aria-label={`Rendement attendu de ${r.label || "la classe"}`} value={r.returnField ? params.returns[r.returnField] : line(r.key).expectedReturn} onChange={(v) => setReturn(r, v)} placeholder="Facultatif" />
-                </div>
+                {r.noReturn ? (
+                  <p className="text-right text-xs text-fg-faint">Argent en attente : la projection le place avec son compte.</p>
+                ) : (
+                  <div className="ml-auto w-28">
+                    <PercentInput aria-label={`Rendement attendu de ${r.label || "la classe"}`} value={r.returnField ? params.returns[r.returnField] : line(r.key).expectedReturn} onChange={(v) => setReturn(r, v)} placeholder="Facultatif" />
+                  </div>
+                )}
                 {returnHints?.[r.key] && <p className="mt-1 text-right text-xs text-fg-faint">{returnHints[r.key]}</p>}
               </Td>
               <Td className="w-12 align-top">

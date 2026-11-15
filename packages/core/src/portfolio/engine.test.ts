@@ -292,9 +292,10 @@ describe("historique reconstruit", () => {
     expect(tax("per")).toBeCloseTo(1_000 * 0.3 + 100 * (0.128 + 0.186));
     expect(tax("pee")).toBeCloseTo(100 * 0.186);
     expect(tax("pme")).toBeCloseTo(100 * 0.186);
-    // Espèces du PER (assurantiel) : fonds euros ; celles de l'épargne salariale attendent d'être investies, comme dans un PEA.
+    // Espèces du PER (assurantiel) : fonds euros ; celles de l'épargne salariale et du PEA-PME sont des liquidités.
     expect(s.buckets.garanti).toBe(1_100);
-    expect(s.buckets.croissance).toBe(2_200);
+    expect(s.buckets.liquidites).toBe(2_200);
+    expect(s.buckets.croissance).toBe(0);
   });
 
   it("crypto sur deux plateformes : le prix d'acquisition global n'est déduit qu'une fois", () => {

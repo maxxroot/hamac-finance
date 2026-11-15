@@ -64,7 +64,7 @@ Le tableau de bord reprend les mêmes chiffres dans sa carte « Projection à �
 
 ## Comprendre les chiffres
 
-**Le point de départ.** C'est la valeur actuelle de vos placements, rangée en quatre classes : livrets, fonds euros, obligations, actions. Les autres classes (crypto, crowdlending, immobilier, classes créées) ne sont comptées que si elles remplissent la condition ci-dessus.
+**Le point de départ.** C'est la valeur actuelle de vos placements, rangée en quatre classes : livrets, fonds euros, obligations, actions. L'argent pas encore investi d'un compte compte là où le plan place l'argent de ce compte : en actions pour un PEA, en obligations pour un compte-titres. Les autres classes (crypto, crowdlending, immobilier, classes créées) ne sont comptées que si elles remplissent la condition ci-dessus.
 
 **Chaque année**, dans l'ordre :
 

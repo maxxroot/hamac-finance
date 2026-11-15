@@ -20,6 +20,7 @@ import { FondsEuros } from "@/features/accounts/pages/FondsEuros";
 import { Immobilier } from "@/features/realestate/pages/Immobilier";
 import { Livrets } from "@/features/accounts/pages/Livrets";
 import { Obligations } from "@/features/investments/pages/Obligations";
+import { choicesFor } from "@/features/entry/dialogs/NewAssetPanel";
 import { Parametres } from "@/features/settings/pages/Parametres";
 
 /** Parcours réels : placements, autres biens, immobilier et crédits parlent au vrai backend, sur une base en mémoire. Montants fictifs. */
@@ -630,6 +631,27 @@ describe("Obligations", () => {
     expect(screen.getAllByText("Performance cumulée").length).toBe(2);
   });
 
+  it("compte-titres mixte : seules ses obligations et leurs mouvements ; un compte-titres d'actions n'y figure pas", async () => {
+    const mixte = await compte("cto", "CTO Trade Republic");
+    const actions = await compte("cto", "CTO actions");
+    const oat = await titre("obligation", "OAT 3 % mai 2033", { priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 1, bondKind: "etat", issuer: "République française" });
+    const total = await titre("action", "TotalEnergies", { isin: "FR0000120271" });
+    await operation("2024-01-05", "versement", mixte.id, 3_000);
+    await operation("2024-03-01", "achat", mixte.id, 980, { assetId: oat.id, quantity: 1_000 });
+    await operation("2024-03-02", "achat", mixte.id, 550, { assetId: total.id, quantity: 10 });
+    await operation("2024-01-05", "versement", actions.id, 7_000);
+    show(<Obligations />);
+
+    // Espèces du seul compte qui détient des obligations : 3 000 − 980 − 550.
+    expect(await screen.findByText("Espèces en attente")).toBeTruthy();
+    expect(texte(screen.getByText("Espèces en attente").nextElementSibling)).toMatch(/1 ?470/);
+    // Mouvements : l'achat de l'OAT, ni l'action ni les versements.
+    const mouvements = texte(screen.getByRole("heading", { name: "Mouvements des obligations" }).closest("div")!.parentElement);
+    expect(mouvements).toContain("OAT 3 % mai 2033");
+    expect(mouvements).not.toContain("TotalEnergies");
+    expect(mouvements).not.toContain("Versement");
+  });
+
   it("chiffres et graphiques : coupons à saisir, impôts au survol, échelle avec l'âge en plan retraite", async () => {
     const cto = await compte("cto", "CTO obligations");
     const oat = await titre("obligation", "OAT 3 % mai 2033", { priceSource: "modele", couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 1, bondKind: "etat", issuer: "République française" });
@@ -709,6 +731,12 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     await user.selectOptions(dialog.getByLabelText("Titre"), dialog.getByRole("option", { name: choix }));
     return dialog;
   }
+
+  it("compte-titres : mêmes choix que les autres comptes, sans obligation proposée d'office", () => {
+    expect(choicesFor("cto")[0]).toMatchObject({ kind: "etf" });
+    expect(choicesFor("cto").map((c) => c.label)).toEqual(["ETF", "Action", "OAT (État)", "Obligation d'entreprise", "Fonds / OPCVM", "SCPI"]);
+    expect(choicesFor("cto", ["obligation"])[0]).toMatchObject({ kind: "obligation", bondKind: "etat" });
+  });
 
   it("OAT : le nom suit le coupon et l'échéance, les champs manquants sont listés, puis titre et achat sont créés", async () => {
     const user = userEvent.setup();

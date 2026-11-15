@@ -205,6 +205,7 @@ export function defaultParams(today = new Date()): PlanParams {
       { key: "obligations", inAllocation: true, target: 0.5, expectedReturn: null },
       { key: "croissance", inAllocation: true, target: 0.3, expectedReturn: null },
       { key: "precaution", inAllocation: false, target: 0, expectedReturn: null },
+      { key: "liquidites", inAllocation: false, target: 0, expectedReturn: null },
       { key: "immobilier", inAllocation: false, target: 0, expectedReturn: null },
       { key: "crowdlending", inAllocation: false, target: 0, expectedReturn: null },
       { key: "speculatif", inAllocation: false, target: 0, expectedReturn: null },
@@ -271,17 +272,25 @@ function migrateTargets(stored: Record<string, unknown>): Record<string, unknown
   const named = (r: (typeof rules)[number]) => r.label?.trim() || (r.target?.kind === "type" && r.target.accountKind ? ACCOUNT_KIND_LABELS[r.target.accountKind] : "Un compte");
   return {
     ...stored,
-    targets: [base("garanti", Math.max(0, 1 - obligations - etf)), base("obligations", obligations), base("croissance", etf), off("precaution"), off("immobilier"), off("crowdlending"), off("speculatif"), ...classes.map((c) => ({ key: c.id, inAllocation: true, target: c.target ?? 0, expectedReturn: null }))],
+    targets: [base("garanti", Math.max(0, 1 - obligations - etf)), base("obligations", obligations), base("croissance", etf), off("precaution"), off("liquidites"), off("immobilier"), off("crowdlending"), off("speculatif"), ...classes.map((c) => ({ key: c.id, inAllocation: true, target: c.target ?? 0, expectedReturn: null }))],
     customAllocations: rules.filter((r) => r.asContribution !== false),
     removedTargets: rules.filter((r) => r.asTarget).map((r) => ({ label: named(r), share: r.share ?? 0 })),
   };
+}
+
+/** Classe de base apparue après l'enregistrement (Liquidités) : ajoutée hors allocation, comme dans les réglages par défaut. */
+function addMissingBaseLines(stored: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(stored.targets)) return stored;
+  const lines = stored.targets as Array<{ key?: unknown }>;
+  const missing = ["liquidites"].filter((key) => !lines.some((l) => l.key === key));
+  return missing.length ? { ...stored, targets: [...lines, ...missing.map((key) => ({ key, inAllocation: false, target: 0, expectedReturn: null }))] } : stored;
 }
 
 /** Complète, section par section, des paramètres d'une version antérieure avec les valeurs par défaut. */
 export function withDefaultParams(stored: unknown, today = new Date()): unknown {
   const base = defaultParams(today);
   if (!stored || typeof stored !== "object") return base;
-  const s = migrateDispense(migrateTargets(stored as Record<string, unknown>), today) as Record<string, Record<string, unknown>>;
+  const s = addMissingBaseLines(migrateDispense(migrateTargets(stored as Record<string, unknown>), today)) as Record<string, Record<string, unknown>>;
   // Sections objets fusionnées champ par champ ; listes reprises telles quelles si présentes.
   return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Array.isArray(v) ? (Array.isArray(s[k]) ? s[k] : v) : { ...v, ...(s[k] ?? {}) }]));
 }

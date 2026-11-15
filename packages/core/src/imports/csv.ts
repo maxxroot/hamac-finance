@@ -1,5 +1,5 @@
 import { isIsoDate } from "../base";
-import type { TxType } from "../model";
+import type { AssetKind, TxType } from "../model";
 
 /**
  * Lecture des relevés CSV des courtiers et banques : séparateur détecté (; , ou tabulation),
@@ -87,8 +87,19 @@ export function guessType(label: string, amount: number): TxType {
   if (/achat|buy|souscription/.test(l)) return "achat";
   if (/vente|sell|cession/.test(l)) return "vente";
   if (/dividende|dividend/.test(l)) return "dividende";
-  if (/coupon|int[ée]r[êe]t/.test(l)) return "interets";
+  if (/coupon|int[ée]r[êe]t|interest/.test(l)) return "interets";
   if (/frais|commission|droits de garde|fee/.test(l)) return "frais";
   if (/retrait|withdraw/.test(l)) return "retrait";
   return amount < 0 ? "retrait" : "versement";
+}
+
+/** Type de titre d'après la classe indiquée par un relevé (« STOCK », « ETF », « Obligation »…) ; null si elle ne dit rien. */
+export function guessAssetKind(hint: string): AssetKind | null {
+  const h = hint.toLowerCase();
+  if (/\betf|\betp\b|tracker/.test(h)) return "etf";
+  if (/bond|obligation|\boat\b/.test(h)) return "obligation";
+  if (/crypto/.test(h)) return "crypto";
+  if (/fund|fonds|opcvm|sicav|\bfcp/.test(h)) return "fonds";
+  if (/stock|share|equity|action/.test(h)) return "action";
+  return null;
 }

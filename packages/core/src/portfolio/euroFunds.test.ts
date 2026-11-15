@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountNoun, cashBucketOf, defaultParams, holdsEuroFunds, validateTransaction, type Account, type Asset, type ContributionPlan, type PricePoint, type Transaction } from "../model";
+import { accountNoun, cashBucketOf, defaultParams, holdsEuroFunds, plannedBucketOf, validateTransaction, type Account, type Asset, type ContributionPlan, type PricePoint, type Transaction } from "../model";
 import { computePortfolio, type EngineData } from "./engine";
 import { buildHistory } from "./history";
 import { assetPerformance, envelopePerformance, scopePerformance } from "../analysis";
@@ -180,7 +180,9 @@ describe("PER assurantiel ou bancaire", () => {
   it("un PER bancaire est un compte sans fonds euros ; un PER d'avant ce choix est assurantiel", () => {
     expect([accountNoun(bank), accountNoun(insured), accountNoun(legacy)]).toEqual(["compte", "contrat", "contrat"]);
     expect([holdsEuroFunds(bank), holdsEuroFunds(insured), holdsEuroFunds(legacy)]).toEqual([false, true, true]);
-    expect([cashBucketOf(bank), cashBucketOf(insured), cashBucketOf(acc("pee", "epargne_salariale"))]).toEqual(["croissance", "garanti", "croissance"]);
+    expect([cashBucketOf(bank), cashBucketOf(insured), cashBucketOf(acc("pee", "epargne_salariale"))]).toEqual(["liquidites", "garanti", "liquidites"]);
+    // Le plan, lui, investit l'argent d'un PER bancaire et de l'épargne salariale en actions.
+    expect([plannedBucketOf(bank), plannedBucketOf(insured), plannedBucketOf(acc("pee", "epargne_salariale"))]).toEqual(["croissance", "garanti", "croissance"]);
   });
 
   it("pas de fonds euros dans un PER bancaire, même par défaut", () => {
@@ -192,6 +194,6 @@ describe("PER assurantiel ou bancaire", () => {
     const per = s.accountById.get("perb")!;
     expect(per.cash).toBe(1_000);
     expect(per.positions).toEqual([]);
-    expect(s.buckets.croissance).toBe(1_000);
+    expect(s.buckets.liquidites).toBe(1_000);
   });
 });

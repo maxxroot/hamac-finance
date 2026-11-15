@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { defaultParams } from "../model";
-import { annuity, monteCarlo, project, type ProjectionInput } from "./projection";
+import { defaultParams, type Account, type Transaction } from "../model";
+import { computePortfolio, type EngineData } from "../portfolio";
+import { annuity, monteCarlo, project, projectionInputFromState, type ProjectionInput } from "./projection";
 
 /** Vecteur de non-régression (mécanique du sheet, montants fictifs) : 2026 → 2062, aucun versement en cours (bug du sheet). */
 function sheetInput(): ProjectionInput {
@@ -91,6 +92,16 @@ describe("projection", () => {
 });
 
 describe("autres classes dans la projection", () => {
+  it("les liquidités partent là où le plan place l'argent de leur compte", () => {
+    const acc = (id: string, kind: Account["kind"]): Account => ({ id, kind, livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false });
+    const apport = (accountId: string, amount: number): Transaction => ({ id: accountId, date: "2026-01-02", type: "apport_initial", accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "" });
+    const data: EngineData = { params: defaultParams(new Date(2026, 10, 7)), accounts: [acc("pea", "pea"), acc("cto", "cto"), acc("av", "assurance_vie")], assets: [], transactions: [apport("pea", 1_000), apport("cto", 500), apport("av", 2_000)], plans: [], skips: [], prices: [] };
+    const state = computePortfolio(data, "2026-11-07");
+    // Dans la répartition, les espèces du PEA et du compte-titres sont des liquidités ; celles du contrat, son fonds euros.
+    expect(state.buckets).toMatchObject({ liquidites: 1_500, croissance: 0, obligations: 0, garanti: 2_000 });
+    expect(projectionInputFromState(data, state).start).toEqual({ livrets: 0, fondsEuros: 2_000, obligations: 500, actions: 1_000 });
+  });
+
   it("une classe avec un rendement attendu suit son taux et s'ajoute au total", () => {
     const base = sheetInput();
     const without = project(base, undefined, { drawdown: false }).rows;

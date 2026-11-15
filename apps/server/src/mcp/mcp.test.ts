@@ -92,7 +92,7 @@ describe("import en deux temps", () => {
     expect(preview.summary).toEqual({ lines: 3, ok: 1, duplicates: 1, scheduled: 0, errors: 1 });
     expect(preview.lines.map((l: { status: string }) => l.status)).toEqual(["doublon", "ok", "erreur"]);
     expect(preview.lines[1]).toMatchObject({ type: "achat", assetId: etf, amount: 1012.5, quantity: 2, fee: 2.5 });
-    expect(preview.unknownAssets).toEqual([{ isin: "FR0000120073", name: "ACME", lines: [2] }]);
+    expect(preview.unknownAssets).toEqual([{ isin: "FR0000120073", name: "ACME", kind: null, lines: [2] }]);
     expect((await call("workspace.load")).transactions).toHaveLength(2);
   });
 

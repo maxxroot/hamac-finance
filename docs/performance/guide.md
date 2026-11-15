@@ -64,7 +64,7 @@ Le choix est retenu par votre navigateur pour la prochaine visite. Les huit dern
 
 **Dividendes et intérêts, frais payés** : ce qui a été reçu et payé pendant la période. Les frais comprennent ceux inclus dans le montant des achats et des ventes ; ceux-là pèsent déjà sur les plus-values, ce que le bloc « D'où vient le gain » rappelle.
 
-**D'où vient le gain** : dans les deux vues, la somme des lignes redonne le gain de la période. Par classe, un titre compte dans la classe de son type, et les espèces d'un compte dans la classe de ce compte, comme dans la répartition. Chaque classe a aussi son rendement de la période, sans l'effet de l'argent ajouté. Les frais facturés à part et les impôts prélevés ont leur propre ligne, parce qu'ils ne se rattachent à aucune classe.
+**D'où vient le gain** : dans les deux vues, la somme des lignes redonne le gain de la période. Par classe, un titre compte dans la classe de son type, et les espèces d'un compte dans les Liquidités (sauf un livret, et l'argent d'un contrat sans support précisé, au fonds euros), comme dans la répartition. Chaque classe a aussi son rendement de la période, sans l'effet de l'argent ajouté. Les frais facturés à part et les impôts prélevés ont leur propre ligne, parce qu'ils ne se rattachent à aucune classe.
 
 **Classement des titres** : pour chaque titre, plus-value pas encore encaissée, plus-value encaissée et revenus (dividendes, coupons, intérêts) de la période. Le pourcentage est le rendement du titre, calculé comme s'il était un compte à lui seul : achats en entrée, ventes et revenus en sortie.
 

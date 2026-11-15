@@ -71,7 +71,7 @@ describe("gestion suggérée des versements", () => {
 
   it("classe créée : sa propre ligne, versements vers le compte qui détient le titre", () => {
     const base = defaultParams(new Date(2026, 10, 7));
-    const params: PlanParams = { ...base, profile: { ...base.profile, birthYear: 1990, retirementAge: 64, securisationAge: 57, startMonth: "2026-11" }, customClasses: [{ id: "or", label: "Or", color: "#e0a458" }], targets: [...base.targets.map((l) => (l.key === "croissance" ? { ...l, target: 0.2 } : l)), { key: "or", inAllocation: true, target: 0.1, expectedReturn: null }] };
+    const params: PlanParams = { ...base, profile: { ...base.profile, birthYear: 1990, retirementAge: 64, securisationAge: 57, startMonth: "2026-11" }, customClasses: [{ id: "or", label: "Or", color: "#e0a458" }], targets: [...base.targets.map((l) => (l.key === "croissance" ? { ...l, target: 0.2 } : l.key === "obligations" ? { ...l, target: 0.3 } : l)), { key: "or", inAllocation: true, target: 0.3, expectedReturn: null }] };
     const accounts = [acc("av", "assurance_vie"), acc("cto", "cto"), acc("pea", "pea"), acc("pea2", "cto")];
     const asset: Asset = { id: "etc", kind: "etf", name: "ETC Or", isin: null, symbol: null, priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: "or", inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false };
     const buy: Transaction = { id: "b", date: "2026-01-03", type: "achat", accountId: "pea2", assetId: "etc", counterAccountId: null, amount: 1_000, quantity: 10, fee: null, comment: "" };
@@ -79,8 +79,9 @@ describe("gestion suggérée des versements", () => {
     const state = computePortfolio(data, "2026-11-07");
     const or = state.allocation.rows.find((r) => r.key === "or")!;
     expect(or).toMatchObject({ bucket: null, label: "Or", value: 1_000 });
-    expect(or.target).toBeCloseTo(0.1);
-    expect(state.allocation.rows.find((r) => r.key === "croissance")).toMatchObject({ value: 1_000 });
+    expect(or.target).toBeCloseTo(0.3);
+    // Les 1 000 € du PEA, pas encore investis, sont des liquidités, hors allocation par défaut.
+    expect(state.allocation.rows.find((r) => r.key === "croissance")).toMatchObject({ value: 0 });
     expect(state.allocation.rows.reduce((s, r) => s + r.target, 0)).toBeCloseTo(1);
     const r = proposeContributions(params, state, 1_000);
     expect(total(r)).toBe(1_000);
@@ -116,7 +117,9 @@ describe("gestion suggérée des versements", () => {
     const one = computePortfolio(data([project("a", {}), project("b", { status: "defaut" })]), "2026-11-07");
     const a = one.accountById.get("c")!;
     expect(a).toMatchObject({ cash: 1_000, value: 2_000, netContrib: 3_000, gain: -1_000 });
-    expect(one.buckets.crowdlending).toBe(1_000 + 1_000);
+    // Projet en cours et projet en défaut (0 €) ; les 1 000 € restés sur la plateforme sont des liquidités.
+    expect(one.buckets.crowdlending).toBe(1_000);
+    expect(one.buckets.liquidites).toBe(1_000);
     expect(one.allocation.invested).toBe(0);
     // Un projet pas encore commencé ne sort rien des espèces.
     expect(computePortfolio(data([project("a", { startDate: "2027-01-01" })]), "2026-11-07").accountById.get("c")!.cash).toBe(3_000);
@@ -131,7 +134,8 @@ describe("gestion suggérée des versements", () => {
     const base = defaultParams(new Date(2026, 10, 7));
     const accounts = [acc("lep", "livret"), acc("la", "livret", { livretType: "LIVRET_A", inAllocation: true }), acc("pea", "pea")];
     const rows = targetRows(base, { accounts, assets: [] });
-    expect(rows.map((r) => r.key)).toEqual(["garanti", "obligations", "croissance", "precaution"]);
+    expect(rows.map((r) => r.key)).toEqual(["garanti", "obligations", "croissance", "precaution", "liquidites"]);
+    expect(rows.find((r) => r.key === "liquidites")).toMatchObject({ inAllocation: false, active: false, noReturn: true, returnField: null });
     const livrets = rows.find((r) => r.key === "precaution")!;
     expect(livrets).toMatchObject({ inAllocation: false, included: 1, active: true, returnField: "livrets" });
     expect(targetsTotal(rows)).toBeCloseTo(1);
@@ -139,7 +143,8 @@ describe("gestion suggérée des versements", () => {
     expect(targetsTotal(targetRows(params, { accounts, assets: [] }))).toBeCloseTo(1);
     const state = computePortfolio({ params, accounts, assets: [], transactions: [apport("lep", 500), apport("la", 1_000), apport("pea", 9_000)], plans: [], skips: [], prices: [] }, "2026-11-07");
     expect(state.allocation.rows.find((r) => r.key === "precaution")).toMatchObject({ value: 1_000, target: 0.1 });
-    expect(state.allocation.invested).toBe(10_000);
+    // Le Livret A inclus compte ; les 9 000 € du PEA, pas encore investis, sont des liquidités hors allocation.
+    expect(state.allocation.invested).toBe(1_000);
     // Les versements suggérés vers cette ligne ne vont qu'au Livret A.
     const r = proposeContributions({ ...params, livrets: { ...params.livrets, floor: 0 } }, state, 1_000);
     expect(r.lines.find((l) => l.accountId === "lep")?.amount ?? 0).toBe(0);

@@ -88,10 +88,10 @@ export function registerImportTools(tool: ToolRegistrar, call: Call, drafts: Dra
       const proposals = propose(ws, { accountId, lines: read.lines, defaultType }, parisToday());
       const draft = drafts.add(tenantId, { accountId, lines: read.lines, defaultType, statuses: proposals.map((p) => p.status) });
       const count = (s: ImportProposal["status"]) => proposals.filter((p) => p.status === s).length;
-      const unknown = new Map<string, { isin: string | null; name: string; lines: number[] }>();
+      const unknown = new Map<string, { isin: string | null; name: string; kind: string | null; lines: number[] }>();
       proposals.forEach((p, index) => {
         if (!p.unknownAsset) return;
-        const u = unknown.get(p.unknownAsset.key) ?? { isin: p.unknownAsset.isin, name: p.unknownAsset.name, lines: [] };
+        const u = unknown.get(p.unknownAsset.key) ?? { isin: p.unknownAsset.isin, name: p.unknownAsset.name, kind: p.unknownAsset.kind, lines: [] };
         u.lines.push(index);
         unknown.set(p.unknownAsset.key, u);
       });

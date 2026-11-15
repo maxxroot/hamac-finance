@@ -8,6 +8,7 @@ import {
   buildImport,
   detectFormat,
   findHeaderRow,
+  completeRoles,
   guessRoles,
   linesFromCsv,
   parseCsv,
@@ -40,6 +41,7 @@ const ROLES: Array<[CsvRole, string]> = [
   ["quantity", "Quantité"],
   ["isin", "ISIN"],
   ["asset", "Titre (nom)"],
+  ["assetKind", "Type de titre (action, ETF…)"],
   ["fee", "Frais"],
 ];
 
@@ -107,7 +109,7 @@ export function StatementImportDialog({ open, onClose }: { open: boolean; onClos
     }
     const known = next.memoryKey ? memory.value[next.memoryKey] : undefined;
     setFile(next);
-    setRoles(known?.roles?.length === next.headers.length ? known.roles : guessed);
+    setRoles(known?.roles?.length === next.headers.length ? completeRoles(known.roles, guessed) : guessed);
     setDefaultType(known?.defaultType ?? "auto");
     setToggled(new Map());
     setAssetOverrides(new Map());
@@ -130,7 +132,9 @@ export function StatementImportDialog({ open, onClose }: { open: boolean; onClos
   const count = (s: ImportProposal["status"]) => proposals.filter((p) => p.status === s).length;
   const unknown = [...new Map(proposals.filter((p) => p.unknownAsset).map((p) => [p.unknownAsset!.key, p.unknownAsset!])).values()];
   const account = idx?.accountById.get(accountId);
-  const creatableKinds = account ? ALLOWED_ASSETS[account.kind].filter((k) => k !== "obligation") : [];
+  const creatableKinds: AssetKind[] = account ? ALLOWED_ASSETS[account.kind].filter((k) => k !== "obligation") : [];
+  // Le type lu dans le fichier (colonne de classe d'actifs) est proposé d'office ; une obligation se crée avec ses caractéristiques, pas ici.
+  const kindFor = (u: (typeof unknown)[number]): AssetKind => newKinds.get(u.key) ?? (u.kind && creatableKinds.includes(u.kind) ? u.kind : (creatableKinds[0] ?? "etf"));
 
   const close = () => {
     setFile(null);
@@ -268,7 +272,7 @@ export function StatementImportDialog({ open, onClose }: { open: boolean; onClos
                       ))}
                     </Select>
                     <span className="text-xs text-fg-faint">ou</span>
-                    <Select aria-label={`Type de ${u.name}`} className="h-8 w-36 text-xs" value={newKinds.get(u.key) ?? creatableKinds[0] ?? "etf"} onChange={(e) => setNewKinds((m) => new Map(m).set(u.key, e.target.value as AssetKind))}>
+                    <Select aria-label={`Type de ${u.name}`} className="h-8 w-36 text-xs" value={kindFor(u)} onChange={(e) => setNewKinds((m) => new Map(m).set(u.key, e.target.value as AssetKind))}>
                       {creatableKinds.map((k) => (
                         <option key={k} value={k}>
                           {ASSET_KIND_LABELS[k]}
@@ -279,7 +283,7 @@ export function StatementImportDialog({ open, onClose }: { open: boolean; onClos
                       className="h-8 text-xs"
                       disabled={createAsset.isPending || !creatableKinds.length}
                       onClick={() => {
-                        const kind = newKinds.get(u.key) ?? creatableKinds[0]!;
+                        const kind = kindFor(u);
                         createAsset.mutate({ kind, name: u.name, isin: u.isin, priceSource: u.isin && kind !== "scpi" ? "auto" : "manuel" });
                       }}
                     >

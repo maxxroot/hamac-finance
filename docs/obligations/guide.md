@@ -35,7 +35,7 @@ La seconde dit ce qui arrive :
 - **Flux à 12 mois** : les coupons et les remboursements des douze prochains mois, c'est-à-dire l'argent à réinvestir bientôt.
 - **Prochaine échéance** : la date du prochain remboursement, et en dessous la date et le montant brut du prochain coupon.
 - **Coupons perçus** : les coupons notés dans le Journal, comparés aux coupons échus, ceux que vos lignes ont dû verser jusqu'à aujourd'hui. Si un coupon manque, la tuile passe en orange et indique combien ne sont pas saisis.
-- **Espèces en attente** : l'argent non investi de vos comptes-titres. Le chiffre passe en orange au-delà du seuil d'alerte réglé dans Paramètres › Plan › Seuils d'alerte (« Espèces du compte-titres à investir », 1 000 € par défaut), avec la mention « De quoi acheter une ligne ».
+- **Espèces en attente** : l'argent non investi des comptes-titres qui détiennent des obligations (tous vos comptes-titres tant que vous n'en avez aucune). Un compte-titres qui détient aussi des actions affiche le même montant ici et dans Actions & ETF : c'est de l'argent disponible pour l'une ou l'autre. Le chiffre passe en orange au-delà du seuil d'alerte réglé dans Paramètres › Plan › Seuils d'alerte (« Espèces du compte-titres à investir », 1 000 € par défaut), avec la mention « De quoi acheter une ligne ».
 
 **L'acompte sur les coupons**, sous les chiffres : pour l'année en cours, chaque courtier qui prélève les impôts est marqué « dispensé » ou « retenu » (acompte de 12,8 %), avec un lien vers la page Impôts où la dispense se coche, année par année et établissement par établissement. De septembre au 30 novembre, la ligne rappelle de demander la dispense pour l'année suivante.
 
@@ -101,7 +101,7 @@ La seconde dit ce qui arrive :
 - Seules les obligations à taux fixe gardées jusqu'à l'échéance sont bien suivies. La valeur calculée n'est pas un prix de marché : si les taux bougent, une revente avant l'échéance peut se faire à un autre prix.
 - Les coupons reçus se saisissent à la main. Le prochain coupon affiché est une prévision.
 - La valeur monte en ligne droite vers 100 % : c'est une approximation simple, pas la méthode actuarielle.
-- Le chiffre « Espèces en attente » et les mouvements ne portent que sur les comptes-titres, même si vous détenez des obligations dans une assurance-vie.
+- Le chiffre « Espèces en attente » ne porte que sur les comptes-titres, même si vous détenez des obligations dans une assurance-vie. Les mouvements affichés sont ceux de vos obligations (achats, coupons, remboursements), sans les versements ni les opérations sur actions du même compte.
 - Le rendement après impôts est une estimation : il suppose les taux d'aujourd'hui jusqu'à l'échéance, ne compte pas l'abattement de l'assurance-vie, et ne déduit pas une perte au remboursement de vos autres plus-values.
 - La trajectoire suppose que vous gardez chaque ligne jusqu'au bout et ne compte pas le placement des coupons et des remboursements.
 - Une ligne prévue ne devient pas un achat toute seule : il faut saisir l'achat, puis supprimer la ligne prévue.

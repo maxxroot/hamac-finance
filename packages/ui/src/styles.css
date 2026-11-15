@@ -64,6 +64,7 @@
 
   /* Classes d'actifs, ordre fixe. Validées sur l'ivoire (daltonisme ΔE ≥ 8, contraste ≥ 3:1). */
   --color-precaution: #1c69aa;
+  --color-liquidites: #4a6b7a;
   --color-garanti: #189546;
   --color-obligations: #5f61b4;
   --color-croissance: #d3791f;
@@ -103,6 +104,7 @@
     --color-side-active: #172820;
     /* Validées sur le vert nuit. */
     --color-precaution: #0f7dc3;
+    --color-liquidites: #7fa3b0;
     --color-garanti: #3f9465;
     --color-obligations: #7d83e0;
     --color-croissance: #dc750d;
@@ -138,6 +140,7 @@
       --color-side-line: #1c2b25;
       --color-side-active: #172820;
       --color-precaution: #0f7dc3;
+      --color-liquidites: #7fa3b0;
       --color-garanti: #3f9465;
       --color-obligations: #7d83e0;
       --color-croissance: #dc750d;

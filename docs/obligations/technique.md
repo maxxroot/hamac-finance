@@ -89,7 +89,7 @@ Convention : les prix sont des fractions du nominal (0,9684 = 96,84 %). Quantit�
 - assurance-vie : `min(tmi, avBefore8 | avAfter8)` selon l'âge du contrat à la date du flux (CGI art. 125-0 A) + `socialAv`, sur les coupons comme sur le gain.
 Impôts à venir (détail au survol) : coupons à venir depuis aujourd'hui × taux coupon, et gain des lots × taux gain à l'échéance ; le taux affiché est l'impôt divisé par sa base.
 
-**Page.** `holders` = comptes avec une obligation détenue, une obligation échue, ou de type `cto`. Espèces en attente = espèces des CTO non archivés. Âge d'une ligne prévue = `targetYear − birthYear`. Une ligne prévue est créée avec `accountId` du premier CTO (ou `null`).
+**Page.** `holders` = comptes avec une obligation détenue ou échue : un compte-titres peut aussi détenir des actions, il n'est pas rattaché d'office. `ctos` = CTO non archivés parmi `holders`, sinon tous les CTO non archivés (où s'achètera la première obligation). Espèces en attente = espèces de `ctos`. Mouvements : seulement ceux qui portent sur une obligation (`Movements` avec `withCash={false}`). Âge d'une ligne prévue = `targetYear − birthYear`. Une ligne prévue est créée avec `accountId` du premier de `ctos` (ou `null`).
 
 Aucune règle fiscale sur cette page. Le registre des cessions (`disposals`) alimente les plus-values du compte-titres (`packages/core/src/portfolio/securitiesGains.ts`).
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseCsv } from "./csv";
 import { Schedule, type Account, type Asset, type Transaction } from "../model";
-import { buildImport, detectFormat, findHeaderRow, guessRoles, linesFromCsv, parseOfx, parseQif, type StatementLine } from "./statementImport";
+import { buildImport, completeRoles, detectFormat, findHeaderRow, guessRoles, linesFromCsv, parseOfx, parseQif, type StatementLine } from "./statementImport";
 
 const OFX_BANQUE = `OFXHEADER:100
 DATA:OFXSGML
@@ -67,6 +67,33 @@ describe("lecture des relevés", () => {
     expect(lines[1]).toMatchObject({ date: "2026-11-03", amount: -12.3 });
   });
 
+  it("CSV Trade Republic : colonnes propres avant les approchées, nom et classe du titre, compte-titres", () => {
+    const csv = [
+      `"datetime","date","account_type","category","type","asset_class","name","symbol","shares","price","amount","fee","tax","currency","original_amount","description","counterparty_name"`,
+      `"2025-01-06T11:41:12Z","2025-01-06","DEFAULT","CASH","DIVIDEND","STOCK","TotalEnergies","FR0000120271","0.75075","","0.44","","","EUR","","Cash Dividend for ISIN FR0000120271",""`,
+      `"2025-01-29T12:04:36Z","2025-01-29","DEFAULT","TRADING","SELL","STOCK","TotalEnergies","FR0000120271","-0.75075","55.46","41.64","-1.00","","EUR","","Sell trade FR0000120271 TOTALENERGIES SE",""`,
+      `"2025-02-01T07:02:10Z","2025-02-01","DEFAULT","CASH","INTEREST_PAYMENT","","","","","","0.17","","-0.05","EUR","","Interest payment Booking",""`,
+    ].join("\n");
+    const rows = parseCsv(csv);
+    const roles = guessRoles(rows[0]!);
+    // « date » plutôt que « datetime », « type » plutôt que « account_type », « amount » plutôt que « original_amount ».
+    expect(roles).toEqual(["", "date", "", "", "type", "assetKind", "asset", "isin", "quantity", "", "amount", "fee", "", "", "", "label", ""]);
+    const lines = linesFromCsv(rows.slice(1), roles);
+    expect(lines[1]).toMatchObject({ date: "2025-01-29", amount: 41.64, quantity: 0.75075, isin: "FR0000120271", assetName: "TotalEnergies", assetKind: "action", fee: 1 });
+    const cto = account("cto", "cto");
+    const r = buildImport({ lines, account: cto, accounts: new Map([[cto.id, cto]]), assets: [], existing: [], schedule: new Schedule([], [], "2020-01", 5), today: "2026-11-08" });
+    expect(r.map((p) => p.tx.type)).toEqual(["dividende", "vente", "interets"]);
+    expect(r[1]!.unknownAsset).toEqual({ key: "FR0000120271", isin: "FR0000120271", name: "TotalEnergies", kind: "action" });
+    // Les intérêts des espèces ne portent sur aucun titre.
+    expect(r[2]).toMatchObject({ status: "ok", unknownAsset: null });
+  });
+
+  it("correspondance mémorisée : complétée par les rôles qu'elle n'a pas, sans toucher aux choix faits", () => {
+    expect(completeRoles(["date", "", "", "amount", ""], ["date", "type", "asset", "amount", "assetKind"])).toEqual(["date", "type", "asset", "amount", "assetKind"]);
+    // Un rôle déjà donné à une autre colonne n'est pas repris.
+    expect(completeRoles(["date", "label", ""], ["date", "", "label"])).toEqual(["date", "label", ""]);
+  });
+
   it("garde le bon séparateur quand les montants ont des virgules", () => {
     expect(parseCsv("Date;Montant\n01/02/2026;1,50\n02/02/2026;2,50")[1]).toEqual(["01/02/2026", "1,50"]);
     expect(parseCsv("Date,Label,Amount\n2026-01-01,a,1.5\n2026-01-02,b,2")[1]).toEqual(["2026-01-01", "a", "1.5"]);
@@ -96,7 +123,7 @@ describe("comparaison avec le journal", () => {
     expect(ok.tx).toMatchObject({ assetId: "ai", amount: 541.5, quantity: 3, fee: 1.5 });
     const unknown = run([line({ amount: -10, typeHint: "achat", quantity: 1, isin: "LU1681043599", assetName: "AMUNDI" })])[0]!;
     expect(unknown.status).toBe("erreur");
-    expect(unknown.unknownAsset).toEqual({ key: "LU1681043599", isin: "LU1681043599", name: "AMUNDI" });
+    expect(unknown.unknownAsset).toEqual({ key: "LU1681043599", isin: "LU1681043599", name: "AMUNDI", kind: null });
   });
 
   it("titre associé à la main", () => {

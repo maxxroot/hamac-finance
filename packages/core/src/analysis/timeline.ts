@@ -1,4 +1,4 @@
-import { ACCOUNT_KIND_LABELS, addMonth, BUCKETS, cashBucketOf, monthOf, Schedule, type Bucket, type Month, type Transaction } from "../model";
+import { ACCOUNT_KIND_LABELS, addMonth, BUCKETS, monthOf, plannedBucketOf, Schedule, type Bucket, type Month, type Transaction } from "../model";
 import type { EngineData, HistoryPoint } from "../portfolio";
 import { formatEur, formatPct, roundCents } from "../base";
 import { accountFlows, gainSources, maxDrawdown, monthlyReturns, type GainSources } from "./performance";
@@ -335,12 +335,13 @@ export function monthByMonth(data: EngineData, history: readonly HistoryPoint[],
 /**
  * Rendement annuel attendu de chaque classe, d'après les réglages de la projection : les quatre lignes de base,
  * puis le rendement saisi sur la ligne de la répartition cible pour l'immobilier, le crowdlending et la crypto.
- * null : aucun rendement attendu, la classe est supposée ne rien rapporter.
+ * Les liquidités, argent en attente, ne rapportent rien. null : aucun rendement attendu, la classe est supposée ne rien rapporter.
  */
 export function expectedRates(params: EngineData["params"]): Record<Bucket, number | null> {
   const line = (key: Bucket) => params.targets.find((l) => l.key === key)?.expectedReturn ?? null;
   return {
     precaution: params.returns.livrets,
+    liquidites: 0,
     garanti: params.returns.fondsEuros,
     obligations: params.returns.obligations,
     croissance: params.returns.actions,
@@ -377,7 +378,7 @@ export interface PlanComparison {
 /**
  * Ce que le plan prévoyait pour la période, avec les réglages actuels : la valeur de départ de chaque classe
  * grandit à son rendement attendu, et les versements du calendrier s'y ajoutent chaque mois, dans la classe
- * des espèces de leur compte (comme la projection), ainsi que les apports initiaux, point de départ du plan.
+ * où le plan place l'argent de leur compte (comme la projection), ainsi que les apports initiaux, point de départ du plan.
  * Les mois déclarés manqués comptent : c'est l'écart d'épargne.
  * null si la période ne contient aucun mois.
  */
@@ -398,7 +399,7 @@ export function planComparison(data: EngineData, history: readonly HistoryPoint[
       if (t.type !== "apport_initial" || monthOf(t.date) !== h.month || t.date > h.date) continue;
       const account = data.accounts.find((a) => a.id === t.accountId);
       if (!account) continue;
-      plan[cashBucketOf(account)] += t.amount;
+      plan[plannedBucketOf(account)] += t.amount;
       plannedMoney += t.amount;
     }
     // Le mois en cours ne compte son versement qu'une fois son jour passé.
@@ -406,7 +407,7 @@ export function planComparison(data: EngineData, history: readonly HistoryPoint[
       for (const a of data.accounts) {
         const amount = schedule.planned(a.id, h.month);
         if (amount <= 0) continue;
-        plan[cashBucketOf(a)] += amount;
+        plan[plannedBucketOf(a)] += amount;
         plannedMoney += amount;
       }
     }
