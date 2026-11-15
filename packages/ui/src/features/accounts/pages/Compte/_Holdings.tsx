@@ -1,18 +1,16 @@
 import { Fragment } from "react";
 import { Link } from "react-router";
-import { ASSET_KIND_LABELS, BUCKET_LABELS, type AccountState, type AssetKind, type PositionState } from "@hamac/core";
+import { ASSET_KIND_LABELS, type AccountState, type AssetKind } from "@hamac/core";
 import { PositionEvolution } from "@/shared/components/AccountEvolution";
 import { Amount } from "@/shared/components/Amount";
 import { Pct } from "@/shared/components/Stat";
 import { DetailRow, ExpandButton, Table, Td, Tr, useExpandedRow } from "@/shared/components/table";
-import { BUCKET_COLORS } from "@/shared/lib/colors";
 import { formatQty } from "@/shared/lib/numbers";
 import { SortTh, useSortable } from "@/shared/lib/sort";
-import { BUCKET_PAGES } from "@/shared/nav";
 
 const COLS = 10;
 
-/** Type du titre, en court : la classe d'actifs est rappelée en dessous. */
+/** Type du titre : un ETF est un ETF, une action une action. */
 const kindLabel = (kind: AssetKind) => (kind === "etc" ? "ETC" : kind === "fonds" ? "Fonds" : ASSET_KIND_LABELS[kind]);
 
 /** Tout ce que détient le compte : chaque titre ou support, puis les projets de crowdlending et les espèces. */
@@ -83,7 +81,6 @@ export function Holdings({ s }: { s: AccountState }) {
               </Td>
               <Td>
                 {kindLabel(p.asset.kind)}
-                <ClassLabel p={p} />
               </Td>
               {/* Un fonds euros n'a ni parts ni cours : seul son solde compte. */}
               <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : formatQty(p.quantity)}</Td>
@@ -120,10 +117,7 @@ export function Holdings({ s }: { s: AccountState }) {
               </Link>
               <div className="ml-[21px] text-xs font-normal text-fg-faint">{running} en cours</div>
             </Td>
-            <Td>
-              Prêts
-              <div className="text-xs text-fg-faint">{BUCKET_LABELS.crowdlending}</div>
-            </Td>
+            <Td>Crowdlending</Td>
             <Td colSpan={4} />
             <Td align="right" className="font-medium">
               <Amount value={crowd} />
@@ -168,27 +162,5 @@ export function Holdings({ s }: { s: AccountState }) {
         </tr>
       </tbody>
     </Table>
-  );
-}
-
-/** Classe d'actifs du titre, sous son type : sa couleur et un lien vers la page qui la détaille. */
-function ClassLabel({ p }: { p: PositionState }) {
-  const page = BUCKET_PAGES[p.bucket];
-  const label = (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Classe d'actifs">
-      <span className="size-2 rounded-sm" style={{ background: BUCKET_COLORS[p.bucket] }} aria-hidden />
-      {BUCKET_LABELS[p.bucket]}
-    </span>
-  );
-  return (
-    <div className="text-xs text-fg-faint">
-      {page ? (
-        <Link to={page} onClick={(e) => e.stopPropagation()} className="hover:text-accent hover:underline">
-          {label}
-        </Link>
-      ) : (
-        label
-      )}
-    </div>
   );
 }
