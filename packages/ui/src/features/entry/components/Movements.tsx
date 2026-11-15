@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { CalendarClock } from "lucide-react";
 import { Link } from "react-router";
 import { AddTransactionButton } from "./TransactionButton";
@@ -85,8 +86,13 @@ export function Movements({
               <Tr key={t.id}>
                 <Td className="num text-fg-muted">{formatDate(t.date)}</Td>
                 <Td>
-                  {idx.accountById.get(t.accountId)?.name}
-                  {t.counterAccountId && <span className="text-fg-muted"> → {idx.accountById.get(t.counterAccountId)?.name}</span>}
+                  <AccountLink account={idx.accountById.get(t.accountId)} />
+                  {t.counterAccountId && (
+                    <span className="text-fg-muted">
+                      {" → "}
+                      <AccountLink account={idx.accountById.get(t.counterAccountId)} />
+                    </span>
+                  )}
                 </Td>
                 <Td className="whitespace-nowrap">
                   <span title={isScheduled(t) ? "Versement programmé : modifiable dans Versements" : undefined}>

@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { useMemo, useState } from "react";
 import { assetPerformance, envelopePerformance, periodTables, scopePerformance, withdrawalTaxes } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
@@ -70,6 +71,12 @@ export function Performance() {
             </optgroup>
           </Select>
         </div>
+        {scope.key.startsWith("account:") && (
+          <AccountLink account={{ id: scope.key.slice("account:".length), name: scope.label }} className="text-sm text-fg-muted">
+            Voir le compte
+          </AccountLink>
+        )}
+        <div className="flex-1" />
         <PeriodSelector value={period} onChange={setPeriod} />
       </div>
 

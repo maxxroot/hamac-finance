@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { ACCOUNT_KIND_LABELS, formatEur, type AccountState, type PortfolioState } from "@hamac/core";
 import { Fragment } from "react";
 import { SortTh, useSortable } from "@/shared/lib/sort";
@@ -157,7 +158,7 @@ function AccountsTable({ rows, totals }: { rows: AccountState[]; totals: Portfol
           <Tr {...rowProps(a.account.id)}>
             <Td className="font-medium whitespace-nowrap">
               <ExpandButton open={isOpen(a.account.id)} label={a.account.name} />
-              {a.account.name}
+              <AccountLink account={a.account} />
               {a.account.name !== ACCOUNT_KIND_LABELS[a.account.kind] && <div className="ml-[21px] text-xs font-normal text-fg-faint">{ACCOUNT_KIND_LABELS[a.account.kind]}</div>}
             </Td>
             <Td className="max-w-56 truncate text-fg-muted" title={a.account.role}>

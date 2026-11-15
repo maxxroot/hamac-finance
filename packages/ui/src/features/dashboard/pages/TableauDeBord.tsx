@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -244,7 +245,7 @@ function AccountsCard({ accounts }: { accounts: PortfolioState["accounts"] }) {
         {rows.map((r) => (
           <li key={r.key}>
             <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate">{r.name}</span>
+              <span className="min-w-0 truncate">{r.key === "autres" ? r.name : <AccountLink account={{ id: r.key, name: r.name }} />}</span>
               <span className="flex shrink-0 items-baseline gap-2.5">
                 <Amount value={r.value} compact />
                 <span className="w-14 text-right text-xs">{r.gainPct != null && <Pct value={r.gainPct} signed />}</span>

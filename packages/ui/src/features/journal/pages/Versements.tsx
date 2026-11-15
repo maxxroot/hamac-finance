@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { CalendarX2, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Schedule, addMonth, formatEur, monthOf, isRetirementPlan, monthsBetweenInclusive, retirementYear, type Account } from "@hamac/core";
@@ -221,7 +222,7 @@ function AccountPlans({ account, current }: { account: Account; current: number 
   return (
     <div className="rounded-xl border border-line bg-surface-2/50 px-4 py-3">
       <div className="flex items-baseline justify-between">
-        <span className="font-medium">{account.name}</span>
+        <AccountLink account={account} className="font-medium" />
         <span className="text-sm text-fg-muted">
           actuellement <Amount value={current} className="text-fg" /> / mois
         </span>

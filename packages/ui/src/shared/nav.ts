@@ -1,4 +1,4 @@
-import type { ModuleKey } from "@hamac/core";
+import type { Bucket, ModuleKey } from "@hamac/core";
 import {
   Banknote,
   BookOpen,
@@ -115,3 +115,19 @@ export const SETTINGS_ITEM: NavItem = {
 
 export const ALL_ITEMS: NavItem[] = [...NAV.flatMap((g) => g.items), SETTINGS_ITEM];
 
+
+/** Page de détail d'un compte : sa composition complète, toutes classes confondues. */
+export const accountPath = (accountId: string): string => `/comptes/${accountId}`;
+
+/** Page qui détaille chaque classe d'actifs ; les liquidités n'en ont pas. */
+export const BUCKET_PAGES: Record<Bucket, string | null> = {
+  precaution: "/livrets",
+  liquidites: null,
+  garanti: "/fonds-euros",
+  obligations: "/obligations",
+  croissance: "/actions",
+  matieres_premieres: "/actions",
+  immobilier: "/immobilier",
+  crowdlending: "/crowdlending",
+  speculatif: "/crypto",
+};

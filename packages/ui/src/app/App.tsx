@@ -6,7 +6,7 @@ import { ALL_ITEMS } from "@/shared/nav";
 import { Actions, Crowdlending, Crypto, Obligations } from "@/features/investments";
 import { AttestationLoyer, AvisEcheance, Bien, CourrierRevision, GestionLocative, Immobilier, ImpressionBien, Quittance, Relance } from "@/features/realestate";
 import { Credits } from "@/features/loans";
-import { Comptes, FondsEuros, Livrets } from "@/features/accounts";
+import { Compte, Comptes, FondsEuros, Livrets } from "@/features/accounts";
 import { Exposition, Historique, Performance } from "@/features/analysis";
 import { Projection, Projets, Simulateurs } from "@/features/planning";
 import { Compteurs, Declaration, Impots } from "@/features/tax";
@@ -59,6 +59,7 @@ const router = createHashRouter([
         errorElement: <RouteError />,
       })),
       { path: "/immobilier/:id", element: <Bien />, errorElement: <RouteError /> },
+      { path: "/comptes/:id", element: <Compte />, errorElement: <RouteError /> },
       // Ancienne adresse de « Mes comptes » (favoris).
       { path: "/enveloppes", element: <Navigate to="/comptes" replace /> },
     ],

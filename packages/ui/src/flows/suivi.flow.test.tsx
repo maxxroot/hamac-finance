@@ -321,14 +321,15 @@ describe("mes comptes", () => {
       expect(within(table).getByRole("columnheader", { name: col }).getAttribute("aria-sort")).not.toBe("none");
     }
 
-    // Un clic sur une ligne ouvre l'évolution du compte, avec une courbe par titre.
-    await user.click(within(table).getByText("PEA"));
+    // Le nom du compte ouvre sa page ; un clic ailleurs sur la ligne déplie l'évolution, avec une courbe par titre.
+    expect(within(table).getByRole("link", { name: "PEA" }).getAttribute("href")).toMatch(/^\/comptes\/[0-9a-f-]+$/);
+    await user.click(within(table).getByRole("button", { name: "Afficher le détail : PEA" }));
     await waitFor(() => expect(within(table).getAllByText(/Valeur totale/).length).toBeGreaterThan(0));
     expect(within(table).getByText(/Montant investi/)).toBeTruthy();
     await waitFor(() => expect(h.charts.some((c) => c.option.series?.some((x: { name: string }) => x.name === "ETF PEA S&P 500"))).toBe(true));
     await user.click(within(table).getByRole("button", { name: "3M" }));
     expect(within(table).getByRole("button", { name: "3M" }).getAttribute("aria-pressed")).toBe("true");
-    await user.click(within(table).getByText("PEA"));
+    await user.click(within(table).getByRole("button", { name: "Masquer le détail : PEA" }));
     expect(within(table).queryByText(/Montant investi/)).toBeNull();
 
     // Évolution de toutes les enveloppes : plus de cinq courbes, la légende défile et les couleurs reviennent en tirets.

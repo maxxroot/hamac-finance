@@ -7,6 +7,13 @@
 | Couche | Fichier | Rôle |
 |---|---|---|
 | UI, page | `packages/ui/src/features/accounts/pages/Comptes.tsx` | Page `/comptes` (l'ancienne adresse `/enveloppes` redirige) : `AccountsTable`, évolution, allocation de la partie investie, `LivretsStatus` (réutilisé par Livrets). |
+| UI, page | `packages/ui/src/features/accounts/pages/Compte/Compte.tsx` | Page `/comptes/:id` : en-tête, quatre chiffres (`FourthStat`), évolution, mouvements, achat conseillé d'un PEA ; `Missing` pour un identifiant inconnu. |
+| UI, page | `packages/ui/src/features/accounts/pages/Compte/_Composition.tsx` | Barre de répartition par classe (`AccountState.byBucket`), liens `BUCKET_PAGES`. |
+| UI, page | `packages/ui/src/features/accounts/pages/Compte/_Holdings.tsx` | Composition : positions, projets de crowdlending, espèces, total. |
+| UI, page | `packages/ui/src/features/accounts/pages/Compte/_Facts.tsx` | Carte « Caractéristiques », lignes selon le type de compte. |
+| UI, socle | `packages/ui/src/shared/components/AccountLink.tsx`, `packages/ui/src/shared/nav.ts` | `AccountLink` (nom cliquable, sans déplier la ligne qui le contient), `accountPath`, `BUCKET_PAGES`. |
+| UI, coquille | `packages/ui/src/app/layout/Shell.tsx`, `packages/ui/src/app/lib/sidebar.ts` | Sous-menu des comptes sous « Mes comptes » (`AccountsSubmenu`), ordre `sidebarAccounts`, dépliage gardé dans `localStorage` (`hamac.sidebar.accounts`). |
+| UI, saisie partagée | `packages/ui/src/features/entry/components/AdvisedPurchaseCard.tsx` | Achat conseillé d'un PEA, partagé avec Actions & ETF. |
 | UI, composant | `packages/ui/src/features/accounts/components/ConcentrationCard.tsx` | Carte « Concentration ». |
 | UI, composant | `packages/ui/src/features/accounts/components/ProtectionCard.tsx` | Carte « Protection en cas de faillite ». |
 | UI, socle | `packages/ui/src/shared/components/AccountEvolution.tsx`, `packages/ui/src/shared/lib/evolution.ts` | Courbes d'évolution d'un ou de plusieurs comptes. |
@@ -90,6 +97,15 @@ Règles et sources citées dans `packages/core/src/model/protection.ts`, vérifi
 
 Découpage d'un compte (`partsOf`, sur `value × share` et `cash × share`) : livret → `livrets` (LEP, LDDS, Livret A) ou `depots` ; PEA, PEA-PME, compte-titres et PER bancaire → `depots` (espèces) + `titres` (reste) ; assurance-vie et PER assurantiel → `assurance` ; épargne salariale → `separe` ; crowdlending et crypto → `aucune`. Un compte sans établissement → `inconnue`. Garant = assureur de l'offre assurance-vie pour une part `assurance`, sinon `protection.guarantor`, sinon le nom de l'établissement ; regroupement par `type|garant` normalisé (casse et espaces). `covered = min(montant, plafond)`, `uncovered = montant − covered`. Les comptes archivés de valeur nulle sont ignorés.
 
+### Page d'un compte
+
+- Route `/comptes/:id` (`App.tsx`), hors de `ALL_ITEMS` : l'entrée « Mes comptes » du menu reste active (`NavLink` sans `end`).
+- Sous-menu : `sidebarAccounts` garde les comptes non archivés, rangés par type (`pea`, `pea_pme`, `cto`, `assurance_vie`, `per`, `epargne_salariale`, `crypto`, `crowdlending`, `livret`), puis `sortOrder`, puis nom. Masqué quand la barre est réduite.
+- Répartition : classes de `byBucket` de valeur > 0,005 €, affichée seulement s'il y en a au moins deux. Les espèces comptent dans `cashBucketOf` (fonds euros d'un contrat, liquidités ailleurs, précaution pour un livret).
+- Composition : `positions`, puis une ligne « Projets de crowdlending » (`Σ crowdProjects.value`) et une ligne « Espèces » (si `|cash| > 0,005`). Part du compte = valeur ÷ `AccountState.value`. Le tableau n'apparaît que s'il y a des positions ou des projets.
+- Quatrième chiffre : `fiscalAnniversary(openedOn, 5)` pour `pea`/`pea_pme`, `(openedOn, 8)` pour `assurance_vie`, `interests` pour un livret, `fees` sinon.
+- Caractéristiques : grille de `tradeFeeFor` pour `pea`, `pea_pme`, `cto`, `crypto` ; FGAP (`alerts.fgapGuarantee − value`) si `holdsEuroFunds`.
+
 ### Création et archivage
 
 - `uniqueAccountConflict` : PEA et PEA-PME uniques ; LEP, LDDS et Livret A uniques ; un compte archivé ne compte pas.
@@ -105,6 +121,8 @@ Découpage d'un compte (`partsOf`, sur `value × share` et `cash × share`) : li
 - `packages/backend/src/backend.test.ts` : comptes uniques, archivage qui arrête les versements, établissement supprimé sans perdre le compte.
 - `packages/backend/src/handlers/euroFunds.test.ts` : fonds euros créé avec un contrat, suppression d'un contrat vide, PER bancaire.
 - `packages/ui/src/flows/suivi.flow.test.tsx` : bloc « mes comptes » (tableau, détail, allocation, livrets, concentration).
+- `packages/ui/src/flows/placements.flow.test.tsx`, bloc « Page d'un compte » : assurance-vie (fonds euros et unités de compte, répartition, caractéristiques), PEA (achat conseillé, grille, espèces), compte inconnu ; bloc « Actions & ETF » : lien du tableau vers la page du compte.
+- `packages/ui/src/app/lib/sidebar.test.ts` : ordre des comptes du menu.
 - `packages/ui/src/flows/reglages.flow.test.tsx` : blocs « paramètres › comptes » et « protection en cas de faillite ».
 
 ## Limites connues
@@ -114,3 +132,5 @@ Découpage d'un compte (`partsOf`, sur `value × share` et `cash × share`) : li
 - La création et l'archivage d'un compte ne se font pas depuis cette page, mais depuis Paramètres › Comptes ou les pages de placement.
 - La protection ne traite pas les comptes à plusieurs titulaires autrement que par `share`, ni les plafonds propres à chaque pays de l'UE au-delà du minimum européen pour les titres.
 - `AccountDialog` n'offre aucun champ pour `sortOrder` : l'ordre des comptes suit leur nom.
+- La page d'un compte ne permet pas de saisir un cours à la main (la fenêtre est dans le domaine `investments`) : on le fait depuis la page de la classe.
+- Le sous-menu liste tous les comptes non archivés : avec beaucoup de comptes, il allonge le menu (il se replie).

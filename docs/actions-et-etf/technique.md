@@ -8,7 +8,13 @@ Route `/actions`, module `actions` (`MODULES` dans `packages/core/src/model/para
 
 | Couche | Fichier | Rôle |
 |---|---|---|
-| UI | `packages/ui/src/features/investments/pages/Actions.tsx` | La page : choix des comptes affichés, bloc `Envelope` par compte, ligne `PositionRow`, cartes achat conseillé, baisse, frais. |
+| UI | `packages/ui/src/features/investments/pages/Actions/Actions.tsx` | La page, tous comptes confondus : choix des comptes, chiffres d'ensemble, cartes baisse, achat conseillé, parts cibles, mouvements. |
+| UI | `packages/ui/src/features/investments/pages/Actions/_PositionsTable.tsx` | Le tableau : une ligne par titre et par compte (clé `accountId:assetId`), part sur l'ensemble, saisie du cours, évolution dépliée. |
+| UI | `packages/ui/src/features/investments/pages/Actions/_AccountStrip.tsx` | Le bandeau des comptes concernés, chacun lié à sa page (`AccountLink`). |
+| UI | `packages/ui/src/features/investments/pages/Actions/_TargetsCard.tsx` | Carte « Parts cibles » : part réelle par titre, toutes lignes additionnées. |
+| UI | `packages/ui/src/features/investments/pages/Actions/_listed.ts` | `listed` (classes `croissance` et `matieres_premieres`), types de titres et de comptes proposés à l'achat. |
+| UI | `packages/ui/src/features/entry/components/AdvisedPurchaseCard.tsx` | Carte « Achat conseillé ce mois-ci », partagée avec la page du compte. |
+| UI | `packages/ui/src/shared/components/AccountLink.tsx` | Nom d'un compte cliquable vers `/comptes/:id` (voir [Mes comptes](../comptes/technique.md)). |
 | UI | `packages/ui/src/features/investments/dialogs/PriceDialog.tsx` | Saisie d'un cours à la main (`prices.setManual`), partagée avec la page Crypto. |
 | UI | `packages/ui/src/features/investments/index.ts` | Façade du domaine (`Actions`, `Obligations`, `Crypto`, `Crowdlending`). |
 | UI | `packages/ui/src/shared/nav.ts` | Entrée de menu, description, module. |
@@ -48,7 +54,9 @@ Champs du `Workspace` (`packages/api/src/system/procedures.ts`) : `accounts`, `a
 
 ## Règles de calcul
 
-**Comptes affichés.** Non archivés ; PEA et PEA-PME toujours ; CTO, assurance-vie, PER et épargne salariale seulement s'ils ont une position de classe `croissance`. Les CTO sans position `croissance` passent dans la liste compacte.
+**Comptes affichés.** Non archivés ; PEA, PEA-PME et CTO toujours ; assurance-vie, PER et épargne salariale seulement s'ils ont une position `listed` (classe `croissance` ou `matieres_premieres`). Un CTO sans position `listed` a une carte « aucune action » avec un bouton d'achat.
+
+**Lignes.** Toutes les positions `listed` de ces comptes, une par couple (compte, titre) : rien n'est additionné entre comptes dans le tableau.
 
 **Positions** (`computePortfolio`). Les événements sont triés par date puis par rang (`RANK`) : versements avant ventes, ventes avant achats. Achat : `qty += quantity`, `cost += amount` (montant frais compris). Vente ou arbitrage sortant (`takeOut`) : le prix de revient sort au prorata de la quantité, `realized += proceeds − costOut`. Une vente supérieure à la quantité détenue ajoute un avertissement. `pru = cost / qty`.
 
@@ -56,22 +64,22 @@ Champs du `Workspace` (`packages/api/src/system/procedures.ts`) : `accounts`, `a
 
 **Compte.** `value = espèces + positions`, `netContrib = apports + versements + versements programmés payés − retraits ± transferts`, `gain = value − netContrib`. `fees` additionne les opérations `frais`, les frais inclus des achats et ventes, et ceux des arbitrages.
 
-**Part réelle** : `p.value / Σ value des positions croissance du compte`. **Écart** : part réelle − `targetWeight`.
+**Part** (tableau) : `p.value / Σ value de toutes les lignes`. **Parts cibles** (carte) : pour chaque titre de `targetWeight > 0` ou détenu, `Σ value de ses lignes / Σ value de toutes les lignes` ; **écart** = part réelle − `targetWeight`. La cible étant globale, la comparaison se fait sur l'ensemble des comptes.
 
 **Achat conseillé.**
 
 - `monthsElapsed(params, asOf)` = `monthsBetween(startMonth-01, asOf) + 1` (0 avant le début). Commentaire du code : Paramètres!B12 du sheet d'origine.
 - `advisedMonthlyPurchase(cash, monthsToInvest, elapsed)` : 0 si `cash ≤ 0` ; `n = monthsToInvest ?? 1` ; si `elapsed ≥ n`, tout `cash` ; sinon `cash / max(1, n − elapsed)`. Commentaire du code : Actions!B17.
 - `splitByTarget(amount, positions)` : seulement les titres de cible > 0 ; `totalAfter = Σ value + amount` ; écart `gap = max(0, target × totalAfter − value)` ; chaque titre reçoit `amount × gap / Σ gap` (à parts égales si tous les écarts sont nuls).
-- Les titres passés à `splitByTarget` sont **tous** les titres actifs `etf`, `action` ou `fonds` qui ont une `targetWeight`, avec la valeur qu'ils ont dans ce compte (0 s'il ne les détient pas).
+- Les titres passés à `splitByTarget` sont **tous** les titres actifs `etf`, `etc`, `action` ou `fonds` qui ont une `targetWeight`, avec la valeur qu'ils ont dans ce PEA (0 s'il ne les détient pas). Une carte par PEA ou PEA-PME.
 
-**Baisse simulée.** `−d × Σ value croissance`, pour `d` dans `params.alerts.stressEquity` (défaut `[0.3, 0.5]`). Part rapportée à `state.totals.value` (somme des comptes, sans immobilier ni autres biens).
+**Baisse simulée.** `−d × Σ value des lignes`, pour `d` dans `params.alerts.stressEquity` (défaut `[0.3, 0.5]`). Part rapportée à `state.totals.value` (somme des comptes, sans immobilier ni autres biens).
 
-**Frais.** `tradeFeeFor` : grille `offers.pea` (PEA et PEA-PME) ou `offers.cto` de l'établissement ; sinon `defaultOrderFees(params)` (`broker.feeRate`, défaut 0,5 %, `broker.minFee`). TER annuel : `Σ value × ter`.
+**Frais.** TER annuel : `Σ value × ter`. Courtage payé : `Σ positionTotals[].fees` des titres `etf`, `etc`, `action`, `fonds` de ces comptes (titres vendus compris). La grille de courtage (`tradeFeeFor`) est sur la page du compte.
 
-**5 ans du PEA.** `fiscalAnniversary(openedOn, 5)` = `addMonths(openedOn, 60)`.
+**Espèces à investir.** `Σ cash` des PEA, PEA-PME et CTO. Ton `warning` si les espèces des PEA seules atteignent `params.alerts.peaCashThreshold` (défaut 50 €), `negative` si le total est `< −0,01`.
 
-**Alerte espèces.** Ton `warning` si `cash ≥ params.alerts.peaCashThreshold` (défaut 50 €), y compris pour un CTO, `negative` si `cash < −0,01`.
+**Mouvements.** `Movements` sur tous ces comptes, `assetKinds` = `etf`, `etc`, `action`, `fonds`, `withCash = false`, 20 lignes.
 
 **Cours.** `chainFor` : rien pour un titre `price_source ≠ auto` ; sinon l'adresse personnalisée, puis les sources activées de l'instance qui couvrent le titre (justETF pour ETF et fonds avec ISIN, Euronext avec ISIN, Twelve Data avec symbole et clé, Yahoo avec symbole). Actualisation automatique au démarrage puis selon le quota des sources (`autoRefreshPrices`, coupée par `HAMAC_PRICES=0`), ou à la demande (`prices.refresh`, une seule à la fois).
 
@@ -81,7 +89,7 @@ Aucune règle fiscale n'est calculée sur cette page (la plus-value du compte-ti
 
 - `packages/core/src/portfolio/engine.test.ts` : valeur et gain d'un PEA, frais de courtage, règle des 5 ans, « achat conseillé : espèces étalées sur les mois restants », « répartition d'un achat selon les parts cibles », vente supérieure à la quantité détenue, registre des cessions au coût moyen.
 - `packages/core/src/portfolio/arbitrage.test.ts` : arbitrage entre supports (pas dans un PEA).
-- `packages/ui/src/flows/placements.flow.test.tsx`, bloc « Actions & ETF » : positions, cible et écart, achat conseillé, cours manquant puis saisi ; tri et dépliage ; compte-titres sans action en version compacte ; assurance-vie investie en ETF. Bloc « Nouveau titre à l'achat » et « Fiche d'un titre ».
+- `packages/ui/src/flows/placements.flow.test.tsx`, bloc « Actions & ETF » : bandeau des comptes, positions, parts cibles, achat conseillé, cours manquant puis saisi ; PEA et CTO qui détiennent le même ETF (deux lignes, cible sur l'ensemble, lien vers la page du compte) ; tri et dépliage ; compte-titres sans action ; assurance-vie investie en ETF. Bloc « Nouveau titre à l'achat » et « Fiche d'un titre ».
 - `packages/backend/src/backend.test.ts` : « espace de travail : cours quotidiens pour la crypto, dernier du mois pour le reste ».
 - `packages/backend/src/market/merge.test.ts` : fusion des cours.
 
@@ -90,8 +98,6 @@ Aucune règle fiscale n'est calculée sur cette page (la plus-value du compte-ti
 - Les parts cibles sont globales, pas par compte : l'achat conseillé d'un PEA se répartit aussi vers des titres qu'il ne détient pas, et vers des titres qui ne peuvent pas être dans un PEA s'ils ont une cible.
 - `monthsToInvest` n'est saisissable que pour `pea` ; un `pea_pme` prend `?? 1`, donc toutes ses espèces sont conseillées d'un coup.
 - Le décompte des mois part de `profile.startMonth`, pas de la date d'ouverture du compte.
-- L'alerte d'espèces utilise `peaCashThreshold` pour tous les comptes de la page, CTO compris (la page Obligations utilise `ctoCashThreshold`).
 - `stressEquity` n'a pas de réglage dans l'interface.
 - La part « du patrimoine » est celle de `state.totals.value` (comptes financiers seulement), pas de `netWorth.net`.
-- Le titre des mouvements teste `kind === "pea"` alors que le filtre teste `isPea` (PEA ou PEA-PME) : un PEA-PME affiche le titre « Mouvements (actions, ETF et espèces) » sans être filtré.
-- `fees` est libellé « Courtage payé » mais comprend les opérations `frais`.
+- Le tableau ne regroupe pas un titre détenu dans plusieurs comptes (choix de l'utilisateur, 2026-11-15) : la carte « Parts cibles » fait l'addition.

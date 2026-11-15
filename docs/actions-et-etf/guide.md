@@ -4,7 +4,9 @@
 
 ## À quoi sert cette page
 
-La page **Actions & ETF** (menu Placements) montre les actions, les ETF, les fonds et les ETC que vous détenez, compte par compte : combien de parts, combien vous les avez payées, ce qu'elles valent aujourd'hui et ce que vous avez gagné ou perdu. Pour le PEA, elle propose aussi le montant à investir ce mois-ci et sa répartition entre vos titres.
+La page **Actions & ETF** (menu Placements) montre les actions, les ETF, les fonds et les ETC que vous détenez, **tous comptes confondus** : combien de parts, combien vous les avez payées, ce qu'elles valent aujourd'hui et ce que vous avez gagné ou perdu. Pour le PEA, elle propose aussi le montant à investir ce mois-ci et sa répartition entre vos titres.
+
+Pour voir un seul compte (votre PEA, votre compte-titres…) avec tout ce qu'il contient, cliquez sur son nom : il ouvre la [page du compte](../comptes/guide.md#la-page-dun-compte).
 
 Rien ne se saisit directement sur cette page, sauf un cours à la main. Les positions sont recalculées à partir du **Journal** : chaque achat, vente, dividende ou versement que vous y notez met la page à jour.
 
@@ -25,36 +27,36 @@ En haut, deux boutons : **Ajouter un compte-titres**, et **Ajouter une opératio
 
 Si vous n'avez pas encore de PEA, un encadré vous propose d'en créer un. Un PEA est limité à un par personne ; sa date d'ouverture compte pour la règle des 5 ans.
 
-Puis un bloc par compte, dans cet ordre :
+### Les comptes concernés
 
-1. le PEA (et le PEA-PME) ;
-2. chaque compte-titres qui contient au moins une action, un ETF ou un fonds ;
-3. chaque assurance-vie, PER ou plan d'épargne salariale qui contient au moins une action, un ETF ou un fonds.
+Une carte par compte, dans cet ordre : le PEA (et le PEA-PME), chaque compte-titres, puis chaque assurance-vie, PER ou plan d'épargne salariale qui détient au moins une action, un ETF, un fonds ou un ETC. Les comptes archivés ne sont pas affichés.
 
-Les comptes archivés ne sont pas affichés. Les comptes-titres sans action ni ETF (par exemple un compte qui ne contient que des obligations) sont regroupés en bas, dans une version courte : nom, établissement, espèces, et un bouton **Acheter des actions ou ETF**.
+Chaque carte donne le nom du compte, son type, son établissement, la valeur de ses actions et ses espèces. **Le nom du compte ouvre sa page.** Un compte-titres sans action (par exemple un compte qui ne contient que des obligations) affiche « aucune action » et un bouton **Acheter des actions ou ETF**.
 
-### Dans chaque bloc
+### Les chiffres d'ensemble
 
-**L'en-tête** donne le nom du compte et son établissement, un bouton pour modifier le compte et un bouton **Évolution** qui déplie la courbe du compte, mois par mois, avec une courbe par titre.
-
-**Quatre chiffres** :
-
-- **Valeur totale** : la valeur du compte (titres et espèces), et sa part dans le total de vos comptes.
-- **Gain / perte** : la valeur moins le versé net (vos versements moins vos retraits).
-- **Espèces à investir** : l'argent non investi, et en dessous le versement mensuel programmé. Le chiffre passe en orange quand les espèces atteignent le seuil d'alerte réglé dans Paramètres › Plan › Seuils d'alerte (« Espèces du PEA à investir », 50 € par défaut), en rouge s'il est négatif.
-- **Fiscalité allégée (5 ans)**, pour un PEA : la date des 5 ans, ou « depuis le … » si elle est passée, ou une invitation à renseigner la date d'ouverture. Pour les autres comptes, ce chiffre est remplacé par **Frais payés**.
+- **Valeur des actions et ETF** : la valeur de toutes les lignes du tableau, et sa part dans le total de vos comptes.
+- **Plus-value latente** : cette valeur moins ce que les titres vous ont coûté (l'investi, en dessous).
+- **Espèces à investir** : l'argent non investi sur vos PEA et comptes-titres. Le chiffre passe en orange quand les espèces des PEA atteignent le seuil d'alerte réglé dans Paramètres › Plan › Seuils d'alerte (« Espèces du PEA à investir », 50 € par défaut), en rouge s'il est négatif. L'argent non investi d'un contrat d'assurance-vie n'y figure pas : il est sur le fonds euros.
+- **Frais de gestion des ETF / an**, et en dessous le courtage payé sur ces titres depuis le début.
 
 **Un avertissement** apparaît si un titre n'a pas de cours : sa valeur affichée est alors son prix de revient.
 
-**Le tableau des positions**, une ligne par titre : nom et ISIN, parts, PRU, investi, cours, valeur, plus-value en euros et en %, part réelle, cible, écart. Sous le cours, une petite mention indique d'où il vient (« marché », « manuel » ou « prix de revient ») et sa date. Cliquez sur un en-tête pour trier, sur une ligne pour déplier l'évolution du titre, sur un cours pour le saisir à la main. Une ligne **Total** termine le tableau.
+### Le tableau des lignes
 
-**Trois cartes** :
+**Une ligne par titre et par compte** : un ETF détenu dans le PEA et dans un compte-titres fait deux lignes. Colonnes : nom et ISIN, compte, parts, PRU, investi, cours, valeur, plus-value en euros et en %, part. Sous le cours, une petite mention indique d'où il vient (« marché », « manuel » ou « prix de revient ») et sa date.
 
-- **Achat conseillé ce mois-ci** (PEA seulement) : le montant à investir ce mois-ci, puis sa répartition entre les titres qui ont une part cible.
-- **Si les actions baissent** : ce que perdrait le compte si ses actions et ETF baissaient de 30 % puis de 50 %, en euros et en part de votre patrimoine. Une baisse n'est une perte que si l'on vend.
-- **Frais** : le total des frais payés sur le compte, la grille de courtage qui s'applique (celle de l'établissement, sinon les frais par défaut), et les frais de gestion annuels des ETF.
+Cliquez sur un en-tête pour trier (par exemple sur **Compte** pour regrouper les lignes de chaque compte), sur une ligne pour déplier l'évolution du titre dans ce compte, sur un cours pour le saisir à la main, sur le nom du compte pour ouvrir sa page. Une ligne **Total** termine le tableau.
 
-**Les mouvements** du compte, repris du Journal (les 15 derniers), avec un bouton pour en ajouter. Pour un compte autre qu'un PEA, seuls les mouvements d'actions, d'ETF, de fonds et d'espèces sont montrés.
+### Les cartes
+
+- **Achat conseillé ce mois-ci**, une par PEA : le montant à investir ce mois-ci, puis sa répartition entre les titres qui ont une part cible.
+- **Si les actions baissent** : ce que perdraient vos actions et ETF s'ils baissaient de 30 % puis de 50 %, en euros et en part de votre patrimoine. Une baisse n'est une perte que si l'on vend.
+- **Parts cibles**, si au moins un titre en a une : pour chaque titre, sa part réelle tous comptes confondus, sa part cible et l'écart.
+
+### Les mouvements
+
+Les 20 derniers achats, ventes et dividendes de ces titres, tous comptes confondus, repris du Journal, avec un bouton pour en ajouter. Les versements et retraits d'espèces sont sur la page de chaque compte.
 
 ## Comment faire
 
@@ -80,26 +82,26 @@ Les comptes archivés ne sont pas affichés. Les comptes-titres sans action ni E
 
 **Valeur et plus-value.** Valeur = parts × cours. Plus-value = valeur − investi. Plus-value en % = plus-value ÷ investi.
 
-**Part réelle, cible, écart.** La part réelle est la valeur du titre divisée par la valeur de toutes les actions et ETF **de ce compte**. La cible est la part cible du titre. L'écart est la part réelle moins la cible.
+**Part.** Dans le tableau, la valeur de la ligne divisée par la valeur de toutes les lignes, tous comptes confondus.
 
-**Gain / perte du compte.** Valeur du compte moins versé net. Ce chiffre comprend tout : plus-values, dividendes, frais, espèces.
+**Parts cibles : réelle, cible, écart.** La part réelle d'un titre additionne ses lignes dans tous les comptes, puis la divise par la valeur de toutes les lignes. La cible est la part cible du titre, qui vaut pour l'ensemble de vos comptes. L'écart est la part réelle moins la cible. Exemple : un ETF Monde à 70 % de cible, détenu pour 600 € dans le PEA et 400 € dans un compte-titres, sur 1 400 € d'actions en tout : part réelle 71,4 %, écart +1,4 %.
 
 **Achat conseillé (PEA).** Hamac compte les mois écoulés depuis le premier mois des versements (Paramètres › Plan), mois en cours compris. Il divise les espèces du PEA par le nombre de mois qui restent sur la durée choisie pour le compte. Une fois cette durée écoulée, il conseille d'investir toutes les espèces. Exemple : 1 200 € d'espèces, durée 12 mois, 4 mois écoulés : 1 200 ÷ 8 = 150 € ce mois-ci.
 
 **Répartition de l'achat conseillé.** Hamac calcule, pour chaque titre qui a une part cible, la valeur qu'il devrait avoir après l'achat, et lui donne une part du montant proportionnelle à ce qui lui manque. Un titre déjà au-dessus de sa cible ne reçoit rien. Exemple : 300 € à investir, deux ETF à 50 % chacun, valant 700 € et 300 € : après achat le total ferait 1 300 €, soit 650 € chacun visés ; le premier ne manque de rien, le second reçoit les 300 €.
 
-**Si les actions baissent.** Valeur des actions et ETF du compte × 30 % (puis × 50 %). La part du patrimoine rapporte cette perte au total de vos comptes.
+**Si les actions baissent.** Valeur de toutes les lignes × 30 % (puis × 50 %). La part du patrimoine rapporte cette perte au total de vos comptes.
 
 **Frais de gestion des ETF.** Pour chaque ETF : valeur × frais annuels (TER), additionnés. Ces frais sont déjà déduits du cours : ce n'est pas une dépense à ajouter.
 
-**Fiscalité allégée (5 ans).** Date d'ouverture du PEA + 60 mois.
+La date des 5 ans du PEA, le gain du compte et sa grille de courtage sont sur la [page du compte](../comptes/guide.md#la-page-dun-compte).
 
 ## Limites
 
 - Les cours viennent de sources publiques et peuvent manquer ou avoir un jour de retard. Un titre sans ISIN ni symbole doit avoir son cours saisi à la main.
-- La part du patrimoine des chiffres « Valeur totale » et « Si les actions baissent » se calcule sur le total de vos comptes, sans l'immobilier ni les autres biens.
+- La part du patrimoine des chiffres « Valeur des actions et ETF » et « Si les actions baissent » se calcule sur le total de vos comptes, sans l'immobilier ni les autres biens.
 - Les parts cibles sont communes à tous vos comptes : l'achat conseillé du PEA les répartit entre tous les titres qui ont une cible, même ceux que le PEA ne détient pas encore.
 - Le nombre de mois pour investir l'apport ne se règle que pour un PEA. Pour un PEA-PME, Hamac compte un mois : l'achat conseillé est alors toutes les espèces.
 - Les seuils de baisse (30 % et 50 %) sont des valeurs fixes : la page ne propose pas de les changer.
-- Le chiffre « Frais payés » et la ligne « Courtage payé » comprennent tous les frais du compte, y compris les opérations « Frais » du Journal, pas seulement le courtage.
+- Le courtage payé ne compte que les frais inclus dans les achats et ventes de ces titres, pas les opérations « Frais » du Journal.
 - La page ne calcule pas l'impôt sur les ventes : voir la page Impôts.

@@ -1,12 +1,12 @@
-import { Eye, EyeOff, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Sun } from "lucide-react";
+import { ChevronRight, Eye, EyeOff, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { auth, useAccount, useThemeChoice } from "@/features/settings";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { cn } from "@/shared/lib/cn";
 import { useSetSetting, useSetting } from "@/shared/lib/queries";
-import { readCollapsed, saveCollapsed, sidebarLayout } from "@/app/lib/sidebar";
+import { readAccountsOpen, readCollapsed, saveAccountsOpen, saveCollapsed, sidebarAccounts, sidebarLayout } from "@/app/lib/sidebar";
 import { useTheme } from "@/shared/lib/theme";
-import { NAV, SETTINGS_ITEM, type NavItem } from "@/shared/nav";
+import { accountPath, NAV, SETTINGS_ITEM, type NavItem } from "@/shared/nav";
 import { HamacMark, Wordmark } from "@/shared/components/Brand";
 import { PriceStatus } from "@/app/components/PriceStatus";
 import { TwoFactorBanner, TwoFactorPrompt } from "@/app/components/TwoFactorNudge";
@@ -55,6 +55,52 @@ function NavEntry({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   );
 }
 
+/** Les comptes sous « Mes comptes » : chacun ouvre sa page de détail. */
+function AccountsSubmenu() {
+  const accounts = useWorkspace().data?.accounts;
+  const [open, setOpen] = useState(readAccountsOpen);
+  const list = sidebarAccounts(accounts ?? []);
+  if (list.length === 0) return null;
+  const toggle = () => {
+    setOpen(!open);
+    saveAccountsOpen(!open);
+  };
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 rounded-lg py-1 pr-3 pl-[2.6rem] text-left text-xs text-side-muted/80 hover:text-side-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-gold"
+      >
+        <ChevronRight size={12} className={cn("transition-transform", open && "rotate-90")} aria-hidden />
+        {open ? "Masquer les comptes" : `Afficher les comptes (${list.length})`}
+      </button>
+      {open && (
+        <ul aria-label="Comptes" className="ml-[1.35rem] space-y-px border-l border-side-line pl-2">
+          {list.map((a) => (
+            <li key={a.id}>
+              <NavLink
+                to={accountPath(a.id)}
+                title={a.name}
+                className={({ isActive }) =>
+                  cn(
+                    "block truncate rounded-md px-2.5 py-1 text-[0.8125rem] transition-colors duration-150",
+                    "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-gold",
+                    isActive ? "bg-side-active font-medium text-side-fg" : "text-side-muted hover:bg-side-active/60 hover:text-side-fg",
+                  )
+                }
+              >
+                {a.name}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const topButton = "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg";
 
 export function Shell() {
@@ -99,7 +145,10 @@ export function Shell() {
                 {collapsed ? i > 0 && <div className="mx-2 mb-3 border-t border-side-line" /> : <div className="mb-1 px-3 text-xs text-side-muted/80">{group.label}</div>}
                 <div className="space-y-0.5">
                   {group.items.map((item) => (
-                    <NavEntry key={item.path} item={item} collapsed={collapsed} />
+                    <div key={item.path}>
+                      <NavEntry item={item} collapsed={collapsed} />
+                      {item.path === "/comptes" && !collapsed && <AccountsSubmenu />}
+                    </div>
                   ))}
                 </div>
               </div>

@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -125,7 +126,9 @@ export function Immobilier() {
                 {scpi.map(({ account, position: p }) => (
                   <Tr key={`${account.id}-${p.asset.id}`}>
                     <Td className="font-medium">{p.asset.name}</Td>
-                    <Td className="text-fg-muted">{account.name}</Td>
+                    <Td className="text-fg-muted">
+                      <AccountLink account={account} />
+                    </Td>
                     <Td align="right"><Amount value={p.value} compact /></Td>
                     <Td align="right"><Amount value={p.gain} signed compact /></Td>
                     <Td><Badge tone={p.inAllocation ? "accent" : "neutral"}>{p.inAllocation ? "Inclus" : "Hors"}</Badge></Td>

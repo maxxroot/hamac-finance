@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Plus } from "lucide-react";
 import { Fragment, useState } from "react";
 import { CROWD_REPAYMENT_LABELS, CROWD_STATUS_LABELS, accountIrr, crowdCountsLabel, crowdInitialEndDate, crowdSummary, crowdTaxOf, formatPct, type Account, type CrowdProject, type CrowdProjectState, type CrowdStatus } from "@hamac/core";
@@ -102,7 +103,7 @@ export function Crowdlending() {
                     <Tr {...rowProps(a.account.id)}>
                       <Td className="pl-5 font-medium">
                         <ExpandButton open={isOpen(a.account.id)} label={a.account.name} />
-                        {a.account.name}
+                        <AccountLink account={a.account} />
                       </Td>
                       <Td align="right"><Amount value={s.active} /></Td>
                       <Td align="right">{s.averageRate != null ? formatPct(s.averageRate) : "—"}</Td>

@@ -22,7 +22,7 @@ La page est la même dans les deux formats. Une différence : en format « retra
 
 ### Tableau des comptes
 
-Une ligne par compte ou contrat. Un compte archivé n'apparaît que s'il garde une valeur. Un clic sur un en-tête trie la colonne ; un clic sur une ligne déplie la courbe d'évolution de ce compte.
+Une ligne par compte ou contrat. Un compte archivé n'apparaît que s'il garde une valeur. Un clic sur un en-tête trie la colonne ; un clic sur une ligne déplie la courbe d'évolution de ce compte ; un clic sur le **nom** du compte ouvre sa page (voir plus bas).
 
 | Colonne | Contenu |
 |---|---|
@@ -84,6 +84,26 @@ Un message en bas de page :
 - sinon, livrets **dans la fourchette** du plan.
 
 Plancher et plafond se règlent dans Paramètres › Plan › Règles des livrets.
+
+## La page d'un compte
+
+Chaque compte a sa page, qui montre **tout ce qu'il contient**, quelle que soit la classe d'actifs : les ETF et le fonds euros d'une assurance-vie, les actions et les obligations d'un compte-titres, les espèces non investies… Les pages Actions & ETF, Obligations ou Fonds euros montrent une classe d'actifs dans tous vos comptes ; la page d'un compte montre un compte, toutes classes confondues.
+
+Pour l'ouvrir :
+
+- dans le menu, sous **Mes comptes**, la liste de vos comptes (les comptes investis d'abord, les livrets à la fin ; les comptes archivés n'y sont pas). Le lien « Masquer les comptes » replie la liste, et Hamac s'en souvient sur cet appareil ;
+- partout où un nom de compte apparaît souligné au survol : ce tableau, le tableau de bord, les pages de placement, le Journal, les Versements, les Impôts, l'Historique… Dans Performance, quand un compte est choisi, le lien « Voir le compte » ouvre sa page.
+
+On y trouve :
+
+- **l'en-tête** : le type de compte, l'établissement, la date d'ouverture et le rôle, un bouton pour modifier le compte et un pour ajouter une opération ;
+- **quatre chiffres** : la valeur et sa part du patrimoine ; le gain ou la perte (et le versé net) ; les espèces non investies et le versement mensuel (pour un livret, son taux et son plafond) ; selon le compte, la date de la fiscalité allégée (5 ans pour un PEA, 8 ans pour une assurance-vie), les intérêts reçus (livret) ou les frais payés ;
+- **la répartition par classe d'actifs**, quand le compte en mélange plusieurs : une barre de couleurs, puis chaque classe avec son montant et sa part ; le nom d'une classe ouvre sa page ;
+- **la composition** : une ligne par titre ou support (classe, parts, PRU, investi, cours, valeur, plus-value, part du compte), puis les projets de crowdlending et les espèces, et un total. Un clic sur une ligne déplie l'évolution du titre. Un fonds euros n'a ni parts ni cours : seul son solde compte ;
+- **les caractéristiques** : ancienneté, part détenue d'un compte joint, marge sous le plafond d'un livret, clause bénéficiaire d'une assurance-vie, marge sous la garantie FGAP d'un contrat, grille de courtage et courtage payé, frais de gestion des ETF, dividendes, intérêts et plus-values réalisées ;
+- pour un PEA, **l'achat conseillé ce mois-ci** ;
+- **l'évolution** du compte, avec une courbe par titre ;
+- **les mouvements** du compte (les 30 derniers), repris du Journal.
 
 ## Comment faire
 

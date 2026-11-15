@@ -1,4 +1,5 @@
 /** Comptes : synthèse, livrets, fonds euros. Seul ce fichier s'importe depuis un autre domaine. */
+export { Compte } from "./pages/Compte";
 export { Comptes } from "./pages/Comptes";
 export { FondsEuros } from "./pages/FondsEuros";
 export { Livrets } from "./pages/Livrets";

@@ -1,5 +1,6 @@
 /** Saisie partagée par les pages : comptes, titres, opérations, allocation, premiers pas. Seul ce fichier s'importe depuis un autre domaine. */
 export { AddAccountButton, EditAccountButton } from "./components/AccountButtons";
+export { AdvisedPurchaseCard } from "./components/AdvisedPurchaseCard";
 export { CompositionImportButton, ISHARES_FILE_HINT } from "./components/CompositionImportButton";
 export { CompositionNotice } from "./components/CompositionNotice";
 export { Movements } from "./components/Movements";

@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { accountAgeYears, fiscalAnniversary, holdsEuroFunds, monthsBetween, reconcile, type AccountState, type Asset, type FundRate, type PositionState } from "@hamac/core";
@@ -59,7 +60,7 @@ function Contract({ s }: { s: AccountState }) {
     <section>
       <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
         <span>
-          {account.name} {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
+          <AccountLink account={account} /> {inst && <span className="font-normal text-fg-muted">· {inst.name}</span>}
         </span>
         <EditAccountButton account={account} />
         <EvolutionToggle open={showEvolution} onToggle={() => setShowEvolution(!showEvolution)} />

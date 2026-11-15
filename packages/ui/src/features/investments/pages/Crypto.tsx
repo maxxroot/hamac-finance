@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Fragment, useState } from "react";
 import { incomeTaxRate, type Asset, type PositionState } from "@hamac/core";
 import { AddTransactionButton, EmptyAccount, Movements, Onboarding } from "@/features/entry";
@@ -255,7 +256,9 @@ function CryptoPositions({ positions, onPrice }: { positions: PositionState[]; o
               <ExpandButton open={isOpen(`${p.accountId}-${p.asset.id}`)} label={p.asset.name} />
               {p.asset.name}
             </Td>
-            <Td className="text-fg-muted">{idx.accountById.get(p.accountId)?.name}</Td>
+            <Td className="text-fg-muted">
+              <AccountLink account={idx.accountById.get(p.accountId)} />
+            </Td>
             <Td align="right">{formatQty(p.quantity)}</Td>
             <Td align="right">
               <Amount value={p.pru} />

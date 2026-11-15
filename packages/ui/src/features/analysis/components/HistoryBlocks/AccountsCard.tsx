@@ -1,3 +1,5 @@
+import { useWorkspaceIndex } from "@/shared/lib/workspace";
+import { AccountLink } from "@/shared/components/AccountLink";
 import { type AccountChange } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
 import { Table, Td, Tr } from "@/shared/components/table";
@@ -5,6 +7,7 @@ import { Badge, Card, CardTitle } from "@/shared/components/ui";
 import { SortTh, useSortable } from "@/shared/lib/sort";
 
 export function AccountsCard({ rows, nameOf, closed }: { rows: readonly AccountChange[]; nameOf: (id: string) => string; closed: (id: string) => boolean }) {
+  const idx = useWorkspaceIndex();
   const { sorted, by } = useSortable(
     rows,
     {
@@ -35,7 +38,7 @@ export function AccountsCard({ rows, nameOf, closed }: { rows: readonly AccountC
           {sorted.map((a) => (
             <Tr key={a.accountId}>
               <Td className="max-w-56">
-                <span className="truncate">{nameOf(a.accountId)}</span>
+                <span className="truncate">{idx?.accountById.has(a.accountId) ? <AccountLink account={{ id: a.accountId, name: nameOf(a.accountId) }} /> : nameOf(a.accountId)}</span>
                 {closed(a.accountId) && a.endValue === 0 && <span className="ml-2"><Badge>clôturé</Badge></span>}
               </Td>
               <Td align="right"><Amount value={a.startValue} compact /></Td>

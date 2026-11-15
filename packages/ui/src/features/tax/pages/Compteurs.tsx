@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -57,7 +58,7 @@ export function Compteurs() {
               {seniority.map((s) => (
                 <li key={s.account.id} className="flex flex-wrap items-baseline justify-between gap-2">
                   <span>
-                    {s.account.name} <span className="text-xs text-fg-faint">· {s.years} ans</span>
+                    <AccountLink account={s.account} /> <span className="text-xs text-fg-faint">· {s.years} ans</span>
                   </span>
                   {s.date == null ? (
                     <span className="text-xs text-fg-faint">date d'ouverture à renseigner</span>

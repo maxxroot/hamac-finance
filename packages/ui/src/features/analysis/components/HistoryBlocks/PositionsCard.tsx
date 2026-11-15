@@ -1,3 +1,5 @@
+import { useWorkspaceIndex } from "@/shared/lib/workspace";
+import { AccountLink } from "@/shared/components/AccountLink";
 import { useState } from "react";
 import { POSITION_MOVE_LABELS, type PositionChange, type PositionMove } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
@@ -19,6 +21,7 @@ export const MOVE_COUNT: Record<PositionMove, readonly [string, string]> = {
 };
 
 export function PositionsCard({ rows, assetName, accountName }: { rows: readonly PositionChange[]; assetName: (id: string) => string; accountName: (id: string) => string }) {
+  const idx = useWorkspaceIndex();
   const [onlyMoved, setOnlyMoved] = useState(true);
   const moved = rows.filter((r) => r.move !== "inchange");
   const shown = onlyMoved && moved.length ? moved : rows;
@@ -73,7 +76,7 @@ export function PositionsCard({ rows, assetName, accountName }: { rows: readonly
             return (
               <Tr key={`${p.accountId}:${p.assetId}`}>
                 <Td className="max-w-64 truncate font-medium">{assetName(p.assetId)}</Td>
-                <Td className="max-w-48 truncate text-fg-muted">{accountName(p.accountId)}</Td>
+                <Td className="max-w-48 truncate text-fg-muted">{idx?.accountById.has(p.accountId) ? <AccountLink account={{ id: p.accountId, name: accountName(p.accountId) }} /> : accountName(p.accountId)}</Td>
                 <Td>{tone ? <Badge tone={tone}>{POSITION_MOVE_LABELS[p.move]}</Badge> : <span className="text-xs text-fg-faint">{POSITION_MOVE_LABELS[p.move]}</span>}</Td>
                 <Td align="right">{p.move === "inchange" ? <span className="text-fg-faint">—</span> : <Amount value={invested} signed compact className="text-fg" />}</Td>
                 <Td align="right"><Amount value={p.start?.value ?? null} compact /></Td>

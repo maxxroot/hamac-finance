@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Trash2 } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import { LIVRET_LABELS, livretInterest, rateAt } from "@hamac/core";
@@ -108,7 +109,7 @@ export function Livrets() {
                   <Tr {...rowProps(a.account.id)}>
                     <Td className="font-medium">
                       <ExpandButton open={open} label={a.account.name} />
-                      {a.account.name}
+                      <AccountLink account={a.account} />
                       {a.account.livretType && a.account.livretType !== "AUTRE" && a.account.name !== LIVRET_LABELS[a.account.livretType] && <span className="text-fg-muted"> · {LIVRET_LABELS[a.account.livretType]}</span>}
                       {a.account.role && <div className="max-w-56 text-xs font-normal text-fg-faint">{a.account.role}</div>}
                     </Td>

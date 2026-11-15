@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { MODE_LABELS, type ConsolidatedLine, type TaxReport, type TaxSheet } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
 import { Table, Td, Th, Tr } from "@/shared/components/table";
@@ -148,7 +149,7 @@ export function CompleteView({ report, onOpen }: { report: TaxReport; onOpen: (k
           <ul className="space-y-1.5 text-sm">
             {others.map((o) => (
               <li key={o.account.id}>
-                <span className="font-medium">{o.account.name}</span> <span className="text-fg-muted">: {o.reason}</span>
+                <AccountLink account={o.account} className="font-medium" /> <span className="text-fg-muted">: {o.reason}</span>
               </li>
             ))}
           </ul>

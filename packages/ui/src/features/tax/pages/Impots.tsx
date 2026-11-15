@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { Fragment } from "react";
 import { accountTaxDetails, netYields, nextDeclarationYear, withdrawalTaxes, yearlyTaxes, type AccountKind, type AccountTaxDetail, type WithdrawalTaxRow } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
@@ -319,7 +320,9 @@ function NextDeclaration({ details, names, year, current }: { details: AccountTa
           <tbody>
             {rows.map(({ d, y, who }) => (
               <Tr key={d.accountId}>
-                <Td className="font-medium">{who.name}</Td>
+                <Td className="font-medium">
+                  <AccountLink account={{ id: d.accountId, name: who.name }} />
+                </Td>
                 <Td align="right">
                   <Amount value={y.income} />
                 </Td>

@@ -1,3 +1,4 @@
+import { AccountLink } from "@/shared/components/AccountLink";
 import { CalendarClock, CalendarX2, Download, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { StatementImportDialog } from "@/features/journal/dialogs/StatementImportDialog";
 import { SortTh, useSortable } from "@/shared/lib/sort";
@@ -229,8 +230,13 @@ export function Journal() {
               <Tr key={t.id} className="group cursor-pointer" onDoubleClick={() => (planned ? navigate("/versements") : setEditing(t))}>
                 <Td className="num whitespace-nowrap text-fg-muted">{formatDate(t.date)}</Td>
                 <Td className="whitespace-nowrap">
-                  {acc?.name}
-                  {counter && <span className="text-fg-muted"> → {counter.name}</span>}
+                  <AccountLink account={acc} />
+                  {counter && (
+                    <span className="text-fg-muted">
+                      {" → "}
+                      <AccountLink account={counter} />
+                    </span>
+                  )}
                 </Td>
                 <Td className="whitespace-nowrap">
                   <span title={planned ? "Versement programmé : calculé depuis la page Versements" : undefined}>

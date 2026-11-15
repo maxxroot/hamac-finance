@@ -11,6 +11,7 @@ import { AllocationDialog } from "@/features/settings/dialogs/AllocationDialog";
 import { AssetDialog } from "@/features/settings/dialogs/AssetDialog";
 import { ContributionSplitCard } from "@/features/journal/components/CustomAllocationCards";
 import { Actions } from "@/features/investments/pages/Actions";
+import { Compte } from "@/features/accounts/pages/Compte";
 import { AutresBiens } from "@/features/other-assets/pages/AutresBiens";
 import { Bien } from "@/features/realestate/pages/Bien";
 import { Credits } from "@/features/loans/pages/Credits";
@@ -118,7 +119,7 @@ describe("Actions & ETF", () => {
     expect(await screen.findByText("Bienvenue dans Hamac")).toBeTruthy();
   });
 
-  it("PEA : positions, cible et écart, achat conseillé, cours manquant puis saisi à la main", async () => {
+  it("PEA : positions, parts cibles, achat conseillé, cours manquant puis saisi à la main", async () => {
     const user = userEvent.setup();
     const courtier = await rpc<Id>("institutions.upsert", { name: "Courtier Fictif", kind: "courtier" });
     const pea = await compte("pea", "Mon PEA", { openedOn: "2018-03-01", monthsToInvest: 6, institutionId: courtier.id });
@@ -130,26 +131,26 @@ describe("Actions & ETF", () => {
     await cours(monde.id, 120);
     show(<Actions />);
 
-    expect(await screen.findByRole("heading", { name: /Mon PEA/ })).toBeTruthy();
-    expect(texte(screen.getByRole("heading", { name: /Mon PEA/ }))).toContain("Courtier Fictif");
-    // PEA de plus de 5 ans : fiscalité allégée déjà acquise.
-    expect(screen.getByText(/depuis le 01\/03\/2023/)).toBeTruthy();
+    // Le bandeau des comptes : le PEA, son établissement, un lien vers sa page.
+    const bandeau = within(await screen.findByRole("navigation", { name: "Comptes concernés" }));
+    expect(bandeau.getByRole("link", { name: "Mon PEA" }).getAttribute("href")).toBe(`/comptes/${pea.id}`);
+    expect(bandeau.getByText("Courtier Fictif")).toBeTruthy();
     // ETF Monde : 10 parts à 120 € = 1 200 €, au cours saisi ; ETF Émergents : au prix de revient faute de cours.
     const rowMonde = ligne("ETF Monde");
     expect(texte(rowMonde)).toContain("IE000BI8OT95");
+    expect(texte(rowMonde)).toContain("Mon PEA");
     expect(texte(rowMonde)).toMatch(/manuel/);
-    expect(texte(rowMonde)).toMatch(/70,6 %70,0 %\+0,6 %/);
+    expect(texte(rowMonde)).toMatch(/70,6 %$/);
     expect(texte(ligne("ETF Émergents"))).toMatch(/prix de revient/);
     expect(screen.getByText(/Cours indisponible pour ETF Émergents/)).toBeTruthy();
     expect(screen.getByText("Total")).toBeTruthy();
+    // Parts cibles : réelle, cible, écart.
+    const cibles = within(screen.getByText("Parts cibles").closest("div.rounded-2xl") as HTMLElement);
+    expect(texte(cibles.getByText("ETF Monde").closest("tr"))).toMatch(/70,6 %70,0 %\+0,6 %/);
     expect(screen.getByText("Achat conseillé ce mois-ci")).toBeTruthy();
     expect(screen.getByText("sur 6 mois")).toBeTruthy();
     expect(screen.getByText("Si les actions baissent")).toBeTruthy();
     expect(screen.getByText("Frais de gestion des ETF / an")).toBeTruthy();
-
-    // Le bouton « Évolution » du compte déplie son historique.
-    await user.click(screen.getByRole("button", { name: /Évolution/ }));
-    expect(await screen.findByText(/L'évolution apparaîtra après un mois d'historique|Valeur totale :/)).toBeTruthy();
 
     // Saisir le cours manquant : l'avertissement disparaît, le cours est enregistré.
     await user.click(within(ligne("ETF Émergents")).getByTitle("Saisir le cours à la main"));
@@ -162,7 +163,35 @@ describe("Actions & ETF", () => {
     expect(prix).toMatchObject([{ price: 12, date: todayIso() }]);
   });
 
-  it("compte-titres qui ne détient qu'un ETC : affiché avec ses positions, pas parmi les comptes sans titres", async () => {
+  it("PEA et compte-titres : une ligne par titre et par compte, la part cible sur l'ensemble, le compte mène à sa page", async () => {
+    const user = userEvent.setup();
+    const pea = await compte("pea", "Mon PEA");
+    const cto = await compte("cto", "Mon CTO");
+    const monde = await titre("etf", "ETF Monde", { targetWeight: 1 });
+    await operation("2025-01-05", "apport_initial", pea.id, 600);
+    await operation("2025-01-05", "apport_initial", cto.id, 400);
+    await operation("2025-01-06", "achat", pea.id, 600, { assetId: monde.id, quantity: 6 });
+    await operation("2025-01-06", "achat", cto.id, 400, { assetId: monde.id, quantity: 4 });
+    await cours(monde.id, 100);
+    show(
+      <Routes>
+        <Route path="/actions" element={<Actions />} />
+        <Route path="/comptes/:id" element={<Compte />} />
+      </Routes>,
+      "/actions",
+    );
+    const table = within((await screen.findAllByRole("table"))[0]!);
+    const lignes = table.getAllByRole("row").filter((r) => texte(r).includes("ETF Monde"));
+    expect(lignes.map((r) => texte(r))).toEqual([expect.stringMatching(/Mon PEA.*60,0 %$/), expect.stringMatching(/Mon CTO.*40,0 %$/)]);
+    // Détenu dans deux comptes : 100 % de la cible, atteinte sur l'ensemble.
+    const cibles = within(screen.getByText("Parts cibles").closest("div.rounded-2xl") as HTMLElement);
+    expect(texte(cibles.getByText("ETF Monde").closest("tr"))).toMatch(/100,0 %100,0 %0,0 %/);
+    // Le nom du compte, dans le tableau, ouvre la page du compte.
+    await user.click(within(lignes[1]!).getByRole("link", { name: "Mon CTO" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Mon CTO" })).toBeTruthy();
+  });
+
+  it("compte-titres qui ne détient qu'un ETC : affiché avec ses positions", async () => {
     const cto = await compte("cto", "Mon CTO");
     const or = await titre("etc", "iShares Physical Gold ETC", { isin: "IE00B4ND3602" });
     await operation("2025-01-05", "apport_initial", cto.id, 1000);
@@ -170,9 +199,8 @@ describe("Actions & ETF", () => {
     await cours(or.id, 68);
     show(<Actions />);
 
-    expect(await screen.findByRole("heading", { name: /Mon CTO/ })).toBeTruthy();
-    expect(texte(ligne("iShares Physical Gold ETC"))).toContain("IE00B4ND3602");
-    expect(screen.queryByText("Comptes-titres sans actions ni ETF")).toBeNull();
+    expect(texte(await waitFor(() => ligne("iShares Physical Gold ETC")))).toContain("IE00B4ND3602");
+    expect(screen.queryByText("aucune action")).toBeNull();
   });
 
   it("le tri des colonnes réordonne les lignes, et un clic sur la ligne déplie l'évolution du titre", async () => {
@@ -200,7 +228,7 @@ describe("Actions & ETF", () => {
     await user.click(within(colonne("Investi")).getByRole("button"));
     expect(colonne("Investi").getAttribute("aria-sort")).toBe("ascending");
     expect(noms()).toEqual(["Alpha", "Bêta"]);
-    for (const nom of ["Titre", "Parts", "PRU", "Cours", "Plus-value", "Plus-value \\(%\\)", "Part réelle", "Cible", "Écart"]) {
+    for (const nom of ["Titre", "Compte", "Parts", "PRU", "Cours", "Plus-value", "Plus-value \\(%\\)", "Part"]) {
       await user.click(within(colonne(nom)).getByRole("button"));
       expect(noms()).toHaveLength(2);
     }
@@ -211,7 +239,7 @@ describe("Actions & ETF", () => {
     expect(screen.queryByText(/L'évolution apparaîtra après un mois d'historique/)).toBeNull();
   });
 
-  it("compte-titres sans action : version compacte avec son établissement ; un compte avec ETF a sa propre section", async () => {
+  it("compte-titres sans action : carte compacte avec son établissement et un bouton d'achat réglé sur ce compte", async () => {
     const user = userEvent.setup();
     const courtier = await rpc<Id>("institutions.upsert", { name: "Courtier Fictif", kind: "courtier" });
     const vide = await compte("cto", "CTO obligations", { institutionId: courtier.id });
@@ -221,17 +249,16 @@ describe("Actions & ETF", () => {
     await operation("2025-01-05", "versement", plein.id, 500);
     await operation("2025-01-06", "achat", plein.id, 500, { assetId: etf.id, quantity: 5 });
     show(<Actions />);
-    expect(await screen.findByText("Comptes-titres sans actions ni ETF")).toBeTruthy();
-    const carte = screen.getByText("CTO obligations").closest("div.flex-wrap") as HTMLElement;
+    const bandeau = within(await screen.findByRole("navigation", { name: "Comptes concernés" }));
+    const carte = bandeau.getByRole("link", { name: "CTO obligations" }).closest("div.rounded-2xl") as HTMLElement;
     expect(texte(carte)).toContain("Courtier Fictif");
+    expect(texte(carte)).toContain("aucune action");
     expect(texte(carte)).toMatch(/espèces\s*800/);
-    expect(screen.getByRole("heading", { name: /CTO actions/ })).toBeTruthy();
+    expect(texte(ligne("ETF Monde"))).toContain("CTO actions");
     // Pas de PEA : la page propose d'en créer un.
     expect(screen.getByText(/Pas encore de PEA/)).toBeTruthy();
-    // Compte-titres : les frais payés remplacent la fiscalité du PEA.
-    expect(screen.getByText("Frais payés")).toBeTruthy();
-    // « Acheter des actions ou ETF » ouvre la saisie réglée sur ce compte, avec les titres d'actions seulement.
-    await user.click(screen.getByRole("button", { name: "Acheter des actions ou ETF" }));
+    // « Acheter des actions ou ETF » ouvre la saisie réglée sur ce compte.
+    await user.click(within(carte).getByRole("button", { name: "Acheter des actions ou ETF" }));
     const dialog = within(await screen.findByRole("dialog", { name: "Nouvelle opération" }));
     expect((dialog.getByLabelText(/^Compte/) as HTMLSelectElement).value).toBe(vide.id);
   });
@@ -243,8 +270,63 @@ describe("Actions & ETF", () => {
     await operation("2025-01-06", "achat", av.id, 1000, { assetId: etf.id, quantity: 10 });
     await cours(etf.id, 110);
     show(<Actions />);
-    expect(await screen.findByRole("heading", { name: /Mon assurance-vie/ })).toBeTruthy();
-    expect(texte(ligne("ETF Monde UC"))).toMatch(/1 100/);
+    expect(texte(await waitFor(() => ligne("ETF Monde UC")))).toMatch(/Mon assurance-vie.*1 100/);
+  });
+});
+
+describe("Page d'un compte", () => {
+  const page = (id: string) =>
+    show(
+      <Routes>
+        <Route path="/comptes/:id" element={<Compte />} />
+        <Route path="/comptes" element={<p>Liste des comptes</p>} />
+      </Routes>,
+      `/comptes/${id}`,
+    );
+
+  it("assurance-vie : fonds euros et unités de compte réunis, répartition par classe, caractéristiques du contrat", async () => {
+    const assureur = await rpc<Id>("institutions.upsert", { name: "Assureur Fictif", kind: "assureur" });
+    const av = await compte("assurance_vie", "Mon contrat", { openedOn: "2015-06-01", institutionId: assureur.id, beneficiaryClause: true });
+    const etf = await titre("etf", "ETF Monde UC", { isin: "IE000BI8OT95" });
+    await operation("2025-01-05", "versement", av.id, 1000);
+    await operation("2025-01-06", "achat", av.id, 400, { assetId: etf.id, quantity: 4 });
+    await cours(etf.id, 150);
+    page(av.id);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Mon contrat" })).toBeTruthy();
+    expect(screen.getByText(/Assurance-vie · Assureur Fictif · ouvert le 01\/06\/2015/)).toBeTruthy();
+    // 600 € au fonds euros, 4 parts à 150 € : 1 200 €, moitié-moitié.
+    const repartition = within(screen.getByText("Répartition par classe d'actifs").closest("div.rounded-2xl") as HTMLElement);
+    expect(repartition.getByRole("link", { name: "Fonds euros" }).getAttribute("href")).toBe("/fonds-euros");
+    expect(repartition.getByRole("link", { name: "Actions" }).getAttribute("href")).toBe("/actions");
+    expect(texte(ligne("ETF Monde UC"))).toMatch(/Actions.*600.*50,0 %$/);
+    const fonds = screen.getAllByRole("row").find((r) => /Fonds euros/.test(texte(r)) && /—/.test(texte(r)))!;
+    expect(texte(fonds)).toMatch(/600.*50,0 %$/);
+    expect(screen.getByText("Fiscalité allégée (8 ans)")).toBeTruthy();
+    expect(screen.getByText("depuis le 01/06/2023")).toBeTruthy();
+    expect(within(screen.getByText("Caractéristiques").closest("div.rounded-2xl") as HTMLElement).getByText("rédigée")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Mouvements" })).toBeTruthy();
+  });
+
+  it("PEA : l'achat conseillé et la grille de courtage sont sur sa page", async () => {
+    const pea = await compte("pea", "Mon PEA", { openedOn: "2024-01-15", monthsToInvest: 4 });
+    const etf = await titre("etf", "ETF Monde", { targetWeight: 1 });
+    await operation("2025-01-05", "apport_initial", pea.id, 2000);
+    await operation("2025-01-06", "achat", pea.id, 1000, { assetId: etf.id, quantity: 10 });
+    page(pea.id);
+    expect(await screen.findByText("Achat conseillé ce mois-ci")).toBeTruthy();
+    expect(screen.getByText("Frais par défaut")).toBeTruthy();
+    // Ouvert en 2024 : la fiscalité allégée viendra dans 5 ans.
+    expect(screen.getByText("15/01/2029")).toBeTruthy();
+    // Les espèces non investies ont leur ligne dans la composition.
+    expect(texte(screen.getAllByRole("row").find((r) => texte(r).startsWith("Espèces"))!)).toMatch(/1 000/);
+  });
+
+  it("compte inconnu : un message et un lien vers Mes comptes", async () => {
+    await compte("pea", "Mon PEA");
+    page("inconnu");
+    expect(await screen.findByText("Ce compte n'existe pas ou a été supprimé.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Revenir à Mes comptes" }).getAttribute("href")).toBe("/comptes");
   });
 });
 
