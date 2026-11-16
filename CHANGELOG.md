@@ -6,6 +6,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.3.1] - 2026-11-16
+
+Les obligations d'État ne sont plus forcément françaises : chaque obligation porte le pays de son État émetteur, reconnaissable à son drapeau.
+
 ### Ajouté
 
 - Obligations : un État émetteur se reconnaît d'un coup d'œil à son drapeau, devant le nom de l'obligation dans le tableau, dans la répartition par émetteur (à la place de « État · ») et dans l'info-bulle du rendement. La concentration par émetteur de la page Mes comptes montre aussi le drapeau.
@@ -113,7 +117,8 @@ Première version publique : une application web auto-hébergée, avec PostgreSQ
 
 - L'application de bureau (Electron) : seule la version web est maintenue. La dernière version de bureau reste disponible au tag `derniere-version-desktop`.
 
-[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.3.0...HEAD
+[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/maxxroot/hamac-finance/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maxxroot/hamac-finance/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/maxxroot/hamac-finance/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maxxroot/hamac-finance/releases/tag/v0.1.0

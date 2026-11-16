@@ -1,7 +1,7 @@
 {
   "name": "hamac",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Hamac — planifier, suivre et contrôler son épargne retraite (logiciel libre, AGPL-3.0)",
   "license": "AGPL-3.0-only",
   "type": "module",
