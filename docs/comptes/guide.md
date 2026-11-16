@@ -47,7 +47,7 @@ Ce qui pèse le plus dans votre patrimoine financier. En haut : la part de la **
 
 - **Titres, tous comptes confondus** : un même ETF détenu dans deux comptes fait une seule ligne. Huit lignes au plus, avec un lien pour tout afficher. Le fonds euros n'y figure pas.
 - **Établissements** : la part de votre patrimoine chez chacun, sans alerte.
-- **Émetteurs d'obligations**, s'il y en a. Les obligations de l'État ne déclenchent pas d'alerte.
+- **Émetteurs d'obligations**, s'il y en a. Un État apparaît avec son drapeau et le nom du pays ; ses obligations ne déclenchent pas d'alerte.
 - **Plateformes de crowdlending**, s'il y en a, avec la part des projets en retard ou en défaut.
 
 Une barre rouge et l'étiquette « au-delà du seuil » signalent un titre, un émetteur ou une plateforme qui dépasse le seuil réglé dans Paramètres › Plan (« Concentration maximale », 20 % par défaut ; 0 coupe les alertes).

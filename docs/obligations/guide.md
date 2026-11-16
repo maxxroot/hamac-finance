@@ -43,7 +43,7 @@ La seconde dit ce qui arrive :
 
 **Le tableau de vos obligations**, dans cet ordre :
 
-Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compte.
+Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compte. Une obligation d'État porte le drapeau de son pays devant son nom.
 
 1. les lignes **détenues**, triées par échéance : nom ; compte ; mois d'échéance ; taux du coupon ; nominal ; coût frais compris ; valeur ; plus-value ; rendement à l'échéance ; votre âge à l'échéance (format retraite seulement) ; années restantes. Cliquez sur un en-tête pour trier. Cliquez sur une ligne pour la déplier : coupon annuel brut (nominal × taux, et le nombre de détachements par an), prix d'achat pied de coupon en % du nominal, coupon couru du jour, coupons perçus (et ceux non saisis), performance cumulée, rendement net de fiscalité, puis l'évolution de la ligne ;
 2. les lignes **prévues** : votre libellé, l'année visée, le nominal, votre âge cette année-là (format retraite seulement), un lien pour saisir l'achat et un bouton pour supprimer la ligne ;
@@ -55,7 +55,7 @@ Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compt
 - **Échéancier des flux** : coupons et remboursements au pair, année par année.
 - **Évolution de l'encours** : une barre pour aujourd'hui, puis une au 31 décembre de chaque année jusqu'à la dernière échéance, en deux parts : l'**encours** (l'argent encore placé dans vos lignes) et les **flux encaissés** (coupons et remboursements, détaillés au survol). D'année en année, l'encours se transforme en flux encaissés ; la hauteur de la barre, c'est tout ce que vos obligations actuelles vous auront donné à cette date.
 - **Coupons perçus et échus** : chaque année, la barre pleine montre les coupons perçus (notés dans le Journal), le contour en pointillés les coupons échus. Une barre plus basse que son contour signale un coupon non saisi.
-- **Répartition par émetteur** : la part des États et des entreprises, votre premier émetteur, puis le nominal de chaque émetteur. Chaque État compte à part (« État · France », « État · Belgique »).
+- **Répartition par émetteur** : la part des États et des entreprises, votre premier émetteur, puis le nominal de chaque émetteur. Chaque État compte à part et se reconnaît à son drapeau, suivi du nom du pays.
 - **Rendement actuariel par maturité** : un point par ligne, plus gros quand le nominal est plus grand. Vous voyez si vos lignes longues rapportent vraiment plus que les courtes.
 
 **Prévoir un achat** : un petit formulaire pour ajouter une ligne prévue (libellé, année d'échéance visée, nominal).

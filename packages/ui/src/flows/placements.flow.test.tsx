@@ -789,9 +789,15 @@ describe("Obligations", () => {
     await operation("2023-05-25", "interets", cto.id, 30, { assetId: echue.id });
     await operation("2024-05-26", "achat", cto.id, 9_600, { assetId: oat.id, quantity: 10_000 });
     await operation("2024-03-02", "achat", cto.id, 5_000, { assetId: societe.id, quantity: 5_000 });
+    const olo = await titre("obligation", "OLO 3 % juin 2033", { priceSource: "modele", couponRate: 0.03, maturityDate: "2033-06-22", couponFrequency: 1, bondKind: "etat", issuerCountry: "BE" });
+    await operation("2024-06-03", "achat", cto.id, 2_000, { assetId: olo.id, quantity: 2_000 });
     show(<Obligations />);
 
     expect(await screen.findByText("Rendement net de fiscalité")).toBeTruthy();
+    // Une obligation d'État se reconnaît à son drapeau, une d'entreprise n'en a pas.
+    expect(within(ligne("OLO 3 % juin 2033")).getByAltText("État émetteur : Belgique")).toBeTruthy();
+    expect(within(ligne("OAT 3 % mai 2033")).getByAltText("État émetteur : France")).toBeTruthy();
+    expect(within(ligne("Société Fictive 4 % mars 2031")).queryByRole("img")).toBeNull();
     // Au survol : fiscalité restant due, coupons et primes de remboursement séparés.
     const impots = screen.getByRole("tooltip");
     expect(texte(impots)).toMatch(/Sur les coupons/);

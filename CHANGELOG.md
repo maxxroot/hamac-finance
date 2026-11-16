@@ -8,6 +8,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ### Ajouté
 
+- Obligations : un État émetteur se reconnaît d'un coup d'œil à son drapeau, devant le nom de l'obligation dans le tableau, dans la répartition par émetteur (à la place de « État · ») et dans l'info-bulle du rendement. La concentration par émetteur de la page Mes comptes montre aussi le drapeau.
 - Obligations : une obligation d'État n'est plus forcément française. On choisit le pays de l'État émetteur dans une liste avec recherche et petits drapeaux (tapez « belg » puis Entrée). Le nom suit l'usage du pays (OAT pour la France, OLO pour la Belgique, Bund pour l'Allemagne…), l'échéance d'un autre État se saisit à la date exacte (seule l'OAT tombe le 25), et la répartition par émetteur comme la concentration comptent chaque État à part. La recherche par ISIN reconnaît le pays, et l'assistant (MCP) le renseigne avec `issuerCountry` dans `save_asset`.
 
 ### Corrigé

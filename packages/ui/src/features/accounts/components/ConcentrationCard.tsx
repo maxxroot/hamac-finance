@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { ASSET_KIND_LABELS, concentrationReport, type ConcentrationItem } from "@hamac/core";
+import { ASSET_KIND_LABELS, concentrationReport, countryName, type ConcentrationItem } from "@hamac/core";
 import { Amount } from "@/shared/components/Amount";
+import { Flag } from "@/shared/components/Flag";
 import { Pct } from "@/shared/components/Stat";
 import { Badge, Card, CardTitle } from "@/shared/components/ui";
 import { cn } from "@/shared/lib/cn";
@@ -41,7 +42,7 @@ export function ConcentrationCard() {
         </Block>
         {r.issuers.length > 0 && (
           <Block title="Émetteurs d'obligations">
-            <Bars items={r.issuers} hint={(i) => (i as (typeof r.issuers)[number]).state ? `${i.detail} · sans alerte` : i.detail} />
+            <Bars items={r.issuers} hint={(i) => (i as (typeof r.issuers)[number]).state ? `${i.detail} · sans alerte` : i.detail} country={(i) => (i as (typeof r.issuers)[number]).country} />
           </Block>
         )}
         {r.platforms.length > 0 && (
@@ -81,14 +82,14 @@ function Block({ title, children }: Readonly<{ title: string; children: React.Re
   );
 }
 
-function Bars({ items, hint }: Readonly<{ items: readonly ConcentrationItem[]; hint?: (i: ConcentrationItem) => string }>) {
+function Bars({ items, hint, country }: Readonly<{ items: readonly ConcentrationItem[]; hint?: (i: ConcentrationItem) => string; country?: (i: ConcentrationItem) => string | null }>) {
   return (
     <ul className="space-y-2 text-sm">
       {items.map((i) => (
         <li key={i.key}>
           <div className="flex items-baseline justify-between gap-3">
             <span className="min-w-0 truncate" title={i.label}>
-              {i.label}
+              {country?.(i) ? <IssuerCountry code={country(i)!} /> : i.label}
               {i.over && (
                 <span className="ml-2">
                   <Badge tone="negative">au-delà du seuil</Badge>
@@ -106,5 +107,15 @@ function Bars({ items, hint }: Readonly<{ items: readonly ConcentrationItem[]; h
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Un État émetteur : son drapeau, puis le pays. */
+function IssuerCountry({ code }: { code: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 align-middle">
+      <Flag code={code} label="État émetteur" />
+      {countryName(code)}
+    </span>
   );
 }

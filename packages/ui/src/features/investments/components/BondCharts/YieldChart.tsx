@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { bondKindOf, type PositionState } from "@hamac/core";
+import { bondKindOf, sovereignCountry, type PositionState } from "@hamac/core";
 import { Chart, axisStyle, tooltipStyle, type ChartOption } from "@/shared/components/Chart";
 import { Card, CardTitle } from "@/shared/components/ui";
 import { useChartColors } from "@/shared/lib/colors";
+import { flagHtml } from "@/shared/lib/flags";
 import { formatDate } from "@/shared/lib/numbers";
 import { KIND_LABELS, bondColors, firstParam, money, pct, tooltipRow, tooltipTitle, topLegend, type TooltipParam } from "./_bits";
 
@@ -28,7 +29,7 @@ export function YieldChart({ held }: { held: readonly PositionState[] }) {
           const q = firstParam(p);
           const l = groups[q.seriesIndex ?? 0]?.[q.dataIndex];
           if (!l) return "";
-          return `${tooltipTitle(c, l.asset.name)}${tooltipRow(null, "Échéance", formatDate(l.bond!.terms.maturityDate))}${tooltipRow(null, "Rendement actuariel", pct(l.bond!.ytm!))}${tooltipRow(null, "Nominal", money(l.bond!.nominal))}`;
+          return `${tooltipTitle(c, `${flagOf(l)}${l.asset.name}`)}${tooltipRow(null, "Échéance", formatDate(l.bond!.terms.maturityDate))}${tooltipRow(null, "Rendement actuariel", pct(l.bond!.ytm!))}${tooltipRow(null, "Nominal", money(l.bond!.nominal))}`;
         },
       },
       legend: topLegend(c, kinds.map((kind) => KIND_LABELS[kind])),
@@ -50,4 +51,10 @@ export function YieldChart({ held }: { held: readonly PositionState[] }) {
       <Chart option={option} height={260} />
     </Card>
   );
+}
+
+/** Drapeau de l'État émetteur, devant le nom d'une obligation d'État. */
+function flagOf(p: PositionState): string {
+  const country = sovereignCountry(p.asset);
+  return country ? flagHtml(country) : "";
 }

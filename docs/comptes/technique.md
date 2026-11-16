@@ -81,7 +81,7 @@ Cibles : `classTargets(params, âge)`. En format retraite (`isRetirementPlan`), 
 
 ### Concentration (`concentrationReport`)
 
-Base = `netWorth.financial` (Σ `value × share` des comptes actifs). Titres regroupés d'un compte à l'autre, fonds euros exclus ; une obligation ne déclenche pas d'alerte sur sa ligne, elle est jugée par émetteur (un État par pays, `sovereignLabel(sovereignCountry(asset))`, sinon `issuer`, sinon son nom), et un émetteur d'État n'alerte pas. Plateformes de crowdlending regroupées par établissement, avec la valeur des projets `retard` ou `defaut`. Établissements sans alerte. Alerte quand `share > alerts.concentrationMax` et seuil > 0. `top1`, `top5` : parts des 1 et 5 premières lignes.
+Base = `netWorth.financial` (Σ `value × share` des comptes actifs). Titres regroupés d'un compte à l'autre, fonds euros exclus ; une obligation ne déclenche pas d'alerte sur sa ligne, elle est jugée par émetteur (un État par pays, `sovereignLabel(sovereignCountry(asset))` avec `country` pour son drapeau, sinon `issuer`, sinon son nom), et un émetteur d'État n'alerte pas. Plateformes de crowdlending regroupées par établissement, avec la valeur des projets `retard` ou `defaut`. Établissements sans alerte. Alerte quand `share > alerts.concentrationMax` et seuil > 0. `top1`, `top5` : parts des 1 et 5 premières lignes.
 
 Décisions documentées dans `docs/propositions/gestion-de-patrimoine.md` (proposition sur la concentration).
 

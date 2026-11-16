@@ -1,9 +1,10 @@
 import { ShoppingCart, Trash2 } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router";
-import { lineKey, maturityLabel } from "@hamac/core";
+import { countryName, lineKey, maturityLabel, sovereignCountry, type Asset } from "@hamac/core";
 import { AccountLink } from "@/shared/components/AccountLink";
 import { Amount } from "@/shared/components/Amount";
+import { Flag } from "@/shared/components/Flag";
 import { Pct } from "@/shared/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/shared/components/table";
 import { Badge } from "@/shared/components/ui";
@@ -75,7 +76,7 @@ export function BondTable({ d }: { d: BondData }) {
               <Tr {...rowProps(key)}>
                 <Td className="font-medium">
                   <ExpandButton open={isOpen(key)} label={p.asset.name} />
-                  {p.asset.name}
+                  <BondName asset={p.asset} />
                 </Td>
                 {accountCell(p.accountId)}
                 <Td className="whitespace-nowrap">
@@ -154,7 +155,9 @@ export function BondTable({ d }: { d: BondData }) {
           const received = d.coupons.receivedByLine.get(key) ?? 0;
           return (
             <Tr key={`m-${key}`} className="text-fg-faint">
-              <Td className="line-through">{p.asset.name}</Td>
+              <Td>
+                <BondName asset={p.asset} struck />
+              </Td>
               {accountCell(p.accountId)}
               <Td>{formatDate(p.asset.maturityDate)}</Td>
               <Td align="right">
@@ -185,5 +188,16 @@ export function BondTable({ d }: { d: BondData }) {
         })}
       </tbody>
     </Table>
+  );
+}
+
+/** Nom d'une obligation, précédé du drapeau de l'État émetteur pour une obligation d'État. */
+function BondName({ asset, struck }: { asset: Asset; struck?: boolean }) {
+  const country = sovereignCountry(asset);
+  return (
+    <span className="inline-flex items-center gap-2">
+      {country && <Flag code={country} label={`État émetteur : ${countryName(country)}`} />}
+      <span className={struck ? "line-through" : undefined}>{asset.name}</span>
+    </span>
   );
 }

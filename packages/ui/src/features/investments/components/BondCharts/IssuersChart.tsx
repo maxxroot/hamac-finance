@@ -1,13 +1,28 @@
 import { useMemo } from "react";
-import type { BondBreakdown } from "@hamac/core";
+import { countryName, type BondBreakdown, type IssuerShare } from "@hamac/core";
+import { Flag } from "@/shared/components/Flag";
 import { Pct } from "@/shared/components/Stat";
 import { Chart, axisStyle, tooltipStyle, type ChartOption } from "@/shared/components/Chart";
 import { Card, CardTitle } from "@/shared/components/ui";
 import { useChartColors } from "@/shared/lib/colors";
+import { flagHtml, flagUrl } from "@/shared/lib/flags";
 import { KIND_LABELS, bondColors, firstParam, money, pct, tooltipRow, type TooltipParam } from "./_bits";
 
 /** Au-delà, les plus petits émetteurs sont regroupés : une barre par émetteur reste lisible. */
 const MAX_ISSUERS = 8;
+
+/** Un État se reconnaît à son drapeau : on n'écrit que le pays. */
+const issuerName = (r: Pick<IssuerShare, "issuer" | "country">) => (r.country ? countryName(r.country) : r.issuer);
+
+/** Style ECharts d'un drapeau dans un texte riche (« {fBE|} Belgique »), un par pays affiché. */
+function flagStyles(rows: readonly Pick<IssuerShare, "country">[]) {
+  const styles: Record<string, { width: number; height: number; backgroundColor: { image: string } }> = {};
+  for (const r of rows) {
+    const url = r.country ? flagUrl(r.country) : null;
+    if (url) styles[`f${r.country}`] = { width: 20, height: 15, backgroundColor: { image: url } };
+  }
+  return styles;
+}
 
 /** Répartition du nominal : part de l'État et des entreprises, premier émetteur, puis une barre par émetteur. */
 export function IssuersChart({ breakdown }: { breakdown: BondBreakdown }) {
@@ -29,13 +44,28 @@ export function IssuersChart({ breakdown }: { breakdown: BondBreakdown }) {
         formatter: (p: TooltipParam | TooltipParam[]) => {
           const r = ordered[firstParam(p).dataIndex];
           if (!r) return "";
-          return tooltipRow(k.kind[r.kind], r.issuer, `${money(r.nominal)} · ${pct(r.share, 1)}`);
+          return tooltipRow(k.kind[r.kind], `${r.country ? flagHtml(r.country) : ""}${issuerName(r)}`, `${money(r.nominal)} · ${pct(r.share, 1)}`);
         },
       },
       legend: { show: false },
       grid: { left: 8, right: 48, top: 4, bottom: 4, containLabel: true },
       xAxis: { type: "value", ...axisStyle(c), axisLabel: { show: false }, splitLine: { show: false } },
-      yAxis: { type: "category", data: ordered.map((r) => r.issuer), ...axisStyle(c), axisLabel: { color: c.ink.muted, width: 140, overflow: "truncate" } },
+      yAxis: {
+        type: "category",
+        data: ordered.map(issuerName),
+        ...axisStyle(c),
+        axisLabel: {
+          color: c.ink.muted,
+          width: 140,
+          overflow: "truncate",
+          // Le drapeau devant le pays : un État se repère d'un coup d'œil.
+          formatter: (value: string, i: number) => {
+            const country = ordered[i]?.country;
+            return country && flagUrl(country) ? `{f${country}|}  ${value}` : value;
+          },
+          rich: flagStyles(ordered),
+        },
+      },
       series: [
         {
           type: "bar",
@@ -61,7 +91,12 @@ export function IssuersChart({ breakdown }: { breakdown: BondBreakdown }) {
         ))}
         {first && (
           <span>
-            Premier émetteur : <b className="text-fg">{first.issuer}</b> (<Pct value={first.share} digits={0} />)
+            Premier émetteur :{" "}
+            <b className="inline-flex items-center gap-1.5 text-fg">
+              {first.country && <Flag code={first.country} />}
+              {issuerName(first)}
+            </b>{" "}
+            (<Pct value={first.share} digits={0} />)
           </span>
         )}
       </div>

@@ -28,7 +28,8 @@ export interface ConcentrationReport {
   lines: Array<ConcentrationItem & { kind: AssetKind }>;
   top1: number;
   top5: number;
-  issuers: Array<ConcentrationItem & { state: boolean }>;
+  /** Émetteurs d'obligations ; `country` : pays d'un État émetteur (ISO 3166-1). */
+  issuers: Array<ConcentrationItem & { state: boolean; country: string | null }>;
   platforms: Array<ConcentrationItem & { troubled: number; troubledShare: number }>;
   /** Crowdlending : projets en retard ou en défaut, en valeur et en part du crowdlending. */
   crowdTroubled: { value: number; share: number } | null;
@@ -70,18 +71,18 @@ export function concentrationReport(data: Pick<EngineData, "institutions" | "par
   const topShare = (n: number) => share(lines.slice(0, n).reduce((s, l) => s + l.value, 0));
 
   // Émetteurs d'obligations.
-  const byIssuer = new Map<string, { label: string; value: number; state: boolean; count: number }>();
+  const byIssuer = new Map<string, { label: string; value: number; country: string | null; count: number }>();
   for (const e of byAsset.values()) {
     if (e.kind !== "obligation" || e.value <= 0) continue;
     const label = e.country ? sovereignLabel(e.country) : e.issuer?.trim() || e.name;
     const k = normalize(label);
-    const g = byIssuer.get(k) ?? { label, value: 0, state: !!e.country, count: 0 };
+    const g = byIssuer.get(k) ?? { label, value: 0, country: e.country, count: 0 };
     g.value += e.value;
     g.count += 1;
     byIssuer.set(k, g);
   }
   const issuers = [...byIssuer.entries()]
-    .map(([k, g]) => ({ ...item(`emetteur-${k}`, g.label, g.value, `${g.count} obligation${g.count > 1 ? "s" : ""}${g.state ? " d'État" : ""}`, !g.state), state: g.state }))
+    .map(([k, g]) => ({ ...item(`emetteur-${k}`, g.label, g.value, `${g.count} obligation${g.count > 1 ? "s" : ""}${g.country ? " d'État" : ""}`, !g.country), state: !!g.country, country: g.country }))
     .sort((x, y) => y.value - x.value);
 
   // Plateformes de crowdlending, et projets en difficulté.

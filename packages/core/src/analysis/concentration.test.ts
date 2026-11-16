@@ -77,6 +77,8 @@ describe("concentration", () => {
     };
     const r = concentrationReport(d, computePortfolio(d, "2026-06-01"));
     expect(r.issuers.map((i) => [i.label, i.value])).toEqual([["Entreprise Fictive", 3_000], ["État · France", 3_000]]);
+    // Le pays d'un État émetteur, pour son drapeau.
+    expect(r.issuers.map((i) => i.country)).toEqual([null, "FR"]);
     expect(r.issuers.find((i) => i.label === "Entreprise Fictive")?.over).toBe(false);
     d.params.alerts.concentrationMax = 0.15;
     const strict = concentrationReport(d, computePortfolio(d, "2026-06-01"));
