@@ -6,6 +6,14 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+### Ajouté
+
+- Obligations : une obligation d'État n'est plus forcément française. On choisit le pays de l'État émetteur dans une liste avec recherche et petits drapeaux (tapez « belg » puis Entrée). Le nom suit l'usage du pays (OAT pour la France, OLO pour la Belgique, Bund pour l'Allemagne…), l'échéance d'un autre État se saisit à la date exacte (seule l'OAT tombe le 25), et la répartition par émetteur comme la concentration comptent chaque État à part. La recherche par ISIN reconnaît le pays, et l'assistant (MCP) le renseigne avec `issuerCountry` dans `save_asset`.
+
+### Corrigé
+
+- Obligations : une obligation d'État étrangère était enregistrée comme française (émetteur « République française », nom « OAT », échéance forcée au 25, rangée sous « État français »). À la mise à jour, chaque obligation d'État reçoit le pays de son ISIN (sinon la France), et une OAT belge, allemande, italienne ou espagnole est renommée OLO, Bund, BTP ou Bono. Vérifiez ensuite sa date d'échéance dans sa fiche : elle avait reçu le 25 du mois.
+
 ## [0.3.0] - 2026-11-15
 
 Chaque compte a désormais sa page, et les pages de placement montrent tous vos comptes ensemble. L'assistant tient vos comptes et prépare vos impôts, toujours après votre accord.

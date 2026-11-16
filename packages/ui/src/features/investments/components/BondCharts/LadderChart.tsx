@@ -16,7 +16,7 @@ export function LadderChart({ ladder, ageOf, retirementYear }: { ladder: readonl
     const label = (y: number) => (ageOf ? `${y}\n${ageOf(y)} ans` : String(y));
     const hasPlans = ladder.some((r) => r.planned > 0);
     const series = [
-      { name: "Souverain (OAT)", key: "etat" as const, color: k.kind.etat },
+      { name: "États", key: "etat" as const, color: k.kind.etat },
       { name: "Entreprises", key: "entreprise" as const, color: k.kind.entreprise },
     ].filter((s) => ladder.some((r) => r[s.key] > 0));
     const retirement = retirementYear != null && ladder.some((r) => r.year === retirementYear) ? label(retirementYear) : null;

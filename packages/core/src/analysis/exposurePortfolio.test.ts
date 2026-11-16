@@ -9,7 +9,7 @@ const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): A
 });
 const titre = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
   id, kind, name: id, isin: null, symbol: null, priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: 100, manualPriceDate: "2026-01-01",
-  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false, ...extra,
+  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false, ...extra,
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number, extra: Partial<Transaction> = {}): Transaction => ({ id: `t${n++}`, date, type, accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "", ...extra });

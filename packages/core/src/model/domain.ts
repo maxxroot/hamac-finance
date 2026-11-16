@@ -182,7 +182,7 @@ export function positionInAllocation(asset: Pick<Asset, "inAllocation">, account
 
 export const BOND_KINDS = ["etat", "entreprise"] as const;
 export type BondKind = (typeof BOND_KINDS)[number];
-export const BOND_KIND_LABELS: Record<BondKind, string> = { etat: "OAT (État)", entreprise: "Obligation d'entreprise" };
+export const BOND_KIND_LABELS: Record<BondKind, string> = { etat: "Obligation d'État", entreprise: "Obligation d'entreprise" };
 
 export const PRICE_SOURCES = ["auto", "manuel", "modele"] as const;
 /** auto = fournisseur de cours ; manuel = saisi ; modele = calculé (obligation détenue à l'échéance). */
@@ -324,8 +324,10 @@ export interface Asset {
   /** Une date de coupon connue ; null = déduite de l'échéance. */
   nextCouponDate: string | null;
   issuer: string | null;
-  /** Obligations : d'État (OAT…) ou d'entreprise. */
+  /** Obligations : d'État (OAT, OLO…) ou d'entreprise. */
   bondKind: BondKind | null;
+  /** Obligation d'État : pays de l'État émetteur (ISO 3166-1, « FR », « BE »…) ; null = État français (fiches anciennes). */
+  issuerCountry: string | null;
   archived: boolean;
 }
 

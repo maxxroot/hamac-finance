@@ -1,12 +1,7 @@
 import { roundCents, type IsoDate } from "../../base";
-import type { Asset, BondKind, BondPlan } from "../../model";
+import { bondKindOf, sovereignCountry, sovereignLabel } from "../../investments";
+import type { BondKind, BondPlan } from "../../model";
 import type { PositionState } from "../../portfolio";
-
-/** Type d'une obligation : celui de sa fiche ; sans type, une OAT si l'émetteur est vide ou l'État (comme `bondName`). */
-export function bondKindOf(asset: Pick<Asset, "bondKind" | "issuer">): BondKind {
-  if (asset.bondKind) return asset.bondKind;
-  return !asset.issuer || /r[ée]publique fran[cç]aise|france/i.test(asset.issuer) ? "etat" : "entreprise";
-}
 
 export interface LadderYear {
   year: number;
@@ -37,6 +32,8 @@ export function maturityLadder(held: readonly PositionState[], plans: readonly B
 export interface IssuerShare {
   issuer: string;
   kind: BondKind;
+  /** Obligation d'État : pays de l'émetteur (ISO 3166-1). */
+  country: string | null;
   nominal: number;
   /** Part du nominal détenu, entre 0 et 1. */
   share: number;
@@ -49,18 +46,19 @@ export interface BondBreakdown {
   byIssuer: IssuerShare[];
 }
 
-/** Répartition du nominal détenu : État ou entreprises, puis par émetteur (toutes les OAT ensemble). */
+/** Répartition du nominal détenu : États ou entreprises, puis par émetteur (un État par pays). */
 export function bondBreakdown(held: readonly PositionState[]): BondBreakdown {
   const bonds = held.filter((p) => p.bond && p.bond.nominal > 0);
   const nominal = bonds.reduce((s, p) => s + p.bond!.nominal, 0);
   const share = (v: number) => (nominal > 0 ? v / nominal : 0);
   const kinds: Record<BondKind, number> = { etat: 0, entreprise: 0 };
-  const issuers = new Map<string, { kind: BondKind; nominal: number }>();
+  const issuers = new Map<string, { kind: BondKind; country: string | null; nominal: number }>();
   for (const p of bonds) {
     const kind = bondKindOf(p.asset);
     kinds[kind] += p.bond!.nominal;
-    const issuer = kind === "etat" ? "État français" : p.asset.issuer?.trim() || p.asset.name;
-    const row = issuers.get(issuer) ?? { kind, nominal: 0 };
+    const country = sovereignCountry(p.asset);
+    const issuer = country ? sovereignLabel(country) : p.asset.issuer?.trim() || p.asset.name;
+    const row = issuers.get(issuer) ?? { kind, country, nominal: 0 };
     row.nominal += p.bond!.nominal;
     issuers.set(issuer, row);
   }
@@ -68,7 +66,7 @@ export function bondBreakdown(held: readonly PositionState[]): BondBreakdown {
     nominal: roundCents(nominal),
     byKind: { etat: { nominal: roundCents(kinds.etat), share: share(kinds.etat) }, entreprise: { nominal: roundCents(kinds.entreprise), share: share(kinds.entreprise) } },
     byIssuer: [...issuers]
-      .map(([issuer, r]) => ({ issuer, kind: r.kind, nominal: roundCents(r.nominal), share: share(r.nominal) }))
+      .map(([issuer, r]) => ({ issuer, kind: r.kind, country: r.country, nominal: roundCents(r.nominal), share: share(r.nominal) }))
       .sort((a, b) => b.nominal - a.nominal || a.issuer.localeCompare(b.issuer)),
   };
 }

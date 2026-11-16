@@ -11,7 +11,7 @@ const account = (kind: Account["kind"], openedOn: string | null = null): Account
 });
 const oat: Asset = {
   id: "oat", kind: "obligation", name: "OAT", isin: null, symbol: null, priceSource: "modele", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null,
-  targetWeight: null, ter: null, couponRate: 0.03, maturityDate: "2030-05-25", couponFrequency: 1, nextCouponDate: null, issuer: null, bondKind: "etat", archived: false,
+  targetWeight: null, ter: null, couponRate: 0.03, maturityDate: "2030-05-25", couponFrequency: 1, nextCouponDate: null, issuer: null, bondKind: "etat", issuerCountry: "FR", archived: false,
 };
 const tx = (type: Transaction["type"], amount: number, extra: Partial<Transaction> = {}): Transaction => ({
   id: type, date: "2025-05-25", type, accountId: "c", assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "", ...extra,

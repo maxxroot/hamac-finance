@@ -1,4 +1,4 @@
-import { looksLikeEtc, type AssetKind } from "@hamac/core";
+import { countryFromIsin, looksLikeEtc, type AssetKind } from "@hamac/core";
 import { type Fetcher, getJson } from "../http";
 import { YAHOO_SUFFIX } from "./yahoo";
 
@@ -22,6 +22,8 @@ export interface Candidate {
   exchange: string | null;
   couponRate: number | null;
   maturityDate: string | null;
+  /** Obligation d'État : pays de l'émetteur (ISO 3166-1). */
+  issuerCountry?: string | null;
   detail: string;
 }
 
@@ -40,6 +42,15 @@ export function parseBondTicker(ticker: string): { couponRate: number; maturityD
 export function withoutBondSuffix(ticker: string): string {
   const m = /\s(?:OAT|EMTN|FP|MTN)$/i.exec(ticker);
   return m ? ticker.slice(0, m.index).trimEnd() : ticker;
+}
+
+/** Préfixe du ticker Bloomberg de la dette de quelques États, quand la recherche par nom ne donne pas d'ISIN. */
+const SOVEREIGN_TICKERS: Record<string, string> = { FRTR: "FR", BGB: "BE", DBR: "DE", OBL: "DE", BKO: "DE", BTPS: "IT", SPGB: "ES", NETHER: "NL", RAGB: "AT", RFGB: "FI", IRISH: "IE", PGB: "PT", T: "US", UKT: "GB" };
+
+/** Pays d'une obligation d'État (secteur « Govt » chez OpenFIGI) : d'après l'ISIN, sinon le ticker. */
+export function sovereignOf(r: Pick<FigiRecord, "marketSector" | "securityType2" | "ticker">, isin: string | null): string | null {
+  if (r.marketSector !== "Govt" && r.securityType2 !== "Govt") return null;
+  return countryFromIsin(isin) ?? SOVEREIGN_TICKERS[r.ticker?.split(" ")[0] ?? ""] ?? null;
 }
 
 function kindOf(r: FigiRecord): AssetKind | null {
@@ -68,6 +79,7 @@ function toCandidate(r: FigiRecord, isin: string | null): Candidate | null {
     exchange: r.exchCode ?? null,
     couponRate: bond?.couponRate ?? null,
     maturityDate: bond?.maturityDate ?? null,
+    issuerCountry: kind === "obligation" ? sovereignOf(r, isin) : null,
     detail: [r.name, r.ticker, r.exchCode, r.securityType2].filter(Boolean).join(" · "),
   };
 }

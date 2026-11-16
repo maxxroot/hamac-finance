@@ -120,6 +120,9 @@ importers:
       echarts:
         specifier: ^6.1.0
         version: 6.1.0
+      flag-icons:
+        specifier: 7.6.0
+        version: 7.6.0
       lucide-react:
         specifier: ^1.70.0
         version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
@@ -1625,6 +1628,9 @@ packages:
 
   fix-dts-default-cjs-exports@1.0.1:
     resolution: {integrity: sha512-pVIECanWFC61Hzl2+oOCtoJ3F17kglZC/6N94eRWycFgBH35hHx0Li604ZIzhseh97mf2p0cv7vVrOZGoqhlEg==}
+
+  flag-icons@7.6.0:
+    resolution: {integrity: sha512-hir/PsXwr0EESyizKrXJzmkzpLIMf+1vlNKLqAfvdh+bsU94a7LYWTiubkHKqptGoCPzOUGcm6c4PfC9/BaGSQ==}
 
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -3445,6 +3451,8 @@ snapshots:
       magic-string: 0.30.21
       mlly: 1.8.2
       rollup: 4.68.0
+
+  flag-icons@7.6.0: {}
 
   forwarded@0.2.0: {}
 

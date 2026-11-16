@@ -15,7 +15,7 @@ const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): A
 });
 const asset = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
   id, kind, name: id, isin: null, symbol: null, priceSource: kind === "obligation" ? "modele" : "auto", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null,
-  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: kind === "obligation" ? 1 : null, nextCouponDate: null, issuer: null, bondKind: null, archived: false, ...extra,
+  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: kind === "obligation" ? 1 : null, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false, ...extra,
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number, extra: Partial<Transaction> = {}): Transaction => ({
@@ -301,7 +301,7 @@ describe("historique reconstruit", () => {
   it("crypto sur deux plateformes : le prix d'acquisition global n'est déduit qu'une fois", () => {
     const p = defaultParams(new Date(2026, 0, 1));
     const crypto = (id: string) => ({ id, kind: "crypto", livretType: null, name: id, institutionId: null, openedOn: null, depositCeiling: null, rate: null, role: "", beneficiaryClause: false, share: 1, entryFeeRate: null, managementFeeRate: null, monthsToInvest: null, inAllocation: null, sortOrder: 0, archived: false }) as Account;
-    const btc = { id: "btc", kind: "crypto", name: "BTC", isin: null, symbol: "bitcoin", priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false } as Asset;
+    const btc = { id: "btc", kind: "crypto", name: "BTC", isin: null, symbol: "bitcoin", priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false } as Asset;
     const tx = (id: string, accountId: string, type: "apport_initial" | "achat") => ({ id, date: "2026-01-02", type, accountId, assetId: type === "achat" ? "btc" : null, counterAccountId: null, amount: 6_000, quantity: type === "achat" ? 5 : null, fee: null, comment: "" }) as Transaction;
     const accounts = [crypto("a"), crypto("b")];
     const d: EngineData = { params: p, accounts, assets: [btc], plans: [], skips: [], prices: [{ assetId: "btc", date: "2026-06-01", price: 2_000, source: "manuel" }], transactions: accounts.flatMap((a) => [tx(`d${a.id}`, a.id, "apport_initial"), tx(`b${a.id}`, a.id, "achat")]) };

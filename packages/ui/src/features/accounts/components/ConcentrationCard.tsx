@@ -58,7 +58,7 @@ export function ConcentrationCard() {
           </Block>
         )}
       </div>
-      <p className="mt-4 text-xs text-fg-faint">Parts du patrimoine financier, pour votre part des comptes joints. Les obligations se jugent par émetteur ; celles de l'État français ne déclenchent pas d'alerte.</p>
+      <p className="mt-4 text-xs text-fg-faint">Parts du patrimoine financier, pour votre part des comptes joints. Les obligations se jugent par émetteur ; celles d'un État (OAT, OLO…) ne déclenchent pas d'alerte.</p>
     </Card>
   );
 }

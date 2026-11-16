@@ -1386,7 +1386,7 @@ describe("fenêtre de saisie d'une opération", () => {
     expect(await within(dialog).findByText(/Indiquez le taux du coupon\. Indiquez l'échéance\./)).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "Obligation d'entreprise" }));
     expect(within(dialog).getByLabelText("Émetteur")).toBeTruthy();
-    await user.click(within(dialog).getByRole("button", { name: "OAT (État)" }));
+    await user.click(within(dialog).getByRole("button", { name: "Obligation d'État" }));
     await typeInto(user, label(dialog, "Taux du coupon (nominal)"), "3");
     fireEvent.change(label(dialog, "Échéance"), { target: { value: `${year + 5}-05` } });
     expect(label(dialog, "Nom").value).toBe(`OAT 3 % mai ${year + 5}`);

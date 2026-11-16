@@ -11,7 +11,7 @@ const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): A
 });
 const asset = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
   id, kind, name: id, isin: null, symbol: null, priceSource: kind === "fonds_euros" ? "modele" : "auto", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null,
-  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false, ...extra,
+  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false, ...extra,
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number, extra: Partial<Transaction> = {}): Transaction => ({

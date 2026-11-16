@@ -239,6 +239,13 @@
       "when": 1794595886500,
       "tag": "0033_left_aqueduct",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794832301060,
+      "tag": "0034_obligations_pays_emetteur",
+      "breakpoints": true
     }
   ]
 }

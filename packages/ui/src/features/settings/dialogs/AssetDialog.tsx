@@ -1,9 +1,25 @@
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AssetCandidate, AssetInput } from "@hamac/api";
-import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KIND_LABELS, BOND_KINDS, OAT_MATURITY_DAY, PRICE_PROVIDER_LABELS, maturityFromMonth, type BondKind, type Asset, type AssetKind, type PriceProvider, type PriceSource } from "@hamac/core";
+import {
+  ASSET_KIND_LABELS,
+  ASSET_KINDS,
+  BOND_KIND_LABELS,
+  BOND_KINDS,
+  countryFromIsin,
+  DEFAULT_SOVEREIGN,
+  isOat,
+  PRICE_PROVIDER_LABELS,
+  maturityFromMonth,
+  sovereignCountry,
+  type BondKind,
+  type Asset,
+  type AssetKind,
+  type PriceProvider,
+  type PriceSource,
+} from "@hamac/core";
 import { Button } from "@/shared/components/ui";
-import { AllocationChoice, CompositionNotice } from "@/features/entry";
+import { AllocationChoice, BondMaturityField, CompositionNotice, SovereignField } from "@/features/entry";
 import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/shared/components/form";
 import { useMutate, useWorkspaceIndex } from "@/shared/lib/workspace";
 import { todayIso } from "@/shared/lib/numbers";
@@ -39,6 +55,7 @@ function empty(kind: AssetKind): Draft {
     nextCouponDate: null,
     issuer: null,
     bondKind: kind === "obligation" ? "etat" : null,
+    issuerCountry: kind === "obligation" ? DEFAULT_SOVEREIGN : null,
     archived: false,
   };
 }
@@ -66,7 +83,8 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
   const classes = useWorkspaceIndex()?.ws.params.customClasses ?? [];
 
   useEffect(() => {
-    if (open) setD(asset ? { ...asset } : empty(defaultKind));
+    // Une obligation d'État d'avant le choix du pays est française.
+    if (open) setD(asset ? { ...asset, issuerCountry: asset.kind === "obligation" ? sovereignCountry(asset) : null } : empty(defaultKind));
   }, [open, asset, defaultKind]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -97,20 +115,26 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
     }
   };
   const pick = (c: AssetCandidate) => {
+    const country = c.kind === "obligation" ? (c.issuerCountry ?? null) : null;
     setD((x) => ({
       ...empty(c.kind),
+      ...(c.kind === "obligation" ? { bondKind: country ? ("etat" as const) : ("entreprise" as const), issuerCountry: country } : {}),
       id: x.id,
       name: c.kind === "obligation" && c.couponRate != null ? c.name : titleCase(c.name),
       isin: c.isin ?? x.isin,
       symbol: c.symbol,
       couponRate: c.couponRate,
       maturityDate: c.maturityDate,
-      issuer: c.kind === "obligation" ? (c.detail.split(" · ")[0] ?? null) : null,
+      issuer: c.kind === "obligation" && !country ? (c.detail.split(" · ")[0] ?? null) : null,
       priceSource: c.kind === "obligation" ? "modele" : c.kind === "action" && !c.symbol ? "manuel" : "auto",
     }));
     setResults(null);
   };
   const isBond = d.kind === "obligation";
+  const oat = isOat(d.bondKind, d.issuerCountry);
+  /** Le 25 pour une OAT, le 1er du mois pour une entreprise ; la date déjà saisie pour un autre État. */
+  const snapMaturity = (x: Draft): Draft =>
+    !x.maturityDate || (x.bondKind === "etat" && !isOat(x.bondKind, x.issuerCountry)) ? x : { ...x, maturityDate: maturityFromMonth(x.maturityDate.slice(0, 7), isOat(x.bondKind, x.issuerCountry)) };
   const sources: PriceSource[] = isBond ? ["modele", "manuel"] : d.kind === "scpi" ? ["manuel"] : ["auto", "manuel"];
 
   return (
@@ -182,7 +206,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
             {(id) => <TextInput id={id} value={d.isin ?? ""} onChange={(e) => set("isin", e.target.value.toUpperCase() || null)} placeholder="FR0011871128" className="font-mono" />}
           </Field>
           <Field label="Nom" className="sm:col-span-2">
-            {(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={isBond ? "ex. OAT 3,5 % 25/11/2033" : "ex. Amundi PEA S&P 500"} />}
+            {(id) => <TextInput id={id} value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={isBond ? "ex. OAT 3,5 % novembre 2033" : "ex. Amundi PEA S&P 500"} />}
           </Field>
         </FormGrid>
         <CompositionNotice kind={d.kind} isin={d.isin} />
@@ -195,12 +219,13 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
                 value={d.bondKind ?? "etat"}
                 onChange={(e) => {
                   const bk = e.target.value as BondKind;
-                  setD((x) => ({
-                    ...x,
-                    bondKind: bk,
-                    issuer: bk === "etat" ? (x.issuer ?? "République française") : x.issuer === "République française" ? null : x.issuer,
-                    maturityDate: x.maturityDate ? maturityFromMonth(x.maturityDate.slice(0, 7), bk) : x.maturityDate,
-                  }));
+                  setD((x) =>
+                    snapMaturity({
+                      ...x,
+                      bondKind: bk,
+                      issuerCountry: bk === "etat" ? (x.issuerCountry ?? countryFromIsin(x.isin) ?? DEFAULT_SOVEREIGN) : null,
+                    }),
+                  );
                 }}
               >
                 {BOND_KINDS.map((k) => (
@@ -215,17 +240,12 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
         {isBond && (
           <FormGrid cols={3}>
             <Field label="Coupon annuel">{(id) => <PercentInput id={id} value={d.couponRate} onChange={(v) => set("couponRate", v)} />}</Field>
-            <Field label="Échéance" help={d.bondKind === "etat" ? `Mois et année ; une OAT est remboursée le ${OAT_MATURITY_DAY}.` : "Mois et année."}>
-              {(id) => (
-                <TextInput
-                  id={id}
-                  type="month"
-                  value={d.maturityDate?.slice(0, 7) ?? ""}
-                  onChange={(e) => set("maturityDate", e.target.value ? maturityFromMonth(e.target.value, d.bondKind ?? "etat") : null)}
-                />
-              )}
-            </Field>
-            <Field label="Émetteur">{(id) => <TextInput id={id} value={d.issuer ?? ""} onChange={(e) => set("issuer", e.target.value || null)} placeholder="République française" />}</Field>
+            <BondMaturityField value={d.maturityDate} oat={oat} exact={d.bondKind === "etat" && !oat} onChange={(date) => set("maturityDate", date)} />
+            {d.bondKind === "etat" ? (
+              <SovereignField value={d.issuerCountry} onChange={(code) => setD((x) => snapMaturity({ ...x, issuerCountry: code }))} />
+            ) : (
+              <Field label="Émetteur">{(id) => <TextInput id={id} value={d.issuer ?? ""} onChange={(e) => set("issuer", e.target.value || null)} placeholder="ex. TotalEnergies" />}</Field>
+            )}
           </FormGrid>
         )}
         {isBond && (

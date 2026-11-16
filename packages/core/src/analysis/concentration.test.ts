@@ -11,7 +11,7 @@ const acc = (id: string, kind: Account["kind"], extra: Partial<Account> = {}): A
 });
 const titre = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
   id, kind, name: id, isin: null, symbol: null, priceSource: "manuel", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: 100, manualPriceDate: "2026-01-01",
-  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false, ...extra,
+  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false, ...extra,
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], accountId: string, amount: number, extra: Partial<Transaction> = {}): Transaction => ({ id: `t${n++}`, date, type, accountId, assetId: null, counterAccountId: null, amount, quantity: null, fee: null, comment: "", ...extra });
@@ -76,11 +76,11 @@ describe("concentration", () => {
       ],
     };
     const r = concentrationReport(d, computePortfolio(d, "2026-06-01"));
-    expect(r.issuers.map((i) => [i.label, i.value])).toEqual([["Entreprise Fictive", 3_000], ["État français", 3_000]]);
+    expect(r.issuers.map((i) => [i.label, i.value])).toEqual([["Entreprise Fictive", 3_000], ["État · France", 3_000]]);
     expect(r.issuers.find((i) => i.label === "Entreprise Fictive")?.over).toBe(false);
     d.params.alerts.concentrationMax = 0.15;
     const strict = concentrationReport(d, computePortfolio(d, "2026-06-01"));
-    expect(strict.issuers.map((i) => [i.label, i.over])).toEqual([["Entreprise Fictive", true], ["État français", false]]);
+    expect(strict.issuers.map((i) => [i.label, i.over])).toEqual([["Entreprise Fictive", true], ["État · France", false]]);
     // La ligne d'une obligation ne double pas l'alerte de son émetteur.
     expect(strict.lines.find((l) => l.label === "Obligation B")?.over).toBe(false);
   });

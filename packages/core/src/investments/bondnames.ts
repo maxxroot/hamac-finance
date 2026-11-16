@@ -1,4 +1,5 @@
 import type { Asset, BondKind } from "../model";
+import { DEFAULT_SOVEREIGN, sovereignCountry, sovereignDebtName } from "./bondIssuers";
 
 const pct = (r: number) => `${(Math.round(r * 100_000) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 3 })} %`;
 const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
@@ -9,28 +10,32 @@ export const maturityLabel = (iso: string) => `${MONTHS[+iso.slice(5, 7) - 1]} $
 export const OAT_MATURITY_DAY = 25;
 
 /**
- * Date d'échéance à partir du mois annoncé : le 25 pour une OAT ; pour une obligation d'entreprise,
+ * Date d'échéance à partir du mois annoncé : le 25 pour une OAT (`oat`) ; pour une autre obligation,
  * le jour indiqué s'il est connu, sinon le 1er du mois (écart négligeable sur le rendement).
  */
-export function maturityFromMonth(month: string, kind: BondKind | null, day?: number | null): string {
+export function maturityFromMonth(month: string, oat: boolean, day?: number | null): string {
   const [y, m] = month.split("-").map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const d = kind === "etat" ? OAT_MATURITY_DAY : Math.min(Math.max(1, day ?? 1), last);
+  const d = oat ? OAT_MATURITY_DAY : Math.min(Math.max(1, day ?? 1), last);
   return `${month}-${String(d).padStart(2, "0")}`;
 }
 
-/** Nom lisible d'une obligation : « OAT 3 % mai 2033 » ou « TotalEnergies 1,491 % avril 2027 ». */
-export function bondName(kind: BondKind | null, issuer: string | null, couponRate: number | null, maturityDate: string | null): string {
-  const head = kind === "etat" && (!issuer || /r[ée]publique fran[cç]aise|france/i.test(issuer)) ? "OAT" : issuer?.trim() || "Obligation";
+/**
+ * Nom lisible d'une obligation : « OAT 3 % mai 2033 », « OLO 3 % juin 2033 », « Autriche 2,9 % février 2033 »
+ * ou « TotalEnergies 1,491 % avril 2027 ». `country` : pays de l'État émetteur (État français par défaut).
+ */
+export function bondName(kind: BondKind | null, issuer: string | null, couponRate: number | null, maturityDate: string | null, country?: string | null): string {
+  const head = kind === "etat" ? sovereignDebtName(country || DEFAULT_SOVEREIGN) : issuer?.trim() || "Obligation";
   return [head, couponRate != null ? pct(couponRate) : null, maturityDate ? maturityLabel(maturityDate) : null].filter(Boolean).join(" ");
 }
 
-/** Obligation déjà connue avec le même coupon, la même échéance et le même émetteur (ou ISIN). */
+/** Obligation déjà connue avec le même coupon, la même échéance et le même émetteur (ou ISIN) ; pour un État, le même pays. */
 export function findSameBond(
   assets: readonly Asset[],
-  b: { isin: string | null; couponRate: number | null; maturityDate: string | null; issuer: string | null; bondKind: BondKind | null },
+  b: { isin: string | null; couponRate: number | null; maturityDate: string | null; issuer: string | null; bondKind: BondKind | null; issuerCountry?: string | null },
 ): Asset | null {
   const norm = (s: string | null) => (s ?? "").trim().toLowerCase();
+  const country = b.bondKind === "etat" ? sovereignCountry({ bondKind: "etat", issuer: null, issuerCountry: b.issuerCountry ?? null }) : null;
   return (
     assets.find((a) => a.kind === "obligation" && !a.archived && b.isin && a.isin === b.isin) ??
     assets.find(
@@ -41,7 +46,7 @@ export function findSameBond(
         b.couponRate != null &&
         Math.abs(a.couponRate - b.couponRate) < 1e-9 &&
         a.maturityDate === b.maturityDate &&
-        (b.bondKind === "etat" ? a.bondKind === "etat" || norm(a.issuer) === norm(b.issuer) : norm(a.issuer) === norm(b.issuer)),
+        (country ? sovereignCountry(a) === country : norm(a.issuer) === norm(b.issuer)),
     ) ??
     null
   );

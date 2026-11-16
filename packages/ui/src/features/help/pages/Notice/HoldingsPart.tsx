@@ -32,7 +32,7 @@ export function HoldingsPart() {
           <li>
             Regardez les espèces disponibles : alerte du Tableau de bord ou page <L to="/obligations">Obligations</L>.
           </li>
-          <li>Achetez chez le courtier une obligation d'État (OAT) ou d'entreprise. Si vous préparez votre retraite, choisissez une échéance avant votre âge de départ.</li>
+          <li>Achetez chez le courtier une obligation d'État (OAT française, OLO belge…) ou d'entreprise. Si vous préparez votre retraite, choisissez une échéance avant votre âge de départ.</li>
           <li>Ajoutez le titre dans Paramètres › Actifs : la recherche par ISIN remplit le coupon et l'échéance.</li>
           <li>Notez l'achat dans le Journal : nominal, prix en % du nominal (par exemple 96,40) et frais. Le montant, le rendement et la valeur se calculent seuls.</li>
           <li>Si le coupon ne tombe pas à la date anniversaire de l'échéance, indiquez sa date sur la fiche du titre.</li>

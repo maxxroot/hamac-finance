@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KINDS, PRICE_SOURCES, type Asset } from "@hamac/core";
+import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KINDS, PRICE_SOURCES, SOVEREIGN_COUNTRIES, type Asset } from "@hamac/core";
 import { ToolError, type Call } from "../engine";
 import { AFTER_CONSENT, found, isin, isoDate, merge, rate, READ_ONLY, WRITE } from "./fields";
 import type { ToolRegistrar } from "./registrar";
@@ -33,7 +33,7 @@ export function registerAssetTools(tool: ToolRegistrar, call: Call, canWrite: bo
           priceSource: a.priceSource,
           manualPrice: a.manualPrice,
           manualPriceDate: a.manualPriceDate,
-          ...(a.kind === "obligation" ? { couponRate: a.couponRate, maturityDate: a.maturityDate, issuer: a.issuer } : {}),
+          ...(a.kind === "obligation" ? { couponRate: a.couponRate, maturityDate: a.maturityDate, issuer: a.issuer, bondKind: a.bondKind, issuerCountry: a.issuerCountry } : {}),
           archived: a.archived,
         }));
     },
@@ -59,7 +59,12 @@ export function registerAssetTools(tool: ToolRegistrar, call: Call, canWrite: bo
         couponFrequency: z.number().int().min(1).max(12).nullable().optional().describe("Obligation : coupons par an."),
         nextCouponDate: isoDate.nullable().optional(),
         issuer: z.string().trim().max(80).nullable().optional(),
-        bondKind: z.enum(BOND_KINDS).nullable().optional().describe("Obligation : etat (OAT) ou entreprise."),
+        bondKind: z.enum(BOND_KINDS).nullable().optional().describe("Obligation : etat (obligation d'un État : OAT, OLO, Bund…) ou entreprise."),
+        issuerCountry: z
+          .enum(SOVEREIGN_COUNTRIES)
+          .nullable()
+          .optional()
+          .describe("Obligation d'État : pays de l'État émetteur, code ISO à deux lettres (FR, BE, DE…). Sans valeur : le pays de l'ISIN, sinon FR. Ignoré pour une obligation d'entreprise."),
         inAllocation: z.boolean().nullable().optional().describe("Compté dans l'allocation cible ; null = selon le type."),
         archived: z.boolean().optional(),
       },

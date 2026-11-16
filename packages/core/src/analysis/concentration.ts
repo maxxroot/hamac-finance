@@ -1,3 +1,4 @@
+import { sovereignCountry, sovereignLabel } from "../investments";
 import type { AssetKind } from "../model";
 import type { EngineData, PortfolioState } from "../portfolio";
 import { roundCents } from "../base";
@@ -5,7 +6,7 @@ import { roundCents } from "../base";
 /**
  * Concentration : la part du patrimoine financier qui dépend d'un seul titre, d'un seul émetteur d'obligations,
  * d'une seule plateforme de crowdlending ou d'un seul établissement. Montants pour la part détenue des comptes joints.
- * Les obligations d'État (OAT) sont montrées sans alerte : le risque n'est pas celui d'une entreprise.
+ * Les obligations d'État (OAT, OLO…) sont montrées sans alerte, un État par pays : le risque n'est pas celui d'une entreprise.
  */
 
 export interface ConcentrationItem {
@@ -50,12 +51,12 @@ export function concentrationReport(data: Pick<EngineData, "institutions" | "par
   const held = (a: (typeof active)[number]) => a.account.share ?? 1;
 
   // Titres, regroupés d'un compte à l'autre.
-  const byAsset = new Map<string, { name: string; kind: AssetKind; value: number; accounts: Set<string>; issuer: string | null; state: boolean }>();
+  const byAsset = new Map<string, { name: string; kind: AssetKind; value: number; accounts: Set<string>; issuer: string | null; country: string | null }>();
   for (const a of active) {
     for (const p of a.positions) {
       // Un fonds euros est garanti par l'assureur : son poids se lit dans la protection par établissement.
       if (p.asset.kind === "fonds_euros") continue;
-      const e = byAsset.get(p.asset.id) ?? { name: p.asset.name, kind: p.asset.kind, value: 0, accounts: new Set<string>(), issuer: p.asset.issuer, state: p.asset.bondKind === "etat" };
+      const e = byAsset.get(p.asset.id) ?? { name: p.asset.name, kind: p.asset.kind, value: 0, accounts: new Set<string>(), issuer: p.asset.issuer, country: p.asset.kind === "obligation" ? sovereignCountry(p.asset) : null };
       e.value += p.value * held(a);
       e.accounts.add(a.account.name);
       byAsset.set(p.asset.id, e);
@@ -72,9 +73,9 @@ export function concentrationReport(data: Pick<EngineData, "institutions" | "par
   const byIssuer = new Map<string, { label: string; value: number; state: boolean; count: number }>();
   for (const e of byAsset.values()) {
     if (e.kind !== "obligation" || e.value <= 0) continue;
-    const label = e.issuer?.trim() || (e.state ? "État français" : e.name);
+    const label = e.country ? sovereignLabel(e.country) : e.issuer?.trim() || e.name;
     const k = normalize(label);
-    const g = byIssuer.get(k) ?? { label, value: 0, state: e.state, count: 0 };
+    const g = byIssuer.get(k) ?? { label, value: 0, state: !!e.country, count: 0 };
     g.value += e.value;
     g.count += 1;
     byIssuer.set(k, g);

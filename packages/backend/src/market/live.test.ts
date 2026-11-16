@@ -6,7 +6,7 @@ import { fetchComposition, findComposition } from "./compositions/composition";
 
 /** Tests sur les vraies sources : HAMAC_LIVE=1 pnpm test */
 const live = process.env.HAMAC_LIVE === "1";
-const base = { id: "x", name: "x", isin: null, symbol: null, priceSource: "auto" as const, priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false };
+const base = { id: "x", name: "x", isin: null, symbol: null, priceSource: "auto" as const, priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false };
 const today = new Date().toISOString().slice(0, 10);
 const env = { twelveDataKey: null, budget: null, web: false };
 

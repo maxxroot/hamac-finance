@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ASSET_KINDS, BOND_KINDS, PRICE_PROVIDERS, PRICE_SOURCES } from "@hamac/core";
+import { ASSET_KINDS, BOND_KINDS, isSovereignCountry, PRICE_PROVIDERS, PRICE_SOURCES } from "@hamac/core";
 import { id, isoDate, money, rate, text } from "../common";
 
 /** Entrées validées : titres, cours et sources de prix. */
@@ -41,6 +41,12 @@ export const AssetInput = z.object({
   nextCouponDate: isoDate.nullable().default(null),
   issuer: text(80).nullable().default(null),
   bondKind: z.enum(BOND_KINDS).nullable().default(null),
+  /** Obligation d'État : pays de l'émetteur (ISO 3166-1, « BE »). */
+  issuerCountry: z
+    .string()
+    .refine((c) => isSovereignCountry(c), "Pays inconnu")
+    .nullable()
+    .default(null),
   archived: z.boolean().default(false),
 });
 export type AssetInput = z.input<typeof AssetInput>;

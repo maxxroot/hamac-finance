@@ -17,7 +17,7 @@ export function IssuersChart({ breakdown }: { breakdown: BondBreakdown }) {
     const rest = breakdown.byIssuer.slice(MAX_ISSUERS);
     if (!rest.length) return top;
     const nominal = rest.reduce((s, r) => s + r.nominal, 0);
-    return [...top, { issuer: `${rest.length} autres`, kind: "entreprise" as const, nominal, share: rest.reduce((s, r) => s + r.share, 0) }];
+    return [...top, { issuer: `${rest.length} autres`, kind: "entreprise" as const, country: null, nominal, share: rest.reduce((s, r) => s + r.share, 0) }];
   }, [breakdown]);
   const option = useMemo<ChartOption>(() => {
     const k = bondColors(c);

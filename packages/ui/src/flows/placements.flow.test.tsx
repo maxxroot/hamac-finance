@@ -860,7 +860,7 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
 
   it("compte-titres : mêmes choix que les autres comptes, sans obligation proposée d'office", () => {
     expect(choicesFor("cto")[0]).toMatchObject({ kind: "etf" });
-    expect(choicesFor("cto").map((c) => c.label)).toEqual(["ETF", "ETC (matières premières)", "Action", "OAT (État)", "Obligation d'entreprise", "Fonds / OPCVM", "SCPI"]);
+    expect(choicesFor("cto").map((c) => c.label)).toEqual(["ETF", "ETC (matières premières)", "Action", "Obligation d'État", "Obligation d'entreprise", "Fonds / OPCVM", "SCPI"]);
     expect(choicesFor("cto", ["obligation"])[0]).toMatchObject({ kind: "obligation", bondKind: "etat" });
   });
 
@@ -870,10 +870,10 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     await operation("2024-01-05", "versement", cto.id, 20_000);
     const dialog = await nouveauTitre(<Obligations />, user, /Nouvelle obligation/);
 
-    // Seules les obligations sont proposées, l'OAT d'abord, avec l'émetteur déjà renseigné.
-    expect(dialog.getByRole("button", { name: "OAT (État)" }).getAttribute("aria-pressed")).toBe("true");
+    // Seules les obligations sont proposées, l'obligation d'État d'abord, avec la France déjà choisie.
+    expect(dialog.getByRole("button", { name: "Obligation d'État" }).getAttribute("aria-pressed")).toBe("true");
     expect(dialog.queryByRole("button", { name: "ETF" })).toBeNull();
-    expect((dialog.getByLabelText("Émetteur") as HTMLInputElement).value).toBe("République française");
+    expect((dialog.getByLabelText("Pays de l'État émetteur") as HTMLInputElement).value).toBe("France");
     // Enregistrer trop tôt affiche ce qui manque.
     await user.click(dialog.getByRole("button", { name: "Enregistrer" }));
     expect(await dialog.findByText(/Indiquez le taux du coupon\. Indiquez l'échéance\. Donnez un nom au titre\./)).toBeTruthy();
@@ -899,10 +899,46 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     expect((await workspace()).assets).toEqual([]);
     fireEvent.change(dialog.getByLabelText("Prochain coupon (facultatif)"), { target: { value: "2032-11-25" } });
     await user.click(dialog.getByRole("button", { name: "Enregistrer" }));
-    await waitFor(async () => expect((await workspace()).assets).toMatchObject([{ kind: "obligation", bondKind: "etat", issuer: "République française", name: "OAT 3 % mai 2033", couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 2, nextCouponDate: "2032-11-25", priceSource: "modele", isin: null }]));
+    await waitFor(async () => expect((await workspace()).assets).toMatchObject([{ kind: "obligation", bondKind: "etat", issuer: null, issuerCountry: "FR", name: "OAT 3 % mai 2033", couponRate: 0.03, maturityDate: "2033-05-25", couponFrequency: 2, nextCouponDate: "2032-11-25", priceSource: "modele", isin: null }]));
     const ws = await workspace();
     expect(ws.transactions.find((t: { type: string }) => t.type === "achat")).toMatchObject({ accountId: cto.id, assetId: ws.assets[0].id, quantity: 10_000 });
     expect((await screen.findAllByText("OAT 3 % mai 2033")).length).toBeGreaterThan(0);
+  });
+
+  it("obligation d'un autre État : pays cherché dans la liste, nom d'usage et date d'échéance exacte", async () => {
+    const user = userEvent.setup();
+    const cto = await compte("cto", "CTO obligations");
+    await operation("2024-01-05", "versement", cto.id, 20_000);
+    const dialog = await nouveauTitre(<Obligations />, user, /Nouvelle obligation/);
+    await user.type(dialog.getByLabelText("Taux du coupon (nominal)"), "3");
+    fireEvent.change(dialog.getByLabelText("Échéance"), { target: { value: "2033-06" } });
+    expect((dialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("OAT 3 % juin 2033");
+
+    // La liste s'ouvre sur le champ ; quelques lettres suffisent, sans accent ni majuscule.
+    const pays = dialog.getByLabelText("Pays de l'État émetteur");
+    await user.click(pays);
+    await user.type(pays, "belg");
+    expect(within(dialog.getByRole("listbox", { name: "Pays" })).getAllByRole("option").map((o) => o.textContent)).toEqual(["Belgique"]);
+    await user.keyboard("{Enter}");
+    expect((pays as HTMLInputElement).value).toBe("Belgique");
+    // Une OLO garde le jour saisi : l'échéance se donne à la date exacte.
+    expect((dialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("OLO 3 % juin 2033");
+    expect(dialog.getByLabelText("Échéance").getAttribute("type")).toBe("date");
+    fireEvent.change(dialog.getByLabelText("Échéance"), { target: { value: "2033-06-22" } });
+
+    // Échap referme la liste sans fermer la fenêtre ni changer le pays.
+    await user.click(pays);
+    await user.type(pays, "esp");
+    await user.keyboard("{Escape}");
+    expect(dialog.queryByRole("listbox")).toBeNull();
+    expect((pays as HTMLInputElement).value).toBe("Belgique");
+
+    await user.type(dialog.getByLabelText("Nominal"), "5000");
+    await user.type(dialog.getByLabelText("Prix (% du nominal)"), "99");
+    await user.click(dialog.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(async () =>
+      expect((await workspace()).assets).toMatchObject([{ kind: "obligation", bondKind: "etat", issuer: null, issuerCountry: "BE", name: "OLO 3 % juin 2033", maturityDate: "2033-06-22" }]),
+    );
   });
 
   it("obligation d'entreprise : l'émetteur est exigé et nomme le titre ; changer de type ajuste l'émetteur et le jour d'échéance", async () => {
@@ -921,10 +957,12 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     expect(await dialog.findByText(/Indiquez l'émetteur\./)).toBeTruthy();
     await user.type(dialog.getByLabelText("Émetteur"), "Société Fictive");
     expect((dialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("Société Fictive 4,5 % septembre 2030");
-    // Retour à l'OAT : l'émetteur de l'État revient.
-    await user.click(dialog.getByRole("button", { name: "OAT (État)" }));
-    expect((dialog.getByLabelText("Émetteur") as HTMLInputElement).value).toBe("République française");
+    // Retour à l'obligation d'État : le pays revient à la place de l'émetteur.
+    await user.click(dialog.getByRole("button", { name: "Obligation d'État" }));
+    expect((dialog.getByLabelText("Pays de l'État émetteur") as HTMLInputElement).value).toBe("France");
+    expect(dialog.queryByLabelText("Émetteur")).toBeNull();
     await user.click(dialog.getByRole("button", { name: "Obligation d'entreprise" }));
+    await user.clear(dialog.getByLabelText("Émetteur"));
     // Un nom saisi à la main n'est plus remplacé.
     await user.clear(dialog.getByLabelText("Nom"));
     await user.type(dialog.getByLabelText("Nom"), "Mon obligation");
@@ -962,7 +1000,8 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     expect(texte(resultat)).toContain("Obligation");
     await user.click(resultat);
     expect((dialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("OAT 3 % mai 2033");
-    expect((dialog.getByLabelText("Émetteur") as HTMLInputElement).value).toBe("République française");
+    // OpenFIGI classe le titre en dette d'État (« Govt ») : le pays vient de l'ISIN.
+    expect((dialog.getByLabelText("Pays de l'État émetteur") as HTMLInputElement).value).toBe("France");
     expect((dialog.getByLabelText("Taux du coupon (nominal)") as HTMLInputElement).value).toMatch(/^3/);
     expect((dialog.getByLabelText("Échéance") as HTMLInputElement).value).toBe("2033-05");
     // La liste de résultats est refermée.
@@ -1016,7 +1055,7 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     // Dans un PEA : ETF, action et fonds, pas d'obligation.
     expect(dialog.getByRole("button", { name: "ETF" }).getAttribute("aria-pressed")).toBe("true");
     expect(dialog.getByRole("button", { name: "Action" })).toBeTruthy();
-    expect(dialog.queryByRole("button", { name: "OAT (État)" })).toBeNull();
+    expect(dialog.queryByRole("button", { name: "Obligation d'État" })).toBeNull();
     await user.click(dialog.getByRole("button", { name: "Action" }));
     await user.type(dialog.getByLabelText("Nom"), "fictive");
     await user.click(dialog.getByTitle("Rechercher et pré-remplir"));
@@ -1343,16 +1382,19 @@ describe("Fiche d'un titre (AssetDialog)", () => {
     await user.type(dialog.getByLabelText("Nom"), "Obligation fictive");
     await user.type(dialog.getByLabelText("Coupon annuel"), "4");
     fireEvent.change(dialog.getByLabelText("Échéance"), { target: { value: "2031-03" } });
-    await user.type(dialog.getByLabelText("Émetteur"), "République française");
-    // Passer à une obligation d'entreprise retire l'émetteur de l'État et ramène l'échéance au 1er du mois.
+    // Une obligation d'État se désigne par son pays, la France d'abord.
+    expect((dialog.getByLabelText("Pays de l'État émetteur") as HTMLInputElement).value).toBe("France");
+    expect(dialog.queryByLabelText("Émetteur")).toBeNull();
+    // Passer à une obligation d'entreprise demande l'émetteur.
     await user.selectOptions(dialog.getByLabelText("Type d'obligation"), "entreprise");
     expect((dialog.getByLabelText("Émetteur") as HTMLInputElement).value).toBe("");
     expect(dialog.getByText("Mois et année.")).toBeTruthy();
     await user.type(dialog.getByLabelText("Émetteur"), "Société Fictive");
     await user.selectOptions(dialog.getByLabelText("Type d'obligation"), "etat");
-    // Retour à l'État : l'émetteur saisi est gardé, l'échéance revient au 25.
-    expect((dialog.getByLabelText("Émetteur") as HTMLInputElement).value).toBe("Société Fictive");
+    // Retour à l'État : l'échéance revient au 25 ; l'émetteur saisi revient avec l'entreprise.
+    expect((dialog.getByLabelText("Échéance") as HTMLInputElement).value).toBe("2031-03");
     await user.selectOptions(dialog.getByLabelText("Type d'obligation"), "entreprise");
+    expect((dialog.getByLabelText("Émetteur") as HTMLInputElement).value).toBe("Société Fictive");
     await user.selectOptions(dialog.getByLabelText("Coupons"), "4");
     fireEvent.change(dialog.getByLabelText("Prochain coupon (facultatif)"), { target: { value: "2026-12-01" } });
     // Vider l'échéance l'efface.
@@ -1424,7 +1466,8 @@ describe("Fiche d'un titre (AssetDialog)", () => {
     expect((dialog.getByLabelText("Nom") as HTMLInputElement).value).toBe("FRTR 3 05/25/33");
     expect((dialog.getByLabelText("Échéance") as HTMLInputElement).value).toBe("2033-05");
     expect((dialog.getByLabelText("Source du cours") as HTMLSelectElement).value).toBe("modele");
-    expect((dialog.getByLabelText("Émetteur") as HTMLInputElement).value).toMatch(/FRANCE/);
+    expect((dialog.getByLabelText("Type d'obligation") as HTMLSelectElement).value).toBe("etat");
+    expect((dialog.getByLabelText("Pays de l'État émetteur") as HTMLInputElement).value).toBe("France");
     expect((dialog.getByLabelText("ISIN") as HTMLInputElement).value).toBe("FR0099999991");
 
     await user.clear(recherche);

@@ -4,7 +4,7 @@
 
 ## À quoi sert cette page
 
-La page **Obligations** (menu Placements) suit les obligations à taux fixe que vous gardez jusqu'à leur échéance : les OAT (emprunts de l'État français) et les obligations d'entreprise. Elle montre ce que vous détenez, les coupons à venir, le rendement de chaque ligne, et les achats que vous prévoyez.
+La page **Obligations** (menu Placements) suit les obligations à taux fixe que vous gardez jusqu'à leur échéance : les obligations d'État (OAT de l'État français, OLO belges, Bund allemands…) et les obligations d'entreprise. Elle montre ce que vous détenez, les coupons à venir, le rendement de chaque ligne, et les achats que vous prévoyez.
 
 Vous n'avez pas besoin de cours de bourse : Hamac calcule la valeur de chaque ligne à partir de son prix d'achat, de son coupon et de son échéance. À l'échéance, il compte tout seul le remboursement du nominal.
 
@@ -12,7 +12,7 @@ Quelques mots utilisés sur la page :
 
 - **Nominal** : la somme que l'émetteur vous rembourse à l'échéance. Hamac compte une obligation en euros de nominal : 5 000 € de nominal, c'est 5 000 € remboursés à l'échéance.
 - **Coupon** : l'intérêt annuel, en pourcentage du nominal. Une OAT à 3 % sur 5 000 € de nominal verse 150 € par an.
-- **Échéance** : la date du remboursement. Les OAT arrivent à échéance le 25 du mois.
+- **Échéance** : la date du remboursement. Les OAT françaises arrivent à échéance le 25 du mois ; les autres États ont leurs propres dates (une OLO belge tombe souvent le 22).
 - **Prix en % du nominal** : une obligation s'achète à un prix exprimé en pourcentage. À 96 %, 5 000 € de nominal coûtent 4 800 € (hors coupon couru et frais). En dessous de 100 %, on dit « sous le pair ».
 - **Coupon couru** : la part du prochain coupon déjà accumulée depuis le dernier versement. À l'achat, vous la payez au vendeur ; vous la récupérez avec le coupon suivant.
 - **Rendement à l'échéance** : le rendement annuel réel de votre achat si vous gardez la ligne jusqu'au bout, frais compris. Il tient compte des coupons et de l'écart entre le prix payé et les 100 % remboursés.
@@ -51,11 +51,11 @@ Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compt
 
 **Six graphiques** (passez la souris pour les montants) :
 
-- **Échéancier des remboursements** : le nominal remboursé chaque année, souverain (OAT) et entreprises, et vos achats prévus en pointillés. Les années vides se voient : ce sont les trous à combler. En format retraite, votre âge est sous chaque année et l'année de la retraite est marquée.
+- **Échéancier des remboursements** : le nominal remboursé chaque année, États et entreprises, et vos achats prévus en pointillés. Les années vides se voient : ce sont les trous à combler. En format retraite, votre âge est sous chaque année et l'année de la retraite est marquée.
 - **Échéancier des flux** : coupons et remboursements au pair, année par année.
 - **Évolution de l'encours** : une barre pour aujourd'hui, puis une au 31 décembre de chaque année jusqu'à la dernière échéance, en deux parts : l'**encours** (l'argent encore placé dans vos lignes) et les **flux encaissés** (coupons et remboursements, détaillés au survol). D'année en année, l'encours se transforme en flux encaissés ; la hauteur de la barre, c'est tout ce que vos obligations actuelles vous auront donné à cette date.
 - **Coupons perçus et échus** : chaque année, la barre pleine montre les coupons perçus (notés dans le Journal), le contour en pointillés les coupons échus. Une barre plus basse que son contour signale un coupon non saisi.
-- **Répartition par émetteur** : la part du souverain (OAT) et des entreprises, votre premier émetteur, puis le nominal de chaque émetteur.
+- **Répartition par émetteur** : la part des États et des entreprises, votre premier émetteur, puis le nominal de chaque émetteur. Chaque État compte à part (« État · France », « État · Belgique »).
 - **Rendement actuariel par maturité** : un point par ligne, plus gros quand le nominal est plus grand. Vous voyez si vos lignes longues rapportent vraiment plus que les courtes.
 
 **Prévoir un achat** : un petit formulaire pour ajouter une ligne prévue (libellé, année d'échéance visée, nominal).
@@ -66,7 +66,7 @@ Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compt
 
 ## Comment faire
 
-**Acheter une obligation.** Cliquez sur « Ajouter une opération ». Choisissez le titre, ou « Nouvelle obligation » : indiquez le type (OAT ou entreprise), le coupon, le mois d'échéance, l'émetteur pour une entreprise. Le nom se forme tout seul (« OAT 3 % mai 2033 »). La recherche par ISIN peut remplir ces champs. Saisissez ensuite le nominal et le prix en % du nominal : Hamac calcule le coupon couru, propose les frais et donne le total débité (nominal × prix + coupon couru + frais). Le coupon couru se corrige comme les frais : tapez le montant de votre avis d'opéré s'il diffère (jours comptés autrement par la banque, par exemple) ; « Calculer » revient au calcul. Si une obligation identique existe déjà (même ISIN, ou même émetteur, coupon et échéance), Hamac propose de la reprendre.
+**Acheter une obligation.** Cliquez sur « Ajouter une opération ». Choisissez le titre, ou « Nouvelle obligation » : indiquez le type (obligation d'État ou d'entreprise), le coupon et l'échéance. Pour une obligation d'État, choisissez le pays dans la liste : tapez quelques lettres (« belg ») puis cliquez sur le pays ou validez avec Entrée ; la France est proposée d'abord, et un ISIN saisi désigne le pays tout seul (BE… pour la Belgique). Pour une entreprise, indiquez l'émetteur. L'échéance se donne en mois et année pour une OAT (remboursée le 25) ou une entreprise, et à la date exacte pour un autre État. Le nom se forme tout seul (« OAT 3 % mai 2033 », « OLO 3 % juin 2033 »). La recherche par ISIN peut remplir ces champs, pays compris. Saisissez ensuite le nominal et le prix en % du nominal : Hamac calcule le coupon couru, propose les frais et donne le total débité (nominal × prix + coupon couru + frais). Le coupon couru se corrige comme les frais : tapez le montant de votre avis d'opéré s'il diffère (jours comptés autrement par la banque, par exemple) ; « Calculer » revient au calcul. Si une obligation identique existe déjà (même ISIN, ou même émetteur, coupon et échéance ; pour un État, le même pays), Hamac propose de la reprendre.
 
 **Noter un coupon reçu.** Dans le Journal, ajoutez une opération « Intérêts / coupon » sur le compte et choisissez l'obligation. Les coupons ne s'ajoutent pas tout seuls.
 
@@ -111,3 +111,5 @@ Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compt
 - Une ligne prévue ne devient pas un achat toute seule : il faut saisir l'achat, puis supprimer la ligne prévue.
 - Le rappel sur l'âge de sécurisation s'affiche aussi dans le format « patrimoine », où ce réglage n'existe pas.
 - La page ne calcule pas l'impôt sur les coupons : voir la page Impôts.
+
+**Corriger le pays d'une obligation d'État.** Ouvrez la fiche du titre (Paramètres › Titres, ou le nom du titre) : le champ « Pays de l'État émetteur » se cherche de la même façon. Les obligations d'État saisies avant ce choix ont reçu le pays de leur ISIN, sinon la France. Si le pays est faux, corrigez-le, puis vérifiez la date d'échéance et le nom : une OLO enregistrée comme OAT avait reçu le 25 du mois.

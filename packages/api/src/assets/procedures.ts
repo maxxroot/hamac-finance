@@ -48,6 +48,8 @@ export interface AssetCandidate {
   exchange: string | null;
   couponRate: number | null;
   maturityDate: string | null;
+  /** Obligation d'État reconnue : pays de l'émetteur (ISO 3166-1). */
+  issuerCountry?: string | null;
   detail: string;
 }
 

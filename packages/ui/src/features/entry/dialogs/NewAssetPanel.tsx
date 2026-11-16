@@ -5,9 +5,11 @@ import {
   ALLOWED_ASSETS,
   ASSET_KIND_LABELS,
   bondName,
+  countryFromIsin,
+  DEFAULT_SOVEREIGN,
   findSameBond,
+  isOat,
   maturityFromMonth,
-  OAT_MATURITY_DAY,
   type AccountKind,
   type Asset,
   type AssetKind,
@@ -15,6 +17,7 @@ import {
 } from "@hamac/core";
 import { Field, FormGrid, PercentInput, Select, TextInput } from "@/shared/components/form";
 import { Button } from "@/shared/components/ui";
+import { BondMaturityField, SovereignField } from "@/features/entry/components/BondFields";
 import { CompositionNotice } from "@/features/entry/components/CompositionNotice";
 import { cn } from "@/shared/lib/cn";
 import { call } from "@/shared/lib/transport";
@@ -29,6 +32,8 @@ export interface NewAsset {
   isin: string;
   symbol: string;
   issuer: string;
+  /** Obligation d'État : pays de l'émetteur (ISO 3166-1). */
+  issuerCountry: string | null;
   couponRate: number | null;
   maturityDate: string;
   couponFrequency: number;
@@ -37,7 +42,7 @@ export interface NewAsset {
 
 type Choice = { kind: AssetKind; bondKind: BondKind | null; label: string };
 
-/** Choix proposés selon le compte : les obligations se déclinent en OAT et entreprise. */
+/** Choix proposés selon le compte : les obligations se déclinent en obligations d'État et d'entreprise. */
 export function choicesFor(account: AccountKind, only?: readonly AssetKind[]): Choice[] {
   // Même ordre pour tous les comptes : un compte-titres n'est pas réservé aux obligations.
   // Un fonds euros ne s'achète pas : il se crée depuis un versement (champ « Support »).
@@ -45,7 +50,7 @@ export function choicesFor(account: AccountKind, only?: readonly AssetKind[]): C
   return kinds.flatMap((k): Choice[] =>
     k === "obligation"
       ? [
-          { kind: k, bondKind: "etat", label: "OAT (État)" },
+          { kind: k, bondKind: "etat", label: "Obligation d'État" },
           { kind: k, bondKind: "entreprise", label: "Obligation d'entreprise" },
         ]
       : [{ kind: k, bondKind: null, label: ASSET_KIND_LABELS[k] }],
@@ -55,21 +60,31 @@ export function choicesFor(account: AccountKind, only?: readonly AssetKind[]): C
 export function newAssetFor(account: AccountKind, only?: readonly AssetKind[]): NewAsset {
   const first = choicesFor(account, only)[0] ?? { kind: "etf" as AssetKind, bondKind: null };
   return withChoice(
-    { kind: first.kind, bondKind: first.bondKind, name: "", nameAuto: true, isin: "", symbol: "", issuer: "", couponRate: null, maturityDate: "", couponFrequency: 1, nextCouponDate: "" },
+    { kind: first.kind, bondKind: first.bondKind, name: "", nameAuto: true, isin: "", symbol: "", issuer: "", issuerCountry: null, couponRate: null, maturityDate: "", couponFrequency: 1, nextCouponDate: "" },
     first,
   );
 }
 
 function withChoice(n: NewAsset, c: { kind: AssetKind; bondKind: BondKind | null }): NewAsset {
-  const issuer = c.bondKind === "etat" ? "République française" : c.bondKind === "entreprise" && n.issuer === "République française" ? "" : n.issuer;
-  // Le jour d'échéance dépend du type : toujours le 25 pour une OAT.
-  const maturityDate = n.maturityDate ? maturityFromMonth(n.maturityDate.slice(0, 7), c.bondKind) : n.maturityDate;
-  return rename({ ...n, kind: c.kind, bondKind: c.bondKind, issuer, maturityDate });
+  // Un État se désigne par son pays (celui de l'ISIN s'il est saisi) ; une entreprise par son nom.
+  const issuerCountry = c.bondKind === "etat" ? (n.issuerCountry ?? countryFromIsin(n.isin) ?? DEFAULT_SOVEREIGN) : null;
+  return rename(withMaturityRule({ ...n, kind: c.kind, bondKind: c.bondKind, issuerCountry }));
+}
+
+/** Change le pays de l'État émetteur. */
+function withCountry(n: NewAsset, issuerCountry: string): NewAsset {
+  return rename(withMaturityRule({ ...n, issuerCountry }));
+}
+
+/** Le jour d'échéance suit le type : le 25 pour une OAT, le 1er du mois pour une entreprise, la date saisie pour un autre État. */
+function withMaturityRule(n: NewAsset): NewAsset {
+  if (!n.maturityDate || n.kind !== "obligation" || (n.bondKind === "etat" && !isOat(n.bondKind, n.issuerCountry))) return n;
+  return { ...n, maturityDate: maturityFromMonth(n.maturityDate.slice(0, 7), isOat(n.bondKind, n.issuerCountry)) };
 }
 
 function rename(n: NewAsset): NewAsset {
   if (!n.nameAuto || n.kind !== "obligation") return n;
-  return { ...n, name: n.couponRate != null && n.maturityDate ? bondName(n.bondKind, n.issuer || null, n.couponRate, n.maturityDate) : "" };
+  return { ...n, name: n.couponRate != null && n.maturityDate ? bondName(n.bondKind, n.issuer || null, n.couponRate, n.maturityDate, n.issuerCountry) : "" };
 }
 
 /** Champs manquants pour pouvoir créer le titre. */
@@ -97,14 +112,15 @@ export function toAssetInput(n: NewAsset): AssetInput {
     maturityDate: isBond ? n.maturityDate || null : null,
     couponFrequency: isBond ? n.couponFrequency : null,
     nextCouponDate: isBond ? n.nextCouponDate || null : null,
-    issuer: isBond ? n.issuer.trim() || null : null,
+    issuer: isBond && n.bondKind !== "etat" ? n.issuer.trim() || null : null,
     bondKind: isBond ? n.bondKind : null,
+    issuerCountry: isBond && n.bondKind === "etat" ? n.issuerCountry : null,
   };
 }
 
 /** Un titre existant identique, pour éviter les doublons. */
 export function existingAsset(n: NewAsset, assets: readonly Asset[]): Asset | null {
-  if (n.kind === "obligation") return findSameBond(assets, { isin: n.isin || null, couponRate: n.couponRate, maturityDate: n.maturityDate || null, issuer: n.issuer || null, bondKind: n.bondKind });
+  if (n.kind === "obligation") return findSameBond(assets, { isin: n.isin || null, couponRate: n.couponRate, maturityDate: n.maturityDate || null, issuer: n.issuer || null, bondKind: n.bondKind, issuerCountry: n.issuerCountry });
   return (n.isin && assets.find((a) => !a.archived && a.isin === n.isin)) || null;
 }
 
@@ -129,6 +145,11 @@ export function NewAssetPanel({
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const set = <K extends keyof NewAsset>(k: K, v: NewAsset[K]) => onChange(rename({ ...value, [k]: v }));
+  // La dette d'un État porte le code de son pays dans l'ISIN : il désigne l'État émetteur.
+  const changeIsin = (isin: string) => {
+    const country = value.bondKind === "etat" ? countryFromIsin(isin) : null;
+    onChange(country ? withCountry({ ...value, isin }, country) : rename({ ...value, isin }));
+  };
   const isBond = value.kind === "obligation";
   const dup = existingAsset(value, assets);
   const errors = newAssetErrors(value);
@@ -149,8 +170,10 @@ export function NewAssetPanel({
     }
   };
   const pick = (c: AssetCandidate) => {
-    const bondKind: BondKind | null = c.kind === "obligation" ? (/france|frtr/i.test(c.detail) ? "etat" : "entreprise") : null;
-    const issuer = c.kind === "obligation" ? (bondKind === "etat" ? "République française" : (c.detail.split(" · ")[0] ?? "")) : "";
+    // OpenFIGI classe la dette d'un État en « Govt » : le serveur en déduit le pays.
+    const issuerCountry = c.kind === "obligation" ? (c.issuerCountry ?? (/frtr/i.test(c.detail) ? DEFAULT_SOVEREIGN : null)) : null;
+    const bondKind: BondKind | null = c.kind === "obligation" ? (issuerCountry ? "etat" : "entreprise") : null;
+    const issuer = bondKind === "entreprise" ? (c.detail.split(" · ")[0] ?? "") : "";
     onChange(
       rename({
         ...value,
@@ -159,6 +182,7 @@ export function NewAssetPanel({
         isin: c.isin ?? value.isin,
         symbol: c.symbol ?? "",
         issuer,
+        issuerCountry,
         couponRate: c.couponRate ?? value.couponRate,
         maturityDate: c.maturityDate ?? value.maturityDate,
         name: c.kind === "obligation" ? value.name : c.name,
@@ -192,13 +216,20 @@ export function NewAssetPanel({
 
       {isBond && (
         <FormGrid cols={3}>
-          <Field label="Émetteur">
-            {(id) => <TextInput id={id} value={value.issuer} onChange={(e) => set("issuer", e.target.value)} placeholder={value.bondKind === "entreprise" ? "ex. TotalEnergies" : ""} />}
-          </Field>
+          {value.bondKind === "etat" ? (
+            <SovereignField value={value.issuerCountry} onChange={(code) => onChange(withCountry(value, code))} />
+          ) : (
+            <Field label="Émetteur">{(id) => <TextInput id={id} value={value.issuer} onChange={(e) => set("issuer", e.target.value)} placeholder="ex. TotalEnergies" />}</Field>
+          )}
           <Field label="Taux du coupon (nominal)" help="Écrit dans le nom : « OAT 3 % mai 2033 ».">
             {(id) => <PercentInput id={id} value={value.couponRate} onChange={(v) => set("couponRate", v)} />}
           </Field>
-          <MaturityField value={value} onChange={(date) => set("maturityDate", date)} />
+          <BondMaturityField
+            value={value.maturityDate || null}
+            oat={isOat(value.bondKind, value.issuerCountry)}
+            exact={value.bondKind === "etat" && !isOat(value.bondKind, value.issuerCountry)}
+            onChange={(date) => set("maturityDate", date ?? "")}
+          />
         </FormGrid>
       )}
 
@@ -209,7 +240,7 @@ export function NewAssetPanel({
         <Field label="ISIN (facultatif)" help="Pour retrouver le titre et son cours.">
           {(id) => (
             <div className="flex gap-2">
-              <TextInput id={id} value={value.isin} onChange={(e) => set("isin", e.target.value.toUpperCase().trim())} className="font-mono" placeholder="FR00…" />
+              <TextInput id={id} value={value.isin} onChange={(e) => changeIsin(e.target.value.toUpperCase().trim())} className="font-mono" placeholder="FR00…" />
               <Button type="button" onClick={search} disabled={searching || (value.isin || value.name).trim().length < 2} title="Rechercher et pré-remplir">
                 <Search size={14} />
               </Button>
@@ -262,15 +293,5 @@ export function NewAssetPanel({
       )}
       {showErrors && errors.length > 0 && <p className="text-xs text-negative">{errors.join(" ")}</p>}
     </div>
-  );
-}
-
-/** Échéance : mois et année seulement (OAT : le 25 ; entreprise : le 1er du mois). */
-function MaturityField({ value, onChange }: { value: NewAsset; onChange: (date: string) => void }) {
-  const isOat = value.bondKind === "etat";
-  return (
-    <Field label="Échéance" help={isOat ? `Mois et année ; une OAT est remboursée le ${OAT_MATURITY_DAY} du mois.` : "Mois et année."}>
-      {(id) => <TextInput id={id} type="month" value={value.maturityDate.slice(0, 7)} onChange={(e) => onChange(e.target.value ? maturityFromMonth(e.target.value, value.bondKind) : "")} />}
-    </Field>
   );
 }

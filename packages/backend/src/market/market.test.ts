@@ -6,7 +6,7 @@ import { SharedMarket } from "./shared";
 import type { Fetcher } from "./http";
 import { assertPublicUrl, customQuote, guardedLookup, readPath, toPrice } from "./sources/custom";
 import { euronextHistory, parseEuronextCsv } from "./sources/euronext";
-import { withoutBondSuffix } from "./sources/openfigi";
+import { sovereignOf, withoutBondSuffix } from "./sources/openfigi";
 import { chainFor, defaultProviderSettings, instrumentKey, parseBondTicker, searchAssets } from "./index";
 import { assertPlausible } from "./plausible";
 import { yahooRange } from "./sources/yahoo";
@@ -40,6 +40,11 @@ async function call<T = unknown>(b: Backend, name: string, input?: unknown): Pro
 describe("sources de cours", () => {
   it("lit coupon et échéance dans un code obligataire OpenFIGI", () => {
     expect(parseBondTicker("FRTR 3 05/25/33 OAT")).toEqual({ couponRate: 0.03, maturityDate: "2033-05-25" });
+    // Dette d'un État (secteur « Govt ») : le pays vient de l'ISIN, sinon du ticker.
+    expect(sovereignOf({ marketSector: "Govt", ticker: "BGB 3 06/22/33" }, "BE0000357666")).toBe("BE");
+    expect(sovereignOf({ marketSector: "Govt", ticker: "BGB 3 06/22/33" }, null)).toBe("BE");
+    expect(sovereignOf({ marketSector: "Govt", ticker: "XYZ 3 06/22/33" }, null)).toBeNull();
+    expect(sovereignOf({ marketSector: "Corp", ticker: "TTEFP 1.491 04/08/27" }, "XS2153406868")).toBeNull();
     expect(parseBondTicker("TTEFP 1.491 04/08/27 EMTN")).toEqual({ couponRate: 0.01491, maturityDate: "2027-04-08" });
     expect(parseBondTicker("TTEFP V2 PERP")).toBeNull();
   });
@@ -51,7 +56,7 @@ describe("sources de cours", () => {
     expect(withoutBondSuffix(`X${" ".repeat(100_000)}FP`)).toBe("X");
   });
 
-  const base = { id: "a", name: "x", isin: null, symbol: null, priceSource: "auto" as const, priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, archived: false };
+  const base = { id: "a", name: "x", isin: null, symbol: null, priceSource: "auto" as const, priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null, targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: null, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false };
   const order = defaultProviderSettings();
 
   it("construit la chaîne de sources selon le titre", () => {

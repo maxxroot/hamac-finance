@@ -17,7 +17,7 @@ export function bondColors(c: ChartColors) {
   };
 }
 
-export const KIND_LABELS: Record<BondKind, string> = { etat: "Souverain (OAT)", entreprise: "Entreprises" };
+export const KIND_LABELS: Record<BondKind, string> = { etat: "États", entreprise: "Entreprises" };
 
 /** Ligne d'info-bulle : pastille de couleur, libellé, valeur alignée à droite. */
 export function tooltipRow(color: string | null, label: string, value: string): string {

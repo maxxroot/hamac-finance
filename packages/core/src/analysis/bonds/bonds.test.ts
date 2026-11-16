@@ -10,7 +10,7 @@ const acc = (id: string, kind: Account["kind"]): Account => ({
 });
 const bond = (id: string, extra: Partial<Asset>): Asset => ({
   id, kind: "obligation", name: id, isin: null, symbol: null, priceSource: "modele", priceProvider: null, priceUrl: null, pricePath: null, classId: null, inAllocation: null, manualPrice: null, manualPriceDate: null,
-  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: 1, nextCouponDate: null, issuer: null, bondKind: null, archived: false, ...extra,
+  targetWeight: null, ter: null, couponRate: null, maturityDate: null, couponFrequency: 1, nextCouponDate: null, issuer: null, bondKind: null, issuerCountry: null, archived: false, ...extra,
 });
 let n = 0;
 const tx = (date: string, type: Transaction["type"], amount: number, extra: Partial<Transaction> = {}): Transaction => ({
@@ -99,9 +99,22 @@ describe("obligations : échelle et répartition", () => {
     expect(b.nominal).toBe(15_000);
     expect(b.byKind.etat.share).toBeCloseTo(2 / 3, 6);
     expect(b.byIssuer.map((i) => [i.issuer, i.nominal])).toEqual([
-      ["État français", 10_000],
+      ["État · France", 10_000],
       ["Société Fictive", 5000],
     ]);
+  });
+
+  it("compte chaque État à part : une OLO n'est pas de la dette française", () => {
+    const olo = bond("olo", { couponRate: 0.03, maturityDate: "2033-06-22", bondKind: "etat", issuerCountry: "BE" });
+    const d = data([...BUYS, tx("2026-01-10", "achat", 4000, { assetId: "olo", quantity: 4000 })]);
+    const cto = computePortfolio({ ...d, assets: [...d.assets, olo] }, TODAY).accountById.get("cto")!;
+    const b = bondBreakdown(cto.positions.filter((p) => p.bond));
+    expect(b.byIssuer.map((i) => [i.issuer, i.country, i.nominal])).toEqual([
+      ["État · France", "FR", 10_000],
+      ["Société Fictive", null, 5000],
+      ["État · Belgique", "BE", 4000],
+    ]);
+    expect(b.byKind.etat.nominal).toBe(14_000);
   });
 });
 

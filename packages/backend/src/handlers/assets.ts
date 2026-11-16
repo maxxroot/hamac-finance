@@ -1,4 +1,5 @@
 import { and, eq, or, sql } from "drizzle-orm";
+import { countryFromIsin, DEFAULT_SOVEREIGN } from "@hamac/core";
 import { one } from "../db/driver";
 import { RpcError, type assetsProcedures, type MarketSettings } from "@hamac/api";
 import type { BackendContext } from "../context";
@@ -44,8 +45,10 @@ export const assetsHandlers: DomainHandlers<typeof assetsProcedures> = {
       maturityDate: isBond ? input.maturityDate : null,
       couponFrequency: isBond ? (input.couponFrequency ?? 1) : null,
       nextCouponDate: isBond ? input.nextCouponDate : null,
-      issuer: input.issuer,
+      // Une obligation d'État se désigne par son pays : pas d'émetteur saisi à côté, qui pourrait le contredire.
+      issuer: isBond && input.bondKind === "etat" ? null : input.issuer,
       bondKind: isBond ? (input.bondKind ?? null) : null,
+      issuerCountry: isBond && input.bondKind === "etat" ? (input.issuerCountry ?? countryFromIsin(input.isin) ?? DEFAULT_SOVEREIGN) : null,
       archived: input.archived,
       updatedAt: nowIso(),
     };

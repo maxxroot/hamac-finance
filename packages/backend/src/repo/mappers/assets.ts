@@ -26,6 +26,7 @@ export function mapAsset(r: typeof t.assets.$inferSelect): Asset {
     nextCouponDate: r.nextCouponDate,
     issuer: r.issuer,
     bondKind: (r.bondKind as Asset["bondKind"]) ?? null,
+    issuerCountry: r.issuerCountry,
     archived: r.archived,
   };
 }

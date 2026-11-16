@@ -75,7 +75,7 @@ export const NAV: NavGroup[] = [
     items: [
       { path: "/livrets", module: "livrets", label: "Livrets", icon: PiggyBank, sheetTab: "Livrets", step: 2, description: "Épargne de précaution : LEP, LDDS, Livret A, plancher et plafond." },
       { path: "/fonds-euros", module: "fondsEuros", label: "Fonds euros", icon: ShieldCheck, sheetTab: "Fonds euros", step: 2, description: "Le fonds euros de vos contrats d'assurance-vie : valeur, relevé et taux servis." },
-      { path: "/obligations", module: "obligations", label: "Obligations", icon: Landmark, sheetTab: "OAT", step: 2, description: "OAT et obligations d'entreprise gardées jusqu'à l'échéance." },
+      { path: "/obligations", module: "obligations", label: "Obligations", icon: Landmark, sheetTab: "OAT", step: 2, description: "Obligations d'État (OAT, OLO…) et d'entreprise gardées jusqu'à l'échéance." },
       { path: "/actions", module: "actions", label: "Actions & ETF", icon: ChartLine, sheetTab: "Actions", step: 2, description: "Positions du PEA, PRU, cours et investissement mensuel conseillé." },
       { path: "/immobilier", module: "immobilier", label: "Immobilier", icon: House, sheetTab: "Immobilier", step: 5, description: "Biens immobiliers et SCPI." },
       { path: "/gestion-locative", module: "immobilier", label: "Gestion locative", icon: KeyRound, sheetTab: "Immobilier", step: 5, description: "Tout le parc loué : loyers du mois, impayés, lots vides, occupation et dates à venir." },

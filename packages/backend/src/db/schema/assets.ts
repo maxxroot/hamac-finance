@@ -27,6 +27,8 @@ export const assets = pgTable(
     nextCouponDate: text("next_coupon_date"),
     issuer: text("issuer"),
     bondKind: text("bond_kind"),
+    /** Obligation d'État : pays de l'émetteur (ISO 3166-1) ; null = État français (fiches anciennes). */
+    issuerCountry: text("issuer_country"),
     /** ETF : ISIN de l'ETF physique équivalent choisi par l'utilisateur pour l'exposition réelle ; null = lien commun de l'instance. */
     compositionIsin: text("composition_isin"),
     archived: boolean("archived").notNull().default(false),
