@@ -18,7 +18,8 @@
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/ArbitrageFields.tsx` | Champs d'un arbitrage et `arbitrageChoices` (supports proposés). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TaxDetailFields.tsx` | Détail fiscal d'un dividende ou d'intérêts (brut, retenues, « Calculer d'après les taux »). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/NewAssetPanel.tsx` | Création d'un titre dans la fenêtre d'opération (« ＋ Nouveau titre »). |
-| UI, saisie partagée | `packages/ui/src/features/entry/lib/tradeAmounts.ts` | `syncTradeAmounts` : total depuis le prix unitaire, ou l'inverse ; prix dans la devise d'un titre en devise (`rate`). |
+| UI, saisie partagée | `packages/ui/src/features/entry/lib/tradeAmounts.ts` | `syncTradeAmounts` : total depuis le prix unitaire, ou l'inverse ; prix dans la devise d'un titre en devise (`rate`) ; jamais `NaN` (null à la place), sinon l'effet qui recalcule les montants bouclerait. |
+| UI, socle | `packages/ui/src/shared/components/form.tsx`, `packages/ui/src/shared/lib/dateTyping.ts` | `TextInput` de type `date` ou `month` : une année en cours de frappe (« 0002-05-31 ») reste dans le champ sans être transmise (`isCompleteDateValue`), et revient à la valeur connue en quittant le champ. Vaut pour toutes les dates de l'application. |
 | UI, saisie partagée | `packages/ui/src/features/entry/lib/journal.ts` | `useJournal` (opérations saisies + versements programmés prélevés) et `supportsLabel`. |
 | UI, saisie partagée | `packages/ui/src/features/entry/components/Movements.tsx`, `TransactionButton.tsx` | Mouvements d'un ensemble de comptes sur les autres pages ; bouton « Nouvelle opération » pré-réglé. |
 | UI, socle | `packages/ui/src/shared/lib/files.ts` | `pickTextFile`, `toCsv`, `downloadText`. |
@@ -108,6 +109,7 @@ Les lignes cochées partent par `transactions.bulkCreate`. Le compte rendu affic
 ## Tests
 
 - `packages/core/src/model/validation.test.ts` : règles de `validateTransaction`.
+- `packages/ui/src/shared/lib/dateTyping.test.ts` et `packages/ui/src/flows/placements.flow.test.tsx` (« prochain coupon : l'année se tape chiffre par chiffre… ») : frappe d'une année.
 - `packages/core/src/portfolio/euroFunds.test.ts` (bloc « validation des opérations ») et `packages/core/src/portfolio/arbitrage.test.ts` : fonds euros et arbitrages.
 - `packages/core/src/portfolio/available.test.ts` : solde disponible (date, même jour, opération modifiée, fonds euros, versements programmés).
 - `packages/core/src/portfolio/engine.test.ts` : effet des opérations (transfert, vente au-delà du détenu, coupons…).

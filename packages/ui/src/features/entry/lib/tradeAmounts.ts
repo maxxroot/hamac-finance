@@ -27,6 +27,12 @@ const round6 = (v: number) => Math.round(v * 1_000_000) / 1_000_000;
 
 /** Calcule le total depuis le prix unitaire, ou le prix unitaire depuis le total, selon ce qui a été saisi. */
 export function syncTradeAmounts(t: TradeAmounts): { amount: number | null; unitPrice: number | null } {
+  const r = sync(t);
+  // Un calcul impossible (coupon couru d'une date aberrante) ne donne pas NaN : NaN ≠ NaN relancerait le calcul sans fin.
+  return { amount: Number.isFinite(r.amount) ? r.amount : null, unitPrice: Number.isFinite(r.unitPrice) ? r.unitPrice : null };
+}
+
+function sync(t: TradeAmounts): { amount: number | null; unitPrice: number | null } {
   const per = t.per ?? 1;
   const rate = t.rate && t.rate > 0 ? t.rate : 1;
   const accrued = t.accrued ?? 0;

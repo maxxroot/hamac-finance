@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/shared/lib/cn";
 import { formatNumber } from "@/shared/lib/numbers";
 import { readTypedNumber } from "@/shared/lib/expression";
+import { isCompleteDateValue } from "@/shared/lib/dateTyping";
 
 const inputBase =
   "h-9 w-full rounded-lg border border-line-strong bg-field px-3 text-sm text-fg placeholder:text-fg-faint transition-[border-color,box-shadow] duration-150 " +
@@ -88,7 +89,35 @@ export function Field({
 }
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  if (props.type === "date" || props.type === "month") return <DateTextInput {...props} />;
   return <input {...props} className={cn(inputBase, props.className)} />;
+}
+
+/**
+ * Date ou mois. Le navigateur envoie une valeur à chaque chiffre de l'année (« 0002-05-31 »…) : elle reste affichée
+ * dans le champ, mais n'est transmise qu'une fois l'année complète. Sinon le formulaire calcule sur l'an 2 et peut
+ * se réinitialiser, et il ne reste qu'un chiffre. En quittant le champ, une année incomplète revient à la valeur connue.
+ */
+function DateTextInput({ value, onChange, onBlur, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  const outer = value == null ? "" : String(value);
+  const [text, setText] = useState(outer);
+  // La valeur du formulaire ne change qu'une fois la date complète (ou ailleurs, par un calcul) : le champ la suit.
+  useEffect(() => setText(outer), [outer]);
+  return (
+    <input
+      {...rest}
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        if (isCompleteDateValue(e.target.value)) onChange?.(e);
+      }}
+      onBlur={(e) => {
+        if (!isCompleteDateValue(text)) setText(outer);
+        onBlur?.(e);
+      }}
+      className={cn(inputBase, rest.className)}
+    />
+  );
 }
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {

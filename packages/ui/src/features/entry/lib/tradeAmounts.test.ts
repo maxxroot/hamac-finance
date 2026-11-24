@@ -50,4 +50,8 @@ describe("prix unitaire et montant total", () => {
     expect(syncTradeAmounts(bond).amount).toBe(8991.83);
     expect(syncTradeAmounts({ ...bond, basis: "total", unitPrice: null, amount: 8991.83 }).unitPrice).toBeCloseTo(98, 3);
   });
+
+  it("un coupon couru impossible ne donne pas NaN : le total reste vide", () => {
+    expect(syncTradeAmounts({ ...base, accrued: Number.NaN })).toEqual({ amount: null, unitPrice: 50 });
+  });
 });

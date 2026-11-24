@@ -947,6 +947,26 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     );
   });
 
+  it("prochain coupon : l'année se tape chiffre par chiffre sans réinitialiser la fenêtre", async () => {
+    const user = userEvent.setup();
+    const cto = await compte("cto", "CTO obligations");
+    await operation("2024-01-05", "versement", cto.id, 20_000);
+    const dialog = await nouveauTitre(<Obligations />, user, /Nouvelle obligation/);
+    await user.type(dialog.getByLabelText("Taux du coupon (nominal)"), "4");
+    fireEvent.change(dialog.getByLabelText("Échéance"), { target: { value: "2030-05" } });
+    await user.type(dialog.getByLabelText("Nominal"), "10000");
+    await user.type(dialog.getByLabelText("Prix (% du nominal)"), "98");
+    // Le navigateur donne une valeur à chaque chiffre de l'année.
+    const prochain = dialog.getByLabelText("Prochain coupon (facultatif)") as HTMLInputElement;
+    for (const v of ["0002-11-25", "0020-11-25", "0202-11-25", "2026-11-25"]) fireEvent.change(prochain, { target: { value: v } });
+    expect(prochain.value).toBe("2026-11-25");
+    expect(dialog.getByLabelText("Nominal")).toBeTruthy();
+    // Une année laissée incomplète revient à la date connue en quittant le champ.
+    fireEvent.change(prochain, { target: { value: "0003-11-25" } });
+    fireEvent.blur(prochain);
+    expect(prochain.value).toBe("2026-11-25");
+  });
+
   it("obligation en dollars : devise suivie du pays, taux BCE pré-rempli, total tapé en dollars, valeur en euros", async () => {
     h.backend.close();
     h.backend = await testBackend({ market: await testMarket(ecbFake({ USD: { [ilYaJours(10)]: 1.1, [ilYaJours(3)]: 1.08 } })) });

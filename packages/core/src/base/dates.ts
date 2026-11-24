@@ -46,7 +46,7 @@ export function addMonths(date: IsoDate, n: number): IsoDate {
   const ny = Math.floor(total / 12);
   const nm = (total % 12) + 1;
   const last = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
-  return `${ny}-${String(nm).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
+  return `${String(ny).padStart(4, "0")}-${String(nm).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
 }
 
 /** Ajoute n jours civils. */

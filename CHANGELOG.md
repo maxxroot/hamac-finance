@@ -6,6 +6,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+### Corrigé
+
+- Saisie des dates : taper l'année chiffre par chiffre ne réinitialise plus la fenêtre. Par exemple, le « Prochain coupon » d'une obligation, saisi après le nominal, ne gardait qu'un chiffre de l'année. Une année incomplète reste affichée dans le champ, mais n'est prise en compte qu'une fois ses quatre chiffres tapés ; en quittant le champ, elle revient à la date connue. Toutes les dates de l'application en profitent.
+
 ## [0.4.0] - 2026-11-24
 
 Un titre peut désormais être coté en dollars ou dans une autre devise : Hamac le suit dans sa monnaie et compte tout le reste en euros, au taux de change de la BCE. Les obligations peuvent aussi verser un coupon chaque mois.
