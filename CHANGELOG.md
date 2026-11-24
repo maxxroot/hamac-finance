@@ -6,6 +6,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.4.1] - 2026-11-24
+
+Correction de la saisie des dates.
+
 ### Corrigé
 
 - Saisie des dates : taper l'année chiffre par chiffre ne réinitialise plus la fenêtre. Par exemple, le « Prochain coupon » d'une obligation, saisi après le nominal, ne gardait qu'un chiffre de l'année. Une année incomplète reste affichée dans le champ, mais n'est prise en compte qu'une fois ses quatre chiffres tapés ; en quittant le champ, elle revient à la date connue. Toutes les dates de l'application en profitent.
@@ -138,7 +142,8 @@ Première version publique : une application web auto-hébergée, avec PostgreSQ
 
 - L'application de bureau (Electron) : seule la version web est maintenue. La dernière version de bureau reste disponible au tag `derniere-version-desktop`.
 
-[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.4.0...HEAD
+[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/maxxroot/hamac-finance/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/maxxroot/hamac-finance/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/maxxroot/hamac-finance/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maxxroot/hamac-finance/compare/v0.2.0...v0.3.0
