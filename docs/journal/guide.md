@@ -97,6 +97,8 @@ Quand des frais existent, la fenêtre affiche aussi le prix unitaire frais compr
 
 Pour une **obligation**, la fenêtre demande le **nominal** (la somme remboursée à l'échéance), le **prix en % du nominal** et les frais. Elle calcule le **coupon couru** (les intérêts dus au vendeur depuis le dernier coupon) et le total. Si votre avis d'opéré indique un autre coupon couru, tapez-le à la place : le total suit, et Hamac s'en sert aussi pour le prix d'achat de l'obligation. « Calculer », sous le champ, revient au calcul.
 
+Pour un titre coté dans une **autre devise** (une obligation en dollars, par exemple), la quantité et le prix sont dans sa devise, le total et les frais en euros. Deux champs s'ajoutent : le **taux de change** (celui de la BCE du jour, à remplacer par celui de votre établissement) et le **total dans la devise**, que vous pouvez taper à la place du total en euros. Voir le [guide des devises](../devises/guide.md).
+
 ### Acheter un titre pas encore connu
 
 Dans la liste des titres, choisissez **« ＋ Nouveau titre »**. Un panneau permet de le décrire. Le titre et l'opération sont enregistrés ensemble : si l'opération est refusée, le titre n'est pas créé.

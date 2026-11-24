@@ -141,6 +141,23 @@ describe("obligations : coupons attendus et saisis", () => {
     expect(couponCheck(BUYS, [oat, societe, echue], "2026-06-05").events.some((e) => e.date === "2026-05-25" && e.received == null)).toBe(true);
   });
 
+  it("coupon mensuel : un coupon oublié reste manquant, celui du mois suivant ne le remplace pas", () => {
+    const mensuel = bond("mensuel", { couponRate: 0.06, maturityDate: "2027-06-10", couponFrequency: 12, nextCouponDate: "2026-06-10" });
+    const txs = [
+      tx("2026-06-01", "achat", 1000, { assetId: "mensuel", quantity: 1000 }),
+      tx("2026-07-10", "interets", 5, { assetId: "mensuel" }),
+      // Août oublié ; septembre saisi deux jours en retard.
+      tx("2026-09-12", "interets", 5, { assetId: "mensuel" }),
+    ];
+    const c = couponCheck(txs, [mensuel], "2026-09-30");
+    expect(c.events.map((e) => [e.date, e.expected, e.received])).toEqual([
+      ["2026-06-10", 5, null],
+      ["2026-07-10", 5, 5],
+      ["2026-08-10", 5, null],
+      ["2026-09-10", 5, 5],
+    ]);
+  });
+
   it("le coupon revient à qui détient le titre la veille : un achat le jour du coupon n'y a pas droit", () => {
     const c = couponCheck(BUYS, [oat], TODAY);
     expect(c.events.filter((e) => e.assetId === "oat").map((e) => e.date)).toEqual(["2026-05-25"]);

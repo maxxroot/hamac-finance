@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { bondKindOf, sovereignCountry, type PositionState } from "@hamac/core";
+import { bondKindOf, formatMoney, sovereignCountry, type PositionState } from "@hamac/core";
 import { Chart, axisStyle, tooltipStyle, type ChartOption } from "@/shared/components/Chart";
 import { Card, CardTitle } from "@/shared/components/ui";
 import { useChartColors } from "@/shared/lib/colors";
@@ -16,7 +16,9 @@ export function YieldChart({ held }: { held: readonly PositionState[] }) {
   const option = useMemo<ChartOption>(() => {
     const k = bondColors(c);
     const lines = held.filter((p) => p.bond?.ytm != null);
-    const biggest = Math.max(1, ...lines.map((p) => p.bond!.nominal));
+    // Taille en euros : une ligne en devise au taux de change du jour.
+    const nominalEur = (p: (typeof lines)[number]) => p.bond!.nominal / p.fxRate;
+    const biggest = Math.max(1, ...lines.map(nominalEur));
     // Surface du point proportionnelle au nominal, entre 10 et 30 px de diamètre.
     const size = (nominal: number) => 10 + 20 * Math.sqrt(nominal / biggest);
     const kinds = (["etat", "entreprise"] as const).filter((kind) => lines.some((p) => bondKindOf(p.asset) === kind));
@@ -29,7 +31,7 @@ export function YieldChart({ held }: { held: readonly PositionState[] }) {
           const q = firstParam(p);
           const l = groups[q.seriesIndex ?? 0]?.[q.dataIndex];
           if (!l) return "";
-          return `${tooltipTitle(c, `${flagOf(l)}${l.asset.name}`)}${tooltipRow(null, "Échéance", formatDate(l.bond!.terms.maturityDate))}${tooltipRow(null, "Rendement actuariel", pct(l.bond!.ytm!))}${tooltipRow(null, "Nominal", money(l.bond!.nominal))}`;
+          return `${tooltipTitle(c, `${flagOf(l)}${l.asset.name}`)}${tooltipRow(null, "Échéance", formatDate(l.bond!.terms.maturityDate))}${tooltipRow(null, "Rendement actuariel", pct(l.bond!.ytm!))}${tooltipRow(null, "Nominal", l.currency === "EUR" ? money(l.bond!.nominal) : formatMoney(l.bond!.nominal, l.currency, { compact: true }))}`;
         },
       },
       legend: topLegend(c, kinds.map((kind) => KIND_LABELS[kind])),
@@ -39,7 +41,7 @@ export function YieldChart({ held }: { held: readonly PositionState[] }) {
       series: kinds.map((kind, i) => ({
         name: KIND_LABELS[kind],
         type: "scatter",
-        data: groups[i]!.map((p) => ({ value: [p.bond!.terms.maturityDate, p.bond!.ytm!], symbolSize: size(p.bond!.nominal) })),
+        data: groups[i]!.map((p) => ({ value: [p.bond!.terms.maturityDate, p.bond!.ytm!], symbolSize: size(nominalEur(p)) })),
         itemStyle: { color: k.kind[kind], opacity: 0.85, borderColor: c.ink.surface, borderWidth: 2 },
       })),
     };

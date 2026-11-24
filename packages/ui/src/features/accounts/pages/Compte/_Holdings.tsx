@@ -8,6 +8,7 @@ import { DetailRow, ExpandButton, Table, Td, Tr, useExpandedRow } from "@/shared
 import { formatQty } from "@/shared/lib/numbers";
 import { SortTh, useSortable } from "@/shared/lib/sort";
 import { holdingClassOf, type HoldingClass } from "@/features/accounts/lib/holdingClass";
+import { ForeignGain, ForeignValue } from "@/shared/components/ForeignAmount";
 
 const COLS = 10;
 
@@ -101,16 +102,18 @@ export function Holdings({ s }: { s: AccountState }) {
               <ClassCell c={holdingClassOf(p.bucket, p.asset.kind)} />
               {/* Un fonds euros n'a ni parts ni cours : seul son solde compte. */}
               <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : formatQty(p.quantity)}</Td>
-              <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : <Amount value={p.pru} />}</Td>
+              <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : <Amount value={p.currency === "EUR" ? p.pru : p.pruFx} currency={p.currency} />}</Td>
               <Td align="right">
                 <Amount value={p.cost} />
               </Td>
-              <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : <Amount value={p.price} />}</Td>
+              <Td align="right">{p.asset.kind === "fonds_euros" ? "—" : <Amount value={p.price} currency={p.asset.kind === "obligation" ? undefined : p.currency} />}</Td>
               <Td align="right" className="font-medium">
                 <Amount value={p.value} />
+                <ForeignValue p={p} />
               </Td>
               <Td align="right">
                 <Amount value={p.gain} signed />
+                <ForeignGain p={p} />
               </Td>
               <Td align="right">
                 <Pct value={p.gainPct} signed />

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { testBackend } from "@hamac/backend/testkit";
+import { ecbFake, testBackend, testMarket } from "@hamac/backend/testkit";
 import { todayIso } from "@/shared/lib/numbers";
 import { ToastProvider } from "@/shared/lib/toast";
 import { AllocationDialog } from "@/features/settings/dialogs/AllocationDialog";
@@ -945,6 +945,46 @@ describe("Nouveau titre à l'achat (NewAssetPanel)", () => {
     await waitFor(async () =>
       expect((await workspace()).assets).toMatchObject([{ kind: "obligation", bondKind: "etat", issuer: null, issuerCountry: "BE", name: "OLO 3 % juin 2033", maturityDate: "2033-06-22" }]),
     );
+  });
+
+  it("obligation en dollars : devise suivie du pays, taux BCE pré-rempli, total tapé en dollars, valeur en euros", async () => {
+    h.backend.close();
+    h.backend = await testBackend({ market: await testMarket(ecbFake({ USD: { [ilYaJours(10)]: 1.1, [ilYaJours(3)]: 1.08 } })) });
+    const user = userEvent.setup();
+    const cto = await compte("cto", "CTO obligations");
+    await operation(ilYaJours(20), "versement", cto.id, 20_000);
+    const dialog = await nouveauTitre(<Obligations />, user, /Nouvelle obligation/);
+    await user.type(dialog.getByLabelText("Taux du coupon (nominal)"), "4");
+    const pays = dialog.getByLabelText("Pays de l'État émetteur");
+    await user.click(pays);
+    await user.type(pays, "etats-u");
+    await user.keyboard("{Enter}");
+    // La dette américaine est en dollars.
+    expect((dialog.getByLabelText("Devise") as HTMLSelectElement).value).toBe("USD");
+    fireEvent.change(dialog.getByLabelText("Échéance"), { target: { value: "2030-11-15" } });
+    fireEvent.change(dialog.getByLabelText("Date"), { target: { value: ilYaJours(1) } });
+    await user.type(dialog.getByLabelText("Nominal"), "10000");
+
+    // Taux BCE de la veille ouvrée, demandé au serveur : aucune opération en dollars n'existe encore.
+    const taux = dialog.getByLabelText("Taux de change (USD pour 1 €)") as HTMLInputElement;
+    await waitFor(() => expect(taux.value).toBe("1,08"));
+    expect(dialog.getByText(/Taux de référence BCE du/)).toBeTruthy();
+    // Le total se tape en dollars, comme sur l'avis d'opéré : les euros et le prix s'en déduisent.
+    await user.clear(dialog.getByLabelText("Frais"));
+    await user.type(dialog.getByLabelText("Frais"), "1");
+    await user.type(dialog.getByLabelText("Total débité en USD"), "9845,20");
+    await waitFor(() => expect(fieldOf("Total débité").value).not.toBe(""));
+    await user.click(dialog.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(async () => expect((await workspace()).transactions.find((t: { type: string }) => t.type === "achat")).toBeTruthy());
+    const ws = await workspace();
+    expect(ws.assets[0]).toMatchObject({ kind: "obligation", issuerCountry: "US", currency: "USD" });
+    const achat = ws.transactions.find((t: { type: string }) => t.type === "achat");
+    // 9 845,20 USD à 1,08 = 9 115,93 € (frais de 1 € dans le total en dollars converti) ; le taux effectif retrouve les dollars.
+    expect(achat.amount).toBe(9115.93);
+    expect(Math.round(achat.amount * achat.fxRate * 100) / 100).toBe(9845.2);
+    // Le tableau montre le nominal en dollars.
+    expect(await screen.findByText(/10\s000\s\$US/)).toBeTruthy();
   });
 
   it("obligation d'entreprise : l'émetteur est exigé et nomme le titre ; changer de type ajuste l'émetteur et le jour d'échéance", async () => {

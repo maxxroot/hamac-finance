@@ -36,6 +36,7 @@ export const journalHandlers: DomainHandlers<typeof journalProcedures> = {
       withheldIncomeTaxCents: input.withheldIncomeTax == null ? null : toCents(input.withheldIncomeTax),
       withheldSocialCents: input.withheldSocial == null ? null : toCents(input.withheldSocial),
       withheldForeignCents: input.withheldForeign == null ? null : toCents(input.withheldForeign),
+      fxRate: input.fxRate,
       updatedAt: nowIso(),
     };
     if (input.id) {
@@ -123,12 +124,12 @@ export const journalHandlers: DomainHandlers<typeof journalProcedures> = {
     const ids: string[] = [];
     // Tout ou rien pour les lignes valides.
     await ctx.raw.transaction(async () => {
-      const insert = "INSERT INTO transactions (id, date, type, account_id, asset_id, counter_account_id, amount_cents, quantity, fee_cents, comment, gross_cents, withheld_income_tax_cents, withheld_social_cents, withheld_foreign_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      const insert = "INSERT INTO transactions (id, date, type, account_id, asset_id, counter_account_id, amount_cents, quantity, fee_cents, comment, gross_cents, withheld_income_tax_cents, withheld_social_cents, withheld_foreign_cents, fx_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
       const cents = (v: number | null | undefined) => (v == null ? null : toCents(v));
       for (const tx of valid) {
         const txId = newId();
         ids.push(txId);
-        await ctx.raw.run(insert, [txId, tx.date, tx.type, tx.accountId, tx.assetId, tx.counterAccountId, toCents(tx.amount), tx.quantity, cents(tx.fee), tx.comment, cents(tx.gross), cents(tx.withheldIncomeTax), cents(tx.withheldSocial), cents(tx.withheldForeign)]);
+        await ctx.raw.run(insert, [txId, tx.date, tx.type, tx.accountId, tx.assetId, tx.counterAccountId, toCents(tx.amount), tx.quantity, cents(tx.fee), tx.comment, cents(tx.gross), cents(tx.withheldIncomeTax), cents(tx.withheldSocial), cents(tx.withheldForeign), tx.fxRate ?? null]);
       }
     });
     return { created: valid.length, ids, errors };

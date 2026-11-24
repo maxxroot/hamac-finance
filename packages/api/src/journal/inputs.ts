@@ -25,6 +25,8 @@ export const TransactionInput = z.object({
   withheldIncomeTax: money.min(0).nullable().default(null),
   withheldSocial: money.min(0).nullable().default(null),
   withheldForeign: money.min(0).nullable().default(null),
+  /** Titre en devise : taux de change appliqué, en unités de la devise pour 1 € ; null = taux BCE du jour. */
+  fxRate: z.number().positive().max(1_000_000).nullable().default(null),
 });
 export type TransactionInput = z.input<typeof TransactionInput>;
 

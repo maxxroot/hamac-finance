@@ -9,3 +9,4 @@ export * from "./institutions";
 export * from "./protection";
 export * from "./rates";
 export * from "./allocations";
+export * from "./fx";

@@ -29,17 +29,26 @@ export function yahooRange(since: string | null, today: string): "5d" | "1y" | "
   return days <= 4 ? "5d" : days <= 360 ? "1y" : "2y";
 }
 
-export async function yahooHistory(fetcher: Fetcher, symbol: string, range: "5d" | "1y" | "2y" | "10y"): Promise<Quote[]> {
+/** Cotations en sous-unité (pence, cents sud-africains, agorot) : devise et diviseur. */
+const MINOR_UNITS: Record<string, { currency: string; divisor: number }> = { GBp: { currency: "GBP", divisor: 100 }, GBX: { currency: "GBP", divisor: 100 }, ZAc: { currency: "ZAR", divisor: 100 }, ILA: { currency: "ILS", divisor: 100 } };
+
+/** Cours dans la devise attendue du titre ; une cotation dans une autre devise est refusée. */
+export async function yahooHistory(fetcher: Fetcher, symbol: string, range: "5d" | "1y" | "2y" | "10y", currency = "EUR"): Promise<Quote[]> {
   const s = await getSession(fetcher);
   const j = await getJson<Chart>(fetcher, `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d&crumb=${encodeURIComponent(s.crumb)}`, {
     headers: { Cookie: s.cookie },
   });
   const r = j.chart?.result?.[0];
   if (!r) throw new MarketError(j.chart?.error?.description ?? `Yahoo ne connaît pas le symbole ${symbol}.`);
-  if (r.meta?.currency && r.meta.currency !== "EUR") throw new MarketError(`Cotation en ${r.meta.currency} : choisissez la cotation en euros (ex. suffixe .PA).`);
+  const quoted = r.meta?.currency ?? currency;
+  const minor = MINOR_UNITS[quoted];
+  const divisor = minor && minor.currency === currency ? minor.divisor : 1;
+  if (quoted !== currency && divisor === 1) {
+    throw new MarketError(currency === "EUR" ? `Cotation en ${quoted} : choisissez la cotation en euros (ex. suffixe .PA), ou indiquez la devise ${quoted} sur la fiche du titre.` : `Cotation en ${quoted}, alors que le titre est en ${currency} : vérifiez le symbole ou la devise du titre.`);
+  }
   const closes = r.indicators?.quote?.[0]?.close ?? [];
-  const points = (r.timestamp ?? []).map((t, i) => ({ date: isoDay(t * 1000), price: closes[i] ?? Number.NaN })).filter((p) => Number.isFinite(p.price));
-  if (r.meta?.regularMarketPrice && r.meta.regularMarketTime) points.push({ date: isoDay(r.meta.regularMarketTime * 1000), price: r.meta.regularMarketPrice });
+  const points = (r.timestamp ?? []).map((t, i) => ({ date: isoDay(t * 1000), price: (closes[i] ?? Number.NaN) / divisor })).filter((p) => Number.isFinite(p.price));
+  if (r.meta?.regularMarketPrice && r.meta.regularMarketTime) points.push({ date: isoDay(r.meta.regularMarketTime * 1000), price: r.meta.regularMarketPrice / divisor });
   return points;
 }
 

@@ -77,10 +77,11 @@
 - **Twelve Data** (`sources/twelvedata.ts`) :
   - quota : jamais plus de 95 % de la limite journalière (`safeLimit`), 8 requêtes par minute (attente sinon) ; jour compté en UTC ; compteur en mémoire par clé, repris de `marche.config.usage` ;
   - réponse 429 : quota considéré épuisé pour la journée ; 401 : clé refusée ; 400, 403, 404 : symbole mis de côté 24 heures ;
-  - cotation dans une autre devise que `EUR` refusée ; suffixe de place à la Yahoo (`.PA`, `.AS`…) converti en `mic_code` ;
+  - cotation dans une autre devise que celle du titre refusée ([devises](../devises/technique.md)) ; suffixe de place à la Yahoo (`.PA`, `.AS`…) converti en `mic_code` ;
   - intervalle : `refreshIntervalMinutes(n) = max(base, min(1440, ceil(1440 × n / safeLimit)))`, où `n` est le nombre de titres de `marche.instruments` dont la chaîne contient Twelve Data ;
   - exclu des historiques longs (`series`) et des adresses personnalisées.
 - **La clé ne sort jamais du serveur.** Elle vient de `MarketConfig`, jamais de la base. `SharedMarket.open` supprime une ancienne clé `twelveDataKey` de `marche.config`. `MarketSettings` n'en expose que `configured`. `exportDump` retire la clé `market.secrets` des réglages, `importDump` la supprime après restauration.
+- **Devise d'un titre** ([devises](../devises/technique.md)). Un titre hors euro ajoute sa devise à `instrumentKey`. Yahoo et Twelve Data refusent une cotation dans une autre devise que celle du titre, Yahoo convertissant les sous-unités (pence `GBp`…). justETF est interrogé dans la devise du titre ; Euronext ne sert qu'aux titres en euros. Les taux de change de la BCE vivent à côté des cours, dans `marche.fx_rates` (`FxStore`).
 - **Pas de réseau depuis l'interface.** Tout passe par `packages/backend/src/market/` et le `Fetcher` injectable.
 
 ## Tests
@@ -96,7 +97,6 @@
 
 - `marche.instruments` et `marche.quotes` ne sont jamais purgés. Un titre que plus personne ne détient reste compté dans `twelveDataCount`, ce qui peut ralentir l'intervalle d'actualisation (à vérifier en pratique).
 - L'interface affiche « utilisées / limite » avec la limite déclarée, alors que les appels s'arrêtent à 95 % de cette limite.
-- Le message de `assertPlausible` affiche les montants en euros, même pour une cotation dans une autre devise.
 - `mergePrices` ne départage qu'à date égale : après réduction au dernier point du mois, un cours manuel antérieur dans le mois cède la place à un cours automatique plus récent.
 - Les adresses personnalisées et le `PriceStatus` d'un tenant ne sont actualisés automatiquement que pendant que son backend est ouvert.
 - Le compteur par minute de Twelve Data est en mémoire du processus : il repart de zéro à chaque redémarrage (le compteur du jour, lui, est repris de `marche.config`).

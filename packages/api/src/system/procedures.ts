@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PlanParams, PlanParamsInput, type Account, type AccountRate, type Asset, type BondPlan, type Company, type ContributionPlan, type ContributionSkip, type CrowdProject, type FundRate, type Gift, type Goal, type Institution, type Lease, type LeaseGuarantee, type LeaseRent, type LeaseRenter, type Loan, type Lot, type OtherAsset, type OtherAssetValue, type PlannedExpense, type PricePoint, type Property, type PropertyDocument, type PropertyExpense, type PropertyIncome, type PropertyReminder, type PropertyValue, type Renter, type RentNotice, type RentPayment, type RentWaiver, type Statement, type TaxStatementAmount, type Transaction } from "@hamac/core";
+import { PlanParams, PlanParamsInput, type Account, type AccountRate, type Asset, type BondPlan, type Company, type ContributionPlan, type ContributionSkip, type CrowdProject, type FundRate, type FxRate, type Gift, type Goal, type Institution, type Lease, type LeaseGuarantee, type LeaseRent, type LeaseRenter, type Loan, type Lot, type OtherAsset, type OtherAssetValue, type PlannedExpense, type PricePoint, type Property, type PropertyDocument, type PropertyExpense, type PropertyIncome, type PropertyReminder, type PropertyValue, type Renter, type RentNotice, type RentPayment, type RentWaiver, type Statement, type TaxStatementAmount, type Transaction } from "@hamac/core";
 import { ok, entity } from "../common";
 import type { PriceStatus } from "../assets";
 
@@ -66,6 +66,8 @@ export interface Workspace {
   accountRates: AccountRate[];
   /** Historique allégé des cours : dernier point de chaque mois (dont le dernier cours connu). */
   prices: PricePoint[];
+  /** Taux de change de la BCE des devises des titres, chaque jour publié depuis la première opération concernée. */
+  fxRates: FxRate[];
   priceStatus: PriceStatus | null;
   /** Version des données au chargement : comparée à `workspace.revision` pour voir une écriture faite ailleurs. */
   revision: string;

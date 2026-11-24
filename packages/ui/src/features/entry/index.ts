@@ -3,6 +3,7 @@ export { AddAccountButton, EditAccountButton } from "./components/AccountButtons
 export { AdvisedPurchaseCard } from "./components/AdvisedPurchaseCard";
 export { CompositionImportButton, ISHARES_FILE_HINT } from "./components/CompositionImportButton";
 export { BondMaturityField, SovereignField } from "./components/BondFields";
+export { CurrencyField } from "./components/CurrencyField";
 export { CompositionNotice } from "./components/CompositionNotice";
 export { Movements } from "./components/Movements";
 export { Onboarding } from "./components/Onboarding";

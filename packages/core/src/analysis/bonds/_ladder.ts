@@ -12,8 +12,11 @@ export interface LadderYear {
   planned: number;
 }
 
+/** Nominal d'une ligne en euros : au taux de change du jour pour une ligne en devise. */
+const nominalEur = (p: PositionState) => p.bond!.nominal / p.fxRate;
+
 /**
- * Échelle des échéances : nominal remboursé par année, de l'année en cours à la dernière échéance ou ligne prévue.
+ * Échelle des échéances : nominal remboursé par année (en euros), de l'année en cours à la dernière échéance ou ligne prévue.
  * Les années sans rien restent dans la liste : ce sont les trous de l'échelle.
  */
 export function maturityLadder(held: readonly PositionState[], plans: readonly BondPlan[], asOf: IsoDate): LadderYear[] {
@@ -24,7 +27,7 @@ export function maturityLadder(held: readonly PositionState[], plans: readonly B
   const last = Math.max(...years);
   const out: LadderYear[] = [];
   for (let y = first; y <= last; y++) out.push({ year: y, etat: 0, entreprise: 0, planned: 0 });
-  for (const p of bonds) out[+p.bond!.terms.maturityDate.slice(0, 4) - first]![bondKindOf(p.asset)] += p.bond!.nominal;
+  for (const p of bonds) out[+p.bond!.terms.maturityDate.slice(0, 4) - first]![bondKindOf(p.asset)] += nominalEur(p);
   for (const b of plans) out[b.targetYear - first]!.planned += b.nominal;
   return out.map((r) => ({ ...r, etat: roundCents(r.etat), entreprise: roundCents(r.entreprise), planned: roundCents(r.planned) }));
 }
@@ -46,20 +49,20 @@ export interface BondBreakdown {
   byIssuer: IssuerShare[];
 }
 
-/** Répartition du nominal détenu : États ou entreprises, puis par émetteur (un État par pays). */
+/** Répartition du nominal détenu (en euros) : États ou entreprises, puis par émetteur (un État par pays). */
 export function bondBreakdown(held: readonly PositionState[]): BondBreakdown {
   const bonds = held.filter((p) => p.bond && p.bond.nominal > 0);
-  const nominal = bonds.reduce((s, p) => s + p.bond!.nominal, 0);
+  const nominal = bonds.reduce((s, p) => s + nominalEur(p), 0);
   const share = (v: number) => (nominal > 0 ? v / nominal : 0);
   const kinds: Record<BondKind, number> = { etat: 0, entreprise: 0 };
   const issuers = new Map<string, { kind: BondKind; country: string | null; nominal: number }>();
   for (const p of bonds) {
     const kind = bondKindOf(p.asset);
-    kinds[kind] += p.bond!.nominal;
+    kinds[kind] += nominalEur(p);
     const country = sovereignCountry(p.asset);
     const issuer = country ? sovereignLabel(country) : p.asset.issuer?.trim() || p.asset.name;
     const row = issuers.get(issuer) ?? { kind, country, nominal: 0 };
-    row.nominal += p.bond!.nominal;
+    row.nominal += nominalEur(p);
     issuers.set(issuer, row);
   }
   return {

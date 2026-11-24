@@ -42,8 +42,8 @@ Route `/obligations`, module `obligations`. Le format `patrimoine` (`isRetiremen
 
 ## Données
 
-- `assets` (`packages/backend/src/db/schema/assets.ts`) : `kind = "obligation"`, `coupon_rate` (fraction), `maturity_date`, `coupon_frequency` (1 par défaut), `next_coupon_date` (ancre facultative), `issuer`, `bond_kind` (`etat` ou `entreprise`), `price_source` (`modele` ou `manuel`).
-- `transactions` : achat et vente avec `quantity` = nominal en euros, `amount` = total frais et coupon couru compris (net reçu pour une vente), `fee`, `accrued_cents` (coupon couru saisi à la main ; null = calculé par `accruedFraction`). Coupons : opérations `interets` avec `asset_id` de l'obligation. Le remboursement n'est pas une opération : il est calculé.
+- `assets` (`packages/backend/src/db/schema/assets.ts`) : `kind = "obligation"`, `coupon_rate` (fraction), `maturity_date`, `coupon_frequency` (1 par défaut ; l'interface propose `COUPON_FREQUENCIES` de `domain.ts` : annuel, semestriel, trimestriel, mensuel), `next_coupon_date` (ancre facultative), `issuer`, `bond_kind` (`etat` ou `entreprise`), `price_source` (`modele` ou `manuel`).
+- `transactions` : achat et vente avec `quantity` = nominal dans la devise du titre (`assets.currency`, euro par défaut), `fx_rate` facultatif pour une obligation en devise, `amount` = total frais et coupon couru compris (net reçu pour une vente), `fee`, `accrued_cents` (coupon couru saisi à la main ; null = calculé par `accruedFraction`). Coupons : opérations `interets` avec `asset_id` de l'obligation. Le remboursement n'est pas une opération : il est calculé.
 - `bond_plans` (`packages/backend/src/db/schema/investments.ts`) : `account_id` (nullable, `ON DELETE SET NULL`), `label`, `target_year`, `nominal_cents`, `comment`. Présente dans `TABLES` de `packages/backend/src/backup/dump.ts`.
 
 Procédures : `bondPlans.upsert`, `bondPlans.delete`, et pour les titres et opérations `assets.upsert`, `prices.setManual`, les procédures du journal.
@@ -52,7 +52,15 @@ Champs du `Workspace` : `bondPlans`, `accounts`, `assets`, `transactions`, `pric
 
 ## Règles de calcul
 
-Convention : les prix sont des fractions du nominal (0,9684 = 96,84 %). Quantité = nominal en euros (`docs/architecture/modele-de-donnees.md`, Conventions).
+Convention : les prix sont des fractions du nominal (0,9684 = 96,84 %). Quantité = nominal dans la devise du titre (`docs/architecture/modele-de-donnees.md`, Conventions).
+
+**Obligation en devise** ([devises](../devises/technique.md)).
+- Nominal, coupon, coupon couru, prix pied de coupon et rendement actuariel sont dans la devise du titre ; coût, valeur et gains sont en euros.
+- Le lot garde `costFx`, son coût converti au taux de l'opération. Le prix pied de coupon vaut `(amount − fee) × taux / nominal − couru`.
+- La valeur amortie est convertie au taux BCE du jour.
+- Le remboursement est converti au taux BCE de l'échéance.
+- Les flux, l'échelle, la répartition, les tuiles et les impôts à venir sont en euros au taux du jour.
+- Les coupons attendus sont en euros au taux du jour de leur versement (celui de l'opération rapprochée s'il est saisi).
 
 **Calendrier des coupons** (`periodAround`). Pas de `12 / frequency` mois. Sans ancre (ou ancre après l'échéance), le calendrier remonte depuis l'échéance. Avec ancre, multiples de la date connue (pas de dérive d'un 31 sur un mois de 30 jours). Le coupon du mois de l'échéance est remplacé par l'échéance elle-même. Une période qui s'arrête avant sa fin normale donne un dernier coupon réduit au prorata des jours (`couponOf`).
 
@@ -85,7 +93,7 @@ Convention : les prix sont des fractions du nominal (0,9684 = 96,84 %). Quantit�
 
 **Répartition** (`bondBreakdown`). Sur le nominal détenu : part de l'État et des entreprises ; par émetteur, un État par pays (`sovereignLabel` : « État · Belgique », `IssuerShare.country` ; le graphique affiche le drapeau et le pays à la place), sinon l'émetteur de la fiche, sinon le nom du titre. Le graphique regroupe au-delà de 8 émetteurs.
 
-**Coupons attendus et saisis** (`couponCheck`). Pour chaque couple compte-titre d'obligation : calendrier `remainingFlows` depuis le premier achat, jusqu'à aujourd'hui. Coupon attendu = part coupon × nominal détenu la veille (achats − ventes − arbitrages sortants + arbitrages entrants, date strictement antérieure). Rapprochement : la première opération `interets` sur ce titre et ce compte, non encore utilisée, datée de 15 jours avant à 45 jours après. Montant reçu = `gross` s'il est saisi, sinon `amount` (le net). Un coupon dû depuis moins de `COUPON_GRACE_DAYS` (10 jours) n'est compté que s'il est déjà saisi. Les coupons saisis non rapprochés comptent dans les reçus de leur année. Lignes échues comprises.
+**Coupons attendus et saisis** (`couponCheck`). Pour chaque couple compte-titre d'obligation : calendrier `remainingFlows` depuis le premier achat, jusqu'à aujourd'hui. Coupon attendu = part coupon × nominal détenu la veille (achats − ventes − arbitrages sortants + arbitrages entrants, date strictement antérieure). Rapprochement : la première opération `interets` sur ce titre et ce compte, non encore utilisée, datée de 15 jours avant à 45 jours après, fenêtre bornée à une demi-période (± 15 jours pour un coupon mensuel, pour ne pas prendre le coupon du mois voisin). Montant reçu = `gross` s'il est saisi, sinon `amount` (le net). Un coupon dû depuis moins de `COUPON_GRACE_DAYS` (10 jours) n'est compté que s'il est déjà saisi. Les coupons saisis non rapprochés comptent dans les reçus de leur année. Lignes échues comprises.
 
 **Performance cumulée** (`bondGain`). Plus-value latente des lignes détenues + gains réalisés (remboursements et ventes, lignes détenues et échues) + coupons saisis (bruts si connus).
 

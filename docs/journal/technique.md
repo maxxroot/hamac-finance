@@ -9,14 +9,16 @@
 | UI, tri | `packages/ui/src/features/journal/lib/dateOrder.ts` | `dateOrderKey` : tri « Date », puis à date égale frais et impôts après les autres opérations (comme `RANK` du moteur), puis ordre de saisie ; dans les deux sens. |
 | UI, page | `packages/ui/src/features/journal/pages/Journal.tsx` | Page `/journal` : filtres (y compris `du`, `au`, `filtre` dans l'adresse), tableau trié, export CSV, actions par ligne, saisie pré-remplie par `?nouveau=1&compte=&type=&titre=`. |
 | UI, fenêtre | `packages/ui/src/features/journal/dialogs/StatementImportDialog.tsx` | Import d'un relevé : choix du fichier, rôle des colonnes CSV, titres inconnus, aperçu, envoi groupé, mémoire par format. |
-| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Fenêtre « Nouvelle opération » : champs selon le type, frais suggérés, prix unitaire ↔ total, coupon couru, support fonds euros, arbitrage. Préréglage `NEW_FUND_PRESET`. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TransactionDialog.tsx` | Fenêtre « Nouvelle opération » : champs selon le type, frais suggérés, prix unitaire ↔ total, coupon couru, support fonds euros, arbitrage, titre en devise. Préréglage `NEW_FUND_PRESET`. |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/transactionDraft.ts` | Brouillon de la fenêtre : `Draft`, `TxPreset`, `blank` (préréglage), `fromTx` (opération à modifier). |
+| UI, saisie partagée | `packages/ui/src/features/entry/dialogs/FxFields.tsx` | Titre en devise : taux de change (BCE pré-rempli) et total dans la devise ([devises](../devises/technique.md)). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/AvailableBalanceHint.tsx` | `useAvailableBalance`, `AvailableBalanceHint` : solde disponible sous le montant d'un retrait, bouton « Tout retirer », alerte si le montant le dépasse. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/DepositElsewhere.tsx` | Case « Verser aussi cette somme sur un autre compte » d'un retrait, compte à créditer et son support ; `depositFor` construit le versement. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/BondTradeFields.tsx` | Champs d'un achat ou d'une vente d'obligation : nominal, prix en %, frais, coupon couru (calculé ou saisi), total. |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/ArbitrageFields.tsx` | Champs d'un arbitrage et `arbitrageChoices` (supports proposés). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/TaxDetailFields.tsx` | Détail fiscal d'un dividende ou d'intérêts (brut, retenues, « Calculer d'après les taux »). |
 | UI, saisie partagée | `packages/ui/src/features/entry/dialogs/NewAssetPanel.tsx` | Création d'un titre dans la fenêtre d'opération (« ＋ Nouveau titre »). |
-| UI, saisie partagée | `packages/ui/src/features/entry/lib/tradeAmounts.ts` | `syncTradeAmounts` : total depuis le prix unitaire, ou l'inverse. |
+| UI, saisie partagée | `packages/ui/src/features/entry/lib/tradeAmounts.ts` | `syncTradeAmounts` : total depuis le prix unitaire, ou l'inverse ; prix dans la devise d'un titre en devise (`rate`). |
 | UI, saisie partagée | `packages/ui/src/features/entry/lib/journal.ts` | `useJournal` (opérations saisies + versements programmés prélevés) et `supportsLabel`. |
 | UI, saisie partagée | `packages/ui/src/features/entry/components/Movements.tsx`, `TransactionButton.tsx` | Mouvements d'un ensemble de comptes sur les autres pages ; bouton « Nouvelle opération » pré-réglé. |
 | UI, socle | `packages/ui/src/shared/lib/files.ts` | `pickTextFile`, `toCsv`, `downloadText`. |

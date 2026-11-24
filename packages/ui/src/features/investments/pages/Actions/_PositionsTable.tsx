@@ -9,6 +9,7 @@ import { DetailRow, EmptyRow, ExpandButton, stopRowClick, Table, Td, Tr, useExpa
 import { formatDate, formatQty } from "@/shared/lib/numbers";
 import { usePortfolio } from "@/shared/lib/portfolio";
 import { SortTh, useSortable } from "@/shared/lib/sort";
+import { ForeignGain, ForeignValue } from "@/shared/components/ForeignAmount";
 
 const PRICE_LABEL = { marche: "marché", manuel: "manuel", modele: "calculé", cout: "prix de revient" } as const;
 const COLS = 10;
@@ -83,14 +84,14 @@ export function PositionsTable({ positions, onPrice }: { positions: PositionStat
               </Td>
               <Td align="right">{formatQty(p.quantity)}</Td>
               <Td align="right">
-                <Amount value={p.pru} />
+                <Amount value={p.currency === "EUR" ? p.pru : p.pruFx} currency={p.currency} />
               </Td>
               <Td align="right">
                 <Amount value={p.cost} />
               </Td>
               <Td align="right" onClick={stopRowClick}>
                 <button className="inline-flex items-center gap-1.5 hover:text-accent" onClick={() => onPrice(p.asset)} title="Saisir le cours à la main">
-                  <Amount value={p.price} />
+                  <Amount value={p.price} currency={p.asset.kind === "obligation" ? undefined : p.currency} />
                   <RefreshCw size={11} className="text-fg-faint opacity-0 group-hover:opacity-100" />
                 </button>
                 <div className="text-[11px] text-fg-faint">
@@ -100,9 +101,11 @@ export function PositionsTable({ positions, onPrice }: { positions: PositionStat
               </Td>
               <Td align="right" className="font-medium">
                 <Amount value={p.value} />
+                <ForeignValue p={p} />
               </Td>
               <Td align="right">
                 <Amount value={p.gain} signed />
+                <ForeignGain p={p} />
               </Td>
               <Td align="right">
                 <Pct value={p.gainPct} signed />

@@ -16,6 +16,11 @@ export interface TradeAmounts {
   accrued?: number;
   /** 100 pour un prix en % du nominal. */
   per?: number;
+  /**
+   * Titre en devise : unités de la devise pour 1 €. Quantité et prix sont dans la devise du titre ;
+   * total, frais et coupon couru restent en euros.
+   */
+  rate?: number;
 }
 
 const round6 = (v: number) => Math.round(v * 1_000_000) / 1_000_000;
@@ -23,12 +28,13 @@ const round6 = (v: number) => Math.round(v * 1_000_000) / 1_000_000;
 /** Calcule le total depuis le prix unitaire, ou le prix unitaire depuis le total, selon ce qui a été saisi. */
 export function syncTradeAmounts(t: TradeAmounts): { amount: number | null; unitPrice: number | null } {
   const per = t.per ?? 1;
+  const rate = t.rate && t.rate > 0 ? t.rate : 1;
   const accrued = t.accrued ?? 0;
   const fee = (t.side === "achat" ? 1 : -1) * (t.fee ?? 0);
   if (t.basis === "unit") {
     if (!t.quantity || t.unitPrice == null) return { amount: null, unitPrice: t.unitPrice };
-    return { amount: roundCents((t.quantity * t.unitPrice) / per + accrued + fee), unitPrice: t.unitPrice };
+    return { amount: roundCents((t.quantity * t.unitPrice) / per / rate + accrued + fee), unitPrice: t.unitPrice };
   }
   if (!t.quantity || t.amount == null) return { amount: t.amount, unitPrice: null };
-  return { amount: t.amount, unitPrice: round6(((t.amount - fee - accrued) * per) / t.quantity) };
+  return { amount: t.amount, unitPrice: round6(((t.amount - fee - accrued) * rate * per) / t.quantity) };
 }

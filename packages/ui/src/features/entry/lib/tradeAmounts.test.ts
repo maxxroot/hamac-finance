@@ -43,4 +43,11 @@ describe("prix unitaire et montant total", () => {
     expect(syncTradeAmounts({ ...bond, basis: "unit", unitPrice: 96.4, amount: null })).toEqual({ amount: 2937, unitPrice: 96.4 });
     expect(syncTradeAmounts({ ...bond, basis: "total", unitPrice: null, amount: 2937 })).toEqual({ amount: 2937, unitPrice: 96.4 });
   });
+
+  it("titre en devise : prix en dollars, total et frais en euros", () => {
+    // 10 000 USD de nominal à 98 %, 1 € de frais, 1,09 USD pour 1 € : 9 800 / 1,09 + 1 = 8 991,83 €.
+    const bond: TradeAmounts = { side: "achat", basis: "unit", quantity: 10_000, unitPrice: 98, amount: null, fee: 1, per: 100, rate: 1.09 };
+    expect(syncTradeAmounts(bond).amount).toBe(8991.83);
+    expect(syncTradeAmounts({ ...bond, basis: "total", unitPrice: null, amount: 8991.83 }).unitPrice).toBeCloseTo(98, 3);
+  });
 });

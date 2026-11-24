@@ -1,6 +1,6 @@
 import { accruedFraction, crowdProjectState, heldToMaturityValue, yieldToMaturity, type BondTerms, type CrowdProject, type CrowdProjectState } from "../investments";
-import { addMonths, daysBetween, formatEur, monthsBetween, roundCents, xirr, yearsBetween, type Flow } from "../base";
-import { ageInYear, ASSET_BUCKET, BUCKETS, cashBucketOf, cashInAllocation, classEnabled, classLabel, classTargets, holdsEuroFunds, monthOf, positionInAllocation, PriceBook, Schedule, type Account, type AccountKind, type Asset, type BondPlan, type Bucket, type ContributionPlan, type ContributionSkip, type FundRate, type Institution, type PlanParams, type PricePoint, type Statement, type Transaction, type TxType } from "../model";
+import { addMonths, currencyOf, daysBetween, EUR, formatEur, monthsBetween, roundCents, xirr, yearsBetween, type Flow } from "../base";
+import { ageInYear, FxBook, type FxRate, ASSET_BUCKET, BUCKETS, cashBucketOf, cashInAllocation, classEnabled, classLabel, classTargets, holdsEuroFunds, monthOf, positionInAllocation, PriceBook, Schedule, type Account, type AccountKind, type Asset, type BondPlan, type Bucket, type ContributionPlan, type ContributionSkip, type FundRate, type Institution, type PlanParams, type PricePoint, type Statement, type Transaction, type TxType } from "../model";
 import { propertyValue, type Lease, type LeaseGuarantee, type LeaseRent, type Lot as RentalLot, type Property, type PropertyDocument, type PropertyExpense, type PropertyValue, type RentNotice, type RentPayment, type RentWaiver } from "../realestate";
 import { loanState, type Loan, type LoanState } from "../loans";
 import { otherAssetHeldValueAt, type OtherAsset, type OtherAssetValue } from "../other-assets";
@@ -37,6 +37,8 @@ export interface EngineData {
   propertyDocuments?: readonly PropertyDocument[];
   /** Historique des cours (ou au moins le dernier cours de chaque titre). */
   prices: readonly PricePoint[];
+  /** Taux de change de la BCE des devises des titres (aucun : titres en euros seulement). */
+  fxRates?: readonly FxRate[];
   /** Établissements et leurs grilles de frais (facultatif). */
   institutions?: readonly Institution[];
 }
@@ -45,6 +47,7 @@ export type PriceUsed = "marche" | "manuel" | "modele" | "cout";
 
 export interface BondInfo {
   terms: BondTerms;
+  /** Nominal, coupon annuel et coupon couru : dans la devise du titre. */
   nominal: number;
   annualCoupon: number;
   accrued: number;
@@ -53,18 +56,33 @@ export interface BondInfo {
   yearsLeft: number;
   ageAtMaturity: number;
   matured: boolean;
-  /** Achats encore détenus : date, nominal, coût frais et coupon couru compris (réduits au prorata d'une vente), prix pied de coupon. */
-  lots: ReadonlyArray<{ date: string; qty: number; cost: number; clean: number }>;
+  /**
+   * Achats encore détenus : date, nominal, coût frais et coupon couru compris (réduits au prorata d'une vente) en euros
+   * et dans la devise du titre (`costFx`), prix pied de coupon (fraction du nominal, dans la devise du titre).
+   */
+  lots: ReadonlyArray<{ date: string; qty: number; cost: number; costFx: number; clean: number }>;
 }
 
 export interface PositionState {
   asset: Asset;
   accountId: string;
   quantity: number;
-  /** Prix de revient restant (frais compris). */
+  /** Prix de revient restant (frais compris), en euros aux taux de change des achats. */
   cost: number;
-  /** Prix de revient unitaire (PRU / PMP). */
+  /** Prix de revient unitaire (PRU / PMP), en euros. */
   pru: number;
+  /** Devise du titre (ISO 4217) ; « EUR » pour un titre en euros. */
+  currency: string;
+  /** Taux de change de la valorisation, en unités de la devise pour 1 € (1 pour l'euro). */
+  fxRate: number;
+  /** Prix de revient restant et valeur dans la devise du titre (égaux à `cost` et `value` pour l'euro). */
+  costFx: number;
+  valueFx: number;
+  /** PRU dans la devise du titre, comparable à `price`. */
+  pruFx: number;
+  /** Part de la plus-value latente due au change : coût en devise au taux du jour − coût en euros historiques. */
+  fxGain: number;
+  /** Cours dans la devise du titre (en % du nominal pour une obligation). */
   price: number | null;
   priceDate: string | null;
   priceUsed: PriceUsed;
@@ -194,6 +212,7 @@ export interface PortfolioState {
 interface Lot {
   qty: number;
   cost: number;
+  costFx: number;
   date: string;
   clean: number;
 }
@@ -202,6 +221,8 @@ interface PosAcc {
   asset: Asset;
   qty: number;
   cost: number;
+  /** Prix de revient dans la devise du titre, aux taux des achats. */
+  costFx: number;
   realized: number;
   fees: number;
   income: number;
@@ -252,7 +273,7 @@ function newAcc(): AccAcc {
 function position(acc: AccAcc, asset: Asset): PosAcc {
   let p = acc.positions.get(asset.id);
   if (!p) {
-    p = { asset, qty: 0, cost: 0, realized: 0, fees: 0, income: 0, lots: [], matured: false };
+    p = { asset, qty: 0, cost: 0, costFx: 0, realized: 0, fees: 0, income: 0, lots: [], matured: false };
     acc.positions.set(asset.id, p);
   }
   return p;
@@ -266,7 +287,23 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
   const accs = new Map<string, AccAcc>(data.accounts.map((a) => [a.id, newAcc()]));
   const schedule = new Schedule(data.plans, data.skips, params.profile.startMonth, params.profile.contributionDay);
   const book = new PriceBook(data.prices, data.assets);
+  const fx = new FxBook(data.fxRates);
   const accountById = new Map(data.accounts.map((a) => [a.id, a]));
+  /**
+   * Taux de change d'un titre à une date (unités pour 1 €) : celui de l'opération s'il est saisi, sinon celui de la BCE.
+   * Une devise sans aucun taux connu compte au pair, avec un avertissement.
+   */
+  const missingFx = new Set<string>();
+  const rateOf = (asset: Asset, date: string, tx?: Transaction): number => {
+    const currency = currencyOf(asset);
+    if (currency === EUR) return 1;
+    if (tx?.fxRate && tx.fxRate > 0) return tx.fxRate;
+    const r = fx.rate(currency, date);
+    if (r) return r;
+    if (!missingFx.has(currency)) warnings.push(`Aucun taux de change connu pour ${currency} : les titres dans cette devise sont comptés au pair (1 ${currency} = 1 €) en attendant les taux de la BCE.`);
+    missingFx.add(currency);
+    return 1;
+  };
 
   /**
    * Fonds euros qui reçoit l'argent d'un contrat : celui de l'opération, sinon celui du contrat par défaut ;
@@ -307,14 +344,17 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const costOut = p.cost * frac;
     p.realized += proceeds - costOut;
     p.cost -= costOut;
+    p.costFx *= 1 - frac;
     p.qty -= sold;
     for (const lot of p.lots) {
       lot.cost *= 1 - frac;
+      lot.costFx *= 1 - frac;
       lot.qty *= 1 - frac;
     }
     if (p.qty < 1e-9) {
       p.qty = 0;
       p.cost = 0;
+      p.costFx = 0;
       p.lots = [];
     }
     return { costOut, oversold };
@@ -343,11 +383,14 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
       const acc = accs.get(ev.accountId);
       const p = acc?.positions.get(ev.assetId);
       if (!acc || !p || p.qty <= 1e-9) continue;
-      moveMoney(ev.accountId, p.qty); // remboursement du nominal à 100 %
-      p.realized += p.qty - p.cost;
-      disposals.push({ txId: null, kind: "remboursement", date: ev.date, accountId: ev.accountId, assetId: ev.assetId, quantity: p.qty, proceeds: roundCents(p.qty), fee: 0, cost: roundCents(p.cost), gain: roundCents(p.qty - p.cost), oversold: false });
+      // Remboursement du nominal à 100 %, converti en euros au taux de change du jour de l'échéance.
+      const redeemed = roundCents(p.qty / rateOf(p.asset, ev.date));
+      moveMoney(ev.accountId, redeemed);
+      p.realized += redeemed - p.cost;
+      disposals.push({ txId: null, kind: "remboursement", date: ev.date, accountId: ev.accountId, assetId: ev.assetId, quantity: p.qty, proceeds: redeemed, fee: 0, cost: roundCents(p.cost), gain: roundCents(redeemed - p.cost), oversold: false });
       p.qty = 0;
       p.cost = 0;
+      p.costFx = 0;
       p.lots = [];
       p.matured = true;
       continue;
@@ -411,16 +454,19 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
         if (!asset || !tx.quantity) break;
         const p = position(acc, asset);
         moveMoney(accountId, -tx.amount);
+        // Titre en devise : montants de l'opération en euros, convertis au taux de l'opération.
+        const rate = rateOf(asset, tx.date, tx);
         p.qty += tx.quantity;
         p.cost += tx.amount;
+        p.costFx += tx.amount * rate;
         p.fees += tx.fee ?? 0;
         acc.fees += tx.fee ?? 0;
         const terms = bondTerms(asset);
         if (terms) {
           // Prix pied de coupon : le coupon couru saisi à la main l'emporte sur le calcul.
-          const accrued = tx.accrued != null ? tx.accrued / tx.quantity : accruedFraction(terms, tx.date);
-          const clean = (tx.amount - (tx.fee ?? 0)) / tx.quantity - accrued;
-          p.lots.push({ qty: tx.quantity, cost: tx.amount, date: tx.date, clean });
+          const accrued = tx.accrued != null ? (tx.accrued * rate) / tx.quantity : accruedFraction(terms, tx.date);
+          const clean = ((tx.amount - (tx.fee ?? 0)) * rate) / tx.quantity - accrued;
+          p.lots.push({ qty: tx.quantity, cost: tx.amount, costFx: tx.amount * rate, date: tx.date, clean });
         }
         break;
       }
@@ -448,6 +494,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
           const q = position(acc, target);
           q.qty += tx.counterQuantity;
           q.cost += tx.amount;
+          q.costFx += tx.amount * rateOf(target, tx.date);
           q.fees += fee;
         }
         break;
@@ -482,7 +529,7 @@ export function computePortfolio(data: EngineData, asOf: string): PortfolioState
     const positions: PositionState[] = [];
     const maturedBonds: PositionState[] = [];
     for (const p of acc.positions.values()) {
-      const state = valuePosition(p, account, asOf, book, params);
+      const state = valuePosition(p, account, asOf, book, params, rateOf(p.asset, asOf));
       // Un fonds euros reste visible même à découvert, comme les espèces : l'écart signale un oubli.
       const euros = p.asset.kind === "fonds_euros";
       if (p.qty > 1e-12 || (euros && Math.abs(p.qty) >= 0.005)) positions.push(state);
@@ -615,16 +662,23 @@ function roundQty(q: number): string {
   return String(Math.round(q * 1e8) / 1e8).replace(".", ",");
 }
 
-function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBook, params: PlanParams): PositionState {
+/**
+ * Valeur d'une ligne à `asOf`. Un titre en devise se valorise dans sa devise (cours, ou valeur amortie d'une obligation),
+ * puis en euros au taux du jour `rate` (unités pour 1 €) ; son prix de revient reste en euros aux taux des achats.
+ */
+function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBook, params: PlanParams, rate: number): PositionState {
   const accountId = account.id;
   const { asset } = p;
+  const currency = currencyOf(asset);
+  const costFx = currency === EUR ? p.cost : p.costFx;
   const custom = params.customClasses.find((c) => c.id === asset.classId);
   const inAllocation = positionInAllocation(asset, account, custom?.id ?? ASSET_BUCKET[asset.kind], (key) => classEnabled(params, key));
   const terms = bondTerms(asset);
   let price: number | null = null;
   let priceDate: string | null = null;
   let priceUsed: PriceUsed = "cout";
-  let value = p.cost;
+  // Sans cours : la valeur est le prix de revient, en devise.
+  let value = costFx;
   let bond: BondInfo | null = null;
 
   if (asset.kind === "fonds_euros") {
@@ -647,11 +701,12 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
       priceDate = asOf;
     }
     const nominal = p.qty;
+    // Rendement dans la devise du titre : ce qu'il rapporte en devise, hors effet de change.
     const ytmNum = p.lots.reduce((s, l) => {
-      const y = yieldToMaturity(terms, l.date, l.cost / l.qty);
+      const y = yieldToMaturity(terms, l.date, l.costFx / l.qty);
       return y == null ? s : s + y * l.cost;
     }, 0);
-    const ytmDen = p.lots.reduce((s, l) => (yieldToMaturity(terms, l.date, l.cost / l.qty) == null ? s : s + l.cost), 0);
+    const ytmDen = p.lots.reduce((s, l) => (yieldToMaturity(terms, l.date, l.costFx / l.qty) == null ? s : s + l.cost), 0);
     bond = {
       terms,
       nominal,
@@ -661,7 +716,7 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
       yearsLeft: Math.max(0, daysBetween(asOf, terms.maturityDate) / 365.25),
       ageAtMaturity: ageInYear(params, +terms.maturityDate.slice(0, 4)),
       matured: p.matured || terms.maturityDate <= asOf,
-      lots: p.lots.map((l) => ({ date: l.date, qty: l.qty, cost: l.cost, clean: l.clean })),
+      lots: p.lots.map((l) => ({ date: l.date, qty: l.qty, cost: l.cost, costFx: l.costFx, clean: l.clean })),
     };
   } else {
     const point = book.at(asset.id, asOf);
@@ -672,7 +727,8 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
       value = p.qty * point.price;
     }
   }
-  value = roundCents(value);
+  const valueFx = roundCents(value);
+  value = roundCents(value / rate);
   const cost = roundCents(p.cost);
   return {
     asset,
@@ -680,6 +736,12 @@ function valuePosition(p: PosAcc, account: Account, asOf: string, book: PriceBoo
     quantity: p.qty,
     cost,
     pru: p.qty > 0 ? p.cost / p.qty : 0,
+    currency,
+    fxRate: rate,
+    costFx: roundCents(costFx),
+    valueFx,
+    pruFx: p.qty > 0 ? costFx / p.qty : 0,
+    fxGain: currency === EUR ? 0 : roundCents(costFx / rate - p.cost),
     price,
     priceDate,
     priceUsed,

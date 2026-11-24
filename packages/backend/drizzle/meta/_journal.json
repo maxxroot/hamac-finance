@@ -246,6 +246,13 @@
       "when": 1794832301060,
       "tag": "0034_obligations_pays_emetteur",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795511611079,
+      "tag": "0035_devises",
+      "breakpoints": true
     }
   ]
 }

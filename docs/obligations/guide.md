@@ -72,7 +72,7 @@ Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compt
 
 **Prévoir un achat.** Dans « Prévoir un achat », donnez un libellé (par exemple « Échéance vers 2034 »), l'année visée et le nominal, puis Ajouter. Le jour de l'achat, cliquez sur l'icône du panier de la ligne prévue pour ouvrir la saisie, puis supprimez la ligne prévue.
 
-**Indiquer une date de coupon.** Si le calendrier des coupons ne correspond pas à l'échéance (premier coupon décalé, coupon semestriel), renseignez une date de coupon connue et le nombre de coupons par an sur la fiche du titre (Paramètres › Actifs).
+**Indiquer une date de coupon.** Si le calendrier des coupons ne correspond pas à l'échéance (premier coupon décalé, coupon semestriel, trimestriel ou mensuel), renseignez une date de coupon connue et le rythme des coupons (annuel, tous les 6 mois, tous les 3 mois ou tous les mois) sur la fiche du titre (Paramètres › Actifs).
 
 **Utiliser un cours à la place du calcul.** Sur la fiche du titre, choisissez la source « saisi à la main » et indiquez le cours en % du nominal, sans le coupon couru. Hamac l'utilise alors à la place de la valeur calculée.
 
@@ -111,5 +111,7 @@ Chaque ligne indique son **compte** : un clic sur son nom ouvre la page du compt
 - Une ligne prévue ne devient pas un achat toute seule : il faut saisir l'achat, puis supprimer la ligne prévue.
 - Le rappel sur l'âge de sécurisation s'affiche aussi dans le format « patrimoine », où ce réglage n'existe pas.
 - La page ne calcule pas l'impôt sur les coupons : voir la page Impôts.
+
+**Obligation dans une autre devise.** Une obligation du Trésor américain se suit en dollars : choisissez les États-Unis comme pays, la devise passe à USD. Le nominal et les coupons s'affichent en dollars, la valeur et les gains en euros, au taux de change du jour, avec la part due au change sous la plus-value. Le remboursement est compté en euros au taux du jour de l'échéance. Voir le [guide des devises](../devises/guide.md).
 
 **Corriger le pays d'une obligation d'État.** Ouvrez la fiche du titre (Paramètres › Titres, ou le nom du titre) : le champ « Pays de l'État émetteur » se cherche de la même façon. Les obligations d'État saisies avant ce choix ont reçu le pays de leur ISIN, sinon la France. Si le pays est faux, corrigez-le, puis vérifiez la date d'échéance et le nom : une OLO enregistrée comme OAT avait reçu le 25 du mois.

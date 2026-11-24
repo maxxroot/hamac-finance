@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { countryName, lineKey, maturityLabel, sovereignCountry, type Asset } from "@hamac/core";
 import { AccountLink } from "@/shared/components/AccountLink";
 import { Amount } from "@/shared/components/Amount";
+import { ForeignGain, ForeignValue } from "@/shared/components/ForeignAmount";
 import { Flag } from "@/shared/components/Flag";
 import { Pct } from "@/shared/components/Stat";
 import { DetailRow, EmptyRow, ExpandButton, Table, Td, Th, Tr, useExpandedRow } from "@/shared/components/table";
@@ -86,19 +87,21 @@ export function BondTable({ d }: { d: BondData }) {
                   <Pct value={p.bond!.terms.couponRate} digits={2} />
                 </Td>
                 <Td align="right">
-                  <Amount value={p.bond!.nominal} compact />
+                  <Amount value={p.bond!.nominal} currency={p.currency} compact />
                 </Td>
                 <Td align="right">
                   <Amount value={p.cost} />
                 </Td>
                 <Td align="right" title={p.priceUsed === "modele" ? "Prix d'achat amorti vers 100 % + coupon couru" : "Cours saisi"}>
                   <Amount value={p.value} />
+                  <ForeignValue p={p} />
                 </Td>
                 <Td align="right">
                   <Amount value={p.gain} signed compact />
                   <div className="text-[11px]">
                     <Pct value={p.gainPct} signed digits={2} />
                   </div>
+                  <ForeignGain p={p} />
                 </Td>
                 <Td align="right">
                   <Pct value={p.bond!.ytm} digits={2} />

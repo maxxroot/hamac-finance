@@ -1,4 +1,4 @@
-import { addMonths, PRICE_PROVIDER_LABELS, type Asset, type PriceProvider } from "@hamac/core";
+import { addMonths, currencyOf, EUR, PRICE_PROVIDER_LABELS, type Asset, type PriceProvider } from "@hamac/core";
 import { coingeckoHistory, coingeckoSearch } from "./sources/coingecko";
 import { customQuote } from "./sources/custom";
 import { euronextHistory, euronextSearch } from "./sources/euronext";
@@ -16,18 +16,20 @@ export { parseBondTicker } from "./sources/openfigi";
 export const DEFAULT_PROVIDER_ORDER: PriceProvider[] = ["justetf", "euronext", "twelvedata", "yahoo", "coingecko"];
 
 /** Ce qu'il faut savoir d'un titre pour trouver son cours. */
-export type MarketAsset = Pick<Asset, "kind" | "isin" | "symbol" | "priceSource" | "priceProvider" | "priceUrl" | "pricePath">;
+export type MarketAsset = Pick<Asset, "kind" | "isin" | "symbol" | "priceSource" | "priceProvider" | "priceUrl" | "pricePath" | "currency">;
 
 /** Adresse personnalisée : propre à la personne, jamais dans la base commune. */
 export const isPersonal = (a: MarketAsset): boolean => !!a.priceUrl && !!a.pricePath && (a.priceProvider == null || a.priceProvider === "url");
 
 /**
  * Identité d'un titre dans la base commune, ou null s'il n'y figure pas. L'ISIN seul ne suffit pas :
- * le symbole distingue les places de cotation et les devises.
+ * le symbole distingue les places de cotation et les devises. Un titre en devise porte sa devise dans la clé
+ * (les cours sont dans cette devise) ; un titre en euros garde la clé d'avant les devises.
  */
 export function instrumentKey(a: MarketAsset): string | null {
   if (a.priceSource !== "auto" || isPersonal(a) || a.priceProvider === "url" || a.kind === "obligation" || a.kind === "scpi" || (!a.isin && !a.symbol)) return null;
-  return [a.kind, (a.isin ?? "").toUpperCase(), (a.symbol ?? "").toUpperCase(), a.priceProvider ?? "auto"].join("|");
+  const currency = currencyOf(a);
+  return [a.kind, (a.isin ?? "").toUpperCase(), (a.symbol ?? "").toUpperCase(), a.priceProvider ?? "auto", ...(currency === EUR ? [] : [currency])].join("|");
 }
 
 export interface ProviderSetting {
@@ -44,7 +46,8 @@ export function supports(p: PriceProvider, asset: MarketAsset, hasTwelveDataKey:
     case "justetf":
       return (asset.kind === "etf" || asset.kind === "etc" || asset.kind === "fonds") && !!asset.isin;
     case "euronext":
-      return !crypto && !!asset.isin;
+      // Les places retenues cotent en euros.
+      return !crypto && !!asset.isin && currencyOf(asset) === EUR;
     case "twelvedata":
       return !crypto && !!asset.symbol && hasTwelveDataKey;
     case "yahoo":
@@ -86,14 +89,14 @@ export async function fetchFrom(fetcher: Fetcher, provider: PriceProvider, asset
   let quotes: Quote[];
   switch (provider) {
     case "justetf":
-      quotes = await justEtfHistory(fetcher, asset.isin!, from, today);
+      quotes = await justEtfHistory(fetcher, asset.isin!, from, today, false, currencyOf(asset));
       break;
     case "euronext":
       quotes = await euronextHistory(fetcher, asset.isin!, from, today);
       break;
     case "twelvedata":
       if (!env.twelveDataKey || !env.budget) throw new MarketError("Clé Twelve Data manquante.");
-      quotes = await twelveDataHistory(fetcher, env.twelveDataKey, env.budget, asset.symbol!, from);
+      quotes = await twelveDataHistory(fetcher, env.twelveDataKey, env.budget, asset.symbol!, from, currencyOf(asset));
       break;
     case "coingecko": {
       const days = Math.ceil((Date.parse(today) - Date.parse(from)) / 86_400_000) + 1;
@@ -101,7 +104,7 @@ export async function fetchFrom(fetcher: Fetcher, provider: PriceProvider, asset
       break;
     }
     case "yahoo":
-      quotes = await yahooHistory(fetcher, asset.symbol!, yahooRange(since, today));
+      quotes = await yahooHistory(fetcher, asset.symbol!, yahooRange(since, today), currencyOf(asset));
       break;
     case "url":
       quotes = await customQuote(fetcher, asset, today, env.web);

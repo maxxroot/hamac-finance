@@ -24,6 +24,7 @@ export function mapTx(r: typeof t.transactions.$inferSelect): Transaction {
     withheldIncomeTax: fromCentsOrNull(r.withheldIncomeTaxCents),
     withheldSocial: fromCentsOrNull(r.withheldSocialCents),
     withheldForeign: fromCentsOrNull(r.withheldForeignCents),
+    fxRate: r.fxRate,
   };
 }
 

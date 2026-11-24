@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import {
+  FxBook,
   bondBreakdown,
   bondGain,
   bondTaxes,
@@ -41,14 +42,16 @@ export function useBondData() {
 
     const costHeld = held.reduce((s, p) => s + p.cost, 0);
     const flows = upcomingBondFlows(held, today);
-    const coupons = couponCheck(data.transactions, data.assets, today);
+    // Taux de change : coupons d'une obligation en devise attendus en euros au taux du jour de leur versement.
+    const fx = new FxBook(data.fxRates);
+    const coupons = couponCheck(data.transactions, data.assets, today, fx);
     const missingByLine = new Map<string, number>();
     for (const e of coupons.events) if (e.received == null) missingByLine.set(lineKey(e.accountId, e.assetId), (missingByLine.get(lineKey(e.accountId, e.assetId)) ?? 0) + 1);
 
     // Coupons qui tombent à la prochaine date : plusieurs lignes peuvent la partager.
     const nextCoupons = held.flatMap((p) => {
       const c = nextCoupon(p.bond!.terms, today);
-      return c ? [{ date: c.date, amount: c.amount * p.bond!.nominal }] : [];
+      return c ? [{ date: c.date, amount: (c.amount * p.bond!.nominal) / p.fxRate }] : [];
     });
     const firstDate = nextCoupons.map((c) => c.date).sort((a, b) => a.localeCompare(b))[0];
 
@@ -69,9 +72,10 @@ export function useBondData() {
       retraite,
       ageOf: retraite ? (year: number) => ageInYear(params, year) : null,
       retirementYear: retraite ? retirementYear(params) : null,
-      nominalHeld: held.reduce((s, p) => s + (p.bond?.nominal ?? 0), 0),
+      // En euros : une ligne en devise au taux de change du jour.
+      nominalHeld: held.reduce((s, p) => s + (p.bond?.nominal ?? 0) / p.fxRate, 0),
       costHeld,
-      annualCoupons: held.reduce((s, p) => s + (p.bond?.annualCoupon ?? 0), 0),
+      annualCoupons: held.reduce((s, p) => s + (p.bond?.annualCoupon ?? 0) / p.fxRate, 0),
       ytmAvg: costHeld > 0 ? held.reduce((s, p) => s + (p.bond?.ytm ?? 0) * p.cost, 0) / costHeld : null,
       nextMaturity: held.map((p) => p.bond!.terms.maturityDate).sort((a, b) => a.localeCompare(b))[0],
       upcomingCoupon: firstDate ? { date: firstDate, amount: nextCoupons.filter((c) => c.date === firstDate).reduce((t, c) => t + c.amount, 0) } : null,
@@ -84,7 +88,7 @@ export function useBondData() {
       missingByLine,
       gain: bondGain(held, matured, coupons.receivedByLine),
       taxes: bondTaxes(state.accounts, params, today),
-      realizedYield: new Map(matured.map((p) => [lineKey(p.accountId, p.asset.id), realizedBondYield(p, data.transactions)])),
+      realizedYield: new Map(matured.map((p) => [lineKey(p.accountId, p.asset.id), realizedBondYield(p, data.transactions, fx)])),
     };
   }, [pf]);
 }

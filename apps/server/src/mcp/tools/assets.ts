@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KINDS, PRICE_SOURCES, SOVEREIGN_COUNTRIES, type Asset } from "@hamac/core";
+import { ASSET_KIND_LABELS, ASSET_KINDS, BOND_KINDS, CURRENCIES, PRICE_SOURCES, SOVEREIGN_COUNTRIES, type Asset } from "@hamac/core";
 import { ToolError, type Call } from "../engine";
 import { AFTER_CONSENT, found, isin, isoDate, merge, rate, READ_ONLY, WRITE } from "./fields";
 import type { ToolRegistrar } from "./registrar";
@@ -34,6 +34,7 @@ export function registerAssetTools(tool: ToolRegistrar, call: Call, canWrite: bo
           manualPrice: a.manualPrice,
           manualPriceDate: a.manualPriceDate,
           ...(a.kind === "obligation" ? { couponRate: a.couponRate, maturityDate: a.maturityDate, issuer: a.issuer, bondKind: a.bondKind, issuerCountry: a.issuerCountry } : {}),
+          currency: a.currency ?? "EUR",
           archived: a.archived,
         }));
     },
@@ -65,6 +66,7 @@ export function registerAssetTools(tool: ToolRegistrar, call: Call, canWrite: bo
           .nullable()
           .optional()
           .describe("Obligation d'État : pays de l'État émetteur, code ISO à deux lettres (FR, BE, DE…). Sans valeur : le pays de l'ISIN, sinon FR. Ignoré pour une obligation d'entreprise."),
+        currency: z.enum(CURRENCIES as [string, ...string[]]).optional().describe("Devise de cotation (ISO 4217) : l'euro par défaut, ou une devise publiée par la BCE (USD, GBP, CHF…). Cours, nominal et coupon d'une obligation sont dans cette devise ; les opérations restent en euros (voir fxRate dans save_transaction). Toujours EUR pour un fonds euros ou une crypto."),
         inAllocation: z.boolean().nullable().optional().describe("Compté dans l'allocation cible ; null = selon le type."),
         archived: z.boolean().optional(),
       },
@@ -90,7 +92,7 @@ export function registerAssetTools(tool: ToolRegistrar, call: Call, canWrite: bo
     {
       title: "Saisir un cours",
       description: `Enregistre le cours d'un titre à une date (SCPI, action non cotée, fonds sans cours en ligne, ou correction). Il prime sur les cours téléchargés pour cette date. ${AFTER_CONSENT}`,
-      inputSchema: { assetId: z.string(), date: isoDate, price: z.number().positive().describe("Prix d'une part, en euros.") },
+      inputSchema: { assetId: z.string(), date: isoDate, price: z.number().positive().describe("Prix d'une part, dans la devise du titre (en euros pour un titre en euros) ; obligation : en % du nominal.") },
       annotations: WRITE,
     },
     async (input) => {

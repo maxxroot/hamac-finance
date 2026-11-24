@@ -35,7 +35,8 @@ export function Obligations() {
       <AccountStrip
         accounts={d.accounts}
         body={(s) => {
-          const nominal = s.positions.reduce((t, p) => t + (p.bond?.nominal ?? 0), 0);
+          // En euros : une ligne en devise au taux de change du jour.
+          const nominal = s.positions.reduce((t, p) => t + (p.bond?.nominal ?? 0) / p.fxRate, 0);
           return (
             <>
               {nominal > 0 ? (

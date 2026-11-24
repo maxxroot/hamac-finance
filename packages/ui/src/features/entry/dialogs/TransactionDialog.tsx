@@ -6,8 +6,11 @@ import {
   ASSET_KIND_LABELS,
   accruedFraction,
   bondTerms,
+  currencyOf,
   EURO_FUND_TYPES,
+  FxBook,
   holdsEuroFunds,
+  isForeign,
   type Asset,
   type BondTerms,
   TX_HELP,
@@ -19,106 +22,33 @@ import {
   tradeFeeFor,
   institutionWithholding,
   formatEur,
+  formatMoney,
   grossFromNet,
   roundCents,
   validateTransaction,
   type Account,
-  type AccountKind,
-  type AssetKind,
   type Transaction,
   type TxType,
 } from "@hamac/core";
 import { Button } from "@/shared/components/ui";
 import { Field, FormGrid, Modal, MoneyInput, NumberInput, Select, TextInput } from "@/shared/components/form";
-import { todayIso } from "@/shared/lib/numbers";
-import { syncTradeAmounts, type PriceBasis } from "@/features/entry/lib/tradeAmounts";
+import { syncTradeAmounts } from "@/features/entry/lib/tradeAmounts";
 import { useMutate, useWorkspaceIndex } from "@/shared/lib/workspace";
-import { NewAssetPanel, newAssetErrors, newAssetFor, toAssetInput, type NewAsset } from "./NewAssetPanel";
+import { NewAssetPanel, newAssetErrors, newAssetFor, toAssetInput } from "./NewAssetPanel";
 import { AvailableBalanceHint, useAvailableBalance } from "./AvailableBalanceHint";
 import { TaxDetailFields } from "./TaxDetailFields";
 import { ArbitrageFields, arbitrageChoices } from "./ArbitrageFields";
 import { BondTradeFields } from "./BondTradeFields";
-import { DepositElsewhere, depositFor, type Deposit } from "./DepositElsewhere";
+import { DepositElsewhere, depositFor } from "./DepositElsewhere";
+import { blank, fromTx, type Draft, type TxPreset } from "./transactionDraft";
+
+export type { TxPreset };
+import { FxFields } from "./FxFields";
+import { rateInUse, rateToStore } from "@/features/entry/lib/fxEntry";
+import { useEcbRate } from "@/features/entry/lib/useEcbRate";
 
 /** Préréglage : la saisie s'ouvre sur la création d'un fonds euros. */
 export const NEW_FUND_PRESET = "nouveau-fonds-euros";
-
-interface Draft {
-  id?: string;
-  date: string;
-  type: TxType;
-  accountId: string;
-  assetId: string | null;
-  counterAccountId: string | null;
-  /** Fonds euros d'arrivée d'un transfert vers un contrat ; null = son support par défaut. */
-  counterAssetId: string | null;
-  amount: number | null;
-  quantity: number | null;
-  /** Arbitrage : quantité reçue du support d'arrivée. */
-  counterQuantity: number | null;
-  fee: number | null;
-  /** Les frais ont été saisis à la main : on ne les recalcule plus. */
-  feeManual: boolean;
-  /** Obligation : coupon couru saisi à la main ; null = calculé d'après la date. */
-  accrued: number | null;
-  /** Prix d'une unité hors frais, ou en % du nominal pour une obligation (aide à la saisie, non stocké). */
-  unitPrice: number | null;
-  /** Le prix unitaire ou le total a été saisi : l'autre se calcule. */
-  priceBasis: PriceBasis;
-  comment: string;
-  /** Titre à créer avec l'opération (achat d'un titre pas encore connu). */
-  newAsset: NewAsset | null;
-  /** Fonds euros à créer avec l'opération : son nom (versement sur un nouveau support). */
-  newFund: string | null;
-  /** Dividendes et intérêts : brut et retenues, facultatifs. */
-  gross: number | null;
-  withheldIncomeTax: number | null;
-  withheldSocial: number | null;
-  withheldForeign: number | null;
-  /** Retrait : versement de la même somme sur un autre compte, enregistré avec lui. */
-  deposit: Deposit | null;
-}
-
-export interface TxPreset {
-  accountId?: string;
-  type?: TxType;
-  assetId?: string;
-  /** Titres proposés (ex. seulement des obligations depuis la page Obligations). */
-  assetKinds?: AssetKind[];
-  /** Comptes proposés (ex. PEA et comptes-titres depuis Actions & ETF). */
-  accountKinds?: AccountKind[];
-}
-
-function blank(preset: TxPreset, fallbackAccount: string): Draft {
-  return {
-    date: todayIso(),
-    type: preset.type ?? "versement",
-    accountId: preset.accountId ?? fallbackAccount,
-    assetId: preset.assetId ?? null,
-    counterAccountId: null,
-    counterAssetId: null,
-    amount: null,
-    quantity: null,
-    counterQuantity: null,
-    fee: null,
-    feeManual: false,
-    accrued: null,
-    unitPrice: null,
-    priceBasis: "total",
-    comment: "",
-    newAsset: null,
-    newFund: null,
-    gross: null,
-    withheldIncomeTax: null,
-    withheldSocial: null,
-    withheldForeign: null,
-    deposit: null,
-  };
-}
-
-function fromTx(tx: Transaction): Draft {
-  return { ...tx, counterAssetId: tx.counterAssetId ?? null, counterQuantity: tx.counterQuantity ?? null, feeManual: tx.fee != null, accrued: tx.accrued ?? null, unitPrice: null, priceBasis: "total", newAsset: null, newFund: null, gross: tx.gross ?? null, withheldIncomeTax: tx.withheldIncomeTax ?? null, withheldSocial: tx.withheldSocial ?? null, withheldForeign: tx.withheldForeign ?? null, deposit: null };
-}
 
 export function TransactionDialog({
   open,
@@ -162,8 +92,15 @@ export function TransactionDialog({
     : d?.newAsset?.kind === "obligation" && d.newAsset.couponRate != null && d.newAsset.maturityDate
       ? { couponRate: d.newAsset.couponRate, maturityDate: d.newAsset.maturityDate, frequency: d.newAsset.couponFrequency, couponAnchor: d.newAsset.nextCouponDate || null }
       : null;
-  // Coupon couru : la saisie l'emporte sur le calcul.
-  const accrued = !isBond ? 0 : d?.accrued != null ? d.accrued : terms && d?.quantity ? roundCents(d.quantity * accruedFraction(terms, d.date)) : 0;
+  // Titre en devise : taux du jour (saisi, sinon BCE) ; quantité et prix unitaire sont dans la devise, les montants en euros.
+  const currency = currencyOf(asset ?? d?.newAsset);
+  const foreign = isForeign(currency);
+  const fxBook = useMemo(() => new FxBook(idx?.ws.fxRates), [idx?.ws.fxRates]);
+  const ecb = useEcbRate(fxBook, currency, d?.date ?? null);
+  const fxRate = foreign && d ? rateInUse(d, ecb) : null;
+  const rate = fxRate ?? 1;
+  // Coupon couru (en euros) : la saisie l'emporte sur le calcul, fait dans la devise du titre.
+  const accrued = !isBond ? 0 : d?.accrued != null ? d.accrued : terms && d?.quantity ? roundCents((d.quantity * accruedFraction(terms, d.date)) / rate) : 0;
   const isTrade = d?.type === "achat" || d?.type === "vente";
   const params = idx?.ws.params;
 
@@ -172,11 +109,11 @@ export function TransactionDialog({
     if (!d || !params || !account || !isTrade || !idx) return null;
     if (d.priceBasis === "unit") {
       if (d.quantity == null || d.unitPrice == null) return null;
-      return suggestOrderFee(account, idx.institutionById, params, (d.quantity * d.unitPrice) / (isBond ? 100 : 1) + (isBond ? accrued : 0));
+      return suggestOrderFee(account, idx.institutionById, params, (d.quantity * d.unitPrice) / (isBond ? 100 : 1) / rate + (isBond ? accrued : 0));
     }
     if (d.amount == null) return null;
     return suggestTradeFee(account, idx.institutionById, params, d.type as "achat" | "vente", d.amount);
-  }, [d, params, account, isTrade, isBond, idx, accrued]);
+  }, [d, params, account, isTrade, isBond, idx, accrued, rate]);
   const available = useAvailableBalance({ active: d?.type === "retrait" && d.newFund == null, accountId: d?.accountId ?? "", date: d?.date ?? "", supportId: d?.assetId ?? null, txId: d?.id });
   const feeSource = account && params && idx ?tradeFeeFor(account, idx.institutionById, params).source.label : "";
 
@@ -184,9 +121,9 @@ export function TransactionDialog({
   useEffect(() => {
     if (!d || !isTrade) return;
     const fee = d.feeManual ? d.fee : suggestedFee;
-    const { amount, unitPrice } = syncTradeAmounts({ side: d.type as "achat" | "vente", basis: d.priceBasis, quantity: d.quantity, unitPrice: d.unitPrice, amount: d.amount, fee, accrued: isBond ? accrued : 0, per: isBond ? 100 : 1 });
+    const { amount, unitPrice } = syncTradeAmounts({ side: d.type as "achat" | "vente", basis: d.priceBasis, quantity: d.quantity, unitPrice: d.unitPrice, amount: d.amount, fee, accrued: isBond ? accrued : 0, per: isBond ? 100 : 1, rate });
     if (amount !== d.amount || unitPrice !== d.unitPrice || fee !== d.fee) setD({ ...d, amount, unitPrice, fee });
-  }, [d, isBond, isTrade, suggestedFee, accrued]);
+  }, [d, isBond, isTrade, suggestedFee, accrued, rate]);
 
   // Les autres opérations n'ont pas de frais inclus.
   useEffect(() => {
@@ -196,8 +133,10 @@ export function TransactionDialog({
   if (!idx || !d) return null;
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => (x ? { ...x, [k]: v } : x));
-  const setUnitPrice = (v: number | null) => setD((x) => (x ? { ...x, unitPrice: v, priceBasis: "unit" } : x));
-  const setTotal = (v: number | null) => setD((x) => (x ? { ...x, amount: v, priceBasis: "total" } : x));
+  // Un montant tapé en euros (ou un prix) reprend la main sur le total tapé en devise.
+  const patch = (p: Partial<Draft>) => setD((x) => (x ? { ...x, ...p, ...("amount" in p || "unitPrice" in p ? { fxBasis: "eur" as const } : {}) } : x));
+  const setUnitPrice = (v: number | null) => patch({ unitPrice: v, priceBasis: "unit" });
+  const setTotal = (v: number | null) => patch({ amount: v, priceBasis: "total" });
   const allowedTypes = account ? ALLOWED_TYPES[account.kind] : [];
   const needsAsset = TX_NEEDS_ASSET.includes(d.type);
   const optionalAsset = TX_OPTIONAL_ASSET.includes(d.type);
@@ -235,6 +174,7 @@ export function TransactionDialog({
     withheldIncomeTax: taxDetail ? d.withheldIncomeTax : null,
     withheldSocial: taxDetail ? d.withheldSocial : null,
     withheldForeign: taxDetail ? d.withheldForeign : null,
+    fxRate: foreign && (needsAsset || optionalAsset) ? rateToStore(d, d.amount, fxRate) : null,
   };
   // Un titre en cours de création est validé comme s'il existait déjà.
   const creatingFund = supportField && d.newFund != null;
@@ -460,17 +400,17 @@ export function TransactionDialog({
         )}
 
         {isBond && isTrade ? (
-          <BondTradeFields d={d} patch={(p) => setD((x) => (x ? { ...x, ...p } : x))} err={err} feeSource={feeSource} accrued={accrued} />
+          <BondTradeFields d={d} patch={patch} err={err} feeSource={feeSource} accrued={accrued} currency={currency} rate={rate} />
         ) : isTrade ? (
           <FormGrid>
             <Field label="Quantité" error={err("quantity")}>
               {(id) => <NumberInput id={id} decimals={8} value={d.quantity} onChange={(v) => set("quantity", v)} />}
             </Field>
             <Field label="Prix par unité" help={d.priceBasis === "total" && d.unitPrice != null ? "Calculé d'après le montant total, hors frais." : "Hors frais. Remplissez ce champ ou le montant total."}>
-              {(id) => <MoneyInput id={id} decimals={8} value={d.unitPrice} onChange={setUnitPrice} />}
+              {(id) => <NumberInput id={id} suffix={foreign ? currency : "€"} decimals={8} value={d.unitPrice} onChange={setUnitPrice} />}
             </Field>
             <Field label="dont frais" error={err("fee")} help={d.feeManual ? "Saisis à la main." : `Calculés : ${feeSource.charAt(0).toLowerCase()}${feeSource.slice(1)}.`}>
-              {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => setD((x) => (x ? { ...x, fee: v, feeManual: v != null } : x))} />}
+              {(id) => <MoneyInput id={id} value={d.fee} onChange={(v) => patch({ fee: v, feeManual: v != null })} />}
             </Field>
             <Field label={d.type === "achat" ? "Montant total débité" : "Montant net reçu"} error={err("amount")} help={d.priceBasis === "unit" ? (d.type === "achat" ? "Calculé : quantité × prix + frais." : "Calculé : quantité × prix − frais.") : "Remplissez ce champ ou le prix par unité."}>
               {(id) => <MoneyInput id={id} value={d.amount} onChange={setTotal} />}
@@ -485,7 +425,7 @@ export function TransactionDialog({
               error={err("amount")}
               help={amountHelp}
             >
-              {(id) => <MoneyInput id={id} value={d.amount} allowNegative={d.type === "correction"} onChange={(v) => set("amount", v)} />}
+              {(id) => <MoneyInput id={id} value={d.amount} allowNegative={d.type === "correction"} onChange={(v) => patch({ amount: v })} />}
             </Field>
             {needsAsset && (
               <Field label="Quantité" error={err("quantity")}>
@@ -493,6 +433,19 @@ export function TransactionDialog({
               </Field>
             )}
           </FormGrid>
+        )}
+
+        {foreign && (isTrade || (optionalAsset && d.assetId)) && (
+          <FxFields
+            currency={currency}
+            d={d}
+            amount={d.amount}
+            rate={fxRate}
+            ecb={ecb}
+            label={d.type === "achat" ? "Total débité" : d.type === "vente" ? "Total reçu" : "Montant reçu"}
+            patch={(p) => setD((x) => (x ? { ...x, ...p } : x))}
+            err={err}
+          />
         )}
 
         {taxDetail && (
@@ -506,8 +459,8 @@ export function TransactionDialog({
 
         {allInUnitCost != null && (isBond || (d.fee ?? 0) > 0) && (
           <p className="text-xs text-fg-muted">
-            {isBond ? "Coût pour 1 € de nominal" : "Prix unitaire frais compris"} :{" "}
-            <span className="num text-fg">{isBond ? `${(allInUnitCost * 100).toFixed(3).replace(".", ",")} %` : formatEur(allInUnitCost)}</span>
+            {isBond ? `Coût pour 1 ${foreign ? currency : "€"} de nominal` : "Prix unitaire frais compris"} :{" "}
+            <span className="num text-fg">{isBond ? `${(allInUnitCost * rate * 100).toFixed(3).replace(".", ",")} %` : foreign ? formatMoney(allInUnitCost * rate, currency) : formatEur(allInUnitCost)}</span>
           </p>
         )}
 

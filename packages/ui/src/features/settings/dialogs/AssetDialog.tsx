@@ -6,8 +6,12 @@ import {
   ASSET_KINDS,
   BOND_KIND_LABELS,
   BOND_KINDS,
+  countryCurrency,
+  COUPON_FREQUENCIES,
+  COUPON_FREQUENCY_LABELS,
   countryFromIsin,
   DEFAULT_SOVEREIGN,
+  EUR,
   isOat,
   PRICE_PROVIDER_LABELS,
   maturityFromMonth,
@@ -19,8 +23,8 @@ import {
   type PriceSource,
 } from "@hamac/core";
 import { Button } from "@/shared/components/ui";
-import { AllocationChoice, BondMaturityField, CompositionNotice, SovereignField } from "@/features/entry";
-import { Field, FormGrid, Modal, MoneyInput, PercentInput, Select, TextInput } from "@/shared/components/form";
+import { AllocationChoice, BondMaturityField, CompositionNotice, CurrencyField, SovereignField } from "@/features/entry";
+import { Field, FormGrid, Modal, NumberInput, PercentInput, Select, TextInput } from "@/shared/components/form";
 import { useMutate, useWorkspaceIndex } from "@/shared/lib/workspace";
 import { todayIso } from "@/shared/lib/numbers";
 import { call } from "@/shared/lib/transport";
@@ -56,9 +60,13 @@ function empty(kind: AssetKind): Draft {
     issuer: null,
     bondKind: kind === "obligation" ? "etat" : null,
     issuerCountry: kind === "obligation" ? DEFAULT_SOVEREIGN : null,
+    currency: EUR,
     archived: false,
   };
 }
+
+/** Un fonds euros et une crypto se comptent en euros. */
+const hasCurrency = (kind: AssetKind) => kind !== "crypto" && kind !== "fonds_euros";
 
 /** Sans objet : on n'enregistre ni source imposée hors cours automatique, ni adresse hors source « URL ». */
 function cleaned(d: Draft): Draft {
@@ -84,7 +92,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
 
   useEffect(() => {
     // Une obligation d'État d'avant le choix du pays est française.
-    if (open) setD(asset ? { ...asset, issuerCountry: asset.kind === "obligation" ? sovereignCountry(asset) : null } : empty(defaultKind));
+    if (open) setD(asset ? { ...asset, issuerCountry: asset.kind === "obligation" ? sovereignCountry(asset) : null, currency: asset.currency ?? EUR } : empty(defaultKind));
   }, [open, asset, defaultKind]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -193,7 +201,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
         <FormGrid>
           <Field label="Type">
             {(id) => (
-              <Select id={id} value={d.kind} onChange={(e) => setD((x) => ({ ...empty(e.target.value as AssetKind), id: x.id, name: x.name, isin: x.isin }))}>
+              <Select id={id} value={d.kind} onChange={(e) => setD((x) => ({ ...empty(e.target.value as AssetKind), id: x.id, name: x.name, isin: x.isin, currency: hasCurrency(e.target.value as AssetKind) ? x.currency : EUR }))}>
                 {ASSET_KINDS.filter((k) => k !== "fonds_euros" || d.kind === "fonds_euros").map((k) => (
                   <option key={k} value={k}>
                     {ASSET_KIND_LABELS[k]}
@@ -242,7 +250,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
             <Field label="Coupon annuel">{(id) => <PercentInput id={id} value={d.couponRate} onChange={(v) => set("couponRate", v)} />}</Field>
             <BondMaturityField value={d.maturityDate} oat={oat} exact={d.bondKind === "etat" && !oat} onChange={(date) => set("maturityDate", date)} />
             {d.bondKind === "etat" ? (
-              <SovereignField value={d.issuerCountry} onChange={(code) => setD((x) => snapMaturity({ ...x, issuerCountry: code }))} />
+              <SovereignField value={d.issuerCountry} onChange={(code) => setD((x) => snapMaturity({ ...x, issuerCountry: code, currency: countryCurrency(code) ?? x.currency }))} />
             ) : (
               <Field label="Émetteur">{(id) => <TextInput id={id} value={d.issuer ?? ""} onChange={(e) => set("issuer", e.target.value || null)} placeholder="ex. TotalEnergies" />}</Field>
             )}
@@ -253,15 +261,23 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
             <Field label="Coupons">
               {(id) => (
                 <Select id={id} value={d.couponFrequency ?? 1} onChange={(e) => set("couponFrequency", Number(e.target.value))}>
-                  <option value={1}>Annuel</option>
-                  <option value={2}>Semestriel</option>
-                  <option value={4}>Trimestriel</option>
+                  {COUPON_FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>
+                      {COUPON_FREQUENCY_LABELS[f]}
+                    </option>
+                  ))}
                 </Select>
               )}
             </Field>
             <Field label="Prochain coupon (facultatif)" help="Vide : déduit de l'échéance. Inutile de la remettre à jour, les suivants s'en déduisent.">
               {(id) => <TextInput id={id} type="date" value={d.nextCouponDate ?? ""} onChange={(e) => set("nextCouponDate", e.target.value || null)} />}
             </Field>
+          </FormGrid>
+        )}
+
+        {hasCurrency(d.kind) && (
+          <FormGrid>
+            <CurrencyField value={d.currency ?? EUR} onChange={(c) => set("currency", c)} />
           </FormGrid>
         )}
 
@@ -282,8 +298,8 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
               {(id) => <TextInput id={id} value={d.symbol ?? ""} onChange={(e) => set("symbol", e.target.value || null)} className="font-mono" />}
             </Field>
           ) : d.priceSource === "manuel" ? (
-            <Field label={isBond ? "Cours (% du nominal)" : "Cours"}>
-              {(id) => <MoneyInput id={id} value={d.manualPrice} onChange={(v) => setD((x) => ({ ...x, manualPrice: v, manualPriceDate: v == null ? null : todayIso() }))} />}
+            <Field label={isBond ? "Cours (% du nominal)" : (d.currency ?? EUR) !== EUR ? `Cours (${d.currency})` : "Cours"}>
+              {(id) => <NumberInput id={id} suffix={isBond ? "%" : (d.currency ?? EUR) === EUR ? "€" : (d.currency ?? EUR)} value={d.manualPrice} onChange={(v) => setD((x) => ({ ...x, manualPrice: v, manualPriceDate: v == null ? null : todayIso() }))} />}
             </Field>
           ) : (
             <div className="self-end pb-2 text-xs text-fg-faint">Valeur calculée : prix d'achat amorti jusqu'au remboursement à 100 %, plus coupon couru.</div>
@@ -312,7 +328,7 @@ export function AssetDialog({ open, onClose, asset, defaultKind = "etf" }: { ope
           </FormGrid>
         )}
         {d.priceSource === "auto" && d.priceProvider === "url" && (
-          <Field label="Adresse (JSON)" help="{isin} et {symbol} sont remplacés par ceux du titre. Le cours renvoyé doit être en euros.">
+          <Field label="Adresse (JSON)" help="{isin} et {symbol} sont remplacés par ceux du titre. Le cours renvoyé doit être dans la devise du titre.">
             {(id) => <TextInput id={id} value={d.priceUrl ?? ""} onChange={(e) => set("priceUrl", e.target.value || null)} className="font-mono" placeholder="https://exemple.fr/cours/{isin}" />}
           </Field>
         )}

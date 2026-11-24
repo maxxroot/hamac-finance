@@ -1,5 +1,5 @@
 import { and, eq, or, sql } from "drizzle-orm";
-import { countryFromIsin, DEFAULT_SOVEREIGN } from "@hamac/core";
+import { countryFromIsin, DEFAULT_SOVEREIGN, EUR } from "@hamac/core";
 import { one } from "../db/driver";
 import { RpcError, type assetsProcedures, type MarketSettings } from "@hamac/api";
 import type { BackendContext } from "../context";
@@ -49,6 +49,8 @@ export const assetsHandlers: DomainHandlers<typeof assetsProcedures> = {
       issuer: isBond && input.bondKind === "etat" ? null : input.issuer,
       bondKind: isBond ? (input.bondKind ?? null) : null,
       issuerCountry: isBond && input.bondKind === "etat" ? (input.issuerCountry ?? countryFromIsin(input.isin) ?? DEFAULT_SOVEREIGN) : null,
+      // Un fonds euros vaut des euros, et les cours de crypto sont toujours demandés en euros.
+      currency: isFund || input.kind === "crypto" ? EUR : input.currency,
       archived: input.archived,
       updatedAt: nowIso(),
     };
@@ -66,6 +68,8 @@ export const assetsHandlers: DomainHandlers<typeof assetsProcedures> = {
       await ctx.db.insert(t.assets).values({ id, ...row });
     }
     assetSaved(ctx, row);
+    // Taux de la BCE d'une nouvelle devise : demandés tout de suite, la valorisation en a besoin.
+    if (row.currency !== EUR) await ctx.market.fx.ensure([row.currency]).catch(() => undefined);
     return mapAsset((await ctx.db.select().from(t.assets).where(eq(t.assets.id, id)).limit(1).then(one))!);
   },
 
@@ -107,6 +111,11 @@ export const assetsHandlers: DomainHandlers<typeof assetsProcedures> = {
 
   async "market.irl"(_input, ctx) {
     return ctx.market.irl();
+  },
+
+  async "market.fxRate"({ currency, date }, ctx) {
+    await ctx.market.fx.ensure([currency]);
+    return ctx.market.fx.rateOn(currency, date);
   },
 
   async "market.series"(input, ctx) {

@@ -5,8 +5,12 @@ import {
   ALLOWED_ASSETS,
   ASSET_KIND_LABELS,
   bondName,
+  countryCurrency,
+  COUPON_FREQUENCIES,
+  COUPON_FREQUENCY_LABELS,
   countryFromIsin,
   DEFAULT_SOVEREIGN,
+  EUR,
   findSameBond,
   isOat,
   maturityFromMonth,
@@ -18,6 +22,7 @@ import {
 import { Field, FormGrid, PercentInput, Select, TextInput } from "@/shared/components/form";
 import { Button } from "@/shared/components/ui";
 import { BondMaturityField, SovereignField } from "@/features/entry/components/BondFields";
+import { CurrencyField } from "@/features/entry/components/CurrencyField";
 import { CompositionNotice } from "@/features/entry/components/CompositionNotice";
 import { cn } from "@/shared/lib/cn";
 import { call } from "@/shared/lib/transport";
@@ -38,6 +43,8 @@ export interface NewAsset {
   maturityDate: string;
   couponFrequency: number;
   nextCouponDate: string;
+  /** Devise de cotation (ISO 4217). */
+  currency: string;
 }
 
 type Choice = { kind: AssetKind; bondKind: BondKind | null; label: string };
@@ -60,7 +67,7 @@ export function choicesFor(account: AccountKind, only?: readonly AssetKind[]): C
 export function newAssetFor(account: AccountKind, only?: readonly AssetKind[]): NewAsset {
   const first = choicesFor(account, only)[0] ?? { kind: "etf" as AssetKind, bondKind: null };
   return withChoice(
-    { kind: first.kind, bondKind: first.bondKind, name: "", nameAuto: true, isin: "", symbol: "", issuer: "", issuerCountry: null, couponRate: null, maturityDate: "", couponFrequency: 1, nextCouponDate: "" },
+    { kind: first.kind, bondKind: first.bondKind, name: "", nameAuto: true, isin: "", symbol: "", issuer: "", issuerCountry: null, couponRate: null, maturityDate: "", couponFrequency: 1, nextCouponDate: "", currency: EUR },
     first,
   );
 }
@@ -68,12 +75,14 @@ export function newAssetFor(account: AccountKind, only?: readonly AssetKind[]): 
 function withChoice(n: NewAsset, c: { kind: AssetKind; bondKind: BondKind | null }): NewAsset {
   // Un État se désigne par son pays (celui de l'ISIN s'il est saisi) ; une entreprise par son nom.
   const issuerCountry = c.bondKind === "etat" ? (n.issuerCountry ?? countryFromIsin(n.isin) ?? DEFAULT_SOVEREIGN) : null;
-  return rename(withMaturityRule({ ...n, kind: c.kind, bondKind: c.bondKind, issuerCountry }));
+  // Un fonds euros ou une crypto se compte en euros.
+  const currency = c.kind === "crypto" || c.kind === "fonds_euros" ? EUR : n.currency;
+  return rename(withMaturityRule({ ...n, kind: c.kind, bondKind: c.bondKind, issuerCountry, currency }));
 }
 
-/** Change le pays de l'État émetteur. */
+/** Change le pays de l'État émetteur ; la devise suit celle du pays (dette américaine en dollars). */
 function withCountry(n: NewAsset, issuerCountry: string): NewAsset {
-  return rename(withMaturityRule({ ...n, issuerCountry }));
+  return rename(withMaturityRule({ ...n, issuerCountry, currency: countryCurrency(issuerCountry) ?? n.currency }));
 }
 
 /** Le jour d'échéance suit le type : le 25 pour une OAT, le 1er du mois pour une entreprise, la date saisie pour un autre État. */
@@ -115,6 +124,7 @@ export function toAssetInput(n: NewAsset): AssetInput {
     issuer: isBond && n.bondKind !== "etat" ? n.issuer.trim() || null : null,
     bondKind: isBond ? n.bondKind : null,
     issuerCountry: isBond && n.bondKind === "etat" ? n.issuerCountry : null,
+    currency: n.currency,
   };
 }
 
@@ -251,9 +261,11 @@ export function NewAssetPanel({
           <Field label="Coupons">
             {(id) => (
               <Select id={id} value={value.couponFrequency} onChange={(e) => set("couponFrequency", Number(e.target.value))}>
-                <option value={1}>Annuel</option>
-                <option value={2}>Semestriel</option>
-                <option value={4}>Trimestriel</option>
+                {COUPON_FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>
+                    {COUPON_FREQUENCY_LABELS[f]}
+                  </option>
+                ))}
               </Select>
             )}
           </Field>
@@ -261,6 +273,7 @@ export function NewAssetPanel({
         {isBond && (
           <Field label="Prochain coupon (facultatif)">{(id) => <TextInput id={id} type="date" value={value.nextCouponDate} onChange={(e) => set("nextCouponDate", e.target.value)} />}</Field>
         )}
+        {value.kind !== "crypto" && <CurrencyField value={value.currency} onChange={(c) => set("currency", c)} />}
       </FormGrid>
 
       <CompositionNotice kind={value.kind} isin={value.isin} />

@@ -180,6 +180,15 @@ export function positionInAllocation(asset: Pick<Asset, "inAllocation">, account
   return asset.inAllocation ?? account.inAllocation ?? enabled(classKey);
 }
 
+/** Coupons par an proposés à la saisie d'une obligation (le moteur accepte de 1 à 12). */
+export const COUPON_FREQUENCIES = [1, 2, 4, 12] as const;
+export const COUPON_FREQUENCY_LABELS: Record<(typeof COUPON_FREQUENCIES)[number], string> = {
+  1: "Annuel",
+  2: "Semestriel (tous les 6 mois)",
+  4: "Trimestriel (tous les 3 mois)",
+  12: "Mensuel (tous les mois)",
+};
+
 export const BOND_KINDS = ["etat", "entreprise"] as const;
 export type BondKind = (typeof BOND_KINDS)[number];
 export const BOND_KIND_LABELS: Record<BondKind, string> = { etat: "Obligation d'État", entreprise: "Obligation d'entreprise" };
@@ -237,7 +246,7 @@ export const TX_HELP: Record<TxType, string> = {
   retrait: "Argent qui sort du plan.",
   interets: "Intérêts d'un livret ou d'un fonds euros (datés du 31/12), coupon d'obligation. Montant net, tel que crédité.",
   dividende: "Dividende versé en espèces sur le compte.",
-  achat: "Montant = total débité, frais compris. Quantité = parts, BTC, ou nominal pour une obligation.",
+  achat: "Montant = total débité, frais compris. Quantité = parts, BTC, ou nominal pour une obligation (dans sa devise).",
   vente: "Montant = total reçu, frais déduits.",
   arbitrage: "D'un support à un autre dans le même compte, sans passer par les espèces : du fonds euros vers une unité de compte, ou d'une crypto à une autre. Montant = valeur du support cédé, en euros. Rien d'imposable : l'argent reste dans le contrat, ou en crypto.",
   transfert: "D'un compte vers un autre, en une seule opération (ex. excédent des livrets vers le fonds euros).",
@@ -328,6 +337,11 @@ export interface Asset {
   bondKind: BondKind | null;
   /** Obligation d'État : pays de l'État émetteur (ISO 3166-1, « FR », « BE »…) ; null = État français (fiches anciennes). */
   issuerCountry: string | null;
+  /**
+   * Devise de cotation (ISO 4217) : cours, nominal et coupon d'une obligation sont exprimés dans cette devise.
+   * Absente ou null = euro (titres d'avant les devises). Les opérations, elles, restent en euros.
+   */
+  currency?: string | null;
   archived: boolean;
 }
 
@@ -361,6 +375,11 @@ export interface Transaction {
   withheldSocial?: number | null;
   /** Retenue à la source prélevée à l'étranger. */
   withheldForeign?: number | null;
+  /**
+   * Titre en devise : taux de change appliqué par l'établissement, en unités de la devise pour 1 € (convention BCE).
+   * Les montants de l'opération restent en euros ; montant en devise = montant × taux. null = taux BCE du jour.
+   */
+  fxRate?: number | null;
 }
 
 /** Versement mensuel programmé : à partir du mois `fromMonth` (AAAA-MM), `amount` €/mois. 0 = arrêt. */

@@ -17,6 +17,11 @@ import { socialRateFor } from "./fiscalRules";
  *
  * Une perte au remboursement (achat au-dessus du pair) ne réduit aucun impôt ici : elle est imputable sur
  * d'autres plus-values, ce que ce calcul ne voit pas.
+ *
+ * Obligation en devise : tout se compte en euros. Le coût est celui payé en euros à l'achat ; coupons et remboursement
+ * à venir sont convertis au taux de change du jour, seule estimation connue. Le gain imposable compare donc des euros
+ * aux deux dates et comprend l'effet de change (CGI, art. 150-0 D : prix d'acquisition et de cession convertis en euros
+ * au taux de leur date ; le gain de change fait partie de la plus-value imposable, CE, 13 septembre 2021, n° 443914).
  */
 
 interface Rates {
@@ -65,7 +70,9 @@ export interface BondTaxSummary {
 }
 
 function lineTax(p: PositionState, rates: Rates, asOf: IsoDate): BondLineTax {
-  const { terms, lots, nominal } = p.bond!;
+  const { terms, lots } = p.bond!;
+  // En euros, au taux de change du jour pour une ligne en devise.
+  const nominal = p.bond!.nominal / p.fxRate;
   const split = (f: { date: IsoDate; amount: number }) => (f.date === terms.maturityDate ? f.amount - 1 : f.amount);
   let num = 0;
   let den = 0;
@@ -73,12 +80,13 @@ function lineTax(p: PositionState, rates: Rates, asOf: IsoDate): BondLineTax {
   let gainTax = 0;
   for (const lot of lots) {
     if (lot.qty <= 0 || lot.cost <= 0) continue;
-    const gain = Math.max(0, lot.qty - lot.cost);
+    const qty = lot.qty / p.fxRate;
+    const gain = Math.max(0, qty - lot.cost);
     const flows: Flow[] = [{ date: lot.date, amount: -lot.cost }];
     for (const f of remainingFlows(terms, lot.date)) {
-      const coupon = split(f) * lot.qty;
+      const coupon = split(f) * qty;
       let net = coupon * (1 - rates.coupon(f.date));
-      if (f.date === terms.maturityDate) net += lot.qty - gain * rates.gain(f.date);
+      if (f.date === terms.maturityDate) net += qty - gain * rates.gain(f.date);
       flows.push({ date: f.date, amount: net });
     }
     const y = xirr(flows);

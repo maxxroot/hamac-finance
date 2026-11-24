@@ -1,11 +1,11 @@
-import { addDays, roundCents, type IsoDate } from "../../base";
+import { addDays, currencyOf, roundCents, type IsoDate } from "../../base";
 import { remainingFlows } from "../../investments";
-import type { Asset, Transaction } from "../../model";
+import type { Asset, FxBook, Transaction } from "../../model";
 import { bondTerms } from "../../portfolio";
 
 /** Délai laissé pour saisir un coupon : avant, il n'est ni attendu ni signalé comme manquant. */
 export const COUPON_GRACE_DAYS = 10;
-/** Un coupon saisi est rapproché du coupon prévu s'il tombe dans cette fenêtre autour de la date. */
+/** Un coupon saisi est rapproché du coupon prévu s'il tombe dans cette fenêtre autour de la date (au plus une demi-période). */
 const MATCH_BEFORE_DAYS = 15;
 const MATCH_AFTER_DAYS = 45;
 
@@ -13,7 +13,7 @@ export interface CouponEvent {
   accountId: string;
   assetId: string;
   date: IsoDate;
-  /** Coupon brut prévu par le calendrier, pour le nominal détenu la veille. */
+  /** Coupon brut prévu par le calendrier, pour le nominal détenu la veille, en euros (au taux de la BCE du jour pour un titre en devise). */
   expected: number;
   /** Coupon brut saisi et rapproché ; null s'il manque. */
   received: number | null;
@@ -45,9 +45,10 @@ const grossOf = (tx: Transaction) => tx.gross ?? tx.amount;
 /**
  * Coupons attendus d'après le calendrier de chaque obligation et le nominal détenu, comparés aux opérations
  * « Intérêts / coupon » saisies sur cette obligation. Les coupons ne sont jamais générés : ce rapprochement
- * signale ceux qui manquent dans le Journal.
+ * signale ceux qui manquent dans le Journal. Un coupon en devise est attendu en euros au taux du jour du versement :
+ * celui de l'opération rapprochée s'il est saisi, sinon celui de la BCE.
  */
-export function couponCheck(transactions: readonly Transaction[], assets: readonly Asset[], asOf: IsoDate): CouponCheck {
+export function couponCheck(transactions: readonly Transaction[], assets: readonly Asset[], asOf: IsoDate, fx?: FxBook): CouponCheck {
   const bonds = new Map(assets.filter((a) => a.kind === "obligation").map((a) => [a.id, a]));
   const lines = new Map<string, { accountId: string; asset: Asset; moves: Array<{ date: IsoDate; qty: number }>; coupons: Transaction[] }>();
   const line = (accountId: string, asset: Asset) => {
@@ -82,6 +83,10 @@ export function couponCheck(transactions: readonly Transaction[], assets: readon
       continue;
     }
     const used = new Set<Transaction>();
+    // Fenêtre bornée à une demi-période : un coupon mensuel ne se rapproche pas du coupon du mois voisin.
+    const half = (365 / Math.max(1, terms.frequency)) / 2;
+    const before = Math.min(MATCH_BEFORE_DAYS, Math.floor(half));
+    const after = Math.min(MATCH_AFTER_DAYS, Math.floor(half));
     for (const f of remainingFlows(terms, first)) {
       // Un coupon dû ces derniers jours n'est attendu que s'il est déjà saisi.
       if (f.date > asOf) break;
@@ -89,10 +94,11 @@ export function couponCheck(transactions: readonly Transaction[], assets: readon
       // Le coupon revient à qui détient le titre la veille du versement.
       const qty = l.moves.filter((m) => m.date < f.date).reduce((s, m) => s + m.qty, 0);
       if (qty <= 1e-9 || couponPart <= 0) continue;
-      const match = coupons.find((tx) => !used.has(tx) && tx.date >= addDays(f.date, -MATCH_BEFORE_DAYS) && tx.date <= addDays(f.date, MATCH_AFTER_DAYS));
+      const match = coupons.find((tx) => !used.has(tx) && tx.date >= addDays(f.date, -before) && tx.date <= addDays(f.date, after));
       if (!match && f.date > due) continue;
       if (match) used.add(match);
-      events.push({ accountId: l.accountId, assetId: l.asset.id, date: f.date, expected: roundCents(couponPart * qty), received: match ? grossOf(match) : null });
+      const rate = match?.fxRate ?? fx?.rate(currencyOf(l.asset), f.date) ?? 1;
+      events.push({ accountId: l.accountId, assetId: l.asset.id, date: f.date, expected: roundCents((couponPart * qty) / rate), received: match ? grossOf(match) : null });
     }
     unmatched.push(...coupons.filter((tx) => !used.has(tx)));
   }

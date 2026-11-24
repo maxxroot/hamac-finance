@@ -8,6 +8,7 @@ import { MarketError } from "./http";
 import { chainFor, defaultFetcher, fetchFrom, fetchLongHistory, instrumentKey, type Fetcher, type LongHistory, type MarketAsset, type ProviderSetting } from "./index";
 import { BASE_REFRESH_MINUTES, refreshIntervalMinutes, TD_DAILY_LIMIT, TwelveDataBudget, type TwelveDataUsage } from "./sources/twelvedata";
 import { COMPOSITION_TABLES, CompositionStore } from "./compositions/compositionStore";
+import { FX_TABLES, FxStore } from "./fx/fxStore";
 
 const today = () => new Date().toISOString().slice(0, 10);
 /** Un même titre n'est pas réinterrogé avant ce délai, quels que soient les utilisateurs qui le demandent. */
@@ -60,9 +61,9 @@ interface Row extends MarketAsset {
 
 const toInstrument = (r: Row): Instrument => ({ key: r.key, provider: r.provider, lastDate: r.last_date, checkedAt: r.checked_at, message: r.message, failed: r.failed, tried: JSON.parse(r.tried) as Instrument["tried"] });
 
-const COLUMNS = `key, kind, isin, symbol, "priceProvider", provider, last_date, checked_at, message, failed, tried`;
+const COLUMNS = `key, kind, isin, symbol, "priceProvider", currency, provider, last_date, checked_at, message, failed, tried`;
 
-const asAsset = (r: Pick<Row, "kind" | "isin" | "symbol" | "priceProvider">): MarketAsset => ({ kind: r.kind, isin: r.isin, symbol: r.symbol, priceProvider: r.priceProvider, priceSource: "auto", priceUrl: null, pricePath: null });
+const asAsset = (r: Pick<Row, "kind" | "isin" | "symbol" | "priceProvider" | "currency">): MarketAsset => ({ kind: r.kind, isin: r.isin, symbol: r.symbol, priceProvider: r.priceProvider, currency: r.currency ?? null, priceSource: "auto", priceUrl: null, pricePath: null });
 
 /**
  * Base de cours commune à toute l'instance (schéma « marche ») : chaque titre n'est téléchargé
@@ -82,6 +83,8 @@ export class SharedMarket {
   private stopped = false;
   /** Compositions des ETF et liens vers un ETF physique équivalent. */
   readonly compositions: CompositionStore;
+  /** Taux de change de la BCE des devises des titres. */
+  readonly fx: FxStore;
 
   private constructor(
     private session: PgSession,
@@ -90,6 +93,7 @@ export class SharedMarket {
     private config: MarketConfig,
   ) {
     this.compositions = new CompositionStore(db, fetcher, { spacingMs: config.compositionSpacingMs });
+    this.fx = new FxStore(db, fetcher);
   }
 
   static async open(provider: PgProvider, fetcher: Fetcher = defaultFetcher, onLost?: () => void, config: Partial<MarketConfig> = {}): Promise<SharedMarket> {
@@ -117,6 +121,8 @@ export class SharedMarket {
         source TEXT NOT NULL,
         PRIMARY KEY (key, date)
       )`,
+      // Devise de cotation (null = euro, instruments d'avant les devises).
+      "ALTER TABLE marche.instruments ADD COLUMN IF NOT EXISTS currency TEXT",
       "CREATE TABLE IF NOT EXISTS marche.config (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
       "CREATE TABLE IF NOT EXISTS marche.series (key TEXT PRIMARY KEY, dividends BOOLEAN NOT NULL, checked_at TEXT NOT NULL)",
       `CREATE TABLE IF NOT EXISTS marche.series_points (
@@ -126,6 +132,7 @@ export class SharedMarket {
         PRIMARY KEY (key, date)
       )`,
       ...COMPOSITION_TABLES,
+      ...FX_TABLES,
       // Une clé saisie autrefois dans l'interface ne doit pas rester en base.
       "DELETE FROM marche.config WHERE key = 'twelveDataKey'",
     ])
@@ -201,7 +208,7 @@ export class SharedMarket {
   }
 
   private async refreshOne(key: string, asset: MarketAsset, state: MarketState, budget: TwelveDataBudget | null): Promise<boolean> {
-    await this.db.run(`INSERT INTO marche.instruments (key, kind, isin, symbol, "priceProvider") VALUES (?, ?, ?, ?, ?) ON CONFLICT (key) DO NOTHING`, [key, asset.kind, asset.isin, asset.symbol, asset.priceProvider]);
+    await this.db.run(`INSERT INTO marche.instruments (key, kind, isin, symbol, "priceProvider", currency) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (key) DO NOTHING`, [key, asset.kind, asset.isin, asset.symbol, asset.priceProvider, asset.currency ?? null]);
     const current = await this.db.get<Row>(`SELECT ${COLUMNS} FROM marche.instruments WHERE key = ?`, [key]);
     if (current?.checked_at && Date.now() - Date.parse(current.checked_at) < COOLDOWN_MS) return false;
 
@@ -319,7 +326,9 @@ export class SharedMarket {
     for (const id of tenantIds) {
       const { schema } = tenantNames(id);
       if (!(await this.db.get<{ t: string | null }>(`SELECT to_regclass('"${schema}".assets')::text AS t`))?.t) continue;
-      const rows = await this.db.all<MarketAsset>(`SELECT kind, isin, symbol, price_source AS "priceSource", price_provider AS "priceProvider", price_url AS "priceUrl", price_path AS "pricePath" FROM "${schema}".assets WHERE NOT archived`);
+      // Un tenant pas encore mis à jour n'a pas la colonne de la devise : ses titres sont en euros.
+      const hasCurrency = !!(await this.db.get("SELECT 1 AS x FROM information_schema.columns WHERE table_schema = ? AND table_name = 'assets' AND column_name = 'currency'", [schema]));
+      const rows = await this.db.all<MarketAsset>(`SELECT kind, isin, symbol, price_source AS "priceSource", price_provider AS "priceProvider", price_url AS "priceUrl", price_path AS "pricePath", ${hasCurrency ? "currency" : "'EUR'"} AS currency FROM "${schema}".assets WHERE NOT archived`);
       out.push(...rows);
     }
     return out;
@@ -359,6 +368,11 @@ export class SharedMarket {
         await this.refresh(await this.collect(await listTenants()));
       } catch (err) {
         console.error("[hamac] actualisation des cours :", err);
+      }
+      try {
+        await this.fx.ensure(await this.fx.collect(await listTenants()));
+      } catch (err) {
+        console.error("[hamac] taux de change :", err);
       }
       try {
         await this.refreshCompositions(await listTenants());

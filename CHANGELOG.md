@@ -6,6 +6,17 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+### Ajouté
+
+- Devises : un titre peut être coté dans une autre monnaie que l'euro, par exemple une obligation du Trésor américain en dollars ou une action suisse en francs. 29 devises sont disponibles, celles dont la BCE publie le taux. Le cours, le nominal et les coupons restent dans la devise du titre ; la valeur, les plus-values et les impôts sont comptés en euros au taux de change du jour.
+  - Les tableaux montrent la valeur dans la devise et la part de la plus-value due au change.
+  - À la saisie d'un achat, d'une vente ou d'un coupon, le taux de la BCE du jour est pré-rempli : remplacez-le par celui de votre établissement s'il diffère. Le total se tape au choix en euros ou dans la devise.
+  - Pour une obligation d'État, la devise suit le pays choisi.
+  - Le remboursement d'une obligation en devise est converti au taux du jour de l'échéance.
+  - L'assistant (MCP) renseigne la devise (`currency`) et le taux appliqué (`fxRate`).
+- Obligations : un coupon peut être versé tous les mois, en plus d'une fois par an, tous les 6 mois ou tous les 3 mois. Le rapprochement des coupons saisis s'adapte : un coupon mensuel oublié n'est plus compensé par celui du mois suivant.
+- Cours : un titre coté en dollars, en livres ou dans une autre devise reçoit maintenant ses cours de Yahoo, Twelve Data ou justETF dans cette devise. Indiquez la devise dans sa fiche : la cotation n'est plus refusée.
+
 ## [0.3.1] - 2026-11-16
 
 Les obligations d'État ne sont plus forcément françaises : chaque obligation porte le pays de son État émetteur, reconnaissable à son drapeau.

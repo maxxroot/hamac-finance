@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { one } from "../db/driver";
-import type { AccountRate, Goal, PricePoint, TaxStatementAmount } from "@hamac/core";
+import { currencyOf, EUR, type AccountRate, type FxRate, type Goal, type PricePoint, type TaxStatementAmount } from "@hamac/core";
 import type { Workspace } from "@hamac/api";
 import * as t from "../db/schema";
 import type { Db } from "../db/postgres";
@@ -76,11 +76,13 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Omit<
   const common = await market.quotes([...new Set(keyOf.values())]);
   const sharedRows = [...keyOf].flatMap(([assetId, key]) => common.filter((q) => q.key === key).map((q): PriceRow => ({ assetId, date: q.date, price: q.price, source: q.source })));
   const merged = mergePrices(prices, sharedRows, new Set(mappedAssets.filter((a) => a.kind === "crypto").map((a) => a.id)));
+  const mappedTxs = txs.map(mapTx);
+  const fxRates = await loadFxRates(market, mappedAssets, mappedTxs);
   return {
     params,
     accounts: accounts.map(mapAccount),
     assets: mappedAssets,
-    transactions: txs.map(mapTx),
+    transactions: mappedTxs,
     plans: plans.map(mapPlan),
     skips: skips.map(mapSkip),
     bondPlans: bondPlans.map(mapBondPlan),
@@ -110,9 +112,28 @@ export async function loadWorkspace(db: Db, market: SharedMarket): Promise<Omit<
     loans: loanRows.map((r) => mapLoan(r, prepaymentRows.filter((p) => p.loanId === r.id).map(mapLoanPrepayment))),
     crowdProjects: crowdRows.map(mapCrowdProject),
     prices: merged.map((p): PricePoint => ({ ...p })),
+    fxRates,
     priceStatus: status ? JSON.parse(status.value) : null,
     institutions: institutions.map(mapInstitution),
     taxStatements: taxStatementRows.map((r): TaxStatementAmount => ({ institutionId: r.institutionId, year: r.year, box: r.box, amount: fromCents(r.amountCents) })),
     accountRates: rates.map((r): AccountRate => ({ id: r.id, accountId: r.accountId, fromDate: r.fromDate, rate: r.rate, comment: r.comment })),
   };
+}
+
+/**
+ * Taux de change des devises des titres : chaque jour publié depuis la première opération sur un titre de cette devise
+ * (taux du jour d'un achat, d'un coupon, d'une échéance), sinon depuis un mois. Une devise encore sans aucun taux
+ * est téléchargée avant de répondre ; ensuite, la boucle de l'instance et l'actualisation des cours les tiennent à jour.
+ */
+async function loadFxRates(market: SharedMarket, assets: ReadonlyArray<{ id: string; currency?: string | null }>, txs: ReadonlyArray<{ date: string; assetId: string | null }>): Promise<FxRate[]> {
+  const currencyById = new Map(assets.map((a) => [a.id, currencyOf(a)]));
+  const currencies = [...new Set(currencyById.values())].filter((c) => c !== EUR);
+  if (!currencies.length) return [];
+  const known = await market.fx.known(currencies);
+  const missing = currencies.filter((c) => !known.has(c));
+  if (missing.length) await market.fx.ensure(missing);
+  const firstDates = txs.filter((tx) => tx.assetId && currencyById.get(tx.assetId) !== EUR).map((tx) => tx.date).sort();
+  const monthAgo = new Date(Date.now() - 31 * 86_400_000).toISOString().slice(0, 10);
+  const since = firstDates[0] && firstDates[0] < monthAgo ? firstDates[0] : monthAgo;
+  return market.fx.rates(currencies, since);
 }

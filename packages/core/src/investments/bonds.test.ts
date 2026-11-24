@@ -46,6 +46,13 @@ describe("obligations", () => {
       expect(remainingFlows(t, "2029-01-01").map((f) => f.date)).toEqual(["2029-03-15", "2029-09-15", "2030-03-15"]);
     });
 
+    it("mensuel : douze coupons par an, chacun d'un douzième", () => {
+      const t = { couponRate: 0.06, maturityDate: "2027-03-10", frequency: 12, couponAnchor: "2026-11-10" };
+      expect(nextCoupon(t, "2026-11-24")).toEqual({ date: "2026-12-10", amount: 0.005 });
+      expect(remainingFlows(t, "2026-11-24").map((f) => f.date)).toEqual(["2026-12-10", "2027-01-10", "2027-02-10", "2027-03-10"]);
+      expect(accruedFraction(t, "2026-11-25")).toBeCloseTo(0.005 * (15 / 30), 6);
+    });
+
     it("le jour d'échéance peut différer de celui du coupon : un coupon entier, pas de coupon en plus", () => {
       // L'échéance se saisit au mois : le 15 du contrat et le 25 stocké ne créent ni double coupon ni coupon réduit.
       const t = { ...oat, couponAnchor: "2026-05-15" };

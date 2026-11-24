@@ -55,7 +55,7 @@ export const offlineFetcher: Fetcher = async () => {
 /** Une base de cours vide. */
 export async function testMarket(fetcher?: Fetcher, config?: Partial<MarketConfig>): Promise<SharedMarket> {
   const market = await SharedMarket.open(testProvider(), fetcher ?? offlineFetcher, undefined, { compositionSpacingMs: 0, ...config });
-  await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config, marche.series, marche.compositions, marche.composition_links CASCADE");
+  await (await testProvider().session()).query("TRUNCATE marche.instruments, marche.quotes, marche.config, marche.series, marche.compositions, marche.composition_links, marche.fx_rates, marche.fx_status CASCADE");
   return market;
 }
 
@@ -90,6 +90,26 @@ export function amundiFake(known: Record<string, string | { replication: string;
     }
     if (url.includes("core-search")) return Response.json({ results: [] });
     return new Response("introuvable", { status: 404 });
+  }) as Fetcher & { calls: string[] };
+  f.calls = calls;
+  return f;
+}
+
+/**
+ * Fausse API de la BCE au format réel (CSV, colonnes de `detail=dataonly`) : `rates` donne, par devise, les taux
+ * (unités pour 1 €) de chaque jour publié ; seuls ceux depuis `startPeriod` sont renvoyés.
+ */
+export function ecbFake(rates: Record<string, Record<string, number>>): Fetcher & { calls: string[] } {
+  const calls: string[] = [];
+  const f = (async (url: string) => {
+    calls.push(url);
+    const m = /EXR\/D\.([A-Z]{3})\.EUR\.SP00\.A\?startPeriod=(\d{4}-\d{2}-\d{2})/.exec(url);
+    if (!m) return new Response("inconnu", { status: 400 });
+    const [, currency, since] = m as unknown as [string, string, string];
+    const rows = Object.entries(rates[currency] ?? {}).filter(([d]) => d >= since).sort();
+    if (!rows.length) return new Response("No results found.", { status: 404 });
+    const csv = ["KEY,FREQ,CURRENCY,CURRENCY_DENOM,EXR_TYPE,EXR_SUFFIX,TIME_PERIOD,OBS_VALUE", ...rows.map(([d, r]) => `EXR.D.${currency}.EUR.SP00.A,D,${currency},EUR,SP00,A,${d},${r}`)].join("\n");
+    return new Response(csv, { headers: { "Content-Type": "text/csv" } });
   }) as Fetcher & { calls: string[] };
   f.calls = calls;
   return f;

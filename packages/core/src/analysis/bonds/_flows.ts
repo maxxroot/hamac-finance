@@ -2,7 +2,10 @@ import { addMonths, roundCents, type IsoDate } from "../../base";
 import { heldToMaturityValue, remainingFlows } from "../../investments";
 import type { PositionState } from "../../portfolio";
 
-/** Un versement attendu d'une ligne détenue : coupon brut et, le jour de l'échéance, remboursement du nominal. */
+/**
+ * Un versement attendu d'une ligne détenue : coupon brut et, le jour de l'échéance, remboursement du nominal.
+ * En euros : une ligne en devise est convertie au taux de change du jour (`PositionState.fxRate`), seule estimation connue.
+ */
 export interface BondFlow {
   date: IsoDate;
   accountId: string;
@@ -16,10 +19,11 @@ export function upcomingBondFlows(held: readonly PositionState[], asOf: IsoDate)
   const out: BondFlow[] = [];
   for (const p of held) {
     if (!p.bond) continue;
-    const { terms, nominal } = p.bond;
+    const { terms } = p.bond;
+    const nominal = p.bond.nominal / p.fxRate;
     for (const f of remainingFlows(terms, asOf)) {
       // `remainingFlows` ajoute 100 % au dernier flux : on le sépare du coupon.
-      const redemption = f.date === terms.maturityDate ? nominal : 0;
+      const redemption = f.date === terms.maturityDate ? roundCents(nominal) : 0;
       const couponPart = f.date === terms.maturityDate ? f.amount - 1 : f.amount;
       out.push({ date: f.date, accountId: p.accountId, assetId: p.asset.id, coupon: roundCents(couponPart * nominal), redemption });
     }
@@ -96,7 +100,7 @@ export function valueTrajectory(held: readonly PositionState[], asOf: IsoDate): 
       const { terms, lots } = p.bond!;
       if (date >= terms.maturityDate) continue;
       // Ligne à cours saisi : la valeur du jour, puis l'amortissement des achats comme les autres.
-      value += date === asOf ? p.value : lots.reduce((s, l) => s + l.qty * heldToMaturityValue(terms, l.date, l.clean, date), 0);
+      value += date === asOf ? p.value : lots.reduce((s, l) => s + l.qty * heldToMaturityValue(terms, l.date, l.clean, date), 0) / p.fxRate;
     }
     const past = flows.filter((f) => f.date <= date);
     return {

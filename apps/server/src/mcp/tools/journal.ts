@@ -45,6 +45,7 @@ export function registerJournalTools(tool: ToolRegistrar, call: Call, canWrite: 
           amount: t.amount,
           quantity: t.quantity,
           fee: t.fee,
+          ...(t.fxRate != null ? { fxRate: t.fxRate } : {}),
           comment: t.comment,
         })),
       };
@@ -57,7 +58,7 @@ export function registerJournalTools(tool: ToolRegistrar, call: Call, canWrite: 
     "save_transaction",
     {
       title: "Saisir ou corriger une opération",
-      description: `Sans id : ajoute UNE opération au journal (date, type, accountId, amount requis). Avec id : corrige seulement les champs donnés. Montant toujours positif, le type donne le sens (seule une correction peut être négative). Achat ou vente : assetId et quantity ; transfert : counterAccountId ; intérêts ou dividendes : montant reçu net, avec au besoin le brut et les retenues. Hamac valide l'opération avec les règles de l'application. Pour plusieurs opérations lues dans un document, utilisez prepare_import. ${AFTER_CONSENT}`,
+      description: `Sans id : ajoute UNE opération au journal (date, type, accountId, amount requis). Avec id : corrige seulement les champs donnés. Montant toujours positif, le type donne le sens (seule une correction peut être négative). Achat ou vente : assetId et quantity (nominal dans la devise du titre pour une obligation) ; transfert : counterAccountId ; intérêts ou dividendes : montant reçu net, avec au besoin le brut et les retenues. Hamac valide l'opération avec les règles de l'application. Pour plusieurs opérations lues dans un document, utilisez prepare_import. ${AFTER_CONSENT}`,
       inputSchema: {
         id: z.string().optional().describe("Identifiant de list_transactions, pour une correction."),
         date: isoDate.optional(),
@@ -75,6 +76,7 @@ export function registerJournalTools(tool: ToolRegistrar, call: Call, canWrite: 
         withheldIncomeTax: z.number().min(0).nullable().optional().describe("Revenu : acompte d'impôt retenu."),
         withheldSocial: z.number().min(0).nullable().optional().describe("Revenu : prélèvements sociaux retenus."),
         withheldForeign: z.number().min(0).nullable().optional().describe("Revenu : retenue à la source étrangère."),
+        fxRate: z.number().positive().nullable().optional().describe("Titre en devise (voir currency dans list_assets) : taux de change appliqué par l'établissement, en unités de la devise pour 1 € (ex. 1.0832 USD pour 1 €). Tous les montants restent en euros : montant en devise = amount × fxRate. Absent : taux de la BCE du jour."),
         comment: z.string().trim().max(500).optional(),
       },
       annotations: WRITE,

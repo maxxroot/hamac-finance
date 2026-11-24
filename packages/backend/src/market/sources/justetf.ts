@@ -1,6 +1,6 @@
 import { type Fetcher, getJson, MarketError, type Quote } from "../http";
 
-/** justETF : cours des ETF (et ETC) en euros, par ISIN. */
+/** justETF : cours des ETF (et ETC) par ISIN, dans la devise demandée (l'euro par défaut). */
 interface JustEtfChart {
   latestQuote?: { raw: number };
   latestQuoteDate?: string;
@@ -8,8 +8,8 @@ interface JustEtfChart {
 }
 
 /** Avec `dividends`, renvoie la valeur dividendes réinvestis : le dernier cours brut n'est alors pas comparable. */
-export async function justEtfHistory(fetcher: Fetcher, isin: string, from: string, to: string, dividends = false): Promise<Quote[]> {
-  const url = `https://www.justetf.com/api/etfs/${encodeURIComponent(isin)}/performance-chart?locale=fr&currency=EUR&valuesType=MARKET_VALUE&reduceData=false&includeDividends=${dividends}&dateFrom=${from}&dateTo=${to}`;
+export async function justEtfHistory(fetcher: Fetcher, isin: string, from: string, to: string, dividends = false, currency = "EUR"): Promise<Quote[]> {
+  const url = `https://www.justetf.com/api/etfs/${encodeURIComponent(isin)}/performance-chart?locale=fr&currency=${encodeURIComponent(currency)}&valuesType=MARKET_VALUE&reduceData=false&includeDividends=${dividends}&dateFrom=${from}&dateTo=${to}`;
   const j = await getJson<JustEtfChart>(fetcher, url);
   const points = (j.series ?? []).map((p) => ({ date: p.date, price: p.value.raw })).filter((p) => p.price > 0);
   if (!dividends && j.latestQuote && j.latestQuoteDate && !points.some((p) => p.date === j.latestQuoteDate)) points.push({ date: j.latestQuoteDate, price: j.latestQuote.raw });

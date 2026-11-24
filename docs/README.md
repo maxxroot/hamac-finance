@@ -25,6 +25,7 @@ Une fonctionnalité nouvelle ou modifiée met à jour ses deux fichiers dans le 
 |---|---|---|
 | Journal | [guide](journal/guide.md) | [technique](journal/technique.md) |
 | Versements | [guide](versements/guide.md) | [technique](versements/technique.md) |
+| Devises | [guide](devises/guide.md) | [technique](devises/technique.md) |
 
 ## Enveloppes et placements
 

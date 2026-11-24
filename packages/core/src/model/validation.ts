@@ -1,3 +1,4 @@
+import { isForeign } from "../base";
 import { holdsEuroFunds, TX_LABELS, TX_NEEDS_ASSET, TX_OPTIONAL_ASSET, type Account, type AccountKind, type Asset, type AssetKind, type Transaction, type TxType } from "./domain";
 
 /** Ce titre peut-il être détenu dans ce compte ? Un PER bancaire n'a pas de fonds euros. */
@@ -118,6 +119,12 @@ export function validateTransaction(
     else if (tx.accrued < 0) errors.push({ field: "accrued", message: "Le coupon couru ne peut pas être négatif." });
     // Achat : total = prix + coupon couru + frais ; vente : net = prix + coupon couru − frais. Le prix reste positif.
     else if (tx.accrued + (tx.type === "achat" ? 1 : -1) * (tx.fee ?? 0) >= tx.amount) errors.push({ field: "accrued", message: "Le coupon couru dépasse le montant, une fois les frais comptés." });
+  }
+
+  if (tx.fxRate != null) {
+    const asset = tx.assetId != null ? assets.get(tx.assetId) : undefined;
+    if (!isForeign(asset?.currency)) errors.push({ field: "fxRate", message: "Le taux de change ne concerne qu'une opération sur un titre en devise." });
+    else if (!(tx.fxRate > 0)) errors.push({ field: "fxRate", message: "Le taux de change doit être positif." });
   }
 
   return errors;

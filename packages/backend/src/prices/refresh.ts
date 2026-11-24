@@ -26,6 +26,8 @@ export async function refreshPrices(ctx: BackendContext, exclusive: Exclusive = 
     return { assets, last: new Map(rows.map((r) => [r.assetId, r])) };
   });
   const updatedKeys = await ctx.market.refresh(assets);
+  // Taux de change des devises des titres, avec les cours.
+  await ctx.market.fx.ensure(assets.map((a) => a.currency ?? "EUR"));
   const market = await ctx.market.state();
   const known = await ctx.market.instruments(assets.flatMap((a) => instrumentKey(a) ?? []));
   const hasKey = !!market.twelveDataKey;

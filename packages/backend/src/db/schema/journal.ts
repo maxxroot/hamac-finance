@@ -32,6 +32,8 @@ export const transactions = pgTable(
     withheldIncomeTaxCents: bigint("withheld_income_tax_cents", { mode: "number" }),
     withheldSocialCents: bigint("withheld_social_cents", { mode: "number" }),
     withheldForeignCents: bigint("withheld_foreign_cents", { mode: "number" }),
+    /** Titre en devise : taux de change appliqué (unités de la devise pour 1 €) ; null = taux BCE du jour. */
+    fxRate: doublePrecision("fx_rate"),
     ...timestamps,
   },
   (t) => [

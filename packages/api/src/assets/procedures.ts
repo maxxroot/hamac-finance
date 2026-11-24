@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PRICE_PROVIDERS, type Asset, type IrlData, type PriceProvider } from "@hamac/core";
 import { ok, byId, entity } from "../common";
-import { AssetInput, ManualPriceInput, MarketSeriesInput } from "./inputs";
+import { AssetInput, FxRateInput, ManualPriceInput, MarketSeriesInput } from "./inputs";
 
 /** Titres, cours et sources de prix. */
 
@@ -60,6 +60,8 @@ export const assetsProcedures = {
   "prices.refresh": { input: z.void(), output: entity<PriceStatus>() },
   "market.settings": { input: z.void(), output: entity<MarketSettings>() },
   "market.irl": { input: z.void(), output: entity<IrlData>() },
+  /** Taux BCE (unités pour 1 €) applicable à une date ; null si la BCE n'a pas encore répondu. */
+  "market.fxRate": { input: FxRateInput, output: z.object({ rate: z.number(), date: z.string() }).nullable() },
   "market.configure": {
     input: z.object({
       order: z.array(z.object({ id: z.enum(PRICE_PROVIDERS), enabled: z.boolean() })),

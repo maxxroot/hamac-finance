@@ -108,7 +108,7 @@ interface Series {
   values?: Array<{ datetime: string; close: string }>;
 }
 
-export async function twelveDataHistory(fetcher: Fetcher, key: string, budget: TwelveDataBudget, rawSymbol: string, from: string): Promise<Quote[]> {
+export async function twelveDataHistory(fetcher: Fetcher, key: string, budget: TwelveDataBudget, rawSymbol: string, from: string, currency = "EUR"): Promise<Quote[]> {
   const cacheKey = `${key}:${rawSymbol}`;
   const no = refused.get(cacheKey);
   if (no && no.until > Date.now()) throw new MarketError(no.message);
@@ -135,7 +135,7 @@ export async function twelveDataHistory(fetcher: Fetcher, key: string, budget: T
     throw new MarketError(message);
   }
   if (code !== 200) throw new MarketError(`Réponse ${code} de Twelve Data.`);
-  if (j.meta?.currency && j.meta.currency !== "EUR") throw new MarketError(`Cotation en ${j.meta.currency} : choisissez la cotation en euros.`);
+  if (j.meta?.currency && j.meta.currency !== currency) throw new MarketError(currency === "EUR" ? `Cotation en ${j.meta.currency} : choisissez la cotation en euros, ou indiquez la devise ${j.meta.currency} sur la fiche du titre.` : `Cotation en ${j.meta.currency}, alors que le titre est en ${currency}.`);
   const quotes = (j.values ?? []).map((v) => ({ date: v.datetime.slice(0, 10), price: Number(v.close) })).filter((p) => p.price > 0);
   if (!quotes.length) throw new MarketError("Twelve Data ne renvoie aucun cours pour ce titre.");
   return quotes.sort((a, b) => a.date.localeCompare(b.date));

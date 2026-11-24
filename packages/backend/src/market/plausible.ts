@@ -16,6 +16,6 @@ export function assertPlausible(asset: Pick<Asset, "kind">, provider: PriceProvi
   if (!q || !last || last.source === provider || asset.kind === "crypto") return;
   if (Math.abs(Date.parse(q.date) - Date.parse(last.date)) > 30 * 86_400_000) return;
   if (Math.abs(q.price / last.price - 1) > MAX_JUMP) {
-    throw new MarketError(`Cours incohérent (${q.price.toLocaleString("fr-FR")} € contre ${last.price.toLocaleString("fr-FR")} € connu) : devise ou cotation différente ?`);
+    throw new MarketError(`Cours incohérent (${q.price.toLocaleString("fr-FR")} contre ${last.price.toLocaleString("fr-FR")} connu) : devise ou cotation différente ?`);
   }
 }

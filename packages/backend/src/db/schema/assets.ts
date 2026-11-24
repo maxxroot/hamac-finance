@@ -31,6 +31,8 @@ export const assets = pgTable(
     issuerCountry: text("issuer_country"),
     /** ETF : ISIN de l'ETF physique équivalent choisi par l'utilisateur pour l'exposition réelle ; null = lien commun de l'instance. */
     compositionIsin: text("composition_isin"),
+    /** Devise de cotation (ISO 4217) : cours, nominal et coupon d'une obligation y sont exprimés. */
+    currency: text("currency").notNull().default("EUR"),
     archived: boolean("archived").notNull().default(false),
     ...timestamps,
   },

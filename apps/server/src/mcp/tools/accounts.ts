@@ -68,7 +68,7 @@ export function registerAccountTools(tool: ToolRegistrar, call: Call, canWrite: 
         taxes: cents(a.taxes),
         realizedGain: cents(a.realizedGain),
         lastStatement: a.lastStatement ? { date: a.lastStatement.date, value: a.lastStatement.value } : null,
-        positions: a.positions.map((p) => ({ assetId: p.asset.id, name: p.asset.name, isin: p.asset.isin, quantity: p.quantity, unitCost: cents(p.pru), price: p.price, priceDate: p.priceDate, value: cents(p.value), gain: cents(p.gain) })),
+        positions: a.positions.map((p) => ({ assetId: p.asset.id, name: p.asset.name, isin: p.asset.isin, quantity: p.quantity, unitCost: cents(p.pru), price: p.price, priceDate: p.priceDate, value: cents(p.value), gain: cents(p.gain), ...(p.currency !== "EUR" ? { currency: p.currency, fxRate: p.fxRate, valueInCurrency: cents(p.valueFx), fxGain: cents(p.fxGain) } : {}) })),
         settings,
         contributionPlans: ws.plans.filter((p) => p.accountId === id).map((p) => ({ id: p.id, fromMonth: p.fromMonth, amount: p.amount, comment: p.comment })),
         contributionSkips: ws.skips.filter((s) => s.accountId === id).map((s) => ({ id: s.id, month: s.month, amount: s.amount, comment: s.comment })),

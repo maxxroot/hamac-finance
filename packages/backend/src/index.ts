@@ -81,6 +81,7 @@ const KEEPS_REVISION: ReadonlySet<string> = new Set<ProcName>([
   "data.export",
   "market.settings",
   "market.irl",
+  "market.fxRate",
   "market.series",
   "assets.search",
   "exposure.load",

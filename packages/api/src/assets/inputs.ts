@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ASSET_KINDS, BOND_KINDS, isSovereignCountry, PRICE_PROVIDERS, PRICE_SOURCES } from "@hamac/core";
+import { ASSET_KINDS, BOND_KINDS, EUR, isCurrency, isSovereignCountry, PRICE_PROVIDERS, PRICE_SOURCES } from "@hamac/core";
 import { id, isoDate, money, rate, text } from "../common";
 
 /** Entrées validées : titres, cours et sources de prix. */
@@ -47,8 +47,20 @@ export const AssetInput = z.object({
     .refine((c) => isSovereignCountry(c), "Pays inconnu")
     .nullable()
     .default(null),
+  /** Devise de cotation (ISO 4217) : l'euro ou une devise publiée par la BCE. Toujours l'euro pour un fonds euros ou une crypto. */
+  currency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine((c) => isCurrency(c), "Devise non gérée")
+    .nullable()
+    .default(EUR)
+    .transform((c) => c ?? EUR),
   archived: z.boolean().default(false),
 });
 export type AssetInput = z.input<typeof AssetInput>;
+
+/** Taux de change de la BCE d'une devise à une date (saisie d'une opération sur un titre dans une devise nouvelle). */
+export const FxRateInput = z.object({ currency: z.string().refine((c) => isCurrency(c) && c !== EUR, "Devise non gérée"), date: isoDate });
 
 export const ManualPriceInput = z.object({ assetId: id, date: isoDate, price: money.positive() });
