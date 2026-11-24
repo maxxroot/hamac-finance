@@ -6,6 +6,12 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.4.0] - 2026-11-24
+
+Un titre peut désormais être coté en dollars ou dans une autre devise : Hamac le suit dans sa monnaie et compte tout le reste en euros, au taux de change de la BCE. Les obligations peuvent aussi verser un coupon chaque mois.
+
+À la mise à jour, une migration ajoute la devise aux titres et le taux de change aux opérations. Vos titres existants passent en euros : rien ne change pour eux. Le serveur doit pouvoir joindre `data-api.ecb.europa.eu` pour les taux de change ; aucun réglage `.env` n'est à ajouter.
+
 ### Ajouté
 
 - Devises : un titre peut être coté dans une autre monnaie que l'euro, par exemple une obligation du Trésor américain en dollars ou une action suisse en francs. 29 devises sont disponibles, celles dont la BCE publie le taux. Le cours, le nominal et les coupons restent dans la devise du titre ; la valeur, les plus-values et les impôts sont comptés en euros au taux de change du jour.
@@ -128,7 +134,8 @@ Première version publique : une application web auto-hébergée, avec PostgreSQ
 
 - L'application de bureau (Electron) : seule la version web est maintenue. La dernière version de bureau reste disponible au tag `derniere-version-desktop`.
 
-[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.3.1...HEAD
+[Non publié]: https://github.com/maxxroot/hamac-finance/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/maxxroot/hamac-finance/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/maxxroot/hamac-finance/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maxxroot/hamac-finance/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/maxxroot/hamac-finance/compare/v0.1.0...v0.2.0
